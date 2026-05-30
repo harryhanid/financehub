@@ -23,7 +23,9 @@ def create_app(testing=False):
     CORS(app, supports_credentials=True)
 
     from auth.routes import bp as auth_bp
+    from modules.dashboard.routes import bp as dashboard_bp
     app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(dashboard_bp)
 
     @app.route("/")
     def index():

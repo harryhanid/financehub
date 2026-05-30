@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1 style="font-size:1.25rem;font-weight:700;margin-bottom:1.25rem">
+  Dashboard &mdash; {{ company_name }}
+</h1>
+<div class="stats-grid">
+  {% if company_code == 'ETF' %}
+  <div class="stat-card">
+    <div class="stat-label">Total Siswa</div>
+    <div class="stat-value">{{ stats.total_siswa }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Siswa Aktif</div>
+    <div class="stat-value" style="color:var(--success)">{{ stats.siswa_aktif }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Budget</div>
+    <div class="stat-value" style="font-size:1.1rem">Rp {{ "{:,.0f}".format(stats.total_budget) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Payment</div>
+    <div class="stat-value" style="font-size:1.1rem">Rp {{ "{:,.0f}".format(stats.total_payment) }}</div>
+  </div>
+  {% endif %}
+  <div class="stat-card">
+    <div class="stat-label">Total Memo</div>
+    <div class="stat-value">{{ stats.total_memo }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Memo Draft</div>
+    <div class="stat-value" style="color:var(--warning)">{{ stats.memo_draft }}</div>
+  </div>
+</div>
+<div class="card">
+  <div class="card-title">Quick Links</div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+    {% if company_code == 'ETF' %}<a href="/beasiswa" class="btn btn-primary">&#127891; Beasiswa</a>{% endif %}
+    <a href="/payment-memo" class="btn btn-secondary">&#128203; Payment Memo</a>
+    <a href="/payment-application" class="btn btn-secondary">&#128202; Payment Application</a>
+    {% if current_role == 'releaser' %}<a href="/users" class="btn btn-secondary">&#128101; User Management</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
