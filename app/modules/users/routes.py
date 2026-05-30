@@ -38,8 +38,13 @@ def add():
 @bp.route("/<username>/toggle", methods=["POST"])
 @role_required("releaser")
 def toggle(username):
-    data      = request.get_json(force=True)
-    is_active = bool(data.get("is_active", True))
+    data = request.get_json(force=True)
+    if data is None:
+        return jsonify({"ok": False, "pesan": "Request body tidak valid."}), 400
+    raw = data.get("is_active")
+    if not isinstance(raw, bool):
+        return jsonify({"ok": False, "pesan": "is_active harus boolean."}), 400
+    is_active = raw
     result    = toggle_user_active(username, is_active)
     return jsonify(result)
 

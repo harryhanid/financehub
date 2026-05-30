@@ -58,6 +58,12 @@ def create():
     items        = data.get("items", [])
     claims       = get_jwt()
     username     = claims.get("username", "")
+    if tanggal:
+        try:
+            from datetime import datetime as dt
+            dt.strptime(tanggal, "%Y-%m-%d")
+        except ValueError:
+            return jsonify({"ok": False, "pesan": "Format tanggal tidak valid (YYYY-MM-DD)."}), 400
     if not items:
         return jsonify({"ok": False, "pesan": "Pilih minimal 1 payment."})
     result = create_memo(company_id, company_code, tanggal, notes, username, items)
@@ -82,7 +88,7 @@ def update_status(memo_id):
     username   = claims.get("username", "")
     if new_status == "paid" and claims.get("role") != "releaser":
         return jsonify({"ok": False, "pesan": "Hanya Releaser yang dapat mark as Paid."}), 403
-    result = update_memo_status(memo_id, new_status, username)
+    result = update_memo_status(memo_id, new_status, username, company_id=session.get("company_id", 0))
     return jsonify(result)
 
 

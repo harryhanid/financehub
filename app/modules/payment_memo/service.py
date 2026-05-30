@@ -48,35 +48,40 @@ def create_memo(company_id: int, company_code: str, tanggal: str,
     memo_number = generate_memo_number(company_id, company_code, year)
     total       = sum(float(item.get("amount", 0)) for item in items)
     conn = get_conn()
-    cur  = conn.execute(
-        """INSERT INTO payment_memo
-           (company_id, memo_number, tanggal, total_amount, status, notes, created_by, created_at)
-           VALUES (?,?,?,?,'draft',?,?,?)""",
-        (company_id, memo_number, tanggal, total, notes, created_by, _ts())
-    )
-    memo_id = cur.lastrowid
-    for item in items:
-        conn.execute(
-            """INSERT INTO payment_memo_items
-               (memo_id, source_module, source_id, description, amount, vendor, bank_account)
-               VALUES (?,?,?,?,?,?,?)""",
-            (memo_id,
-             item.get("source_module", "beasiswa"),
-             item["source_id"],
-             item.get("description", ""),
-             float(item.get("amount", 0)),
-             item.get("vendor", ""),
-             item.get("bank_account", ""))
+    try:
+        cur = conn.execute(
+            """INSERT INTO payment_memo
+               (company_id, memo_number, tanggal, total_amount, status, notes, created_by, created_at)
+               VALUES (?,?,?,?,'draft',?,?,?)""",
+            (company_id, memo_number, tanggal, total, notes, created_by, _ts())
         )
-        if item.get("source_module", "beasiswa") == "beasiswa":
+        memo_id = cur.lastrowid
+        for item in items:
             conn.execute(
-                "UPDATE payment_beasiswa SET status='in_memo', memo_id=? WHERE id=?",
-                (memo_id, item["source_id"])
+                """INSERT INTO payment_memo_items
+                   (memo_id, source_module, source_id, description, amount, vendor, bank_account)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (memo_id,
+                 item.get("source_module", "beasiswa"),
+                 item["source_id"],
+                 item.get("description", ""),
+                 float(item.get("amount", 0)),
+                 item.get("vendor", ""),
+                 item.get("bank_account", ""))
             )
-    conn.commit()
-    conn.close()
-    return {"ok": True, "memo_id": memo_id, "memo_number": memo_number,
-            "pesan": f"Memo {memo_number} berhasil dibuat."}
+            if item.get("source_module", "beasiswa") == "beasiswa":
+                conn.execute(
+                    "UPDATE payment_beasiswa SET status='in_memo', memo_id=? WHERE id=?",
+                    (memo_id, item["source_id"])
+                )
+        conn.commit()
+        return {"ok": True, "memo_id": memo_id, "memo_number": memo_number,
+                "pesan": f"Memo {memo_number} berhasil dibuat."}
+    except Exception as e:
+        conn.rollback()
+        return {"ok": False, "pesan": f"Gagal membuat memo: {e}"}
+    finally:
+        conn.close()
 
 
 def get_memo_list(company_id: int, status: str = "") -> list:
@@ -108,21 +113,28 @@ def get_memo_detail(memo_id: int, company_id: int) -> dict | None:
     return {**dict(memo), "items": items}
 
 
-def update_memo_status(memo_id: int, new_status: str, by_user: str) -> dict:
+def update_memo_status(memo_id: int, new_status: str, by_user: str, company_id: int = 0) -> dict:
     allowed = {"draft", "submitted", "approved", "paid"}
     if new_status not in allowed:
         return {"ok": False, "pesan": f"Status '{new_status}' tidak valid."}
     conn = get_conn()
+    memo = conn.execute(
+        "SELECT id FROM payment_memo WHERE id=? AND company_id=?",
+        (memo_id, company_id)
+    ).fetchone()
+    if not memo:
+        conn.close()
+        return {"ok": False, "pesan": "Memo tidak ditemukan."}
     now  = _ts()
     if new_status == "approved":
         conn.execute(
-            "UPDATE payment_memo SET status=?, approved_by=?, approved_at=?, updated_at=? WHERE id=?",
-            (new_status, by_user, now, now, memo_id)
+            "UPDATE payment_memo SET status=?, approved_by=?, approved_at=?, updated_at=? WHERE id=? AND company_id=?",
+            (new_status, by_user, now, now, memo_id, company_id)
         )
     elif new_status == "paid":
         conn.execute(
-            "UPDATE payment_memo SET status=?, updated_at=? WHERE id=?",
-            (new_status, now, memo_id)
+            "UPDATE payment_memo SET status=?, updated_at=? WHERE id=? AND company_id=?",
+            (new_status, now, memo_id, company_id)
         )
         items = conn.execute(
             "SELECT source_id, source_module FROM payment_memo_items WHERE memo_id=?",
@@ -136,8 +148,8 @@ def update_memo_status(memo_id: int, new_status: str, by_user: str) -> dict:
                 )
     else:
         conn.execute(
-            "UPDATE payment_memo SET status=?, updated_at=? WHERE id=?",
-            (new_status, now, memo_id)
+            "UPDATE payment_memo SET status=?, updated_at=? WHERE id=? AND company_id=?",
+            (new_status, now, memo_id, company_id)
         )
     conn.commit()
     conn.close()

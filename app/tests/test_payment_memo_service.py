@@ -90,7 +90,7 @@ def test_update_memo_status_approved():
                          [{"source_id": pay_id, "source_module": "beasiswa",
                            "description": "", "amount": 5000000, "vendor": "", "bank_account": ""}])
     memo_id = result["memo_id"]
-    upd = update_memo_status(memo_id, "approved", "manager")
+    upd = update_memo_status(memo_id, "approved", "manager", company_id=COMPANY_ID)
     assert upd["ok"] is True
     conn = get_conn()
     row  = conn.execute("SELECT status FROM payment_memo WHERE id=?", (memo_id,)).fetchone()

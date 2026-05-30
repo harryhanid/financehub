@@ -63,5 +63,10 @@ def update_payment(app_id):
     actual_date = data.get("actual_payment_date", "")
     if not actual_date:
         return jsonify({"ok": False, "pesan": "Tanggal aktual wajib diisi."})
-    result = update_actual_payment(app_id, actual_date)
+    try:
+        from datetime import datetime as dt
+        dt.strptime(actual_date, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"ok": False, "pesan": "Format tanggal tidak valid (YYYY-MM-DD)."}), 400
+    result = update_actual_payment(app_id, actual_date, company_id=session.get("company_id", 0))
     return jsonify(result)

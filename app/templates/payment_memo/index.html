@@ -156,6 +156,12 @@
 
 {% block scripts %}
 <script>
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s ?? '');
+  return d.innerHTML;
+}
+
 let _selectedDrafts = [];
 
 function toggleAllDrafts(cb) {
@@ -217,11 +223,11 @@ async function showMemoDetail(memoId) {
   document.getElementById("memo-detail-title").textContent = m.memo_number;
   document.getElementById("memo-detail-body").innerHTML = `
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-bottom:1rem; font-size:.875rem">
-      <div><strong>Tanggal:</strong> ${m.tanggal || '--'}</div>
+      <div><strong>Tanggal:</strong> ${esc(m.tanggal) || '--'}</div>
       <div><strong>Status:</strong> <span class="badge badge-${m.status==='paid'?'green':m.status==='approved'?'blue':m.status==='submitted'?'yellow':'gray'}">${m.status}</span></div>
-      <div><strong>Dibuat oleh:</strong> ${m.created_by || '--'}</div>
-      <div><strong>Disetujui oleh:</strong> ${m.approved_by || '--'}</div>
-      <div><strong>Catatan:</strong> ${m.notes || '--'}</div>
+      <div><strong>Dibuat oleh:</strong> ${esc(m.created_by) || '--'}</div>
+      <div><strong>Disetujui oleh:</strong> ${esc(m.approved_by) || '--'}</div>
+      <div><strong>Catatan:</strong> ${esc(m.notes) || '--'}</div>
       <div><strong>Total:</strong> Rp ${fmtRupiah(m.total_amount)}</div>
     </div>
     <div class="table-wrap">
@@ -230,9 +236,9 @@ async function showMemoDetail(memoId) {
         <tbody>
           ${m.items.map((item, i) => `<tr>
             <td>${i+1}</td>
-            <td>${item.description || '--'}</td>
-            <td>${item.vendor || '--'}</td>
-            <td>${item.bank_account || '--'}</td>
+            <td>${esc(item.description) || '--'}</td>
+            <td>${esc(item.vendor) || '--'}</td>
+            <td>${esc(item.bank_account) || '--'}</td>
             <td class="num-right">Rp ${fmtRupiah(item.amount)}</td>
           </tr>`).join("")}
         </tbody>

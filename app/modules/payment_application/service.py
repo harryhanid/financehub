@@ -73,10 +73,11 @@ def create_application(company_id: int, memo_id: int, tanggal_pengajuan: str,
             "pesan": f"Payment application {app_number} berhasil dibuat."}
 
 
-def update_actual_payment(app_id: int, actual_date: str) -> dict:
+def update_actual_payment(app_id: int, actual_date: str, company_id: int = 0) -> dict:
     conn = get_conn()
     row  = conn.execute(
-        "SELECT submitted_at FROM payment_application WHERE id=?", (app_id,)
+        "SELECT submitted_at FROM payment_application WHERE id=? AND company_id=?",
+        (app_id, company_id)
     ).fetchone()
     if not row:
         conn.close()
@@ -85,8 +86,8 @@ def update_actual_payment(app_id: int, actual_date: str) -> dict:
     if row["submitted_at"]:
         tat = _workday_diff(row["submitted_at"][:10], actual_date)
     conn.execute(
-        "UPDATE payment_application SET actual_payment_date=?, tat_days=?, status='completed', updated_at=? WHERE id=?",
-        (actual_date, tat, _ts(), app_id)
+        "UPDATE payment_application SET actual_payment_date=?, tat_days=?, status='completed', updated_at=? WHERE id=? AND company_id=?",
+        (actual_date, tat, _ts(), app_id, company_id)
     )
     conn.commit()
     conn.close()
