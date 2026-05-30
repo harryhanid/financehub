@@ -58,6 +58,7 @@ def api_list_memo():
 
 
 @memo_api.post("/payment-memo")
+@jwt_required(locations=["headers"])
 @api_role_required("verificator")
 def api_create_memo():
     body = request.get_json(force=True) or {}
@@ -67,8 +68,20 @@ def api_create_memo():
         return err("company harus SMT atau ETF")
 
     tanggal = body.get("tanggal", "")
+    if not tanggal:
+        return err("tanggal wajib diisi")
+    try:
+        from datetime import datetime as _dt
+        _dt.strptime(tanggal, "%Y-%m-%d")
+    except ValueError:
+        return err("Format tanggal tidak valid (YYYY-MM-DD)")
+
     notes = body.get("notes", "")
-    item_ids = body.get("item_ids", [])
+    raw_ids = body.get("item_ids", [])
+    try:
+        item_ids = [int(i) for i in raw_ids]
+    except (TypeError, ValueError):
+        return err("item_ids harus berisi integer")
 
     claims = get_jwt()
     created_by = claims.get("username", "")

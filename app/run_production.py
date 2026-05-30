@@ -5,6 +5,12 @@ from app import create_app
 from database import init_db
 
 if __name__ == "__main__":
+    if not os.environ.get("FH_JWT_SECRET"):
+        print("⚠  WARNING: FH_JWT_SECRET env var tidak di-set.")
+        print("   JWT secret akan di-generate ulang setiap restart — semua sesi akan invalid.")
+        print("   Set: set FH_JWT_SECRET=<random-64-char-hex>  sebelum menjalankan server.")
+        print()
+
     init_db()
     app = create_app()
     host = "0.0.0.0"
