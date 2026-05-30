@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Payment Approval Memo{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
+  <h1 style="font-size:1.25rem; font-weight:700">Payment Approval Memo -- {{ company_name }}</h1>
+  {% if current_role == 'verificator' %}
+  <button class="btn btn-primary" onclick="openModal('modal-buat-memo')">+ Buat Memo Baru</button>
+  {% endif %}
+</div>
+
+<div data-tabs>
+  <div class="tabs">
+    <button class="tab-btn" data-tab="tab-memo-list">Daftar Memo</button>
+    <button class="tab-btn" data-tab="tab-draft-pay">Draft Payment ({{ drafts|length }})</button>
+  </div>
+
+  <div class="tab-panel" id="tab-memo-list">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nomor Memo</th><th>Tanggal</th><th>Total</th>
+            <th>Status</th><th>Dibuat oleh</th><th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in memos %}
+          <tr>
+            <td><strong>{{ m.memo_number }}</strong></td>
+            <td>{{ m.tanggal }}</td>
+            <td class="num-right">Rp {{ "{:,.0f}".format(m.total_amount) }}</td>
+            <td>
+              <span class="badge
+                {% if m.status == 'draft' %}badge-gray
+                {% elif m.status == 'submitted' %}badge-yellow
+                {% elif m.status == 'approved' %}badge-blue
+                {% elif m.status == 'paid' %}badge-green
+                {% endif %}">
+                {{ m.status }}
+              </span>
+            </td>
+            <td>{{ m.created_by }}</td>
+            <td style="display:flex; gap:.4rem; flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" onclick="showMemoDetail({{ m.id }})">Detail</button>
+              {% if current_role in ['verificator', 'releaser'] %}
+              <a href="/payment-memo/{{ m.id }}/export/pdf" class="btn btn-secondary btn-sm">PDF</a>
+              {% endif %}
+              {% if current_role == 'verificator' and m.status == 'draft' %}
+              <button class="btn btn-primary btn-sm" onclick="changeStatus({{ m.id }}, 'submitted')">Submit</button>
+              {% endif %}
+              {% if current_role == 'verificator' and m.status == 'submitted' %}
+              <button class="btn btn-success btn-sm" onclick="changeStatus({{ m.id }}, 'approved')">Approve</button>
+              {% endif %}
+              {% if current_role == 'releaser' and m.status == 'approved' %}
+              <button class="btn btn-success btn-sm" onclick="changeStatus({{ m.id }}, 'paid')">Mark Paid</button>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:2rem">
+            Belum ada memo.
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-draft-pay">
+    {% if current_role == 'verificator' %}
+    <div style="margin-bottom:1rem; display:flex; align-items:center; gap:1rem">
+      <span style="font-size:.875rem; color:var(--text-muted)">Pilih payment untuk dimasukkan ke memo baru.</span>
+      <button class="btn btn-primary btn-sm" onclick="openBuatMemoFromSelected()">Buat Memo dari Pilihan</button>
+    </div>
+    {% endif %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            {% if current_role == 'verificator' %}<th><input type="checkbox" id="select-all-drafts" onchange="toggleAllDrafts(this)"></th>{% endif %}
+            <th>Code</th><th>Nama Siswa</th><th>Kategori</th><th>Tanggal</th>
+            <th>Perusahaan</th><th class="num-right">Amount</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in drafts %}
+          <tr>
+            {% if current_role == 'verificator' %}
+            <td><input type="checkbox" class="draft-check" data-id="{{ d.id }}"
+                data-desc="{{ d.cat1 }} / {{ d.cat2 }} -- {{ d.siswa_code }}"
+                data-amount="{{ d.amount }}"
+                data-vendor="{{ d.namarek or d.nama or '' }}"
+                data-bank="{{ (d.bank or '') + ' ' + (d.norek or '') }}"></td>
+            {% endif %}
+            <td><code>{{ d.siswa_code }}</code></td>
+            <td>{{ d.nama or '--' }}</td>
+            <td>{{ d.cat1 }} / {{ d.cat2 }}</td>
+            <td>{{ d.tanggal }}</td>
+            <td>{{ d.perusahaan }}</td>
+            <td class="num-right">Rp {{ "{:,.0f}".format(d.amount) }}</td>
+            <td><span class="badge badge-gray">{{ d.status }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="{% if current_role == 'verificator' %}8{% else %}7{% endif %}"
+              style="text-align:center; color:var(--text-muted); padding:2rem">
+            Tidak ada payment draft.
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-buat-memo">
+  <div class="modal" style="width:min(640px,95vw)">
+    <div class="modal-header">
+      <span class="modal-title">Buat Memo Baru</span>
+      <button class="modal-close" onclick="closeModal('modal-buat-memo')">x</button>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:.75rem">
+      <div class="form-group">
+        <label>Tanggal Memo</label>
+        <input type="date" id="memo-tgl">
+      </div>
+      <div class="form-group">
+        <label>Catatan</label>
+        <input type="text" id="memo-notes" placeholder="Keterangan memo (opsional)">
+      </div>
+    </div>
+    <div class="card" style="padding:.75rem; margin-bottom:.75rem; background:#f8fafc">
+      <strong style="font-size:.8rem">Items yang dipilih:</strong>
+      <div id="memo-items-preview" style="margin-top:.5rem; font-size:.8rem; color:var(--text-muted)">
+        (pilih dari tab Draft Payment terlebih dahulu)
+      </div>
+      <div style="margin-top:.5rem; font-weight:700" id="memo-total-preview"></div>
+    </div>
+    <div style="display:flex; gap:.75rem; justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('modal-buat-memo')">Batal</button>
+      <button class="btn btn-primary" onclick="submitMemo()">Buat Memo</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-memo-detail">
+  <div class="modal" style="width:min(700px,95vw)">
+    <div class="modal-header">
+      <span class="modal-title" id="memo-detail-title">Detail Memo</span>
+      <button class="modal-close" onclick="closeModal('modal-memo-detail')">x</button>
+    </div>
+    <div id="memo-detail-body">Loading...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _selectedDrafts = [];
+
+function toggleAllDrafts(cb) {
+  document.querySelectorAll(".draft-check").forEach(c => { c.checked = cb.checked; });
+}
+
+function openBuatMemoFromSelected() {
+  _selectedDrafts = [];
+  document.querySelectorAll(".draft-check:checked").forEach(cb => {
+    _selectedDrafts.push({
+      source_id:     parseInt(cb.dataset.id),
+      source_module: "beasiswa",
+      description:   cb.dataset.desc,
+      amount:        parseFloat(cb.dataset.amount),
+      vendor:        cb.dataset.vendor,
+      bank_account:  cb.dataset.bank,
+    });
+  });
+  if (_selectedDrafts.length === 0) {
+    showToast("Pilih minimal 1 payment terlebih dahulu.", "error"); return;
+  }
+  const total = _selectedDrafts.reduce((s,i) => s+i.amount, 0);
+  document.getElementById("memo-items-preview").innerHTML =
+    _selectedDrafts.map(i => `<div>* ${i.description} -- Rp ${fmtRupiah(i.amount)}</div>`).join("");
+  document.getElementById("memo-total-preview").textContent = `Total: Rp ${fmtRupiah(total)}`;
+  openModal("modal-buat-memo");
+}
+
+async function submitMemo() {
+  const tanggal = document.getElementById("memo-tgl").value;
+  const notes   = document.getElementById("memo-notes").value;
+  if (!tanggal) { showToast("Tanggal memo wajib diisi.", "error"); return; }
+  if (_selectedDrafts.length === 0) { showToast("Pilih minimal 1 payment.", "error"); return; }
+  const resp = await apiFetch("/payment-memo/create", {
+    method: "POST",
+    body: JSON.stringify({ tanggal, notes, items: _selectedDrafts })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) { closeModal("modal-buat-memo"); setTimeout(() => location.reload(), 1000); }
+}
+
+async function changeStatus(memoId, newStatus) {
+  const label = { submitted: "Submit", approved: "Approve", paid: "Mark as Paid" }[newStatus] || newStatus;
+  if (!confirm(`${label} memo ini?`)) return;
+  const resp = await apiFetch(`/payment-memo/${memoId}/status`, {
+    method: "POST", body: JSON.stringify({ status: newStatus })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) setTimeout(() => location.reload(), 800);
+}
+
+async function showMemoDetail(memoId) {
+  const resp = await apiFetch(`/payment-memo/${memoId}`);
+  const data = await resp.json();
+  if (!data.ok) { showToast("Gagal load detail.", "error"); return; }
+  const m = data.data;
+  document.getElementById("memo-detail-title").textContent = m.memo_number;
+  document.getElementById("memo-detail-body").innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-bottom:1rem; font-size:.875rem">
+      <div><strong>Tanggal:</strong> ${m.tanggal || '--'}</div>
+      <div><strong>Status:</strong> <span class="badge badge-${m.status==='paid'?'green':m.status==='approved'?'blue':m.status==='submitted'?'yellow':'gray'}">${m.status}</span></div>
+      <div><strong>Dibuat oleh:</strong> ${m.created_by || '--'}</div>
+      <div><strong>Disetujui oleh:</strong> ${m.approved_by || '--'}</div>
+      <div><strong>Catatan:</strong> ${m.notes || '--'}</div>
+      <div><strong>Total:</strong> Rp ${fmtRupiah(m.total_amount)}</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>No</th><th>Keterangan</th><th>Vendor</th><th>Rekening</th><th class="num-right">Amount</th></tr></thead>
+        <tbody>
+          ${m.items.map((item, i) => `<tr>
+            <td>${i+1}</td>
+            <td>${item.description || '--'}</td>
+            <td>${item.vendor || '--'}</td>
+            <td>${item.bank_account || '--'}</td>
+            <td class="num-right">Rp ${fmtRupiah(item.amount)}</td>
+          </tr>`).join("")}
+        </tbody>
+        <tfoot><tr><td colspan="4"><strong>Total</strong></td>
+          <td class="num-right"><strong>Rp ${fmtRupiah(m.total_amount)}</strong></td></tr></tfoot>
+      </table>
+    </div>`;
+  openModal("modal-memo-detail");
+}
+</script>
+{% endblock %}

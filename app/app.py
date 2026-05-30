@@ -30,6 +30,9 @@ def create_app(testing=False):
     from modules.beasiswa.routes import bp as beasiswa_bp
     app.register_blueprint(beasiswa_bp)
 
+    from modules.payment_memo.routes import bp as memo_bp
+    app.register_blueprint(memo_bp)
+
     @app.route("/")
     def index():
         return redirect(url_for("auth.login_page"))
