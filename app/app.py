@@ -27,6 +27,9 @@ def create_app(testing=False):
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(dashboard_bp)
 
+    from modules.beasiswa.routes import bp as beasiswa_bp
+    app.register_blueprint(beasiswa_bp)
+
     @app.route("/")
     def index():
         return redirect(url_for("auth.login_page"))
