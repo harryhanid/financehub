@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+finance_hub.db
+test_finance_hub.db
+*.db-shm
+*.db-wal
+.env
+venv/
+*.egg-info/
+dist/
+build/
