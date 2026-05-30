@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Payment Application{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
+  <h1 style="font-size:1.25rem; font-weight:700">Payment Application -- {{ company_name }}</h1>
+  {% if current_role == 'releaser' and approved_memos %}
+  <button class="btn btn-primary" onclick="openModal('modal-buat-app')">+ Buat Application</button>
+  {% endif %}
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>No. Application</th><th>Memo</th><th>Tgl Pengajuan</th>
+        <th>Target Bayar</th><th>Aktual Bayar</th>
+        <th class="num-right">Total</th><th>TAT (hari kerja)</th>
+        <th>Status</th><th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in applications %}
+      <tr>
+        <td><code>{{ a.application_number }}</code></td>
+        <td>{{ a.memo_number }}</td>
+        <td>{{ a.submitted_at or '--' }}</td>
+        <td>{{ a.target_payment_date or '--' }}</td>
+        <td>{{ a.actual_payment_date or '--' }}</td>
+        <td class="num-right">Rp {{ "{:,.0f}".format(a.total_amount) }}</td>
+        <td style="text-align:center">
+          {% if a.tat_days is not none %}
+          <span class="badge {% if a.tat_days <= 5 %}badge-green{% elif a.tat_days <= 8 %}badge-yellow{% else %}badge-red{% endif %}">
+            {{ a.tat_days }} hr
+          </span>
+          {% else %}--{% endif %}
+        </td>
+        <td>
+          <span class="badge {% if a.status == 'completed' %}badge-green{% elif a.status == 'pending' %}badge-yellow{% else %}badge-gray{% endif %}">
+            {{ a.status }}
+          </span>
+        </td>
+        <td>
+          {% if current_role == 'releaser' and not a.actual_payment_date %}
+          <button class="btn btn-primary btn-sm" onclick="openUpdatePayment({{ a.id }}, '{{ a.application_number }}')">
+            Update Tanggal
+          </button>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:2rem">
+        Belum ada payment application.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-overlay" id="modal-buat-app">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Buat Payment Application</span>
+      <button class="modal-close" onclick="closeModal('modal-buat-app')">x</button>
+    </div>
+    <div class="form-group">
+      <label>Pilih Memo (status: approved)</label>
+      <select id="app-memo-id">
+        {% for m in approved_memos %}
+        <option value="{{ m.id }}">{{ m.memo_number }} -- Rp {{ "{:,.0f}".format(m.total_amount) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem">
+      <div class="form-group">
+        <label>Tanggal Pengajuan</label>
+        <input type="date" id="app-submitted-at">
+      </div>
+      <div class="form-group">
+        <label>Target Tanggal Bayar</label>
+        <input type="date" id="app-target-date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Catatan</label>
+      <input type="text" id="app-notes" placeholder="Catatan (opsional)">
+    </div>
+    <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:.75rem">
+      <button class="btn btn-secondary" onclick="closeModal('modal-buat-app')">Batal</button>
+      <button class="btn btn-primary" onclick="createApp()">Buat Application</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-update-payment">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Update Tanggal Pembayaran Aktual</span>
+      <button class="modal-close" onclick="closeModal('modal-update-payment')">x</button>
+    </div>
+    <p style="font-size:.875rem; margin-bottom:1rem" id="update-pay-label"></p>
+    <div class="form-group">
+      <label>Tanggal Aktual Pembayaran</label>
+      <input type="date" id="actual-pay-date">
+    </div>
+    <div style="display:flex; gap:.75rem; justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('modal-update-payment')">Batal</button>
+      <button class="btn btn-primary" onclick="saveActualPayment()">Simpan</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _currentAppId = null;
+
+async function createApp() {
+  const memo_id             = document.getElementById("app-memo-id").value;
+  const submitted_at        = document.getElementById("app-submitted-at").value;
+  const target_payment_date = document.getElementById("app-target-date").value;
+  const notes               = document.getElementById("app-notes").value;
+  if (!memo_id || !submitted_at) {
+    showToast("Pilih memo dan isi tanggal pengajuan.", "error"); return;
+  }
+  const resp = await apiFetch("/payment-application/create", {
+    method: "POST",
+    body: JSON.stringify({ memo_id: parseInt(memo_id), submitted_at, target_payment_date, notes })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) { closeModal("modal-buat-app"); setTimeout(() => location.reload(), 800); }
+}
+
+function openUpdatePayment(appId, label) {
+  _currentAppId = appId;
+  document.getElementById("update-pay-label").textContent = `Application: ${label}`;
+  document.getElementById("actual-pay-date").value = "";
+  openModal("modal-update-payment");
+}
+
+async function saveActualPayment() {
+  const actual = document.getElementById("actual-pay-date").value;
+  if (!actual) { showToast("Tanggal aktual wajib diisi.", "error"); return; }
+  const resp = await apiFetch(`/payment-application/${_currentAppId}/update-payment`, {
+    method: "POST", body: JSON.stringify({ actual_payment_date: actual })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) { closeModal("modal-update-payment"); setTimeout(() => location.reload(), 800); }
+}
+</script>
+{% endblock %}
