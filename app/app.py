@@ -36,6 +36,9 @@ def create_app(testing=False):
     from modules.payment_application.routes import bp as payapp_bp
     app.register_blueprint(payapp_bp)
 
+    from modules.users.routes import bp as users_bp
+    app.register_blueprint(users_bp)
+
     @app.route("/")
     def index():
         return redirect(url_for("auth.login_page"))

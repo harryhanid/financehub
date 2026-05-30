@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}User Management{% endblock %}
+
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
+  <h1 style="font-size:1.25rem; font-weight:700">User Management</h1>
+  <button class="btn btn-primary" onclick="openModal('modal-add-user')">+ Tambah User</button>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Username</th><th>Role</th><th>Status</th><th>Terakhir Login</th><th>Dibuat</th><th>Aksi</th></tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td><strong>{{ u.username }}</strong></td>
+        <td>
+          {% if u.username != 'admin' %}
+          <select class="role-select" data-username="{{ u.username }}"
+            style="padding:.2rem .4rem; font-size:.8rem; border-radius:4px"
+            onchange="changeRole('{{ u.username }}', this.value)">
+            {% for r in ['requester','verificator','releaser'] %}
+            <option value="{{ r }}" {% if u.role == r %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <span class="badge badge-blue">{{ u.role }}</span>
+          {% endif %}
+        </td>
+        <td>
+          <span class="badge {% if u.is_active %}badge-green{% else %}badge-red{% endif %}">
+            {{ 'Aktif' if u.is_active else 'Nonaktif' }}
+          </span>
+        </td>
+        <td>{{ u.last_login[:16] if u.last_login else '--' }}</td>
+        <td>{{ u.created_at[:10] if u.created_at else '--' }}</td>
+        <td>
+          {% if u.username != 'admin' %}
+          {% if u.is_active %}
+          <button class="btn btn-danger btn-sm" onclick="toggleUser('{{ u.username }}', false)">Nonaktifkan</button>
+          {% else %}
+          <button class="btn btn-success btn-sm" onclick="toggleUser('{{ u.username }}', true)">Aktifkan</button>
+          {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-overlay" id="modal-add-user">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Tambah User Baru</span>
+      <button class="modal-close" onclick="closeModal('modal-add-user')">x</button>
+    </div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="new-username" placeholder="Huruf kecil, tanpa spasi">
+    </div>
+    <div class="form-group">
+      <label>Password (minimal 8 karakter)</label>
+      <input type="password" id="new-password" placeholder="Password awal">
+    </div>
+    <div class="form-group">
+      <label>Role</label>
+      <select id="new-role">
+        <option value="requester">Requester -- input data, lihat laporan</option>
+        <option value="verificator">Verificator -- review, buat memo</option>
+        <option value="releaser">Releaser -- approve, release payment</option>
+      </select>
+    </div>
+    <div style="font-size:.8rem; margin-top:.5rem; color:#0e9f6e">
+      User baru wajib ganti password saat pertama login.
+    </div>
+    <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:.75rem">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-user')">Batal</button>
+      <button class="btn btn-primary" onclick="addUser()">Tambah User</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function addUser() {
+  const username = document.getElementById("new-username").value.trim();
+  const password = document.getElementById("new-password").value;
+  const role     = document.getElementById("new-role").value;
+  if (!username || !password) { showToast("Username dan password wajib diisi.", "error"); return; }
+  const resp = await apiFetch("/users/add", {
+    method: "POST", body: JSON.stringify({ username, password, role })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) { closeModal("modal-add-user"); setTimeout(() => location.reload(), 800); }
+}
+
+async function toggleUser(username, isActive) {
+  const label = isActive ? "aktifkan" : "nonaktifkan";
+  if (!confirm(`${label} user '${username}'?`)) return;
+  const resp = await apiFetch(`/users/${username}/toggle`, {
+    method: "POST", body: JSON.stringify({ is_active: isActive })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) setTimeout(() => location.reload(), 600);
+}
+
+async function changeRole(username, role) {
+  const resp = await apiFetch(`/users/${username}/role`, {
+    method: "POST", body: JSON.stringify({ role })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+}
+</script>
+{% endblock %}
