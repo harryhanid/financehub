@@ -45,6 +45,9 @@ def create_app(testing=False):
     from modules.payment_memo.api import memo_api
     app.register_blueprint(memo_api)
 
+    from modules.coming_soon.routes import coming_soon_bp
+    app.register_blueprint(coming_soon_bp)
+
     @app.route("/")
     def index():
         return redirect(url_for("auth.login_page"))

@@ -29,11 +29,11 @@
     <a href="/payment-memo" {% if active_page == 'payment_memo' %}class="active"{% endif %}>📋 Payment Memo</a>
     <a href="/payment-application" {% if active_page == 'payment_app' %}class="active"{% endif %}>📊 Payment Application</a>
     <div class="sidebar-section">Coming Soon</div>
-    <a class="coming-soon">🏦 Bank</a>
-    <a class="coming-soon">💳 Account Payable</a>
-    <a class="coming-soon">💰 Advance</a>
-    <a class="coming-soon">🏧 Petty Cash</a>
-    <a class="coming-soon">🤝 Sponsorship</a>
+    <a href="/bank" class="coming-soon">🏦 Bank</a>
+    <a href="/account-payable" class="coming-soon">📋 Account Payable</a>
+    <a href="/advance" class="coming-soon">💳 Advance</a>
+    <a href="/petty-cash" class="coming-soon">💰 Petty Cash</a>
+    <a href="/sponsorship" class="coming-soon">🤝 Sponsorship</a>
     {% if current_role == 'releaser' %}
     <div class="sidebar-section">Admin</div>
     <a href="/users" {% if active_page == 'users' %}class="active"{% endif %}>👥 User Management</a>

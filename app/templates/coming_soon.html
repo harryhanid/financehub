@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ module.label }} — Segera Hadir{% endblock %}
+{% block content %}
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+            min-height:60vh;text-align:center;gap:1.5rem;">
+  <div style="font-size:4rem;">{{ module.icon }}</div>
+  <h1 style="font-size:2rem;font-weight:700;color:#1a56db;">{{ module.label }}</h1>
+  <p style="color:#6b7280;font-size:1.1rem;max-width:400px;">
+    {{ module.desc }}<br>
+    Modul ini sedang dalam pengembangan dan akan tersedia di <strong>Fase 2</strong>.
+  </p>
+  <span style="display:inline-flex;align-items:center;gap:.5rem;background:#fef3c7;
+               color:#92400e;padding:.5rem 1.25rem;border-radius:9999px;font-weight:600;">
+    🔜 Coming Soon
+  </span>
+  <a href="{{ url_for('dashboard.index') }}"
+     style="color:#1a56db;text-decoration:none;font-size:.95rem;">
+    &larr; Kembali ke Dashboard
+  </a>
+</div>
+{% endblock %}
