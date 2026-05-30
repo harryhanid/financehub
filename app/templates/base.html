@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Finance Hub{% endblock %} — Finance Hub</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+<nav class="navbar">
+  <a class="navbar-brand" href="/">⚡ Finance Hub</a>
+  {% if company_name %}
+  <a class="navbar-company" href="/select-company" title="Ganti perusahaan">🏢 {{ company_name }}</a>
+  {% endif %}
+  <span class="navbar-user">👤 {{ current_user or 'user' }}</span>
+  <button class="btn-logout" onclick="doLogout()">Keluar</button>
+</nav>
+<div class="layout">
+  <aside class="sidebar">
+    {% set co = company_code or '' %}
+    <div class="sidebar-section">Navigasi</div>
+    <a href="/dashboard" {% if active_page == 'dashboard' %}class="active"{% endif %}>🏠 Dashboard</a>
+    {% if co == 'ETF' %}
+    <div class="sidebar-section">ETF</div>
+    <a href="/beasiswa" {% if active_page == 'beasiswa' %}class="active"{% endif %}>🎓 Beasiswa</a>
+    {% endif %}
+    <div class="sidebar-section">Pembayaran</div>
+    <a href="/payment-memo" {% if active_page == 'payment_memo' %}class="active"{% endif %}>📋 Payment Memo</a>
+    <a href="/payment-application" {% if active_page == 'payment_app' %}class="active"{% endif %}>📊 Payment Application</a>
+    <div class="sidebar-section">Coming Soon</div>
+    <a class="coming-soon">🏦 Bank</a>
+    <a class="coming-soon">💳 Account Payable</a>
+    <a class="coming-soon">💰 Advance</a>
+    <a class="coming-soon">🏧 Petty Cash</a>
+    <a class="coming-soon">🤝 Sponsorship</a>
+    {% if current_role == 'releaser' %}
+    <div class="sidebar-section">Admin</div>
+    <a href="/users" {% if active_page == 'users' %}class="active"{% endif %}>👥 User Management</a>
+    {% endif %}
+  </aside>
+  <main class="main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
