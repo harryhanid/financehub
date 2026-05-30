@@ -40,7 +40,7 @@ def test_invalid_company(client):
 
 def test_get_payment_beasiswa(client):
     token = _login(client)
-    r = client.get("/api/v1/payment-beasiswa?company=ETF",
+    r = client.get("/api/v1/payment?company=ETF",
                    headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     assert r.get_json()["ok"] is True
