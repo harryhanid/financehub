@@ -66,6 +66,7 @@ def login():
         "ok": True,
         "must_change_pw": bool(row["must_change_pw"]),
         "role": row["role"],
+        "access_token": access_token,
     })
     set_access_cookies(resp, access_token)
     set_refresh_cookies(resp, refresh_token)

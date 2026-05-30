@@ -39,6 +39,9 @@ def create_app(testing=False):
     from modules.users.routes import bp as users_bp
     app.register_blueprint(users_bp)
 
+    from modules.beasiswa.api import beasiswa_api
+    app.register_blueprint(beasiswa_api)
+
     @app.route("/")
     def index():
         return redirect(url_for("auth.login_page"))
