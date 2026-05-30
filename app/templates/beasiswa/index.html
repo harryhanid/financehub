@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+{% block title %}Beasiswa{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+  <h1 style="font-size:1.25rem;font-weight:700">🎓 Beasiswa — {{ company_name }}</h1>
+</div>
+
+<div data-tabs>
+  <div class="tabs">
+    <button class="tab-btn" data-tab="tab-siswa">Data Siswa</button>
+    <button class="tab-btn" data-tab="tab-budget">Budget</button>
+    <button class="tab-btn" data-tab="tab-payment">Payment</button>
+    <button class="tab-btn" data-tab="tab-rekap">Rekap</button>
+  </div>
+
+  <!-- TAB SISWA -->
+  <div class="tab-panel" id="tab-siswa">
+    <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+      <input type="text" id="siswa-search" placeholder="Cari nama/kode..." style="width:220px" oninput="filterSiswa()">
+      <select id="siswa-filter-status" onchange="filterSiswa()" style="width:140px">
+        <option value="">Semua Status</option>
+        {% for s in status_siswa %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+      </select>
+      {% if current_role in ['requester','verificator'] %}
+      <button class="btn btn-primary btn-sm" onclick="openModal('modal-siswa-tambah')">+ Tambah Siswa</button>
+      {% endif %}
+    </div>
+    <div class="table-wrap">
+      <table id="siswa-table">
+        <thead>
+          <tr><th>Code</th><th>Nama</th><th>Jenjang</th><th>Angkatan</th><th>Program</th><th>Universitas</th><th>Status</th><th>Aksi</th></tr>
+        </thead>
+        <tbody>
+          {% for s in siswa_list %}
+          <tr data-search="{{ s.nama|lower }} {{ s.code|lower }}" data-status="{{ s.status }}">
+            <td><code>{{ s.code }}</code></td>
+            <td>{{ s.nama }}</td>
+            <td>{{ s.jenjang }}</td>
+            <td>{{ s.angkatan }}</td>
+            <td>{{ s.program }}</td>
+            <td>{{ s.universitas }}</td>
+            <td><span class="badge {% if s.status=='Aktif' %}badge-green{% elif s.status=='lulus' %}badge-blue{% else %}badge-red{% endif %}">{{ s.status }}</span></td>
+            <td>
+              <button class="btn btn-secondary btn-sm" onclick="openEditSiswa('{{ s.code }}')">Edit</button>
+              <button class="btn btn-secondary btn-sm" onclick="openBudgetSiswa('{{ s.code }}','{{ s.nama }}')">Sisa</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB BUDGET -->
+  <div class="tab-panel" id="tab-budget">
+    <div class="card">
+      <div class="card-title">Input Budget</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem">
+        <div class="form-group">
+          <label>Siswa</label>
+          <select id="bgt-siswa">
+            <option value="">-- Pilih Siswa --</option>
+            {% for s in siswa_list %}<option value="{{ s.code }}">{{ s.code }} — {{ s.nama }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label>Tanggal</label><input type="date" id="bgt-tgl"></div>
+        <div class="form-group">
+          <label>Pillar</label>
+          <select id="bgt-pillar">
+            <option value="">-- Pillar --</option>
+            {% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div id="bgt-items">
+        <div class="bgt-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end">
+          <div class="form-group" style="margin:0"><label>Kategori 1</label>
+            <select class="bgt-cat1">{% for c in cat1_bgt %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+          <div class="form-group" style="margin:0"><label>Kategori 2</label>
+            <select class="bgt-cat2">{% for c in cat2_sem %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+          <div class="form-group" style="margin:0"><label>Amount</label>
+            <input type="number" class="bgt-amount" placeholder="0" min="0"></div>
+          <button class="btn btn-secondary btn-sm" onclick="removeBgtRow(this)">✕</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.5rem">
+        <button class="btn btn-secondary btn-sm" onclick="addBgtRow()">+ Baris</button>
+        <button class="btn btn-primary" onclick="saveBudget()">💾 Simpan Budget</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB PAYMENT -->
+  <div class="tab-panel" id="tab-payment">
+    {% if current_role == 'requester' %}
+    <div class="card">
+      <div class="card-title">Input Payment</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem">
+        <div class="form-group">
+          <label>Siswa</label>
+          <select id="pay-siswa">
+            <option value="">-- Pilih Siswa --</option>
+            {% for s in siswa_list %}<option value="{{ s.code }}">{{ s.code }} — {{ s.nama }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label>Tanggal</label><input type="date" id="pay-tgl"></div>
+        <div class="form-group">
+          <label>Pillar</label>
+          <select id="pay-pillar">
+            <option value="">-- Pillar --</option>
+            {% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Perusahaan</label>
+          <select id="pay-perusahaan">
+            <option value="">-- Perusahaan --</option>
+            {% for p in perusahaan %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div id="pay-items">
+        <div class="pay-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end">
+          <div class="form-group" style="margin:0"><label>Cat 1</label>
+            <select class="pay-cat1">{% for c in cat1_bgt %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+          <div class="form-group" style="margin:0"><label>Cat 2</label>
+            <select class="pay-cat2">{% for c in cat2_sem %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+          <div class="form-group" style="margin:0"><label>Amount</label>
+            <input type="number" class="pay-amount" placeholder="0" min="0"></div>
+          <button class="btn btn-secondary btn-sm" onclick="removePayRow(this)">✕</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.5rem">
+        <button class="btn btn-secondary btn-sm" onclick="addPayRow()">+ Baris</button>
+        <button class="btn btn-primary" onclick="savePayment()">💾 Simpan Payment</button>
+      </div>
+    </div>
+    {% endif %}
+    <div class="card">
+      <div class="card-title">Daftar Payment Draft</div>
+      <p style="color:var(--text-muted);font-size:.875rem" id="pay-list-msg">Reload halaman untuk melihat payment terbaru.</p>
+    </div>
+  </div>
+
+  <!-- TAB REKAP -->
+  <div class="tab-panel" id="tab-rekap">
+    <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:flex-end">
+      <div class="form-group" style="margin:0;min-width:160px">
+        <label>Program</label>
+        <select id="rekap-program" onchange="loadRekap()">
+          <option value="">Semua Program</option>
+          {% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:140px">
+        <label>Pillar</label>
+        <select id="rekap-pillar" onchange="loadRekap()">
+          <option value="">Semua Pillar</option>
+          {% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:140px">
+        <label>Status</label>
+        <select id="rekap-status" onchange="loadRekap()">
+          <option value="">Semua Status</option>
+          {% for s in status_siswa %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-secondary" onclick="exportRekap('csv')">📥 CSV</button>
+      <button class="btn btn-secondary" onclick="exportRekap('pdf')">📄 PDF</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Code</th><th>Nama</th><th>Jenjang</th><th>Program</th><th>Status</th>
+          <th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th></tr>
+        </thead>
+        <tbody id="rekap-tbody"></tbody>
+        <tfoot>
+          <tr><td colspan="5"><strong>Total</strong></td>
+          <td class="num-right" id="rekap-total-b"></td>
+          <td class="num-right" id="rekap-total-p"></td>
+          <td class="num-right" id="rekap-total-s"></td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Tambah/Edit Siswa -->
+<div class="modal-overlay" id="modal-siswa-tambah">
+  <div class="modal" style="width:min(700px,95vw)">
+    <div class="modal-header">
+      <span class="modal-title" id="siswa-modal-title">Tambah Siswa Baru</span>
+      <button class="modal-close" onclick="closeModal('modal-siswa-tambah')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-group"><label>Jenjang</label>
+        <select id="s-jenjang" onchange="genKode()">
+          {% for j in jenjang %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group"><label>Angkatan (tahun)</label>
+        <input type="number" id="s-angkatan" placeholder="2025" min="2000" max="2099" onchange="genKode()"></div>
+      <div class="form-group"><label>Code Siswa (auto)</label>
+        <input type="text" id="s-code" readonly style="background:#f3f4f6"></div>
+      <div class="form-group"><label>Nama Lengkap</label>
+        <input type="text" id="s-nama" placeholder="Nama lengkap"></div>
+      <div class="form-group"><label>Program</label>
+        <select id="s-program">{% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label>Status</label>
+        <select id="s-status">{% for s in status_siswa %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label>Fakultas</label><input type="text" id="s-fakultas"></div>
+      <div class="form-group"><label>Universitas</label><input type="text" id="s-universitas"></div>
+      <div class="form-group"><label>Bank</label><input type="text" id="s-bank"></div>
+      <div class="form-group"><label>No. Rekening</label><input type="text" id="s-norek"></div>
+      <div class="form-group"><label>Nama Rekening</label><input type="text" id="s-namarek"></div>
+      <div class="form-group"><label>Referensi</label><input type="text" id="s-referensi"></div>
+    </div>
+    <div class="form-group"><label>Catatan</label><textarea id="s-catatan" rows="2"></textarea></div>
+    <div style="display:flex;gap:.75rem;margin-top:.75rem;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('modal-siswa-tambah')">Batal</button>
+      <button class="btn btn-primary" onclick="simpanSiswa()">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Sisa Budget -->
+<div class="modal-overlay" id="modal-sisa">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Sisa Budget — <span id="sisa-modal-nama"></span></span>
+      <button class="modal-close" onclick="closeModal('modal-sisa')">✕</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Kategori</th><th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th></tr></thead>
+        <tbody id="sisa-modal-body"></tbody>
+        <tfoot><tr>
+          <th>Total</th>
+          <th class="num-right" id="sisa-total-b"></th>
+          <th class="num-right" id="sisa-total-p"></th>
+          <th class="num-right" id="sisa-total-s"></th>
+        </tr></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CAT1 = {{ cat1_bgt | tojson }};
+const CAT2 = {{ cat2_sem | tojson }};
+let _editMode = false, _editCode = "";
+
+function filterSiswa() {
+  const q = document.getElementById("siswa-search").value.toLowerCase();
+  const st = document.getElementById("siswa-filter-status").value;
+  document.querySelectorAll("#siswa-table tbody tr").forEach(tr => {
+    tr.style.display = (!q || tr.dataset.search.includes(q)) && (!st || tr.dataset.status === st) ? "" : "none";
+  });
+}
+
+let _genTimer;
+async function genKode() {
+  clearTimeout(_genTimer);
+  const j = document.getElementById("s-jenjang").value;
+  const a = document.getElementById("s-angkatan").value;
+  if (!j || a.length !== 4) return;
+  _genTimer = setTimeout(async () => {
+    const r = await apiFetch(`/beasiswa/siswa/generate-kode?jenjang=${j}&angkatan=${a}`);
+    const d = await r.json();
+    if (d.ok) document.getElementById("s-code").value = d.kode;
+  }, 400);
+}
+
+async function simpanSiswa() {
+  const payload = {
+    code: document.getElementById("s-code").value,
+    nama: document.getElementById("s-nama").value,
+    jenjang: document.getElementById("s-jenjang").value,
+    angkatan: parseInt(document.getElementById("s-angkatan").value) || null,
+    program: document.getElementById("s-program").value,
+    fakultas: document.getElementById("s-fakultas").value,
+    universitas: document.getElementById("s-universitas").value,
+    bank: document.getElementById("s-bank").value,
+    norek: document.getElementById("s-norek").value,
+    namarek: document.getElementById("s-namarek").value,
+    referensi: document.getElementById("s-referensi").value,
+    status: document.getElementById("s-status").value,
+    catatan: document.getElementById("s-catatan").value,
+  };
+  const url = _editMode ? `/beasiswa/siswa/${_editCode}/update` : "/beasiswa/siswa/tambah";
+  const resp = await apiFetch(url, { method:"POST", body:JSON.stringify(payload) });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) { closeModal("modal-siswa-tambah"); setTimeout(() => location.reload(), 800); }
+}
+
+async function openEditSiswa(code) {
+  const r = await apiFetch(`/beasiswa/siswa/${code}`);
+  const d = await r.json();
+  if (!d.ok) { showToast("Gagal load data", "error"); return; }
+  const s = d.data;
+  _editMode = true; _editCode = code;
+  document.getElementById("siswa-modal-title").textContent = `Edit Siswa — ${code}`;
+  ["code","jenjang","angkatan","nama","program","status","fakultas","universitas",
+   "bank","norek","namarek","referensi","catatan"].forEach(k => {
+    const el = document.getElementById(`s-${k}`);
+    if (el) el.value = s[k] || "";
+  });
+  openModal("modal-siswa-tambah");
+}
+
+async function openBudgetSiswa(code, nama) {
+  document.getElementById("sisa-modal-nama").textContent = nama;
+  const r = await apiFetch(`/beasiswa/siswa/${code}/sisa-budget`);
+  const d = await r.json();
+  const all = {...d.budget};
+  Object.keys(d.payment).forEach(k => { if (!all[k]) all[k] = 0; });
+  document.getElementById("sisa-modal-body").innerHTML =
+    Object.entries(all).map(([cat, b]) => {
+      const p = d.payment[cat] || 0, s = b - p;
+      return `<tr><td>${cat}</td><td class="num-right">${fmtRupiah(b)}</td><td class="num-right">${fmtRupiah(p)}</td><td class="num-right" style="color:${s<0?'var(--danger)':'inherit'}">${fmtRupiah(s)}</td></tr>`;
+    }).join("");
+  document.getElementById("sisa-total-b").textContent = fmtRupiah(d.total_budget);
+  document.getElementById("sisa-total-p").textContent = fmtRupiah(d.total_payment);
+  document.getElementById("sisa-total-s").textContent = fmtRupiah(d.total_sisa);
+  openModal("modal-sisa");
+}
+
+function _makeRow(cls, catSel) {
+  const div = document.createElement("div");
+  div.className = cls;
+  div.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end";
+  div.innerHTML = `
+    <div class="form-group" style="margin:0"><select class="${cls}-cat1">${CAT1.map(c=>`<option value="${c}">${c}</option>`).join("")}</select></div>
+    <div class="form-group" style="margin:0"><select class="${cls}-cat2">${CAT2.map(c=>`<option value="${c}">${c}</option>`).join("")}</select></div>
+    <div class="form-group" style="margin:0"><input type="number" class="${cls}-amount" placeholder="0" min="0"></div>
+    <button class="btn btn-secondary btn-sm" onclick="this.closest('.${cls}').remove()">✕</button>`;
+  return div;
+}
+function addBgtRow() { document.getElementById("bgt-items").appendChild(_makeRow("bgt-row","bgt-row")); }
+function addPayRow() { document.getElementById("pay-items").appendChild(_makeRow("pay-row","pay-row")); }
+function removeBgtRow(b) { b.closest(".bgt-row").remove(); }
+function removePayRow(b) { b.closest(".pay-row").remove(); }
+
+async function saveBudget() {
+  const code=document.getElementById("bgt-siswa").value, tgl=document.getElementById("bgt-tgl").value, pillar=document.getElementById("bgt-pillar").value;
+  if (!code||!tgl||!pillar) { showToast("Pilih siswa, tanggal, dan pillar.","error"); return; }
+  const items=[...document.querySelectorAll(".bgt-row")].map(r=>({
+    cat1:r.querySelector(".bgt-cat1").value, cat2:r.querySelector(".bgt-cat2").value,
+    amount:parseFloat(r.querySelector(".bgt-amount").value)||0 }));
+  const d=await (await apiFetch("/beasiswa/budget/tambah",{method:"POST",body:JSON.stringify({code,tanggal:tgl,pillar,items})})).json();
+  showToast(d.pesan, d.ok?"success":"error");
+}
+
+async function savePayment() {
+  const code=document.getElementById("pay-siswa").value, tgl=document.getElementById("pay-tgl").value,
+        pillar=document.getElementById("pay-pillar").value, per=document.getElementById("pay-perusahaan").value;
+  if (!code||!tgl||!pillar||!per) { showToast("Semua field wajib diisi.","error"); return; }
+  const items=[...document.querySelectorAll(".pay-row")].map(r=>({
+    cat1:r.querySelector(".pay-row-cat1").value, cat2:r.querySelector(".pay-row-cat2").value,
+    cat3:"",cat4:"", amount:parseFloat(r.querySelector(".pay-row-amount").value)||0 }));
+  const d=await (await apiFetch("/beasiswa/payment/tambah",{method:"POST",body:JSON.stringify({code,tanggal:tgl,pillar,perusahaan:per,items})})).json();
+  showToast(d.pesan, d.ok?"success":"error");
+}
+
+async function loadRekap() {
+  const params=new URLSearchParams({
+    program:document.getElementById("rekap-program").value,
+    pillar:document.getElementById("rekap-pillar").value,
+    status:document.getElementById("rekap-status").value });
+  const d=await (await apiFetch(`/beasiswa/rekap/data?${params}`)).json();
+  if (!d.ok) return;
+  document.getElementById("rekap-tbody").innerHTML=d.rows.map(r=>`<tr>
+    <td><code>${r.code}</code></td><td>${r.nama}</td><td>${r.jenjang||""}</td><td>${r.program||""}</td>
+    <td><span class="badge ${r.status==='Aktif'?'badge-green':r.status==='lulus'?'badge-blue':'badge-red'}">${r.status}</span></td>
+    <td class="num-right">${fmtRupiah(r.total_budget)}</td>
+    <td class="num-right">${fmtRupiah(r.total_payment)}</td>
+    <td class="num-right" style="color:${r.sisa<0?'var(--danger)':'inherit'}">${fmtRupiah(r.sisa)}</td>
+  </tr>`).join("");
+  const tb=d.rows.reduce((s,r)=>s+r.total_budget,0), tp=d.rows.reduce((s,r)=>s+r.total_payment,0);
+  document.getElementById("rekap-total-b").textContent=fmtRupiah(tb);
+  document.getElementById("rekap-total-p").textContent=fmtRupiah(tp);
+  document.getElementById("rekap-total-s").textContent=fmtRupiah(tb-tp);
+}
+
+function exportRekap(fmt) {
+  const p=new URLSearchParams({
+    program:document.getElementById("rekap-program").value,
+    pillar:document.getElementById("rekap-pillar").value,
+    status:document.getElementById("rekap-status").value });
+  window.location.href=`/beasiswa/rekap/export/${fmt}?${p}`;
+}
+
+document.addEventListener("DOMContentLoaded", loadRekap);
+</script>
+{% endblock %}
