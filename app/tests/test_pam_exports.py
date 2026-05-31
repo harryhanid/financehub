@@ -78,14 +78,14 @@ def test_export_pam_excel_has_two_sheets():
     import openpyxl
     result = export_pam_excel(1, COMPANY_ID, "Hong Tjhin", "Tenti Kidjo")
     wb = openpyxl.load_workbook(io.BytesIO(result))
-    assert wb.sheetnames == ["PAM", "Lampiran"]
+    assert wb.sheetnames == ["PAM NEW", "Lampiran"]
 
 
 def test_export_pam_excel_pam_no_in_sheet():
     import openpyxl
     result = export_pam_excel(1, COMPANY_ID, "Hong Tjhin", "Tenti Kidjo")
     wb = openpyxl.load_workbook(io.BytesIO(result))
-    ws = wb["PAM"]
+    ws = wb["PAM NEW"]
     values = [ws.cell(r, c).value for r in range(1, 30) for c in range(1, 10)]
     assert "PAM-001-ETF-05-2026" in values
 
