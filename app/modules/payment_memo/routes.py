@@ -9,6 +9,7 @@ from modules.payment_memo.service import (
     get_pam_detail, get_pam_payments, update_pam_and_application,
     get_draft_payment_detail, update_draft_and_linked,
     delete_payment_beasiswa, cancel_pam_record,
+    get_days_of_pam, bulk_update_dates,
 )
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
@@ -38,12 +39,15 @@ def _ctx():
 def index():
     if not session.get("company_id"):
         return redirect(url_for("dashboard.select_company"))
-    memos  = get_memo_list(session["company_id"])
-    drafts = get_draft_payments(session["company_id"])
+    company_id = session["company_id"]
+    memos      = get_memo_list(company_id)
+    drafts     = get_draft_payments(company_id)
+    dop_rows   = get_days_of_pam(company_id)
     return render_template(
         "payment_memo/index.html",
         memos=memos,
         drafts=drafts,
+        dop_rows=dop_rows,
         cat1_list=config.CAT1_BGT,
         cat2_list=config.CAT2_SEM,
         active_page="payment_memo",
@@ -244,6 +248,21 @@ def export_pam_excel_route(pam_id):
         download_name=filename,
         as_attachment=True,
     )
+
+
+@bp.route("/days-of-pam/bulk-update", methods=["POST"])
+@role_required("verificator", "releaser")
+def days_of_pam_bulk_update():
+    company_id = session.get("company_id")
+    if not company_id:
+        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
+    data  = request.get_json(force=True) or {}
+    ids   = data.get("ids", [])
+    dates = data.get("dates", {})
+    if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
+        return jsonify({"ok": False, "pesan": "Format ids tidak valid."}), 400
+    result = bulk_update_dates(ids, dates, company_id)
+    return jsonify(result)
 
 
 @bp.route("/pam/<int:pam_id>/cancel", methods=["POST"])

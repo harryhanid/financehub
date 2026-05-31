@@ -221,3 +221,67 @@ def test_export_pam_excel_custom_route_returns_xlsx(client):
     assert rv.status_code == 200
     assert "spreadsheetml" in rv.content_type
     assert zipfile.is_zipfile(_io.BytesIO(rv.data))
+
+
+# ── Days of PAM route ─────────────────────────────────────────────────────────
+
+def _seed_pam_payment(client):
+    """Seed satu payment_beasiswa ber-PAM ke company ETF (id=2)."""
+    from database import get_conn
+    conn = get_conn()
+    conn.execute(
+        "INSERT OR IGNORE INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (2, "S001", "Budi")
+    )
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, tanggal, amount, pam)
+           VALUES (?,?,?,?,?,?)""",
+        (2, "S001", "Beasiswa", "2026-05-01", 5000000.0, "PAM-001-ETF-05-2026")
+    )
+    conn.commit()
+    row_id = conn.execute(
+        "SELECT id FROM payment_beasiswa WHERE siswa_code='S001'"
+    ).fetchone()["id"]
+    conn.close()
+    return row_id
+
+
+def test_days_of_pam_bulk_update_ok(client):
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"]   = 2
+        sess["company_code"] = "ETF"
+    row_id = _seed_pam_payment(client)
+    r = client.post(
+        "/payment-memo/days-of-pam/bulk-update",
+        json={"ids": [row_id], "dates": {"tgl_receive": "2026-05-10"}},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["ok"] is True
+    assert data["updated"] == 1
+
+
+def test_days_of_pam_bulk_update_no_session(client):
+    token = _login(client)
+    # no company_id in session
+    r = client.post(
+        "/payment-memo/days-of-pam/bulk-update",
+        json={"ids": [1], "dates": {"tgl_receive": "2026-05-10"}},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 400
+
+
+def test_days_of_pam_bulk_update_invalid_ids(client):
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    r = client.post(
+        "/payment-memo/days-of-pam/bulk-update",
+        json={"ids": ["not-an-int"], "dates": {"tgl_receive": "2026-05-10"}},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert r.status_code == 400
