@@ -737,6 +737,37 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Draft Memo Tab ────────────────────────────────────────────────────────
 let _dmPamId = null;
 let _dmSearchTimer = null;
+let _dmPayments = [];
+let _dmLampiranOpen = false;
+
+function collectDmFields() {
+  const g = id => document.getElementById(id);
+  return {
+    pam_no:            g('dm-f-pam-no').value.trim(),
+    pam_date:          g('dm-f-date').value,
+    requestors_name:   g('dm-f-requestor').value.trim(),
+    department:        g('dm-f-dept').value.trim(),
+    cost_center:       g('dm-f-cc').value.trim(),
+    gl_account:        g('dm-f-gl').value.trim(),
+    so_sc:             g('dm-f-sosc').value.trim(),
+    pt:                g('dm-f-company').value.trim(),
+    bu_upstream:       g('dm-f-bu-upstream').checked,
+    bu_downstream:     g('dm-f-bu-downstream').checked,
+    bu_corporate:      g('dm-f-bu-corporate').checked,
+    type_downpayment:  g('dm-f-type-dp').checked,
+    type_invoice:      g('dm-f-type-inv').checked,
+    type_advance:      g('dm-f-type-adv').checked,
+    vendor_name:       g('dm-f-vendor').value.trim(),
+    invoice_memo_no:   g('dm-f-inv-no').value.trim(),
+    total_amount:      parseFloat(g('dm-f-amount').value) || 0,
+    due_date:          g('dm-f-due').value,
+    bank_account_name: g('dm-f-bank-name').value.trim(),
+    bank_name:         g('dm-f-bank').value.trim(),
+    bank_account_no:   g('dm-f-bank-no').value.trim(),
+    approved_by_1:     g('dm-f-ab1').value.trim(),
+    approved_by_2:     g('dm-f-ab2').value.trim(),
+  };
+}
 
 function dmSearchDebounced() {
   clearTimeout(_dmSearchTimer);
@@ -772,11 +803,19 @@ async function dmSelectPAM(pamId, pamNo) {
   if (!data.ok) { showToast('Gagal memuat PAM detail.', 'error'); return; }
 
   const p = data.data;
+  _dmPayments = p.payments || [];
+  _dmLampiranOpen = false;
 
-  const expBtns = document.getElementById('dm-export-btns');
-  expBtns.style.display = 'flex';
-
+  document.getElementById('dm-export-btns').style.display = 'flex';
   document.getElementById('dm-form-preview').innerHTML = dmRenderForm(p);
+
+  const lampWrap = document.getElementById('dm-lampiran-wrap');
+  if (lampWrap) {
+    lampWrap.style.display = 'block';
+    document.getElementById('dm-lampiran-body').style.display = 'none';
+    document.getElementById('dm-lampiran-toggle').textContent =
+      `▶ Lampiran — Jadwal Pembayaran (${_dmPayments.length} siswa)`;
+  }
 }
 
 function dmRenderForm(p) {
@@ -866,14 +905,34 @@ function dmRenderForm(p) {
   </div>`;
 }
 
-function dmExportPDF() {
+async function dmExportPDF() {
   if (!_dmPamId) { showToast('Pilih PAM No terlebih dahulu.', 'error'); return; }
-  window.open(`/payment-memo/pam/${_dmPamId}/export/pdf`, '_blank');
+  const payload = collectDmFields();
+  const resp = await apiFetch(`/payment-memo/pam/${_dmPamId}/export/pdf-custom`, {
+    method: 'POST', body: JSON.stringify(payload),
+  });
+  if (!resp) return;
+  const blob = await resp.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${payload.pam_no || 'PAM'}.pdf`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
-function dmExportExcel() {
+async function dmExportExcel() {
   if (!_dmPamId) { showToast('Pilih PAM No terlebih dahulu.', 'error'); return; }
-  window.open(`/payment-memo/pam/${_dmPamId}/export/excel`, '_blank');
+  const payload = collectDmFields();
+  const resp = await apiFetch(`/payment-memo/pam/${_dmPamId}/export/excel-custom`, {
+    method: 'POST', body: JSON.stringify(payload),
+  });
+  if (!resp) return;
+  const blob = await resp.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${payload.pam_no || 'PAM'}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 document.addEventListener('click', e => {
