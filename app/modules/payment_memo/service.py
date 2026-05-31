@@ -418,6 +418,29 @@ def get_days_of_pam(company_id: int) -> list:
     return rows
 
 
+def bulk_update_dates(ids: list, dates: dict, company_id: int) -> dict:
+    _ALLOWED = {"tanggal", "tgl_pengajuan", "tgl_receive", "tgl_pa", "tgl_final"}
+    fields = [(k, v) for k, v in dates.items() if k in _ALLOWED and v]
+    if not fields:
+        return {"ok": False, "pesan": "Tidak ada tanggal yang diisi."}
+    if not ids:
+        return {"ok": False, "pesan": "Tidak ada baris yang dipilih."}
+    set_clause   = ", ".join(f"{k}=?" for k, _ in fields)
+    vals         = [v for _, v in fields]
+    placeholders = ",".join("?" * len(ids))
+    conn = get_conn()
+    cur  = conn.execute(
+        f"UPDATE payment_beasiswa SET {set_clause}"
+        f" WHERE id IN ({placeholders}) AND company_id=?",
+        vals + list(ids) + [company_id]
+    )
+    updated = cur.rowcount
+    conn.commit()
+    conn.close()
+    return {"ok": True, "updated": updated,
+            "pesan": f"{updated} baris berhasil diperbarui."}
+
+
 def update_pam_and_application(pam_id: int, pam_data: dict,
                                 app_data: dict, company_id: int) -> dict:
     conn = get_conn()

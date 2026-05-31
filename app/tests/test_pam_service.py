@@ -329,3 +329,79 @@ def test_get_days_of_pam_different_company_isolated():
     # Company 99 should see nothing
     rows = get_days_of_pam(99)
     assert rows == []
+
+
+# ── Bulk update dates ─────────────────────────────────────────────────────────
+
+def test_bulk_update_dates_only_filled_fields():
+    from modules.payment_memo.service import bulk_update_dates
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S001", "Budi")
+    )
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, tanggal, amount, pam,
+            tgl_pengajuan, tgl_receive, tgl_pa, tgl_final)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (COMPANY_ID, "S001", "Beasiswa", "2026-05-01", 5000000.0,
+         "PAM-001-ETF-05-2026", None, None, None, None)
+    )
+    conn.commit()
+    row_id = conn.execute("SELECT id FROM payment_beasiswa WHERE siswa_code='S001'").fetchone()["id"]
+    conn.close()
+
+    result = bulk_update_dates(
+        ids=[row_id],
+        dates={"tgl_receive": "2026-05-10", "tgl_final": ""},
+        company_id=COMPANY_ID
+    )
+    assert result["ok"] is True
+    assert result["updated"] == 1
+
+    conn2 = get_conn()
+    r = conn2.execute("SELECT * FROM payment_beasiswa WHERE id=?", (row_id,)).fetchone()
+    conn2.close()
+    assert r["tgl_receive"] == "2026-05-10"
+    assert r["tgl_final"]   is None       # empty string → not updated
+
+
+def test_bulk_update_dates_no_ids_returns_error():
+    from modules.payment_memo.service import bulk_update_dates
+    result = bulk_update_dates(ids=[], dates={"tgl_receive": "2026-05-10"}, company_id=COMPANY_ID)
+    assert result["ok"] is False
+
+
+def test_bulk_update_dates_no_dates_returns_error():
+    from modules.payment_memo.service import bulk_update_dates
+    result = bulk_update_dates(ids=[1], dates={}, company_id=COMPANY_ID)
+    assert result["ok"] is False
+
+
+def test_bulk_update_dates_wrong_company_not_updated():
+    from modules.payment_memo.service import bulk_update_dates
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S001", "Budi")
+    )
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, tanggal, amount, pam, tgl_receive)
+           VALUES (?,?,?,?,?,?,?)""",
+        (COMPANY_ID, "S001", "Beasiswa", "2026-05-01", 5000000.0,
+         "PAM-001-ETF-05-2026", "2026-04-01")
+    )
+    conn.commit()
+    row_id = conn.execute("SELECT id FROM payment_beasiswa WHERE siswa_code='S001'").fetchone()["id"]
+    conn.close()
+
+    # Try to update with wrong company_id=99
+    result = bulk_update_dates(ids=[row_id], dates={"tgl_receive": "2026-05-10"}, company_id=99)
+    assert result["updated"] == 0
+
+    conn2 = get_conn()
+    r = conn2.execute("SELECT tgl_receive FROM payment_beasiswa WHERE id=?", (row_id,)).fetchone()
+    conn2.close()
+    assert r["tgl_receive"] == "2026-04-01"   # unchanged
