@@ -13,6 +13,7 @@
   <div class="tabs">
     <button class="tab-btn" data-tab="tab-memo-list">Daftar Memo</button>
     <button class="tab-btn" data-tab="tab-draft-pay">Draft Payment ({{ drafts|length }})</button>
+    <button class="tab-btn" data-tab="tab-pam">PAM Records</button>
   </div>
 
   <div class="tab-panel" id="tab-memo-list">
@@ -107,6 +108,38 @@
             Tidak ada payment draft.
           </td></tr>
           {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAM Records Tab -->
+  <div class="tab-panel" id="tab-pam">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <input id="pam-search" type="text" placeholder="Cari PAM No / PT / Siswa..."
+             style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:280px;"
+             oninput="loadPAM()">
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#1e40af;color:#fff;">
+            <th style="padding:8px 10px;text-align:left;">PAM No</th>
+            <th style="padding:8px 10px;text-align:left;">PAM Date</th>
+            <th style="padding:8px 10px;text-align:left;">PT</th>
+            <th style="padding:8px 10px;text-align:left;">Cost Center</th>
+            <th style="padding:8px 10px;min-width:220px;text-align:left;">GL Account</th>
+            <th style="padding:8px 10px;text-align:left;">Requestor</th>
+            <th style="padding:8px 10px;text-align:left;">Keterangan</th>
+            <th style="padding:8px 10px;text-align:right;">Total (Rp)</th>
+            <th style="padding:8px 10px;text-align:left;">Due Date</th>
+            <th style="padding:8px 10px;text-align:left;">Status</th>
+          </tr>
+        </thead>
+        <tbody id="pam-tbody">
+          <tr><td colspan="10" style="text-align:center;padding:20px;color:#6b7280;">
+            Memuat data...
+          </td></tr>
         </tbody>
       </table>
     </div>
@@ -248,5 +281,85 @@ async function showMemoDetail(memoId) {
     </div>`;
   openModal("modal-memo-detail");
 }
+
+// ── PAM Records ──────────────────────────────────────────────────────────────
+let _coaOptions = [];
+
+async function loadCOA() {
+  if (_coaOptions.length) return;
+  const res  = await apiFetch('/payment-memo/coa');
+  if (!res) return;
+  const data = await res.json();
+  if (data.ok) _coaOptions = data.coa;
+}
+
+function buildGLDropdown(pamId, currentGl) {
+  const select = document.createElement('select');
+  select.style.cssText = 'width:100%;font-size:12px;padding:3px 4px;border:1px solid #d1d5db;border-radius:4px;';
+  _coaOptions.forEach(opt => {
+    const o = document.createElement('option');
+    o.value = opt.gl_code;
+    o.textContent = opt.gl_code + ' — ' + opt.gl_name;
+    if (opt.gl_code === currentGl) o.selected = true;
+    select.appendChild(o);
+  });
+  select.onchange = () => updateGL(pamId, select.value);
+  return select;
+}
+
+async function updateGL(pamId, glAccount) {
+  const res  = await apiFetch('/payment-memo/pam/' + pamId + '/gl-account', {
+    method: 'POST',
+    body: JSON.stringify({ gl_account: glAccount }),
+  });
+  if (!res) return;
+  const data = await res.json();
+  if (!data.ok) showToast('Gagal update GL: ' + data.pesan, 'error');
+  else showToast('GL Account diperbarui.', 'success');
+}
+
+async function loadPAM() {
+  await loadCOA();
+  const search = (document.getElementById('pam-search')?.value || '').trim();
+  const res    = await apiFetch('/payment-memo/pam?search=' + encodeURIComponent(search));
+  if (!res) return;
+  const data   = await res.json();
+  const tbody  = document.getElementById('pam-tbody');
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#6b7280;">Belum ada PAM record.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.rows.map((r, i) => `
+    <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+      <td style="padding:7px 10px;font-weight:600;">${esc(r.pam_no)}</td>
+      <td style="padding:7px 10px;">${esc(r.pam_date || '-')}</td>
+      <td style="padding:7px 10px;">${esc(r.pt || '-')}</td>
+      <td style="padding:7px 10px;font-family:monospace;font-size:11px;">${esc(r.cost_center || '-')}</td>
+      <td style="padding:7px 10px;" id="gl-cell-${r.id}"></td>
+      <td style="padding:7px 10px;">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:7px 10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+          title="${esc(r.keterangan || '')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:7px 10px;text-align:right;">${fmtRupiah(r.total_amount)}</td>
+      <td style="padding:7px 10px;">${esc(r.due_date || '-')}</td>
+      <td style="padding:7px 10px;">
+        <span style="background:${r.status==='draft'?'#fef3c7':r.status==='approved'?'#d1fae5':'#e0e7ff'};
+                     padding:2px 8px;border-radius:9999px;font-size:11px;">
+          ${esc(r.status)}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+
+  data.rows.forEach(r => {
+    const cell = document.getElementById('gl-cell-' + r.id);
+    if (cell) cell.appendChild(buildGLDropdown(r.id, r.gl_account));
+  });
+}
+
+// Load PAM when switching to PAM tab
+document.addEventListener('DOMContentLoaded', () => {
+  const pamBtn = document.querySelector('[data-tab="tab-pam"]');
+  if (pamBtn) pamBtn.addEventListener('click', loadPAM);
+});
 </script>
 {% endblock %}
