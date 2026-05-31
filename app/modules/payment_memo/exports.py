@@ -335,6 +335,19 @@ def export_pam_excel(pam_id: int, company_id: int,
         if align:  c.alignment = align
         if border: c.border    = border
 
+    def _draw_box(r1, c1, r2, c2):
+        """Draw a thin outline border on all cells of range (r1,c1):(r2,c2)."""
+        for r in range(r1, r2 + 1):
+            for c in range(c1, c2 + 1):
+                cell = ws.cell(r, c)
+                prev = cell.border
+                cell.border = Border(
+                    top    = _thin if r == r1 else prev.top,
+                    bottom = _thin if r == r2 else prev.bottom,
+                    left   = _thin if c == c1 else prev.left,
+                    right  = _thin if c == c2 else prev.right,
+                )
+
     def _dt_val(s):
         try:    return _dt.strptime(s[:10], "%Y-%m-%d")
         except: return s or ""
@@ -365,6 +378,7 @@ def export_pam_excel(pam_id: int, company_id: int,
     _set("B5", "Date",                      align=_L)
     _set("E5", ":")
     _set("F5", pam_date,                    align=_L)
+    ws["F5"].number_format = '[$-421]dd\\ mmmm\\ yyyy;@'
     _set("L5", "GL Account",               align=_R)
     _set("O5", ":",                          align=_R)
     _set("P5", pam.get("gl_account", ""),  align=_L)
@@ -392,7 +406,10 @@ def export_pam_excel(pam_id: int, company_id: int,
 
     # Row 11 — BU checkboxes
     ws.merge_cells("E11:F11")
+    ws["E11"].border = _box                         # empty checkbox (Upstream)
     _set("G11", "  Upstream",              align=_L)
+    ws["I11"].border = Border(right=_thin)            # shared edge — Downstream checkbox
+    ws["J11"].border = Border(top=_thin, bottom=_thin, right=_thin)
     _set("K11", "  Downstream",            align=_L)
     _set("N11", "V",                        align=_C, border=_box)
     _set("O11", "  Corporate",             align=_L)
@@ -402,6 +419,7 @@ def export_pam_excel(pam_id: int, company_id: int,
 
     # Row 14 — Downpayment (unchecked)
     ws.merge_cells("E14:F14")
+    ws["E14"].border = _box                         # empty checkbox
     _set("G14", "  Downpayment to vendor", align=_L)
 
     # Row 15 — Invoice Payment (checked)
@@ -411,6 +429,7 @@ def export_pam_excel(pam_id: int, company_id: int,
 
     # Row 16 — Employee Advance (unchecked)
     ws.merge_cells("E16:F16")
+    ws["E16"].border = _box                         # empty checkbox
     _set("G16", "  Employee Advance/ Reimbursement (Fund Transfer)", align=_L)
 
     # Row 18 — Invoice Information header
@@ -434,12 +453,14 @@ def export_pam_excel(pam_id: int, company_id: int,
     _set("G21", "Invoice Amount",          align=_R)
     _set("H21", ":",                        align=_R)
     _set("I21", pam.get("total_amount", 0), align=_C)
+    ws["I21"].number_format = '_("Rp"* #,##0_);_("Rp"* \\(#,##0\\);_("Rp"* "-"_);_(@_)'
 
     # Row 22 — Expected Due Date
     ws.merge_cells("I22:O22")
     _set("G22", "Expected Due Date",       align=_R)
     _set("H22", ":",                        align=_R)
     _set("I22", due_date,                  align=_L)
+    ws["I22"].number_format = '[$-421]dd\\ mmmm\\ yyyy;@'
 
     # Row 24 — Vendor Bank Account header
     ws.merge_cells("B24:Q24")
@@ -468,6 +489,7 @@ def export_pam_excel(pam_id: int, company_id: int,
     ws.merge_cells("B29:F29")
     _set("B29", "Request by",              font=_bold(), align=_C, border=_box)
     ws.merge_cells("B30:F33")
+    _draw_box(30, 2, 33, 6)   # B30:F33 — Request by signature space
     ws.merge_cells("B34:F34")
     _set("B34", pam.get("requestors_name", ""), align=_C, border=_box)
 
@@ -475,7 +497,9 @@ def export_pam_excel(pam_id: int, company_id: int,
     ws.merge_cells("B36:K36")
     _set("B36", "Approved by",             font=_bold(), align=_C, border=_box)
     ws.merge_cells("B37:F41")
+    _draw_box(37, 2, 41, 6)   # B37:F41 — Approved by left space
     ws.merge_cells("G37:K41")
+    _draw_box(37, 7, 41, 11)  # G37:K41 — Approved by right space
     ws.merge_cells("B42:F42")
     ws.merge_cells("G42:K42")
     _set("B42", approved_by_1,             align=_C, border=_box_lr)
@@ -484,6 +508,7 @@ def export_pam_excel(pam_id: int, company_id: int,
     # Row 43 — Checked by (QA)
     _set("B43", "Checked by (QA)",         font=_bold())
     ws.merge_cells("B44:F48")
+    _draw_box(44, 2, 48, 6)   # B44:F48 — QA signature space
 
     # ── Sheet 2: Lampiran ────────────────────────────────────────────────────
     ws2 = wb.create_sheet("Lampiran")
