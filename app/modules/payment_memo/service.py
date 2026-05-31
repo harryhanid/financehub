@@ -397,6 +397,27 @@ def get_pam_payments(pam_no: str, company_id: int) -> list:
     return rows
 
 
+def get_days_of_pam(company_id: int) -> list:
+    conn = get_conn()
+    rows = [dict(r) for r in conn.execute(
+        """SELECT pb.id, pb.siswa_code, s.nama,
+                  pb.pam        AS pam_no,
+                  pb.cat1, pb.cat2, pb.perusahaan, pb.pillar,
+                  pb.amount,    pb.tanggal,
+                  pb.tgl_pengajuan, pb.tgl_receive,
+                  pb.tgl_pa,    pb.tgl_final
+           FROM payment_beasiswa pb
+           LEFT JOIN siswa s
+                  ON s.company_id = pb.company_id AND s.code = pb.siswa_code
+           WHERE pb.company_id = ?
+             AND pb.pam IS NOT NULL AND pb.pam != ''
+           ORDER BY pb.tanggal DESC""",
+        (company_id,)
+    ).fetchall()]
+    conn.close()
+    return rows
+
+
 def update_pam_and_application(pam_id: int, pam_data: dict,
                                 app_data: dict, company_id: int) -> dict:
     conn = get_conn()

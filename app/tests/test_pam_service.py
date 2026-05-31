@@ -26,14 +26,14 @@ def clean_db():
 
 def test_generate_pam_number_first():
     conn = get_conn()
-    no = generate_pam_number(COMPANY_ID, COMPANY_CODE, "2026", conn)
+    no = generate_pam_number(COMPANY_ID, COMPANY_CODE, "2026", "05", conn)
     conn.close()
-    assert no == "PAM/ETF/2026/001"
+    assert no == "PAM-001-ETF-05-2026"
 
 
 def test_generate_pam_number_increments():
     conn = get_conn()
-    no1 = generate_pam_number(COMPANY_ID, COMPANY_CODE, "2026", conn)
+    no1 = generate_pam_number(COMPANY_ID, COMPANY_CODE, "2026", "05", conn)
     conn.execute(
         """INSERT INTO pam_records (company_id, pam_no, pam_date, gl_account,
            cost_center, pt, requestors_name, keterangan, total_amount, due_date)
@@ -42,9 +42,9 @@ def test_generate_pam_number_increments():
          "Jany Turkanda", "Harry, Joni", 5000000, "2026-06-30")
     )
     conn.commit()
-    no2 = generate_pam_number(COMPANY_ID, COMPANY_CODE, "2026", conn)
+    no2 = generate_pam_number(COMPANY_ID, COMPANY_CODE, "2026", "05", conn)
     conn.close()
-    assert no2 == "PAM/ETF/2026/002"
+    assert no2 == "PAM-002-ETF-05-2026"
 
 
 def test_get_coa_list_returns_14():
@@ -70,7 +70,7 @@ def test_create_pam_record_inserts_row():
     ).fetchone()
     conn.close()
     assert row is not None
-    assert row["pam_no"]          == "PAM/ETF/2026/001"
+    assert row["pam_no"]          == "PAM-001-ETF-05-2026"
     assert row["gl_account"]      == "70110230"
     assert row["cost_center"]     == "1008C1POFF"   # SMART Tbk
     assert row["requestors_name"] == "Jany Turkanda"
@@ -121,7 +121,7 @@ def test_get_pam_list_returns_inserted():
     conn.close()
     rows = get_pam_list(COMPANY_ID)
     assert len(rows) == 1
-    assert rows[0]["pam_no"] == "PAM/ETF/2026/001"
+    assert rows[0]["pam_no"] == "PAM-001-ETF-05-2026"
 
 
 def test_update_pam_gl_account_success():
@@ -255,4 +255,77 @@ def test_get_pam_payments_empty_for_wrong_company():
     _seed_siswa_and_payment(conn, COMPANY_ID, "PAM-052-ETF-05-2026")
     conn.close()
     rows = get_pam_payments("PAM-052-ETF-05-2026", 999)
+    assert rows == []
+
+
+# ── Days of PAM ────────────────────────────────────────────────────────────────
+
+def _seed_payment_with_pam(conn, company_id, siswa_code, pam_no):
+    """Helper: insert one payment_beasiswa row that has a pam assigned."""
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
+            pam, perusahaan, tgl_pengajuan, tgl_receive, tgl_pa, tgl_final)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (company_id, siswa_code, "Beasiswa", "Semester",
+         "2026-05-01", 5000000.0, "AGRI",
+         pam_no, "PT. SMART Tbk",
+         "2026-05-02", "2026-05-05", "2026-05-10", "2026-05-15")
+    )
+    conn.commit()
+
+
+def test_get_days_of_pam_returns_rows_with_pam():
+    from modules.payment_memo.service import get_days_of_pam
+    conn = get_conn()
+    # seed siswa
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S001", "Budi Santoso")
+    )
+    _seed_payment_with_pam(conn, COMPANY_ID, "S001", "PAM-001-ETF-05-2026")
+    # payment without pam should NOT appear
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, tanggal, amount) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "S001", "Beasiswa", "2026-05-01", 1000000.0)
+    )
+    conn.commit()
+    conn.close()
+
+    rows = get_days_of_pam(COMPANY_ID)
+    assert len(rows) == 1
+    r = rows[0]
+    assert r["pam_no"]      == "PAM-001-ETF-05-2026"
+    assert r["siswa_code"]  == "S001"
+    assert r["nama"]        == "Budi Santoso"
+    assert r["cat1"]        == "Beasiswa"
+    assert r["perusahaan"]  == "PT. SMART Tbk"
+    assert r["amount"]      == 5000000.0
+    assert r["tgl_receive"] == "2026-05-05"
+
+
+def test_get_days_of_pam_empty_pam_excluded():
+    from modules.payment_memo.service import get_days_of_pam
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, tanggal, amount, pam) VALUES (?,?,?,?,?,?)",
+        (COMPANY_ID, "S002", "Beasiswa", "2026-05-01", 1000000.0, "")
+    )
+    conn.commit()
+    conn.close()
+    rows = get_days_of_pam(COMPANY_ID)
+    assert rows == []
+
+
+def test_get_days_of_pam_different_company_isolated():
+    from modules.payment_memo.service import get_days_of_pam
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S001", "Budi")
+    )
+    _seed_payment_with_pam(conn, COMPANY_ID, "S001", "PAM-001-ETF-05-2026")
+    conn.close()
+    # Company 99 should see nothing
+    rows = get_days_of_pam(99)
     assert rows == []
