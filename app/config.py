@@ -29,25 +29,27 @@ PROGRAM = [
 
 STATUS_SISWA = ["Aktif", "lulus", "gugur", "undur diri"]
 
-PILLAR = ["AGRI", "APP", "Finance", "Mining", "Property", "ENERGY & FINANCE"]
+PILLAR = ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY", "SETF", "NON PILLAR", "NON ALLOCATED"]
 
-CAT1_BGT = [
-    "By Pendidikan", "By Tunjangan", "By Penelitian", "By Pendaftaran",
-    "By Ujian", "By Matrikulasi", "By Daftar Ulang", "By Gedung",
-    "By Wisuda", "By Orientasi", "By Registrasi", "Kelas Afirmasi",
-    "Test TOEFL", "Test Kemampuan Akademik (TKA)", "By Uang Pangkal",
-    "By Tugas Akhir", "By Seragam", "By Kegiatan", "By Akomodasi",
-    "By Kemahasiswaan", "By Sumbangan Pembangunan", "Rawat Inap",
-    "Rawat Jalan", "Tahap 1", "Tahap 2", "Tahap 3",
-    "Test TPDA", "Uang Pengembangan Institusi (IPI)",
-    "By Ujian Kualifikasi", "Test Kemampuan Bahasa Inggris",
-    "By Medical", "By Claim Medical",
-]
+CAT1_BGT = ["By Pendidikan", "By Tunjangan", "By Penelitian", "By Medical"]
 
 CAT2_SEM = [
     "Semester 1", "Semester 2", "Semester 3", "Semester 4", "Semester 5",
     "Semester 6", "Semester 7", "Semester 8", "Semester 9", "Semester 10",
+    "By Pendaftaran", "By Ujian", "By Matrikulasi", "By Daftar Ulang",
+    "By Gedung", "By Penelitian", "By Wisuda",
+    "Rawat Inap", "Rawat Jalan",
     "Tahap 1", "Tahap 2", "Tahap 3",
+    "By Orientasi", "By Registrasi", "Kelas Afirmasi",
+    "Test TOEFL", "Test Kemampuan Akademik (TKA)",
+    "By Uang Pangkal", "By Tugas Akhir", "By Seragam",
+    "By Kegiatan", "By Akomodasi", "By Kemahasiswaan",
+    "By Sumbangan Pembangunan", "Test TPDA",
+    "Uang Pengembangan Institusi (IPI)",
+    "By Ujian Kualifikasi", "Test Kemampuan Bahasa Inggris",
+    "By Surat Keterangan Sehat & Bebas Narkoba",
+    "By Buku dan Seragam", "By Kursus Bahasa Mandarin",
+    "By Kursus Matematika",
 ]
 
 KODE_JENJANG = {
@@ -95,3 +97,24 @@ COST_CENTER_MAP = {
     "PT. Tapian Nadenggan":                           "1401C1POFF",
     "PT. Sumber Indah Perkasa":                       "2501C1CMOF",
 }
+
+# Chart of Accounts — seed data for coa table + GL Account dropdown
+COA_LIST = [
+    {"gl_code": "70107800", "gl_name": "Sponsorship Expense"},
+    {"gl_code": "70107500", "gl_name": "Social Donation Expense"},
+    {"gl_code": "70110220", "gl_name": "CSR Expense"},
+    {"gl_code": "70110230", "gl_name": "Scholarship Expense"},
+    {"gl_code": "70109100", "gl_name": "Communication Expense - 3rd Party"},
+    {"gl_code": "70110100", "gl_name": "Professional International Organization Expense"},
+    {"gl_code": "70110110", "gl_name": "Professional National Organization Expense"},
+    {"gl_code": "70111130", "gl_name": "Consultant Fee"},
+    {"gl_code": "70108100", "gl_name": "Office Equipment Expense"},
+    {"gl_code": "70111132", "gl_name": "Biaya Jasa Konsultan – Affiliasi"},
+    {"gl_code": "70107200", "gl_name": "Entertainment Expense"},
+    {"gl_code": "70119310", "gl_name": "Gift Expense"},
+    {"gl_code": "70106300", "gl_name": "Overseas Travel Expense"},
+    {"gl_code": "70107600", "gl_name": "Office Consumption"},
+]
+
+PAM_DEFAULT_GL        = "70110230"
+PAM_DEFAULT_REQUESTOR = "Jany Turkanda"

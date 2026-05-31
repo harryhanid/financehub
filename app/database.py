@@ -127,6 +127,47 @@ CREATE TABLE IF NOT EXISTS payment_application (
     notes               TEXT,
     created_at          TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS klaim_medical (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id   INTEGER NOT NULL REFERENCES companies(id),
+    siswa_code   TEXT NOT NULL,
+    pam          TEXT,
+    tanggal      TEXT,
+    amount       REAL DEFAULT 0,
+    perawatan    TEXT,
+    kelas        TEXT,
+    rumah_sakit  TEXT,
+    diagnosa     TEXT,
+    spesialisasi TEXT,
+    pillar       TEXT,
+    perusahaan   TEXT,
+    payment_id   INTEGER,
+    created_at   TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pam_records (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id      INTEGER NOT NULL REFERENCES companies(id),
+    pam_no          TEXT UNIQUE NOT NULL,
+    pam_date        TEXT,
+    gl_account      TEXT DEFAULT '70110230',
+    cost_center     TEXT,
+    pt              TEXT,
+    requestors_name TEXT DEFAULT 'Jany Turkanda',
+    keterangan      TEXT,
+    total_amount    REAL DEFAULT 0,
+    due_date        TEXT,
+    status          TEXT DEFAULT 'draft',
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TEXT
+);
+
+CREATE TABLE IF NOT EXISTS coa (
+    gl_code   TEXT PRIMARY KEY,
+    gl_name   TEXT NOT NULL,
+    is_active INTEGER DEFAULT 1
+);
 """
 
 
@@ -138,6 +179,71 @@ def get_conn():
     return conn
 
 
+def migrate_db():
+    conn = get_conn()
+    for col in ["tgl_pengajuan", "tgl_receive", "tgl_pa", "tgl_final"]:
+        try:
+            conn.execute(f"ALTER TABLE payment_beasiswa ADD COLUMN {col} TEXT")
+            conn.commit()
+        except Exception:
+            pass
+    # klaim_medical table (may not exist in older DBs)
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS klaim_medical ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "company_id INTEGER NOT NULL,"
+            "siswa_code TEXT NOT NULL,"
+            "pam TEXT, tanggal TEXT, amount REAL DEFAULT 0,"
+            "perawatan TEXT, kelas TEXT, rumah_sakit TEXT,"
+            "diagnosa TEXT, spesialisasi TEXT,"
+            "pillar TEXT, perusahaan TEXT, payment_id INTEGER,"
+            "created_at TEXT DEFAULT CURRENT_TIMESTAMP)"
+        )
+        conn.commit()
+    except Exception:
+        pass
+
+    # pam_records table (new — safe to run on existing DBs)
+    try:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS pam_records (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id      INTEGER NOT NULL,
+                pam_no          TEXT UNIQUE NOT NULL,
+                pam_date        TEXT,
+                gl_account      TEXT DEFAULT '70110230',
+                cost_center     TEXT,
+                pt              TEXT,
+                requestors_name TEXT DEFAULT 'Jany Turkanda',
+                keterangan      TEXT,
+                total_amount    REAL DEFAULT 0,
+                due_date        TEXT,
+                status          TEXT DEFAULT 'draft',
+                created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at      TEXT)"""
+        )
+        conn.commit()
+    except Exception:
+        pass
+
+    # coa table (new)
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS coa (gl_code TEXT PRIMARY KEY, gl_name TEXT NOT NULL, is_active INTEGER DEFAULT 1)"
+        )
+        for entry in config.COA_LIST:
+            conn.execute(
+                "INSERT OR IGNORE INTO coa (gl_code, gl_name) VALUES (?, ?)",
+                (entry["gl_code"], entry["gl_name"])
+            )
+        conn.commit()
+    except Exception:
+        pass
+
+    conn.close()
+
+
 def init_db():
     conn = get_conn()
     conn.executescript(DDL)
@@ -145,6 +251,11 @@ def init_db():
         conn.execute(
             "INSERT OR IGNORE INTO companies (id, code, name) VALUES (?, ?, ?)",
             (c["id"], c["code"], c["name"])
+        )
+    for entry in config.COA_LIST:
+        conn.execute(
+            "INSERT OR IGNORE INTO coa (gl_code, gl_name) VALUES (?, ?)",
+            (entry["gl_code"], entry["gl_name"])
         )
     row = conn.execute("SELECT id FROM users WHERE username = 'admin'").fetchone()
     if row is None:
@@ -158,6 +269,7 @@ def init_db():
         )
     conn.commit()
     conn.close()
+    migrate_db()
 
 
 if __name__ == "__main__":
