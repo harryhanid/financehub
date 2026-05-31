@@ -1,4 +1,6 @@
 import re
+import calendar
+import config
 from datetime import datetime
 from database import get_conn
 
@@ -154,6 +156,124 @@ def update_memo_status(memo_id: int, new_status: str, by_user: str, company_id: 
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": f"Status memo diubah ke '{new_status}'."}
+
+
+# ── PAM helpers ─────────────────────────────────────────────────────────────
+
+def _add_one_month(date_str: str) -> str:
+    try:
+        dt    = datetime.strptime(date_str, "%Y-%m-%d")
+        month = dt.month % 12 + 1
+        year  = dt.year + (1 if dt.month == 12 else 0)
+        day   = min(dt.day, calendar.monthrange(year, month)[1])
+        return datetime(year, month, day).strftime("%Y-%m-%d")
+    except ValueError:
+        return date_str
+
+
+def generate_pam_number(company_id: int, company_code: str, year: str,
+                        conn=None) -> str:
+    prefix    = f"PAM/{company_code}/{year}/"
+    pattern   = re.compile(rf"PAM/{re.escape(company_code)}/{re.escape(year)}/(\d+)")
+    owns_conn = conn is None
+    if owns_conn:
+        conn = get_conn()
+    rows = conn.execute(
+        "SELECT pam_no FROM pam_records WHERE company_id=? AND pam_no LIKE ?",
+        (company_id, prefix + "%")
+    ).fetchall()
+    if owns_conn:
+        conn.close()
+    max_seq = 0
+    for row in rows:
+        m = pattern.match(row["pam_no"])
+        if m:
+            seq = int(m.group(1))
+            if seq > max_seq:
+                max_seq = seq
+    return f"{prefix}{max_seq + 1:03d}"
+
+
+def create_pam_record(conn, company_id: int, company_code: str,
+                      data: dict) -> str:
+    pam_date    = data.get("pam_date") or _ts()[:10]
+    year        = pam_date[:4]
+    pam_no      = generate_pam_number(company_id, company_code, year, conn)
+    due_date    = _add_one_month(pam_date)
+    cost_center = config.COST_CENTER_MAP.get(data.get("pt", ""), "")
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, gl_account, cost_center, pt,
+            requestors_name, keterangan, total_amount, due_date, status, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'draft',?)""",
+        (company_id, pam_no, pam_date,
+         data.get("gl_account", config.PAM_DEFAULT_GL),
+         cost_center, data.get("pt", ""),
+         data.get("requestors_name", config.PAM_DEFAULT_REQUESTOR),
+         data.get("keterangan", ""),
+         float(data.get("total_amount", 0)),
+         due_date, _ts())
+    )
+    for pid in data.get("payment_ids", []):
+        conn.execute(
+            "UPDATE payment_beasiswa SET pam=? WHERE id=?", (pam_no, pid)
+        )
+    return pam_no
+
+
+def get_pam_list(company_id: int, search: str = "", bulan: str = "",
+                 tahun: str = "") -> list:
+    sql    = "SELECT * FROM pam_records WHERE company_id=?"
+    params = [company_id]
+    if search:
+        q       = f"%{search}%"
+        sql    += " AND (pam_no LIKE ? OR pt LIKE ? OR keterangan LIKE ?)"
+        params += [q, q, q]
+    if bulan:
+        sql    += " AND strftime('%m', pam_date)=?"
+        params += [bulan.zfill(2)]
+    if tahun:
+        sql    += " AND strftime('%Y', pam_date)=?"
+        params += [tahun]
+    sql += " ORDER BY created_at DESC"
+    conn = get_conn()
+    rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
+    conn.close()
+    return rows
+
+
+def get_coa_list() -> list:
+    conn = get_conn()
+    rows = [dict(r) for r in conn.execute(
+        "SELECT gl_code, gl_name FROM coa WHERE is_active=1 ORDER BY gl_code"
+    ).fetchall()]
+    conn.close()
+    return rows
+
+
+def update_pam_gl_account(pam_id: int, gl_account: str,
+                           company_id: int) -> dict:
+    conn = get_conn()
+    coa  = conn.execute(
+        "SELECT gl_code FROM coa WHERE gl_code=? AND is_active=1", (gl_account,)
+    ).fetchone()
+    if not coa:
+        conn.close()
+        return {"ok": False, "pesan": f"GL Account '{gl_account}' tidak ditemukan di COA."}
+    row = conn.execute(
+        "SELECT id FROM pam_records WHERE id=? AND company_id=?",
+        (pam_id, company_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "PAM record tidak ditemukan."}
+    conn.execute(
+        "UPDATE pam_records SET gl_account=?, updated_at=? WHERE id=? AND company_id=?",
+        (gl_account, _ts(), pam_id, company_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"GL Account diubah ke {gl_account}."}
 
 
 def export_memo_pdf(memo_id: int, company_id: int, company_name: str) -> bytes:
