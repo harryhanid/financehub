@@ -151,3 +151,33 @@ def test_export_pam_pdf_custom_real_vendor_name():
     result = export_pam_pdf_custom(data, [])
     assert isinstance(result, bytes)
     assert result[:4] == b'%PDF'
+
+from modules.payment_memo.exports import export_pam_excel_custom
+
+def test_export_pam_excel_custom_returns_xlsx():
+    import zipfile, io as _io
+    result = export_pam_excel_custom(_CUSTOM_DATA, _PAYMENTS)
+    assert isinstance(result, bytes)
+    assert zipfile.is_zipfile(_io.BytesIO(result))
+
+def test_export_pam_excel_custom_has_two_sheets():
+    import openpyxl, io as _io
+    result = export_pam_excel_custom(_CUSTOM_DATA, _PAYMENTS)
+    wb = openpyxl.load_workbook(_io.BytesIO(result))
+    assert wb.sheetnames == ["PAM NEW", "Lampiran"]
+
+def test_export_pam_excel_custom_pam_no_in_sheet():
+    import openpyxl, io as _io
+    result = export_pam_excel_custom(_CUSTOM_DATA, _PAYMENTS)
+    wb = openpyxl.load_workbook(_io.BytesIO(result))
+    ws = wb["PAM NEW"]
+    values = [ws.cell(r, c).value for r in range(1, 15) for c in range(1, 18)]
+    assert "PAM-001-ETF-05-2026" in values
+
+def test_export_pam_excel_custom_approved_by_in_sheet():
+    import openpyxl, io as _io
+    result = export_pam_excel_custom(_CUSTOM_DATA, _PAYMENTS)
+    wb = openpyxl.load_workbook(_io.BytesIO(result))
+    ws = wb["PAM NEW"]
+    values = [ws.cell(r, c).value for r in range(36, 50) for c in range(1, 12)]
+    assert "Hong Tjhin" in values
