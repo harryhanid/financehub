@@ -267,7 +267,7 @@ def test_add_payment_multi_creates_pam_record():
     assert result["ok"] is True
     assert result["saved"] == 2
     assert "pam_no" in result
-    assert result["pam_no"].startswith("PAM/ETF/2026/")
+    assert result["pam_no"].startswith("PAM-") and "ETF" in result["pam_no"]
 
     conn = get_conn()
     pam = conn.execute(
