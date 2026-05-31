@@ -6,7 +6,7 @@ from modules.payment_memo.service import (
     update_memo_status, export_memo_pdf,
     get_pam_list, get_coa_list, update_pam_gl_account,
     update_pam_status, update_pam_record,
-    get_pam_detail, update_pam_and_application,
+    get_pam_detail, get_pam_payments, update_pam_and_application,
     get_draft_payment_detail, update_draft_and_linked,
     delete_payment_beasiswa, cancel_pam_record,
 )
@@ -155,9 +155,11 @@ def update_pam_status_route(pam_id):
 @bp.route("/pam/<int:pam_id>/detail")
 @role_required("requester", "verificator", "releaser")
 def get_pam_detail_route(pam_id):
-    detail = get_pam_detail(pam_id, session.get("company_id", 0))
+    company_id = session.get("company_id", 0)
+    detail = get_pam_detail(pam_id, company_id)
     if not detail:
         return jsonify({"ok": False, "pesan": "PAM record tidak ditemukan."}), 404
+    detail["payments"] = get_pam_payments(detail["pam_no"], company_id)
     return jsonify({"ok": True, "data": detail})
 
 

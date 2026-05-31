@@ -103,3 +103,43 @@ def test_update_pam_gl_account_via_api(client):
                      headers={"Authorization": f"Bearer {token}"})
     assert rv.status_code == 200
     assert rv.get_json()["ok"] is True
+
+
+def test_pam_detail_includes_payments(client):
+    from modules.payment_memo.service import create_pam_record
+    from database import get_conn
+    conn = get_conn()
+    try:
+        pam_no = create_pam_record(conn, 2, "ETF", {
+            "pam_date": "2026-05-31", "pt": "PT. SMART Tbk",
+            "keterangan": "Test", "total_amount": 5000000.0, "payment_ids": [],
+        })
+        conn.execute(
+            "INSERT INTO siswa (company_id,code,nama,bank,norek,namarek,jenjang,program,status)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (2, "S001", "Budi", "BCA", "123456", "Budi", "S1", "SMART", "Aktif"),
+        )
+        conn.execute(
+            "INSERT INTO payment_beasiswa"
+            " (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,pam,status)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (2, "S001", "General", "Sem 1", "2026-05-31", 5000000, "ETF", "PT. SMART Tbk", pam_no, "draft"),
+        )
+        conn.commit()
+        pam_id = conn.execute(
+            "SELECT id FROM pam_records WHERE pam_no=?", (pam_no,)
+        ).fetchone()["id"]
+    finally:
+        conn.close()
+
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    rv = client.get(f"/payment-memo/pam/{pam_id}/detail",
+                    headers={"Authorization": f"Bearer {token}"})
+    assert rv.status_code == 200
+    body = rv.get_json()
+    assert body["ok"] is True
+    assert "payments" in body["data"]
+    assert len(body["data"]["payments"]) == 1
+    assert body["data"]["payments"][0]["siswa_code"] == "S001"
