@@ -143,3 +143,4 @@ def test_pam_detail_includes_payments(client):
     assert "payments" in body["data"]
     assert len(body["data"]["payments"]) == 1
     assert body["data"]["payments"][0]["siswa_code"] == "S001"
+    assert body["data"]["payments"][0]["amount"] == 5000000
