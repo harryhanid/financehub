@@ -3,13 +3,14 @@ from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required, role_required
 from modules.payment_memo.service import (
     get_draft_payments, create_memo, get_memo_list, get_memo_detail,
-    update_memo_status, export_memo_pdf, export_pam_excel,
+    update_memo_status, export_memo_pdf,
     get_pam_list, get_coa_list, update_pam_gl_account,
     update_pam_status, update_pam_record,
     get_pam_detail, update_pam_and_application,
     get_draft_payment_detail, update_draft_and_linked,
     delete_payment_beasiswa, cancel_pam_record,
 )
+from modules.payment_memo.exports import export_pam_pdf, export_pam_excel
 import config, io
 
 bp = Blueprint("payment_memo", __name__, url_prefix="/payment-memo")
@@ -198,20 +199,46 @@ def delete_draft_route(payment_id):
     return jsonify(result)
 
 
-@bp.route("/pam/<int:pam_id>/export/excel")
-@role_required("verificator", "releaser")
-def export_pam_excel_route(pam_id):
-    company_id = session.get("company_id")
+@bp.route("/pam/<int:pam_id>/export/pdf")
+@role_required("requester", "verificator", "releaser")
+def export_pam_pdf_route(pam_id):
+    company_id    = session.get("company_id")
+    approved_by_1 = request.args.get("approved_by_1", "").strip()
+    approved_by_2 = request.args.get("approved_by_2", "").strip()
     try:
-        xlsx = export_pam_excel(pam_id, company_id)
-        return send_file(
-            io.BytesIO(xlsx),
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            download_name=f"PAM_{pam_id}.xlsx",
-            as_attachment=True,
-        )
+        pdf_bytes = export_pam_pdf(pam_id, company_id, approved_by_1, approved_by_2)
     except ValueError as e:
         return jsonify({"ok": False, "pesan": str(e)}), 404
+    from modules.payment_memo.service import get_pam_detail
+    pam      = get_pam_detail(pam_id, company_id)
+    filename = f"{pam['pam_no']}.pdf" if pam else f"pam_{pam_id}.pdf"
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        download_name=filename,
+        as_attachment=True,
+    )
+
+
+@bp.route("/pam/<int:pam_id>/export/excel")
+@role_required("requester", "verificator", "releaser")
+def export_pam_excel_route(pam_id):
+    company_id    = session.get("company_id")
+    approved_by_1 = request.args.get("approved_by_1", "").strip()
+    approved_by_2 = request.args.get("approved_by_2", "").strip()
+    try:
+        xls_bytes = export_pam_excel(pam_id, company_id, approved_by_1, approved_by_2)
+    except ValueError as e:
+        return jsonify({"ok": False, "pesan": str(e)}), 404
+    from modules.payment_memo.service import get_pam_detail
+    pam      = get_pam_detail(pam_id, company_id)
+    filename = f"{pam['pam_no']}.xlsx" if pam else f"pam_{pam_id}.xlsx"
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )
 
 
 @bp.route("/pam/<int:pam_id>/cancel", methods=["POST"])
