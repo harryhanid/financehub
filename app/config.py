@@ -118,3 +118,5 @@ COA_LIST = [
 
 PAM_DEFAULT_GL        = "70110230"
 PAM_DEFAULT_REQUESTOR = "Jany Turkanda"
+PAM_APPROVED_BY_1 = "Hong Tjhin"
+PAM_APPROVED_BY_2 = "Tenti Kidjo"

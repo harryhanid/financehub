@@ -3,10 +3,14 @@ from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required, role_required
 from modules.payment_memo.service import (
     get_draft_payments, create_memo, get_memo_list, get_memo_detail,
-    update_memo_status, export_memo_pdf,
+    update_memo_status, export_memo_pdf, export_pam_excel,
     get_pam_list, get_coa_list, update_pam_gl_account,
+    update_pam_status, update_pam_record,
+    get_pam_detail, update_pam_and_application,
+    get_draft_payment_detail, update_draft_and_linked,
+    delete_payment_beasiswa, cancel_pam_record,
 )
-import io
+import config, io
 
 bp = Blueprint("payment_memo", __name__, url_prefix="/payment-memo")
 
@@ -36,7 +40,11 @@ def index():
         "payment_memo/index.html",
         memos=memos,
         drafts=drafts,
+        cat1_list=config.CAT1_BGT,
+        cat2_list=config.CAT2_SEM,
         active_page="payment_memo",
+        pam_approved_by_1=config.PAM_APPROVED_BY_1,
+        pam_approved_by_2=config.PAM_APPROVED_BY_2,
         **_ctx()
     )
 
@@ -130,6 +138,87 @@ def list_pam():
         tahun=request.args.get("tahun", ""),
     )
     return jsonify({"ok": True, "rows": rows})
+
+
+@bp.route("/pam/<int:pam_id>/status", methods=["POST"])
+@role_required("verificator", "releaser")
+def update_pam_status_route(pam_id):
+    data       = request.get_json(force=True) or {}
+    new_status = (data.get("status") or "").strip()
+    if not new_status:
+        return jsonify({"ok": False, "pesan": "Status wajib diisi."}), 400
+    result = update_pam_status(pam_id, new_status, session.get("company_id", 0))
+    return jsonify(result)
+
+
+@bp.route("/pam/<int:pam_id>/detail")
+@role_required("requester", "verificator", "releaser")
+def get_pam_detail_route(pam_id):
+    detail = get_pam_detail(pam_id, session.get("company_id", 0))
+    if not detail:
+        return jsonify({"ok": False, "pesan": "PAM record tidak ditemukan."}), 404
+    return jsonify({"ok": True, "data": detail})
+
+
+@bp.route("/pam/<int:pam_id>/edit", methods=["POST"])
+@role_required("verificator", "releaser")
+def update_pam_record_route(pam_id):
+    data     = request.get_json(force=True) or {}
+    pam_data = data.get("pam", {})
+    app_data = data.get("app", {})
+    result   = update_pam_and_application(pam_id, pam_data, app_data, session.get("company_id", 0))
+    return jsonify(result)
+
+
+@bp.route("/drafts/<int:payment_id>")
+@role_required("requester", "verificator", "releaser")
+def get_draft_detail_route(payment_id):
+    detail = get_draft_payment_detail(payment_id, session.get("company_id", 0))
+    if not detail:
+        return jsonify({"ok": False, "pesan": "Draft payment tidak ditemukan."}), 404
+    return jsonify({"ok": True, "data": detail})
+
+
+@bp.route("/drafts/<int:payment_id>/edit", methods=["POST"])
+@role_required("verificator", "releaser")
+def update_draft_route(payment_id):
+    data     = request.get_json(force=True) or {}
+    pb_data  = data.get("payment", {})
+    pam_data = data.get("pam", {})
+    app_data = data.get("app", {})
+    result   = update_draft_and_linked(payment_id, pb_data, pam_data, app_data,
+                                       session.get("company_id", 0))
+    return jsonify(result)
+
+
+@bp.route("/drafts/<int:payment_id>/delete", methods=["POST"])
+@role_required("verificator", "releaser")
+def delete_draft_route(payment_id):
+    result = delete_payment_beasiswa(payment_id, session.get("company_id", 0))
+    return jsonify(result)
+
+
+@bp.route("/pam/<int:pam_id>/export/excel")
+@role_required("verificator", "releaser")
+def export_pam_excel_route(pam_id):
+    company_id = session.get("company_id")
+    try:
+        xlsx = export_pam_excel(pam_id, company_id)
+        return send_file(
+            io.BytesIO(xlsx),
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            download_name=f"PAM_{pam_id}.xlsx",
+            as_attachment=True,
+        )
+    except ValueError as e:
+        return jsonify({"ok": False, "pesan": str(e)}), 404
+
+
+@bp.route("/pam/<int:pam_id>/cancel", methods=["POST"])
+@role_required("verificator", "releaser")
+def cancel_pam_route(pam_id):
+    result = cancel_pam_record(pam_id, session.get("company_id", 0))
+    return jsonify(result)
 
 
 @bp.route("/pam/<int:pam_id>/gl-account", methods=["POST"])
