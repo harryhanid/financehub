@@ -1048,7 +1048,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
     ws.merge_cells("I21:L21")
     _set("G21", "Invoice Amount",                      align=_R)
     _set("H21", ":",                                    align=_R)
-    _set("I21", data.get("total_amount", 0),           align=_C)
+    _set("I21", float(data.get("total_amount", 0) or 0), align=_C)
     ws["I21"].number_format = '_("Rp"* #,##0_);_("Rp"* \\(#,##0\\);_("Rp"* "-"_);_(@_)'
 
     ws.merge_cells("I22:O22")
@@ -1150,6 +1150,11 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
         total += float(pb.get("amount", 0))
 
     tr  = 3 + len(payments) + 1
+    total_fill = PatternFill("solid", fgColor="E8F0FE")
+    for _tc in range(1, 7):
+        cell = ws2.cell(tr, _tc)
+        cell.fill = total_fill
+        cell.border = _bdr2
     tc7 = ws2.cell(tr, 7, "TOTAL")
     tc7.font = _fb2(9)
     tc7.fill = PatternFill("solid", fgColor="E8F0FE")
