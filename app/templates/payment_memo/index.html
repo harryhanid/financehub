@@ -1,6 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Payment Approval Memo{% endblock %}
 
+{% block head %}
+<style>
+.dm-inp{border:none;border-bottom:1px dashed #94a3b8;background:transparent;font-size:11px;font-family:Arial,sans-serif;padding:1px 2px;outline:none;width:100%;box-sizing:border-box;color:#1e293b}
+.dm-inp:focus{border-bottom:1.5px solid #3b82f6;background:#eff6ff;border-radius:2px}
+.dm-inp[type=number]{text-align:right}
+.dm-inp[type=date]{font-size:10px}
+.dm-cb{width:14px;height:14px;cursor:pointer;accent-color:#1e3a5f;flex-shrink:0}
+</style>
+{% endblock %}
+
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
   <h1 style="font-size:1.25rem; font-weight:700">Payment Approval Memo -- {{ company_name }}</h1>
@@ -797,13 +807,6 @@ function dmRenderForm(p) {
   const dateVal = s => (s || '').slice(0, 10);
 
   return `
-  <style>
-    .dm-inp{border:none;border-bottom:1px dashed #94a3b8;background:transparent;font-size:11px;font-family:Arial,sans-serif;padding:1px 2px;outline:none;width:100%;box-sizing:border-box;color:#1e293b}
-    .dm-inp:focus{border-bottom:1.5px solid #3b82f6;background:#eff6ff;border-radius:2px}
-    .dm-inp[type=number]{text-align:right}
-    .dm-inp[type=date]{font-size:10px}
-    .dm-cb{width:14px;height:14px;cursor:pointer;accent-color:#1e3a5f;flex-shrink:0}
-  </style>
   <div style="border:1px solid #94a3b8;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;max-width:860px">
     <div style="background:#1e3a5f;color:#fff;text-align:center;font-size:14px;font-weight:900;padding:10px;letter-spacing:2px;border-bottom:3px solid #f59e0b">PAYMENT APPROVAL MEMO</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e2e8f0">
@@ -848,7 +851,7 @@ function dmRenderForm(p) {
     <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #e2e8f0">
       <div style="padding:8px 10px;border-right:1px solid #e2e8f0">
         <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Request by</div>
-        ${inp('dm-f-requestor-sig', p.requestors_name)}
+        <span style="font-size:11px;color:#1e293b;border-bottom:1px dashed #94a3b8;display:block;padding:2px 0;min-height:18px">&nbsp;</span>
       </div>
       <div style="padding:8px 10px">
         <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Approved by</div>
