@@ -140,8 +140,14 @@ def test_export_pam_pdf_custom_empty_payments():
     assert isinstance(result, bytes)
     assert result[:4] == b'%PDF'
 
-def test_export_pam_pdf_custom_checkboxes_upstream():
+def test_export_pam_pdf_custom_alternate_checkboxes_does_not_crash():
     data = {**_CUSTOM_DATA, "bu_upstream": True, "bu_corporate": False}
+    result = export_pam_pdf_custom(data, [])
+    assert isinstance(result, bytes)
+    assert result[:4] == b'%PDF'
+
+def test_export_pam_pdf_custom_real_vendor_name():
+    data = {**_CUSTOM_DATA, "vendor_name": "PT. Maju Jaya", "bank_account_name": "Hendra Wijaya"}
     result = export_pam_pdf_custom(data, [])
     assert isinstance(result, bytes)
     assert result[:4] == b'%PDF'

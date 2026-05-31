@@ -185,9 +185,10 @@ def _build_pam_table_custom(data: dict) -> Table:
         return "☑" if val else "☐"
 
     def _maybe_terlampir(val):
-        if not val or val.strip().lower() == "terlampir":
+        s = str(val) if val is not None else ""
+        if not s or s.strip().lower() == "terlampir":
             return _terlampir()
-        return _p(val, _S_VAL)
+        return _p(s, _S_VAL)
 
     bu_row  = f"{_cb(data.get('bu_upstream'))}  Upstream          "
     bu_row += f"{_cb(data.get('bu_downstream'))}  Downstream          "
