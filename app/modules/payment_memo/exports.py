@@ -276,3 +276,219 @@ def export_pam_pdf(pam_id: int, company_id: int,
     doc.build(elems)
     buf.seek(0)
     return buf.read()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Excel export
+# ─────────────────────────────────────────────────────────────────────────────
+
+def export_pam_excel(pam_id: int, company_id: int,
+                     approved_by_1: str, approved_by_2: str) -> bytes:
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    pam = get_pam_detail(pam_id, company_id)
+    if not pam:
+        raise ValueError("PAM record tidak ditemukan.")
+
+    approved_by_1 = approved_by_1 or config.PAM_APPROVED_BY_1
+    approved_by_2 = approved_by_2 or config.PAM_APPROVED_BY_2
+    pam_no        = pam["pam_no"]
+    payments      = get_pam_payments(pam_no, company_id)
+
+    wb = openpyxl.Workbook()
+
+    # ── Sheet 1: PAM Form ────────────────────────────────────────────────────
+    ws1 = wb.active
+    ws1.title = "PAM"
+
+    blue_fill  = PatternFill("solid", fgColor="1E3A5F")
+    gold_fill  = PatternFill("solid", fgColor="F59E0B")
+    gray_fill  = PatternFill("solid", fgColor="E2E8F0")
+    lgray_fill = PatternFill("solid", fgColor="F8FAFC")
+    amber_fill = PatternFill("solid", fgColor="FEF3C7")
+    white_fill = PatternFill("solid", fgColor="FFFFFF")
+
+    thin     = Side(style="thin", color="D1D5DB")
+    _border  = Border(left=thin, right=thin, top=thin, bottom=thin)
+    _center  = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    _left    = Alignment(horizontal="left",   vertical="center", wrap_text=True)
+
+    def _fw(sz=11): return Font(bold=True, color="FFFFFF", size=sz, name="Arial")
+    def _fb(sz=9, c="1E293B"): return Font(bold=True,  size=sz, name="Arial", color=c)
+    def _fn(sz=9, c="374151"): return Font(bold=False, size=sz, name="Arial", color=c)
+
+    def _s(cell, v, font=None, fill=None, align=None):
+        cell.value = v
+        if font:  cell.font      = font
+        if fill:  cell.fill      = fill
+        if align: cell.alignment = align
+        cell.border = _border
+
+    # Row 1: Title
+    ws1.merge_cells("A1:Q1")
+    _s(ws1["A1"], "PAYMENT APPROVAL MEMO", font=_fw(13), fill=blue_fill, align=_center)
+    ws1.row_dimensions[1].height = 22
+
+    # Row 2: gold separator
+    ws1.merge_cells("A2:Q2")
+    ws1["A2"].fill = gold_fill
+    ws1.row_dimensions[2].height = 4
+
+    def _field_row(row, lbl_l, val_l, lbl_r, val_r):
+        ws1.merge_cells(f"B{row}:D{row}")
+        ws1.merge_cells(f"F{row}:J{row}")
+        ws1.merge_cells(f"L{row}:N{row}")
+        ws1.merge_cells(f"P{row}:Q{row}")
+        _s(ws1[f"B{row}"], lbl_l, font=_fb(9,"374151"), fill=lgray_fill, align=_left)
+        _s(ws1[f"E{row}"], ":",   font=_fn(), fill=lgray_fill, align=_center)
+        _s(ws1[f"F{row}"], val_l, font=_fb(9), fill=white_fill, align=_left)
+        _s(ws1[f"L{row}"], lbl_r, font=_fb(9,"374151"), fill=lgray_fill, align=_left)
+        _s(ws1[f"O{row}"], ":",   font=_fn(), fill=lgray_fill, align=_center)
+        _s(ws1[f"P{row}"], val_r, font=_fb(9), fill=white_fill, align=_left)
+
+    _field_row(3, "PAM No.",          pam["pam_no"],
+                  "Cost Center",      pam.get("cost_center", ""))
+    _field_row(4, "Date",             _fmt_date(pam.get("pam_date", "")),
+                  "GL Account",       str(pam.get("gl_account", "")))
+    _field_row(5, "Requestor's Name", pam.get("requestors_name", ""),
+                  "SO / SC",          "")
+    _field_row(6, "Department",       "-",
+                  "Company",          pam.get("pt", ""))
+
+    def _section(row, title):
+        ws1.merge_cells(f"B{row}:Q{row}")
+        _s(ws1[f"B{row}"], title, font=_fb(9,"374151"), fill=gray_fill, align=_left)
+
+    def _full_row(row, text, fill=None):
+        ws1.merge_cells(f"B{row}:Q{row}")
+        _s(ws1[f"B{row}"], text, font=_fn(9), fill=fill or amber_fill, align=_left)
+
+    _section(7, "Business Unit")
+    _full_row(8, "☐  Upstream          ☐  Downstream          ☑  Corporate")
+
+    _section(9, "Type of Request")
+    _full_row(10, "☐  Downpayment to vendor")
+    _full_row(11, "☑  Invoice Payment – Non PO Invoice")
+    _full_row(12, "☐  Employee Advance / Reimbursement (Fund Transfer)")
+
+    _section(13, "Invoice Information")
+
+    def _inv_row(row, lbl_l, val_l, lbl_r="", val_r=""):
+        ws1.merge_cells(f"C{row}:E{row}")
+        ws1.merge_cells(f"G{row}:J{row}")
+        _s(ws1[f"C{row}"], lbl_l, font=_fb(9,"374151"), fill=lgray_fill, align=_left)
+        _s(ws1[f"F{row}"], ":",   font=_fn(), fill=lgray_fill, align=_center)
+        _s(ws1[f"G{row}"], val_l, font=_fb(9), fill=white_fill, align=_left)
+        if lbl_r:
+            ws1.merge_cells(f"K{row}:M{row}")
+            ws1.merge_cells(f"O{row}:Q{row}")
+            _s(ws1[f"K{row}"], lbl_r, font=_fb(9,"374151"), fill=lgray_fill, align=_left)
+            _s(ws1[f"N{row}"], ":",   font=_fn(), fill=lgray_fill, align=_center)
+            _s(ws1[f"O{row}"], val_r, font=_fb(9), fill=white_fill, align=_left)
+
+    _inv_row(14, "Vendor Name",    "Terlampir",
+                 "Invoice/Memo No", "-")
+    _inv_row(15, "Invoice Amount", _fmt_rp(pam.get("total_amount", 0)),
+                 "Expected Due Date", _fmt_date(pam.get("due_date", "")))
+
+    _section(16, "Vendor Bank Account Details")
+
+    def _bank_row(row, label):
+        ws1.merge_cells(f"C{row}:E{row}")
+        ws1.merge_cells(f"G{row}:Q{row}")
+        _s(ws1[f"C{row}"], label,       font=_fb(9,"374151"), fill=lgray_fill, align=_left)
+        _s(ws1[f"F{row}"], ":",         font=_fn(), fill=lgray_fill, align=_center)
+        _s(ws1[f"G{row}"], "Terlampir", font=_fb(9,"92400E"), fill=amber_fill, align=_left)
+
+    _bank_row(17, "Bank Account Name")
+    _bank_row(18, "Bank Name")
+    _bank_row(19, "Bank Account Number")
+
+    # Signature block
+    ws1.merge_cells("B20:Q20")
+    ws1["B20"].fill = gray_fill
+
+    ws1.merge_cells("B21:F24")
+    _s(ws1["B21"], "Request by", font=_fb(9,"374151"), fill=lgray_fill, align=_left)
+    ws1.merge_cells("H21:Q24")
+    _s(ws1["H21"], "Approved by", font=_fb(9,"374151"), fill=lgray_fill, align=_left)
+
+    ws1.merge_cells("B25:F25")
+    _s(ws1["B25"], pam.get("requestors_name", ""),
+       font=_fb(10,"1E3A5F"), fill=lgray_fill, align=_left)
+    ws1.merge_cells("H25:Q25")
+    _s(ws1["H25"], f"{approved_by_1}          {approved_by_2}",
+       font=_fb(10,"1E3A5F"), fill=lgray_fill, align=_left)
+
+    ws1.merge_cells("B26:Q30")
+    _s(ws1["B26"], "Checked by (QA)", font=_fb(9,"374151"), fill=lgray_fill, align=_left)
+
+    for col, w in zip("ABCDEFGHIJKLMNOPQ",
+                      [1,8,5,5,5,2,10,5,5,5,5,5,5,5,2,10,10]):
+        ws1.column_dimensions[col].width = w
+
+    # ── Sheet 2: Lampiran ────────────────────────────────────────────────────
+    ws2 = wb.create_sheet("Lampiran")
+
+    ws2.merge_cells("A1:H1")
+    _s(ws2["A1"], "Lampiran — Jadwal Pembayaran Beasiswa",
+       font=_fw(11), fill=blue_fill, align=_left)
+    ws2.row_dimensions[1].height = 18
+
+    ws2.merge_cells("A2:H2")
+    _s(ws2["A2"],
+       f"{pam_no}  ·  {pam.get('pt','')}  ·  {_fmt_date(pam.get('pam_date',''))}",
+       font=Font(size=8, color="CBD5E1", name="Arial"), fill=blue_fill, align=_left)
+
+    hdr = ["No","Nama Siswa","Bank","No. Rekening","Atas Nama","Kategori","Kode","Amount (Rp)"]
+    for c, h in enumerate(hdr, 1):
+        cell = ws2.cell(3, c, h)
+        cell.font      = _fw(9)
+        cell.fill      = blue_fill
+        cell.alignment = _center
+        cell.border    = _border
+
+    total = 0.0
+    for i, pb in enumerate(payments, 1):
+        r   = 3 + i
+        cat = f"{pb.get('cat1','')}/{pb.get('cat2','')}"
+        row_data = [i,
+                    pb.get("nama") or pb.get("siswa_code",""),
+                    pb.get("bank") or "",
+                    pb.get("norek") or "",
+                    pb.get("namarek") or "",
+                    cat,
+                    pb.get("siswa_code",""),
+                    float(pb.get("amount",0))]
+        f = white_fill if i % 2 else lgray_fill
+        for c, v in enumerate(row_data, 1):
+            cell            = ws2.cell(r, c, v)
+            cell.font       = _fn(9)
+            cell.fill       = f
+            cell.alignment  = _center if c in (1,3) else _left
+            cell.border     = _border
+            if c == 8:
+                cell.alignment   = Alignment(horizontal="right", vertical="center")
+                cell.number_format = '#,##0'
+        total += float(pb.get("amount", 0))
+
+    tr = 3 + len(payments) + 1
+    ws2.cell(tr, 7, "TOTAL").font      = _fb(9)
+    ws2.cell(tr, 7).fill              = PatternFill("solid", fgColor="E8F0FE")
+    ws2.cell(tr, 7).alignment         = Alignment(horizontal="right", vertical="center")
+    ws2.cell(tr, 7).border            = _border
+    tc                 = ws2.cell(tr, 8, total)
+    tc.font            = _fb(9)
+    tc.fill            = PatternFill("solid", fgColor="E8F0FE")
+    tc.alignment       = Alignment(horizontal="right", vertical="center")
+    tc.number_format   = '#,##0'
+    tc.border          = _border
+
+    for col, w in zip("ABCDEFGH", [5,22,12,16,18,18,10,14]):
+        ws2.column_dimensions[col].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf.read()

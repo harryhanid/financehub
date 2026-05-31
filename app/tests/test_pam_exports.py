@@ -61,3 +61,35 @@ def test_export_pam_pdf_returns_bytes():
 def test_export_pam_pdf_not_found_raises():
     with pytest.raises(ValueError, match="PAM record tidak ditemukan"):
         export_pam_pdf(999, COMPANY_ID, "A", "B")
+
+
+from modules.payment_memo.exports import export_pam_excel
+import zipfile
+
+
+def test_export_pam_excel_returns_bytes():
+    result = export_pam_excel(1, COMPANY_ID, "Hong Tjhin", "Tenti Kidjo")
+    assert isinstance(result, bytes)
+    assert len(result) > 500
+    assert zipfile.is_zipfile(io.BytesIO(result))
+
+
+def test_export_pam_excel_has_two_sheets():
+    import openpyxl
+    result = export_pam_excel(1, COMPANY_ID, "Hong Tjhin", "Tenti Kidjo")
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    assert wb.sheetnames == ["PAM", "Lampiran"]
+
+
+def test_export_pam_excel_pam_no_in_sheet():
+    import openpyxl
+    result = export_pam_excel(1, COMPANY_ID, "Hong Tjhin", "Tenti Kidjo")
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    ws = wb["PAM"]
+    values = [ws.cell(r, c).value for r in range(1, 30) for c in range(1, 10)]
+    assert "PAM-001-ETF-05-2026" in values
+
+
+def test_export_pam_excel_not_found_raises():
+    with pytest.raises(ValueError, match="PAM record tidak ditemukan"):
+        export_pam_excel(999, COMPANY_ID, "A", "B")
