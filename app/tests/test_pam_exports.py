@@ -78,7 +78,7 @@ def test_export_pam_excel_has_two_sheets():
     import openpyxl
     result = export_pam_excel(1, COMPANY_ID, "Hong Tjhin", "Tenti Kidjo")
     wb = openpyxl.load_workbook(io.BytesIO(result))
-    assert wb.sheetnames == ["PAM NEW", "Lampiran"]
+    assert wb.sheetnames == ["PAM NEW", "Rangkuman PAM"]
 
 
 def test_export_pam_excel_pam_no_in_sheet():
@@ -93,3 +93,55 @@ def test_export_pam_excel_pam_no_in_sheet():
 def test_export_pam_excel_not_found_raises():
     with pytest.raises(ValueError, match="PAM record tidak ditemukan"):
         export_pam_excel(999, COMPANY_ID, "A", "B")
+
+
+from modules.payment_memo.exports import export_pam_pdf_custom
+
+_CUSTOM_DATA = {
+    "pam_no":           "PAM-001-ETF-05-2026",
+    "pam_date":         "2026-05-26",
+    "requestors_name":  "Jany Turkanda",
+    "department":       "HR",
+    "cost_center":      "1008C1POFF",
+    "gl_account":       "70110230",
+    "so_sc":            "",
+    "pt":               "PT. SMART Tbk",
+    "bu_upstream":      False,
+    "bu_downstream":    False,
+    "bu_corporate":     True,
+    "type_downpayment": False,
+    "type_invoice":     True,
+    "type_advance":     False,
+    "vendor_name":      "Terlampir",
+    "invoice_memo_no":  "-",
+    "total_amount":     5000000,
+    "due_date":         "2026-06-26",
+    "bank_account_name":"Terlampir",
+    "bank_name":        "Terlampir",
+    "bank_account_no":  "Terlampir",
+    "approved_by_1":    "Hong Tjhin",
+    "approved_by_2":    "Tenti Kidjo",
+}
+
+_PAYMENTS = [
+    {"siswa_code": "S001", "nama": "Harry Santoso", "bank": "BCA",
+     "norek": "1234567890", "namarek": "Harry Santoso",
+     "cat1": "General", "cat2": "Sem 1", "amount": 5000000},
+]
+
+def test_export_pam_pdf_custom_returns_pdf():
+    result = export_pam_pdf_custom(_CUSTOM_DATA, _PAYMENTS)
+    assert isinstance(result, bytes)
+    assert result[:4] == b'%PDF'
+    assert len(result) > 1000
+
+def test_export_pam_pdf_custom_empty_payments():
+    result = export_pam_pdf_custom(_CUSTOM_DATA, [])
+    assert isinstance(result, bytes)
+    assert result[:4] == b'%PDF'
+
+def test_export_pam_pdf_custom_checkboxes_upstream():
+    data = {**_CUSTOM_DATA, "bu_upstream": True, "bu_corporate": False}
+    result = export_pam_pdf_custom(data, [])
+    assert isinstance(result, bytes)
+    assert result[:4] == b'%PDF'
