@@ -14,6 +14,7 @@
     <button class="tab-btn" data-tab="tab-memo-list">Daftar Memo</button>
     <button class="tab-btn" data-tab="tab-draft-pay">Draft Payment ({{ drafts|length }})</button>
     <button class="tab-btn" data-tab="tab-pam">PAM Records</button>
+    <button class="tab-btn" data-tab="tab-draft-memo">Draft Memo</button>
   </div>
 
   <div class="tab-panel" id="tab-memo-list">
@@ -81,7 +82,8 @@
           <tr>
             {% if current_role == 'verificator' %}<th><input type="checkbox" id="select-all-drafts" onchange="toggleAllDrafts(this)"></th>{% endif %}
             <th>Code</th><th>Nama Siswa</th><th>Kategori</th><th>Tanggal</th>
-            <th>Perusahaan</th><th class="num-right">Amount</th><th>Status</th>
+            <th>PAM No</th><th>Perusahaan</th><th class="num-right">Amount</th><th>Status</th>
+            {% if current_role in ['verificator', 'releaser'] %}<th>Aksi</th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -98,17 +100,36 @@
             <td>{{ d.nama or '--' }}</td>
             <td>{{ d.cat1 }} / {{ d.cat2 }}</td>
             <td>{{ d.tanggal }}</td>
+            <td><code style="font-size:.75rem">{{ d.pam or '--' }}</code></td>
             <td>{{ d.perusahaan }}</td>
             <td class="num-right">Rp {{ "{:,.0f}".format(d.amount) }}</td>
             <td><span class="badge badge-gray">{{ d.status }}</span></td>
+            {% if current_role in ['verificator', 'releaser'] %}
+            <td style="white-space:nowrap">
+              <button class="btn btn-secondary btn-sm" onclick="openEditDraft({{ d.id }})">Edit</button>
+              <button class="btn btn-sm" style="background:#dc2626;color:#fff;border:none;cursor:pointer;padding:.25rem .6rem;border-radius:.25rem;font-size:.75rem" onclick="deleteDraft({{ d.id }})">Hapus</button>
+            </td>
+            {% endif %}
           </tr>
           {% else %}
-          <tr><td colspan="{% if current_role == 'verificator' %}8{% else %}7{% endif %}"
+          <tr><td colspan="{% if current_role == 'verificator' %}10{% elif current_role == 'releaser' %}9{% else %}8{% endif %}"
               style="text-align:center; color:var(--text-muted); padding:2rem">
             Tidak ada payment draft.
           </td></tr>
           {% endfor %}
         </tbody>
+        {% if drafts %}
+        <tfoot>
+          <tr style="background:#f1f5f9; font-weight:700;">
+            <td colspan="{% if current_role == 'verificator' %}7{% else %}6{% endif %}"
+                style="text-align:right; padding:.5rem .75rem;">Total Draft Payment</td>
+            <td class="num-right" style="padding:.5rem .75rem;">
+              Rp {{ "{:,.0f}".format(drafts | sum(attribute='amount')) }}
+            </td>
+            <td colspan="{% if current_role in ['verificator', 'releaser'] %}2{% else %}1{% endif %}"></td>
+          </tr>
+        </tfoot>
+        {% endif %}
       </table>
     </div>
   </div>
@@ -134,15 +155,45 @@
             <th style="padding:8px 10px;text-align:right;">Total (Rp)</th>
             <th style="padding:8px 10px;text-align:left;">Due Date</th>
             <th style="padding:8px 10px;text-align:left;">Status</th>
+            <th style="padding:8px 10px;text-align:left;">Aksi</th>
           </tr>
         </thead>
         <tbody id="pam-tbody">
-          <tr><td colspan="10" style="text-align:center;padding:20px;color:#6b7280;">
+          <tr><td colspan="11" style="text-align:center;padding:20px;color:#6b7280;">
             Memuat data...
           </td></tr>
         </tbody>
       </table>
     </div>
+  </div>
+
+  <!-- Draft Memo Tab -->
+  <div class="tab-panel" id="tab-draft-memo">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+      <label style="font-size:13px;font-weight:600;color:#374151;white-space:nowrap">PAM No:</label>
+      <div style="position:relative;flex:1;max-width:380px">
+        <input id="dm-pam-search" type="text" autocomplete="off"
+               placeholder="Ketik PAM No atau nama PT..."
+               oninput="dmSearchDebounced()"
+               style="width:100%;border:1px solid #3b82f6;border-radius:6px;padding:6px 10px;font-size:13px;background:#eff6ff;color:#1e40af;font-weight:600;box-sizing:border-box">
+        <div id="dm-pam-dropdown"
+             style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px;max-height:200px;overflow-y:auto">
+        </div>
+      </div>
+      <div id="dm-approved-bar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+        <label style="font-size:12px;font-weight:600;color:#374151">Approved by:</label>
+        <input id="dm-ab1" type="text" style="border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:12px;width:130px">
+        <input id="dm-ab2" type="text" style="border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:12px;width:130px">
+        <span style="font-size:11px;color:#94a3b8">(dari config, bisa diubah)</span>
+      </div>
+      <div id="dm-export-btns" style="display:none;margin-left:auto;gap:6px">
+        <button onclick="dmExportPDF()"
+                style="background:#dc2626;color:#fff;border:none;border-radius:5px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">&#x2193; PDF</button>
+        <button onclick="dmExportExcel()"
+                style="background:#16a34a;color:#fff;border:none;border-radius:5px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">&#x2193; Excel</button>
+      </div>
+    </div>
+    <div id="dm-form-preview"></div>
   </div>
 </div>
 
@@ -185,10 +236,128 @@
     <div id="memo-detail-body">Loading...</div>
   </div>
 </div>
+
+<div class="modal-overlay" id="modal-edit-pam">
+  <div class="modal" style="width:min(600px,95vw); max-height:90vh; overflow-y:auto">
+    <div class="modal-header">
+      <span class="modal-title" id="edit-pam-title">Edit PAM Record</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-pam')">x</button>
+    </div>
+    <input type="hidden" id="edit-pam-id">
+    <p style="font-size:.75rem;font-weight:700;color:#1e40af;margin:.25rem 0 .5rem">PAM Record</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Keterangan</label>
+        <input type="text" id="edit-pam-keterangan" placeholder="Keterangan PAM">
+      </div>
+      <div class="form-group">
+        <label>Requestor Name</label>
+        <input type="text" id="edit-pam-requestor">
+      </div>
+      <div class="form-group">
+        <label>Total Amount (Rp)</label>
+        <input type="number" id="edit-pam-amount" min="0">
+      </div>
+      <div class="form-group">
+        <label>PAM Date</label>
+        <input type="date" id="edit-pam-date">
+      </div>
+      <div class="form-group">
+        <label>Due Date</label>
+        <input type="date" id="edit-pam-due">
+      </div>
+    </div>
+    <p style="font-size:.75rem;font-weight:700;color:#1e40af;margin:.5rem 0 .5rem">Payment Application</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem" id="pam-app-section">
+      <div class="form-group">
+        <label>Tgl Pengajuan</label>
+        <input type="date" id="edit-pam-app-submitted">
+      </div>
+      <div class="form-group">
+        <label>Target Payment Date</label>
+        <input type="date" id="edit-pam-app-target">
+      </div>
+      <div class="form-group">
+        <label>Actual Payment Date</label>
+        <input type="date" id="edit-pam-app-actual">
+      </div>
+      <div class="form-group">
+        <label>Status Application</label>
+        <select id="edit-pam-app-status">
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Notes</label>
+        <input type="text" id="edit-pam-app-notes" placeholder="Catatan application">
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-pam')">Batal</button>
+      <button class="btn btn-primary" onclick="submitEditPAM()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-draft">
+  <div class="modal" style="width:min(520px,95vw)">
+    <div class="modal-header">
+      <span class="modal-title" id="edit-draft-title">Edit Draft Payment</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-draft')">x</button>
+    </div>
+    <input type="hidden" id="edit-draft-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;font-size:.8125rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.375rem;padding:.625rem .75rem;margin-bottom:.875rem">
+      <div><span style="color:#6b7280">Siswa:</span> <strong id="edit-draft-ro-code"></strong></div>
+      <div><span style="color:#6b7280">Nama:</span> <span id="edit-draft-ro-nama"></span></div>
+      <div><span style="color:#6b7280">Tanggal:</span> <span id="edit-draft-ro-tgl"></span></div>
+      <div><span style="color:#6b7280">Perusahaan:</span> <span id="edit-draft-ro-peru"></span></div>
+      <div><span style="color:#6b7280">PAM No:</span> <code id="edit-draft-ro-pam" style="font-size:.75rem"></code></div>
+      <div><span style="color:#6b7280">Status:</span> <span id="edit-draft-ro-status"></span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+      <div class="form-group" style="margin:0">
+        <label>Kategori 1</label>
+        <select id="edit-draft-cat1"></select>
+      </div>
+      <div class="form-group" style="margin:0;position:relative">
+        <label>Kategori 2</label>
+        <input type="hidden" id="edit-draft-cat2">
+        <div id="edit-draft-cat2-display" onclick="draftCat2Toggle()"
+             style="border:1px solid #d1d5db;border-radius:.375rem;padding:.45rem .75rem;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:36px;font-size:.875rem">
+          <span id="edit-draft-cat2-text" style="color:#9ca3af">Pilih kategori...</span>
+          <span style="color:#6b7280;font-size:.7rem">▾</span>
+        </div>
+        <div id="edit-draft-cat2-panel" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:600;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px">
+          <div style="padding:5px">
+            <input type="text" id="edit-draft-cat2-search" placeholder="Cari..."
+                   oninput="draftCat2Filter()" autocomplete="off"
+                   style="width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:.25rem;padding:.3rem .5rem;font-size:.8125rem">
+          </div>
+          <div id="edit-draft-cat2-opts" style="max-height:180px;overflow-y:auto"></div>
+        </div>
+      </div>
+      <div class="form-group" style="margin:0;grid-column:1/-1">
+        <label>Amount (Rp)</label>
+        <input type="number" id="edit-draft-amount" min="0" style="width:100%;box-sizing:border-box">
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-draft')">Batal</button>
+      <button class="btn btn-primary" onclick="submitEditDraft()">Simpan</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+const CURRENT_ROLE = {{ current_role | tojson }};
+const CAT1 = {{ cat1_list | tojson }};
+const CAT2 = {{ cat2_list | tojson }};
+const PAM_APPROVED_BY_1 = {{ pam_approved_by_1 | tojson }};
+const PAM_APPROVED_BY_2 = {{ pam_approved_by_2 | tojson }};
+
 function esc(s) {
   const d = document.createElement('div');
   d.textContent = String(s ?? '');
@@ -284,6 +453,7 @@ async function showMemoDetail(memoId) {
 
 // ── PAM Records ──────────────────────────────────────────────────────────────
 let _coaOptions = [];
+let _pamCache   = {};
 
 async function loadCOA() {
   if (_coaOptions.length) return;
@@ -325,6 +495,27 @@ async function updateGL(pamId, glAccount) {
   }
 }
 
+function _statusBadge(status) {
+  const colors = { draft: '#fef3c7', approved: '#d1fae5', paid: '#e0e7ff' };
+  const bg = colors[status] || '#f3f4f6';
+  return `<span style="background:${bg};padding:2px 8px;border-radius:9999px;font-size:11px;">${esc(status)}</span>`;
+}
+
+function _aksiCell(r) {
+  if (CURRENT_ROLE !== 'verificator' && CURRENT_ROLE !== 'releaser') return '';
+  const _btn = (label, bg, fn) =>
+    `<button style="font-size:11px;padding:3px 8px;background:${bg};color:#fff;border:none;border-radius:4px;cursor:pointer;" onclick="${fn}">${label}</button>`;
+  let btns = '';
+  if (r.status === 'draft')
+    btns += _btn('Approve', '#16a34a', `updatePAMStatus(${r.id},'approved')`);
+  else if (r.status === 'approved')
+    btns += _btn('Revert', '#64748b', `updatePAMStatus(${r.id},'draft')`);
+  btns += _btn('Edit', '#1d4ed8', `openEditPAM(${r.id})`);
+  btns += `<a href="/payment-memo/pam/${r.id}/export/excel" style="font-size:11px;padding:3px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;text-decoration:none;">Excel</a>`;
+  btns += _btn('Cancel', '#dc2626', `cancelPAM(${r.id})`);
+  return `<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${btns}</div>`;
+}
+
 let _pamDebounce;
 function loadPAMDebounced() { clearTimeout(_pamDebounce); _pamDebounce = setTimeout(loadPAM, 300); }
 async function loadPAM() {
@@ -335,9 +526,11 @@ async function loadPAM() {
   const data   = await res.json();
   const tbody  = document.getElementById('pam-tbody');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#6b7280;">Belum ada PAM record.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:#6b7280;">Belum ada PAM record.</td></tr>';
     return;
   }
+  _pamCache = {};
+  data.rows.forEach(r => { _pamCache[r.id] = r; });
   tbody.innerHTML = data.rows.map((r, i) => `
     <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
       <td style="padding:7px 10px;font-weight:600;">${esc(r.pam_no)}</td>
@@ -350,12 +543,8 @@ async function loadPAM() {
           title="${esc(r.keterangan || '')}">${esc(r.keterangan || '-')}</td>
       <td style="padding:7px 10px;text-align:right;">${fmtRupiah(r.total_amount)}</td>
       <td style="padding:7px 10px;">${esc(r.due_date || '-')}</td>
-      <td style="padding:7px 10px;">
-        <span style="background:${r.status==='draft'?'#fef3c7':r.status==='approved'?'#d1fae5':'#e0e7ff'};
-                     padding:2px 8px;border-radius:9999px;font-size:11px;">
-          ${esc(r.status)}
-        </span>
-      </td>
+      <td style="padding:7px 10px;">${_statusBadge(r.status)}</td>
+      <td style="padding:7px 10px;">${_aksiCell(r)}</td>
     </tr>
   `).join('');
 
@@ -365,10 +554,349 @@ async function loadPAM() {
   });
 }
 
-// Load PAM when switching to PAM tab
+async function updatePAMStatus(pamId, newStatus) {
+  const label = { approved: 'Approve', draft: 'Revert ke Draft', paid: 'Mark Paid' }[newStatus] || newStatus;
+  if (!confirm(`${label} PAM ini?`)) return;
+  const res  = await apiFetch(`/payment-memo/pam/${pamId}/status`, {
+    method: 'POST', body: JSON.stringify({ status: newStatus })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadPAM();
+}
+
+async function openEditPAM(pamId) {
+  const res = await apiFetch(`/payment-memo/pam/${pamId}/detail`);
+  if (!res) return;
+  const data = await res.json();
+  if (!data.ok) { showToast('Gagal memuat detail PAM.', 'error'); return; }
+  const r = data.data;
+  document.getElementById('edit-pam-id').value           = r.id;
+  document.getElementById('edit-pam-title').textContent  = 'Edit PAM — ' + r.pam_no;
+  document.getElementById('edit-pam-keterangan').value   = r.keterangan || '';
+  document.getElementById('edit-pam-requestor').value    = r.requestors_name || '';
+  document.getElementById('edit-pam-date').value         = r.pam_date || '';
+  document.getElementById('edit-pam-due').value          = r.due_date || '';
+  document.getElementById('edit-pam-amount').value       = r.total_amount || 0;
+  const app = r.payment_application || {};
+  document.getElementById('edit-pam-app-submitted').value = app.submitted_at || '';
+  document.getElementById('edit-pam-app-target').value    = app.target_payment_date || '';
+  document.getElementById('edit-pam-app-actual').value    = app.actual_payment_date || '';
+  document.getElementById('edit-pam-app-notes').value     = app.notes || '';
+  document.getElementById('edit-pam-app-status').value    = app.status || 'pending';
+  const sec = document.getElementById('pam-app-section');
+  if (sec) sec.style.opacity = app.id ? '1' : '0.5';
+  openModal('modal-edit-pam');
+}
+
+async function submitEditPAM() {
+  const pamId   = parseInt(document.getElementById('edit-pam-id').value);
+  const payload = {
+    pam: {
+      keterangan:      document.getElementById('edit-pam-keterangan').value.trim(),
+      requestors_name: document.getElementById('edit-pam-requestor').value.trim(),
+      pam_date:        document.getElementById('edit-pam-date').value,
+      due_date:        document.getElementById('edit-pam-due').value,
+      total_amount:    parseFloat(document.getElementById('edit-pam-amount').value) || 0,
+    },
+    app: {
+      submitted_at:        document.getElementById('edit-pam-app-submitted').value || null,
+      target_payment_date: document.getElementById('edit-pam-app-target').value || null,
+      actual_payment_date: document.getElementById('edit-pam-app-actual').value || null,
+      notes:               document.getElementById('edit-pam-app-notes').value.trim() || null,
+      status:              document.getElementById('edit-pam-app-status').value || null,
+    },
+  };
+  const res  = await apiFetch(`/payment-memo/pam/${pamId}/edit`, {
+    method: 'POST', body: JSON.stringify(payload)
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) { closeModal('modal-edit-pam'); loadPAM(); }
+}
+
+// ── Cat2 searchable dropdown ──────────────────────────────────────────────────
+function draftCat2Toggle() {
+  const panel = document.getElementById('edit-draft-cat2-panel');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  if (open) { draftCat2Filter(); document.getElementById('edit-draft-cat2-search').focus(); }
+}
+
+function draftCat2Filter() {
+  const q    = (document.getElementById('edit-draft-cat2-search').value || '').toLowerCase();
+  const opts = CAT2.filter(c => c.toLowerCase().includes(q));
+  document.getElementById('edit-draft-cat2-opts').innerHTML = opts.length
+    ? opts.map(c => `<div onclick="draftCat2Select('${c.replace(/'/g,"\\'")}' )"
+        style="padding:6px 10px;font-size:.8125rem;cursor:pointer;"
+        onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background=''">${esc(c)}</div>`).join('')
+    : '<div style="padding:8px 10px;font-size:.8rem;color:#9ca3af">Tidak ditemukan</div>';
+}
+
+function draftCat2Select(val) {
+  document.getElementById('edit-draft-cat2').value       = val;
+  document.getElementById('edit-draft-cat2-text').textContent  = val;
+  document.getElementById('edit-draft-cat2-text').style.color  = '#111827';
+  document.getElementById('edit-draft-cat2-panel').style.display = 'none';
+  document.getElementById('edit-draft-cat2-search').value = '';
+}
+
+function draftCat2Set(val) {
+  document.getElementById('edit-draft-cat2').value = val;
+  const el = document.getElementById('edit-draft-cat2-text');
+  el.textContent = val || 'Pilih kategori...';
+  el.style.color = val ? '#111827' : '#9ca3af';
+}
+
+// ── Draft Payment edit / delete ───────────────────────────────────────────────
+async function openEditDraft(paymentId) {
+  const res = await apiFetch(`/payment-memo/drafts/${paymentId}`);
+  if (!res) return;
+  const data = await res.json();
+  if (!data.ok) { showToast('Gagal memuat detail payment.', 'error'); return; }
+  const d = data.data;
+  document.getElementById('edit-draft-id').value           = d.id;
+  document.getElementById('edit-draft-title').textContent  = 'Edit Draft — ' + d.siswa_code;
+  // Read-only info
+  document.getElementById('edit-draft-ro-code').textContent  = d.siswa_code || '--';
+  document.getElementById('edit-draft-ro-nama').textContent  = d.nama || '--';
+  document.getElementById('edit-draft-ro-tgl').textContent   = d.tanggal || '--';
+  document.getElementById('edit-draft-ro-peru').textContent  = d.perusahaan || '--';
+  document.getElementById('edit-draft-ro-pam').textContent   = d.pam || '--';
+  document.getElementById('edit-draft-ro-status').textContent = d.status || '--';
+  // cat1 select
+  const cat1Sel = document.getElementById('edit-draft-cat1');
+  cat1Sel.innerHTML = CAT1.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  cat1Sel.value = d.cat1 || CAT1[0];
+  // cat2 dropdown
+  draftCat2Set(d.cat2 || '');
+  // amount
+  document.getElementById('edit-draft-amount').value = d.amount || 0;
+  openModal('modal-edit-draft');
+}
+
+async function submitEditDraft() {
+  const paymentId = parseInt(document.getElementById('edit-draft-id').value);
+  const cat2val   = document.getElementById('edit-draft-cat2').value.trim();
+  if (!cat2val) { showToast('Kategori 2 wajib dipilih.', 'error'); return; }
+  const payload = {
+    payment: {
+      cat1:   document.getElementById('edit-draft-cat1').value,
+      cat2:   cat2val,
+      amount: parseFloat(document.getElementById('edit-draft-amount').value) || 0,
+    },
+    pam: {}, app: {},
+  };
+  const res  = await apiFetch(`/payment-memo/drafts/${paymentId}/edit`, {
+    method: 'POST', body: JSON.stringify(payload)
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) { closeModal('modal-edit-draft'); setTimeout(() => location.reload(), 800); }
+}
+
+async function deleteDraft(paymentId) {
+  if (!confirm('Hapus payment ini? Data tidak dapat dikembalikan.')) return;
+  const res  = await apiFetch(`/payment-memo/drafts/${paymentId}/delete`, { method: 'POST' });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) setTimeout(() => location.reload(), 800);
+}
+
+// ── PAM cancel ────────────────────────────────────────────────────────────────
+async function cancelPAM(pamId) {
+  if (!confirm('Cancel PAM ini? Semua data PAM dan payment terkait akan dihapus permanen.')) return;
+  const res  = await apiFetch(`/payment-memo/pam/${pamId}/cancel`, { method: 'POST' });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadPAM();
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const pamBtn = document.querySelector('[data-tab="tab-pam"]');
   if (pamBtn) pamBtn.addEventListener('click', loadPAM);
+  // Close cat2 panel on outside click
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#edit-draft-cat2-display') && !e.target.closest('#edit-draft-cat2-panel')) {
+      const p = document.getElementById('edit-draft-cat2-panel');
+      if (p) p.style.display = 'none';
+    }
+  });
+});
+
+// ── Draft Memo Tab ────────────────────────────────────────────────────────
+let _dmPamId = null;
+let _dmSearchTimer = null;
+
+function dmSearchDebounced() {
+  clearTimeout(_dmSearchTimer);
+  _dmSearchTimer = setTimeout(dmSearch, 300);
+}
+
+async function dmSearch() {
+  const q = document.getElementById('dm-pam-search').value.trim();
+  const dd = document.getElementById('dm-pam-dropdown');
+  if (!q) { dd.style.display = 'none'; return; }
+  const resp = await apiFetch(`/payment-memo/pam?search=${encodeURIComponent(q)}`);
+  const data = await resp.json();
+  if (!data.ok || !data.rows.length) { dd.style.display = 'none'; return; }
+  dd.innerHTML = data.rows.slice(0, 10).map(r =>
+    `<div onclick="dmSelectPAM(${r.id}, '${esc(r.pam_no)}')"
+          style="padding:7px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f1f5f9"
+          onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
+      <strong style="color:#1d4ed8">${esc(r.pam_no)}</strong>
+      <span style="color:#64748b;margin-left:6px">${esc(r.pt)}</span>
+      <span style="float:right;color:#374151;font-weight:600">Rp ${fmtRupiah(r.total_amount)}</span>
+    </div>`
+  ).join('');
+  dd.style.display = 'block';
+}
+
+async function dmSelectPAM(pamId, pamNo) {
+  document.getElementById('dm-pam-search').value = pamNo;
+  document.getElementById('dm-pam-dropdown').style.display = 'none';
+  _dmPamId = pamId;
+
+  const resp = await apiFetch(`/payment-memo/pam/${pamId}/detail`);
+  const data = await resp.json();
+  if (!data.ok) { showToast('Gagal memuat PAM detail.', 'error'); return; }
+
+  const p = data.data;
+  document.getElementById('dm-ab1').value = PAM_APPROVED_BY_1;
+  document.getElementById('dm-ab2').value = PAM_APPROVED_BY_2;
+
+  const abBar = document.getElementById('dm-approved-bar');
+  abBar.style.display = 'flex';
+
+  const expBtns = document.getElementById('dm-export-btns');
+  expBtns.style.display = 'flex';
+
+  document.getElementById('dm-form-preview').innerHTML = dmRenderForm(p);
+}
+
+function dmRenderForm(p) {
+  const fmtDate = s => {
+    if (!s) return '';
+    const d = new Date(s);
+    return isNaN(d) ? s : d.toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'});
+  };
+  const cb = checked => checked
+    ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1.5px solid #1e3a5f;background:#dbeafe;font-size:10px;font-weight:900;color:#1e3a5f;margin-right:4px">&#x2713;</span>'
+    : '<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1.5px solid #64748b;font-size:10px;color:transparent;margin-right:4px"> </span>';
+  const terlampir = '<span style="background:#fef3c7;border:1px solid #fcd34d;border-radius:3px;padding:1px 6px;font-size:11px;font-weight:700;color:#92400e">Terlampir</span>';
+
+  const field = (lbl, val, bold=false) =>
+    `<div style="display:flex;align-items:stretch;border-bottom:1px solid #f1f5f9">
+      <div style="background:#f8fafc;padding:5px 8px;font-weight:700;font-size:11px;color:#374151;min-width:140px;border-right:1px solid #e2e8f0;display:flex;align-items:center">${esc(lbl)}</div>
+      <div style="padding:5px 8px;font-size:11px;color:#1e293b;flex:1;${bold?'font-weight:700;':''}display:flex;align-items:center">
+        <span style="color:#94a3b8;margin-right:4px">:</span>${val}
+      </div>
+    </div>`;
+
+  const sectionH = (title) =>
+    `<div style="background:#e2e8f0;padding:4px 8px;font-weight:700;font-size:10px;color:#374151;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #d1d5db">
+      ${title}
+    </div>`;
+
+  const cbRow = (label, checked=false) =>
+    `<div style="padding:4px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;align-items:center">
+      ${cb(checked)}${label}
+    </div>`;
+
+  return `
+  <div style="border:1px solid #94a3b8;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;max-width:860px">
+    <div style="background:#1e3a5f;color:#fff;text-align:center;font-size:14px;font-weight:900;padding:10px;letter-spacing:2px;border-bottom:3px solid #f59e0b">
+      PAYMENT APPROVAL MEMO
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e2e8f0">
+      <div style="border-right:1px solid #e2e8f0">
+        ${field('PAM No.', `<span style="font-family:monospace;color:#1d4ed8;font-weight:700">${esc(p.pam_no)}</span>`, true)}
+        ${field('Date', fmtDate(p.pam_date))}
+        ${field("Requestor's Name", esc(p.requestors_name))}
+        ${field('Department', '-')}
+      </div>
+      <div>
+        ${field('Cost Center', esc(p.cost_center))}
+        ${field('GL Account', esc(p.gl_account))}
+        ${field('SO / SC', '')}
+        ${field('Company', esc(p.pt))}
+      </div>
+    </div>
+    ${sectionH('Business Unit')}
+    <div style="padding:5px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;gap:20px">
+      <span>${cb(false)} Upstream</span>
+      <span>${cb(false)} Downstream</span>
+      <span>${cb(true)} Corporate</span>
+    </div>
+    ${sectionH('Type of Request')}
+    ${cbRow('Downpayment to vendor', false)}
+    ${cbRow('Invoice Payment – Non PO Invoice', true)}
+    ${cbRow('Employee Advance / Reimbursement (Fund Transfer)', false)}
+    ${sectionH('Invoice Information')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e2e8f0">
+      <div style="border-right:1px solid #e2e8f0">
+        ${field('Vendor Name', terlampir)}
+        ${field('Invoice Amount', `<strong style="color:#1e3a5f">Rp ${fmtRupiah(p.total_amount)}</strong>`, true)}
+      </div>
+      <div>
+        ${field('Invoice / Memo No', '-')}
+        ${field('Expected Due Date', fmtDate(p.due_date))}
+      </div>
+    </div>
+    ${sectionH('Vendor Bank Account Details')}
+    ${field('Bank Account Name', terlampir)}
+    ${field('Bank Name', terlampir)}
+    ${field('Bank Account Number', terlampir)}
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #e2e8f0">
+      <div style="padding:8px 10px;border-right:1px solid #e2e8f0">
+        <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:28px">Request by</div>
+        <div style="font-size:11px;font-weight:700;color:#1e3a5f;border-top:1px solid #94a3b8;padding-top:3px">${esc(p.requestors_name)}</div>
+      </div>
+      <div style="padding:8px 10px">
+        <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:28px">Approved by</div>
+        <div style="font-size:11px;font-weight:700;color:#1e3a5f;border-top:1px solid #94a3b8;padding-top:3px">
+          ${esc(document.getElementById('dm-ab1').value)}
+          &nbsp;&nbsp;&nbsp;
+          ${esc(document.getElementById('dm-ab2').value)}
+        </div>
+      </div>
+    </div>
+    <div style="padding:6px 10px;font-weight:700;font-size:10px;color:#374151;background:#f8fafc;border-top:1px solid #e2e8f0">Checked by (QA)</div>
+    <div style="height:36px;border-top:1px solid #e2e8f0"></div>
+    <div style="padding:4px 8px;font-size:10px;color:#94a3b8;font-style:italic;border-top:1px solid #f1f5f9">
+      &#9658; Lampiran jadwal siswa: halaman 2 di PDF / sheet &#34;Lampiran&#34; di Excel
+    </div>
+  </div>`;
+}
+
+function _dmExportUrl(format) {
+  if (!_dmPamId) { showToast('Pilih PAM No terlebih dahulu.', 'error'); return null; }
+  const ab1 = encodeURIComponent(document.getElementById('dm-ab1').value || '');
+  const ab2 = encodeURIComponent(document.getElementById('dm-ab2').value || '');
+  return `/payment-memo/pam/${_dmPamId}/export/${format}?approved_by_1=${ab1}&approved_by_2=${ab2}`;
+}
+
+function dmExportPDF() {
+  const url = _dmExportUrl('pdf');
+  if (url) window.open(url, '_blank');
+}
+
+function dmExportExcel() {
+  const url = _dmExportUrl('excel');
+  if (url) window.open(url, '_blank');
+}
+
+document.addEventListener('click', e => {
+  const dd = document.getElementById('dm-pam-dropdown');
+  if (dd && !e.target.closest('#dm-pam-search') && !e.target.closest('#dm-pam-dropdown')) {
+    dd.style.display = 'none';
+  }
 });
 </script>
 {% endblock %}
