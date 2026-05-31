@@ -180,12 +180,6 @@
              style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px;max-height:200px;overflow-y:auto">
         </div>
       </div>
-      <div id="dm-approved-bar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
-        <label style="font-size:12px;font-weight:600;color:#374151">Approved by:</label>
-        <input id="dm-ab1" type="text" style="border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:12px;width:130px">
-        <input id="dm-ab2" type="text" style="border:1px solid #d1d5db;border-radius:4px;padding:4px 8px;font-size:12px;width:130px">
-        <span style="font-size:11px;color:#94a3b8">(dari config, bisa diubah)</span>
-      </div>
       <div id="dm-export-btns" style="display:none;margin-left:auto;gap:6px">
         <button onclick="dmExportPDF()"
                 style="background:#dc2626;color:#fff;border:none;border-radius:5px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">&#x2193; PDF</button>
@@ -768,11 +762,6 @@ async function dmSelectPAM(pamId, pamNo) {
   if (!data.ok) { showToast('Gagal memuat PAM detail.', 'error'); return; }
 
   const p = data.data;
-  document.getElementById('dm-ab1').value = PAM_APPROVED_BY_1;
-  document.getElementById('dm-ab2').value = PAM_APPROVED_BY_2;
-
-  const abBar = document.getElementById('dm-approved-bar');
-  abBar.style.display = 'flex';
 
   const expBtns = document.getElementById('dm-export-btns');
   expBtns.style.display = 'flex';
@@ -781,115 +770,107 @@ async function dmSelectPAM(pamId, pamNo) {
 }
 
 function dmRenderForm(p) {
-  const fmtDate = s => {
-    if (!s) return '';
-    const d = new Date(s);
-    return isNaN(d) ? s : d.toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'});
+  const inp = (id, val, type, extra) => {
+    type  = type  || 'text';
+    extra = extra || '';
+    const v = (val === null || val === undefined) ? '' : val;
+    return `<input class="dm-inp" type="${type}" id="${id}" value="${esc(String(v))}" ${extra}>`;
   };
-  const cb = checked => checked
-    ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1.5px solid #1e3a5f;background:#dbeafe;font-size:10px;font-weight:900;color:#1e3a5f;margin-right:4px">&#x2713;</span>'
-    : '<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1.5px solid #64748b;font-size:10px;color:transparent;margin-right:4px"> </span>';
-  const terlampir = '<span style="background:#fef3c7;border:1px solid #fcd34d;border-radius:3px;padding:1px 6px;font-size:11px;font-weight:700;color:#92400e">Terlampir</span>';
 
-  const field = (lbl, val, bold=false) =>
+  const field = (lbl, inputHtml) =>
     `<div style="display:flex;align-items:stretch;border-bottom:1px solid #f1f5f9">
       <div style="background:#f8fafc;padding:5px 8px;font-weight:700;font-size:11px;color:#374151;min-width:140px;border-right:1px solid #e2e8f0;display:flex;align-items:center">${esc(lbl)}</div>
-      <div style="padding:5px 8px;font-size:11px;color:#1e293b;flex:1;${bold?'font-weight:700;':''}display:flex;align-items:center">
-        <span style="color:#94a3b8;margin-right:4px">:</span>${val}
+      <div style="padding:4px 8px;font-size:11px;color:#1e293b;flex:1;display:flex;align-items:center">
+        <span style="color:#94a3b8;margin-right:4px">:</span>${inputHtml}
       </div>
     </div>`;
 
-  const sectionH = (title) =>
-    `<div style="background:#e2e8f0;padding:4px 8px;font-weight:700;font-size:10px;color:#374151;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #d1d5db">
-      ${title}
+  const sectionH = t =>
+    `<div style="background:#e2e8f0;padding:4px 8px;font-weight:700;font-size:10px;color:#374151;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #d1d5db">${t}</div>`;
+
+  const cbRow = (id, label, checked) =>
+    `<div style="padding:4px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;align-items:center">
+      <input type="checkbox" id="${id}" class="dm-cb" ${checked ? 'checked' : ''}>
+      <label for="${id}" style="cursor:pointer;margin-left:4px">${label}</label>
     </div>`;
 
-  const cbRow = (label, checked=false) =>
-    `<div style="padding:4px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;align-items:center">
-      ${cb(checked)}${label}
-    </div>`;
+  const dateVal = s => (s || '').slice(0, 10);
 
   return `
+  <style>
+    .dm-inp{border:none;border-bottom:1px dashed #94a3b8;background:transparent;font-size:11px;font-family:Arial,sans-serif;padding:1px 2px;outline:none;width:100%;box-sizing:border-box;color:#1e293b}
+    .dm-inp:focus{border-bottom:1.5px solid #3b82f6;background:#eff6ff;border-radius:2px}
+    .dm-inp[type=number]{text-align:right}
+    .dm-inp[type=date]{font-size:10px}
+    .dm-cb{width:14px;height:14px;cursor:pointer;accent-color:#1e3a5f;flex-shrink:0}
+  </style>
   <div style="border:1px solid #94a3b8;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;max-width:860px">
-    <div style="background:#1e3a5f;color:#fff;text-align:center;font-size:14px;font-weight:900;padding:10px;letter-spacing:2px;border-bottom:3px solid #f59e0b">
-      PAYMENT APPROVAL MEMO
-    </div>
+    <div style="background:#1e3a5f;color:#fff;text-align:center;font-size:14px;font-weight:900;padding:10px;letter-spacing:2px;border-bottom:3px solid #f59e0b">PAYMENT APPROVAL MEMO</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e2e8f0">
       <div style="border-right:1px solid #e2e8f0">
-        ${field('PAM No.', `<span style="font-family:monospace;color:#1d4ed8;font-weight:700">${esc(p.pam_no)}</span>`, true)}
-        ${field('Date', fmtDate(p.pam_date))}
-        ${field("Requestor's Name", esc(p.requestors_name))}
-        ${field('Department', '-')}
+        ${field('PAM No.', inp('dm-f-pam-no', p.pam_no))}
+        ${field('Date', inp('dm-f-date', dateVal(p.pam_date), 'date'))}
+        ${field("Requestor's Name", inp('dm-f-requestor', p.requestors_name))}
+        ${field('Department', inp('dm-f-dept', '-'))}
       </div>
       <div>
-        ${field('Cost Center', esc(p.cost_center))}
-        ${field('GL Account', esc(p.gl_account))}
-        ${field('SO / SC', '')}
-        ${field('Company', esc(p.pt))}
+        ${field('Cost Center', inp('dm-f-cc', p.cost_center))}
+        ${field('GL Account', inp('dm-f-gl', p.gl_account))}
+        ${field('SO / SC', inp('dm-f-sosc', ''))}
+        ${field('Company', inp('dm-f-company', p.pt))}
       </div>
     </div>
     ${sectionH('Business Unit')}
-    <div style="padding:5px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;gap:20px">
-      <span>${cb(false)} Upstream</span>
-      <span>${cb(false)} Downstream</span>
-      <span>${cb(true)} Corporate</span>
+    <div style="padding:5px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;gap:20px;align-items:center">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="dm-f-bu-upstream"   class="dm-cb"> Upstream</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="dm-f-bu-downstream" class="dm-cb"> Downstream</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="dm-f-bu-corporate"  class="dm-cb" checked> Corporate</label>
     </div>
     ${sectionH('Type of Request')}
-    ${cbRow('Downpayment to vendor', false)}
-    ${cbRow('Invoice Payment – Non PO Invoice', true)}
-    ${cbRow('Employee Advance / Reimbursement (Fund Transfer)', false)}
+    ${cbRow('dm-f-type-dp',  'Downpayment to vendor', false)}
+    ${cbRow('dm-f-type-inv', 'Invoice Payment – Non PO Invoice', true)}
+    ${cbRow('dm-f-type-adv', 'Employee Advance / Reimbursement (Fund Transfer)', false)}
     ${sectionH('Invoice Information')}
     <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e2e8f0">
       <div style="border-right:1px solid #e2e8f0">
-        ${field('Vendor Name', terlampir)}
-        ${field('Invoice Amount', `<strong style="color:#1e3a5f">Rp ${fmtRupiah(p.total_amount)}</strong>`, true)}
+        ${field('Vendor Name', inp('dm-f-vendor', 'Terlampir'))}
+        ${field('Invoice Amount', inp('dm-f-amount', p.total_amount || 0, 'number', 'step="1" min="0"'))}
       </div>
       <div>
-        ${field('Invoice / Memo No', '-')}
-        ${field('Expected Due Date', fmtDate(p.due_date))}
+        ${field('Invoice / Memo No', inp('dm-f-inv-no', '-'))}
+        ${field('Expected Due Date', inp('dm-f-due', dateVal(p.due_date), 'date'))}
       </div>
     </div>
     ${sectionH('Vendor Bank Account Details')}
-    ${field('Bank Account Name', terlampir)}
-    ${field('Bank Name', terlampir)}
-    ${field('Bank Account Number', terlampir)}
+    ${field('Bank Account Name',   inp('dm-f-bank-name', 'Terlampir'))}
+    ${field('Bank Name',           inp('dm-f-bank',      'Terlampir'))}
+    ${field('Bank Account Number', inp('dm-f-bank-no',   'Terlampir'))}
     <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #e2e8f0">
       <div style="padding:8px 10px;border-right:1px solid #e2e8f0">
-        <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:28px">Request by</div>
-        <div style="font-size:11px;font-weight:700;color:#1e3a5f;border-top:1px solid #94a3b8;padding-top:3px">${esc(p.requestors_name)}</div>
+        <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Request by</div>
+        ${inp('dm-f-requestor-sig', p.requestors_name)}
       </div>
       <div style="padding:8px 10px">
-        <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:28px">Approved by</div>
-        <div style="font-size:11px;font-weight:700;color:#1e3a5f;border-top:1px solid #94a3b8;padding-top:3px">
-          ${esc(document.getElementById('dm-ab1').value)}
-          &nbsp;&nbsp;&nbsp;
-          ${esc(document.getElementById('dm-ab2').value)}
+        <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Approved by</div>
+        <div style="display:flex;gap:8px">
+          ${inp('dm-f-ab1', PAM_APPROVED_BY_1)}
+          ${inp('dm-f-ab2', PAM_APPROVED_BY_2)}
         </div>
       </div>
     </div>
     <div style="padding:6px 10px;font-weight:700;font-size:10px;color:#374151;background:#f8fafc;border-top:1px solid #e2e8f0">Checked by (QA)</div>
     <div style="height:36px;border-top:1px solid #e2e8f0"></div>
-    <div style="padding:4px 8px;font-size:10px;color:#94a3b8;font-style:italic;border-top:1px solid #f1f5f9">
-      &#9658; Lampiran jadwal siswa: halaman 2 di PDF / sheet &#34;Lampiran&#34; di Excel
-    </div>
   </div>`;
 }
 
-function _dmExportUrl(format) {
-  if (!_dmPamId) { showToast('Pilih PAM No terlebih dahulu.', 'error'); return null; }
-  const ab1 = encodeURIComponent(document.getElementById('dm-ab1').value || '');
-  const ab2 = encodeURIComponent(document.getElementById('dm-ab2').value || '');
-  return `/payment-memo/pam/${_dmPamId}/export/${format}?approved_by_1=${ab1}&approved_by_2=${ab2}`;
-}
-
 function dmExportPDF() {
-  const url = _dmExportUrl('pdf');
-  if (url) window.open(url, '_blank');
+  if (!_dmPamId) { showToast('Pilih PAM No terlebih dahulu.', 'error'); return; }
+  window.open(`/payment-memo/pam/${_dmPamId}/export/pdf`, '_blank');
 }
 
 function dmExportExcel() {
-  const url = _dmExportUrl('excel');
-  if (url) window.open(url, '_blank');
+  if (!_dmPamId) { showToast('Pilih PAM No terlebih dahulu.', 'error'); return; }
+  window.open(`/payment-memo/pam/${_dmPamId}/export/excel`, '_blank');
 }
 
 document.addEventListener('click', e => {
