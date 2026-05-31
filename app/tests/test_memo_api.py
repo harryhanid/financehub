@@ -179,22 +179,23 @@ def _seed_pam_for_custom(conn):
     pam_id = conn.execute(
         "SELECT id FROM pam_records WHERE pam_no=?", (pam_no,)
     ).fetchone()["id"]
-    return pam_id
+    return pam_id, pam_no
 
 
 def test_export_pam_pdf_custom_route_returns_pdf(client):
     from database import get_conn
     conn = get_conn()
     try:
-        pam_id = _seed_pam_for_custom(conn)
+        pam_id, pam_no = _seed_pam_for_custom(conn)
     finally:
         conn.close()
 
+    payload = {**_CUSTOM_PAYLOAD, "pam_no": pam_no}
     token = _login(client)
     with client.session_transaction() as sess:
         sess["company_id"] = 2
     rv = client.post(f"/payment-memo/pam/{pam_id}/export/pdf-custom",
-                     json=_CUSTOM_PAYLOAD,
+                     json=payload,
                      headers={"Authorization": f"Bearer {token}"})
     assert rv.status_code == 200
     assert rv.content_type == "application/pdf"
@@ -206,15 +207,16 @@ def test_export_pam_excel_custom_route_returns_xlsx(client):
     from database import get_conn
     conn = get_conn()
     try:
-        pam_id = _seed_pam_for_custom(conn)
+        pam_id, pam_no = _seed_pam_for_custom(conn)
     finally:
         conn.close()
 
+    payload = {**_CUSTOM_PAYLOAD, "pam_no": pam_no}
     token = _login(client)
     with client.session_transaction() as sess:
         sess["company_id"] = 2
     rv = client.post(f"/payment-memo/pam/{pam_id}/export/excel-custom",
-                     json=_CUSTOM_PAYLOAD,
+                     json=payload,
                      headers={"Authorization": f"Bearer {token}"})
     assert rv.status_code == 200
     assert "spreadsheetml" in rv.content_type

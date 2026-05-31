@@ -269,6 +269,8 @@ def update_gl_account(pam_id):
 def export_pam_pdf_custom_route(pam_id):
     data       = request.get_json(force=True) or {}
     company_id = session.get("company_id", 0)
+    if not get_pam_detail(pam_id, company_id):
+        return jsonify({"ok": False, "pesan": "PAM record tidak ditemukan."}), 404
     pam_no     = (data.get("pam_no") or "").strip()
     payments   = get_pam_payments(pam_no, company_id)
     pdf_bytes  = export_pam_pdf_custom(data, payments)
@@ -286,6 +288,8 @@ def export_pam_pdf_custom_route(pam_id):
 def export_pam_excel_custom_route(pam_id):
     data       = request.get_json(force=True) or {}
     company_id = session.get("company_id", 0)
+    if not get_pam_detail(pam_id, company_id):
+        return jsonify({"ok": False, "pesan": "PAM record tidak ditemukan."}), 404
     pam_no     = (data.get("pam_no") or "").strip()
     payments   = get_pam_payments(pam_no, company_id)
     xls_bytes  = export_pam_excel_custom(data, payments)
