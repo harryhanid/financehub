@@ -118,7 +118,7 @@
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
       <input id="pam-search" type="text" placeholder="Cari PAM No / PT / Siswa..."
              style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:280px;"
-             oninput="loadPAM()">
+             oninput="loadPAMDebounced()">
     </div>
     <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -308,16 +308,25 @@ function buildGLDropdown(pamId, currentGl) {
 }
 
 async function updateGL(pamId, glAccount) {
-  const res  = await apiFetch('/payment-memo/pam/' + pamId + '/gl-account', {
-    method: 'POST',
-    body: JSON.stringify({ gl_account: glAccount }),
-  });
-  if (!res) return;
-  const data = await res.json();
-  if (!data.ok) showToast('Gagal update GL: ' + data.pesan, 'error');
-  else showToast('GL Account diperbarui.', 'success');
+  const cell = document.getElementById('gl-cell-' + pamId);
+  const sel  = cell ? cell.querySelector('select') : null;
+  if (sel) sel.disabled = true;
+  try {
+    const res  = await apiFetch('/payment-memo/pam/' + pamId + '/gl-account', {
+      method: 'POST',
+      body: JSON.stringify({ gl_account: glAccount }),
+    });
+    if (!res) return;
+    const data = await res.json();
+    if (!data.ok) showToast('Gagal update GL: ' + esc(data.pesan), 'error');
+    else showToast('GL Account diperbarui.', 'success');
+  } finally {
+    if (sel) sel.disabled = false;
+  }
 }
 
+let _pamDebounce;
+function loadPAMDebounced() { clearTimeout(_pamDebounce); _pamDebounce = setTimeout(loadPAM, 300); }
 async function loadPAM() {
   await loadCOA();
   const search = (document.getElementById('pam-search')?.value || '').trim();
