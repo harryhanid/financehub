@@ -180,77 +180,75 @@
 
   <!-- Days of PAM Tab -->
   <div class="tab-panel" id="tab-days-of-pam">
-    <!-- Filter Bar -->
-    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px">
-      <input id="dop-f-code"       class="dop-filter" type="text" placeholder="Siswa Code"
-             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:100px" oninput="dopFilter()">
-      <input id="dop-f-nama"       class="dop-filter" type="text" placeholder="Nama Siswa"
-             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:130px" oninput="dopFilter()">
-      <input id="dop-f-pam"        class="dop-filter" type="text" placeholder="PAM NO"
-             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:150px" oninput="dopFilter()">
-      <input id="dop-f-cat1"       class="dop-filter" type="text" placeholder="Cat 1"
-             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px"  oninput="dopFilter()">
-      <input id="dop-f-cat2"       class="dop-filter" type="text" placeholder="Cat 2"
-             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px"  oninput="dopFilter()">
-      <input id="dop-f-perusahaan" class="dop-filter" type="text" placeholder="Perusahaan"
-             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:150px" oninput="dopFilter()">
-      <input id="dop-f-pillar"     class="dop-filter" type="text" placeholder="Pillar"
-             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px"  oninput="dopFilter()">
-      <button onclick="dopClearFilter()"
-              style="padding:5px 10px;background:#e5e7eb;border:none;border-radius:5px;font-size:12px;cursor:pointer">
-        Bersihkan
+    <!-- Action bar -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <span id="dop-info" style="font-size:12px;color:#6b7280;flex:1;min-width:140px">Ketik filter atau klik Tampilkan Semua</span>
+      <button onclick="dopShowAll()"
+              style="padding:4px 10px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;cursor:pointer">
+        Tampilkan Semua
       </button>
-    </div>
-
-    <!-- Bulk Date Update Bar -->
-    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px">
-      <label style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap">Tanggal:</label>
-      <input id="dop-d-tanggal"   type="date" style="border:1px solid #93c5fd;border-radius:4px;padding:4px 6px;font-size:12px">
-      <label style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap">Pengajuan:</label>
-      <input id="dop-d-pengajuan" type="date" style="border:1px solid #93c5fd;border-radius:4px;padding:4px 6px;font-size:12px">
-      <label style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap">Receive:</label>
-      <input id="dop-d-receive"   type="date" style="border:1px solid #93c5fd;border-radius:4px;padding:4px 6px;font-size:12px">
-      <label style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap">PA:</label>
-      <input id="dop-d-pa"        type="date" style="border:1px solid #93c5fd;border-radius:4px;padding:4px 6px;font-size:12px">
-      <label style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap">Final:</label>
-      <input id="dop-d-final"     type="date" style="border:1px solid #93c5fd;border-radius:4px;padding:4px 6px;font-size:12px">
+      <button onclick="dopClearFilter()"
+              style="padding:4px 10px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;cursor:pointer">
+        Bersihkan Filter
+      </button>
       <button id="dop-update-btn" onclick="dopBulkUpdate()" disabled
-              style="padding:5px 14px;background:#1d4ed8;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:600;opacity:0.5">
+              style="padding:4px 12px;background:#1d4ed8;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:600;opacity:0.5">
         Update Terpilih (0)
       </button>
     </div>
 
-    <!-- Selection Info + Select All -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;color:#374151">
-      <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
-        <input type="checkbox" id="dop-select-all" onchange="dopToggleSelectAll(this)">
-        Select All Terfilter
-      </label>
-      <span id="dop-info" style="color:#6b7280">0 dipilih | 0 total</span>
-    </div>
-
-    <!-- Table -->
+    <!-- Table — filter inputs & date inputs inline in subheader row -->
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
           <tr style="background:#1e40af;color:#fff">
-            <th style="padding:7px 6px;text-align:center;width:32px"></th>
-            <th style="padding:7px 8px;text-align:left">Siswa Code</th>
-            <th style="padding:7px 8px;text-align:left">Nama Siswa</th>
-            <th style="padding:7px 8px;text-align:left">PAM NO</th>
+            <th style="padding:7px 6px;text-align:center;width:32px">
+              <input type="checkbox" id="dop-select-all" onchange="dopToggleSelectAll(this)" title="Pilih semua terfilter">
+            </th>
+            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Siswa Code</th>
+            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Nama Siswa</th>
+            <th style="padding:7px 8px;text-align:left;white-space:nowrap">PAM NO</th>
             <th style="padding:7px 8px;text-align:left">Cat 1</th>
             <th style="padding:7px 8px;text-align:left">Cat 2</th>
-            <th style="padding:7px 8px;text-align:left">Perusahaan</th>
+            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Perusahaan</th>
             <th style="padding:7px 8px;text-align:left">Pillar</th>
             <th style="padding:7px 8px;text-align:right">Amount</th>
-            <th style="padding:7px 8px;text-align:left">Tanggal</th>
-            <th style="padding:7px 8px;text-align:left">Tgl Pengajuan</th>
-            <th style="padding:7px 8px;text-align:left">Tgl Receive</th>
-            <th style="padding:7px 8px;text-align:left">Tgl PA</th>
-            <th style="padding:7px 8px;text-align:left">Tgl Final</th>
+            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Tanggal</th>
+            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Tgl Pengajuan</th>
+            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Tgl Receive</th>
+            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Tgl PA</th>
+            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Tgl Final</th>
+          </tr>
+          <tr style="background:#dbeafe">
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-code" type="text" placeholder="cari..."
+                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
+            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-nama" type="text" placeholder="cari..."
+                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
+            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-pam" type="text" placeholder="cari..."
+                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
+            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-cat1" type="text" placeholder="cari..."
+                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
+            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-cat2" type="text" placeholder="cari..."
+                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
+            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-perusahaan" type="text" placeholder="cari..."
+                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
+            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-pillar" type="text" placeholder="cari..."
+                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
+            <td style="padding:3px 4px"></td><!-- Amount — no filter/date -->
+            <td style="padding:3px 4px"><input id="dop-d-tanggal" type="date"
+                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="dop-d-pengajuan" type="date"
+                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="dop-d-receive" type="date"
+                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="dop-d-pa" type="date"
+                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="dop-d-final" type="date"
+                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
           </tr>
         </thead>
-        <tbody id="dop-tbody">
+        <tbody id="dop-tbody" style="display:none">
           {% for r in dop_rows %}
           <tr class="dop-row"
               data-id="{{ r.id }}"
@@ -284,6 +282,10 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+    <!-- Placeholder — shown until user filters or clicks Tampilkan Semua -->
+    <div id="dop-ph" style="padding:24px;text-align:center;color:#9ca3af;border:1px dashed #e2e8f0;border-radius:6px;margin-top:4px;font-size:13px">
+      Ketik filter di atas atau klik <b>Tampilkan Semua</b> untuk memuat data.
     </div>
   </div>
 
@@ -841,7 +843,15 @@ async function cancelPAM(pamId) {
 // ── Days of PAM ───────────────────────────────────────────────────────────────
 const _dopSelected = new Set();
 
+function _dopReveal() {
+  const tb = document.getElementById('dop-tbody');
+  const ph = document.getElementById('dop-ph');
+  if (tb) tb.style.display = '';
+  if (ph) ph.style.display = 'none';
+}
+
 function dopFilter() {
+  _dopReveal();
   const fCode  = document.getElementById('dop-f-code').value.trim().toLowerCase();
   const fNama  = document.getElementById('dop-f-nama').value.trim().toLowerCase();
   const fPam   = document.getElementById('dop-f-pam').value.trim().toLowerCase();
@@ -869,6 +879,19 @@ function dopFilter() {
     if (cb) cb.checked = false;
   });
   _dopUpdateInfo(visible);
+}
+
+function dopShowAll() {
+  document.querySelectorAll('.dop-filter').forEach(el => el.value = '');
+  _dopReveal();
+  _dopSelected.clear();
+  document.getElementById('dop-select-all').checked = false;
+  document.querySelectorAll('#dop-tbody .dop-row').forEach(row => {
+    row.style.display = '';
+    const cb = row.querySelector('.dop-cb');
+    if (cb) cb.checked = false;
+  });
+  _dopUpdateInfo(document.querySelectorAll('#dop-tbody .dop-row').length);
 }
 
 function dopClearFilter() {
@@ -901,8 +924,10 @@ function _dopUpdateInfo(visibleOverride) {
     ? visibleOverride
     : document.querySelectorAll('#dop-tbody .dop-row:not([style*="display: none"])').length;
   const sel  = _dopSelected.size;
-  document.getElementById('dop-info').textContent = `${sel} dipilih | ${totalVisible} total`;
+  const info = document.getElementById('dop-info');
+  if (info) info.textContent = `${sel} dipilih | ${totalVisible} baris`;
   const btn  = document.getElementById('dop-update-btn');
+  if (!btn) return;
   btn.textContent = `Update Terpilih (${sel})`;
   btn.disabled    = sel === 0;
   btn.style.opacity = sel === 0 ? '0.5' : '1';
@@ -933,7 +958,6 @@ async function dopBulkUpdate() {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  _dopUpdateInfo(document.querySelectorAll('#dop-tbody .dop-row').length);
   const pamBtn = document.querySelector('[data-tab="tab-pam"]');
   if (pamBtn) pamBtn.addEventListener('click', loadPAM);
   // Close cat2 panel on outside click
