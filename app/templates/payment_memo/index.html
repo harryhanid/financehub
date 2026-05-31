@@ -198,6 +198,13 @@
       </div>
     </div>
     <div id="dm-form-preview"></div>
+    <div id="dm-lampiran-wrap" style="display:none;margin-top:12px;max-width:860px">
+      <button id="dm-lampiran-toggle" onclick="toggleLampiran()"
+        style="background:#1e3a5f;color:#fff;border:none;border-radius:5px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;width:100%;text-align:left;letter-spacing:.3px">
+        &#x25b6; Lampiran &mdash; Jadwal Pembayaran
+      </button>
+      <div id="dm-lampiran-body" style="display:none;margin-top:4px;border:1px solid #e2e8f0;border-radius:4px;overflow:hidden"></div>
+    </div>
   </div>
 </div>
 
@@ -945,6 +952,59 @@ async function dmExportExcel() {
   a.download = `${payload.pam_no || 'PAM'}.xlsx`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+function toggleLampiran() {
+  _dmLampiranOpen = !_dmLampiranOpen;
+  const body   = document.getElementById('dm-lampiran-body');
+  const toggle = document.getElementById('dm-lampiran-toggle');
+  if (_dmLampiranOpen) {
+    body.innerHTML = dmRenderLampiran(_dmPayments);
+    body.style.display = 'block';
+    toggle.textContent = toggle.textContent.replace('▶', '▼');
+  } else {
+    body.style.display = 'none';
+    toggle.textContent = toggle.textContent.replace('▼', '▶');
+  }
+}
+
+function dmRenderLampiran(payments) {
+  if (!payments || !payments.length)
+    return '<div style="padding:16px;text-align:center;color:#6b7280;font-size:12px">Tidak ada data pembayaran dalam PAM ini.</div>';
+
+  const hdrs = ['No','Nama Siswa','Bank','No. Rekening','Atas Nama','Kategori','Kode','Amount (Rp)'];
+  const thRow = hdrs.map((h, i) =>
+    `<th style="padding:7px 8px;background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;text-align:${i===7?'right':'left'};white-space:nowrap">${h}</th>`
+  ).join('');
+
+  let total = 0;
+  const rows = payments.map((pb, i) => {
+    const amt = parseFloat(pb.amount || 0);
+    total += amt;
+    const cat = `${pb.cat1 || ''}/${pb.cat2 || ''}`;
+    const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+    return `<tr style="background:${bg}">
+      <td style="padding:6px 8px;text-align:center;font-size:11px">${i+1}</td>
+      <td style="padding:6px 8px;font-size:11px">${esc(pb.nama || pb.siswa_code || '')}</td>
+      <td style="padding:6px 8px;font-size:11px">${esc(pb.bank || '')}</td>
+      <td style="padding:6px 8px;font-size:11px;font-family:monospace">${esc(pb.norek || '')}</td>
+      <td style="padding:6px 8px;font-size:11px">${esc(pb.namarek || '')}</td>
+      <td style="padding:6px 8px;font-size:11px">${esc(cat)}</td>
+      <td style="padding:6px 8px;font-size:11px;font-family:monospace">${esc(pb.siswa_code || '')}</td>
+      <td style="padding:6px 8px;font-size:11px;text-align:right">${fmtRupiah(amt)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<table style="width:100%;border-collapse:collapse">
+    <thead><tr>${thRow}</tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr style="background:#e8f0fe;font-weight:700">
+        <td colspan="7" style="padding:6px 8px;font-size:11px;text-align:right">TOTAL</td>
+        <td style="padding:6px 8px;font-size:11px;text-align:right">${fmtRupiah(total)}</td>
+      </tr>
+    </tfoot>
+  </table>`;
 }
 
 document.addEventListener('click', e => {
