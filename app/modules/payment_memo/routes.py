@@ -113,6 +113,7 @@ def export_pdf(memo_id):
 @bp.route("/coa")
 @role_required("requester", "verificator", "releaser")
 def list_coa():
+    # COA is a global lookup — same chart of accounts across all companies
     return jsonify({"ok": True, "coa": get_coa_list()})
 
 

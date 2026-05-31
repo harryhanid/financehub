@@ -83,15 +83,17 @@ def test_update_pam_gl_account_via_api(client):
     from database import get_conn
     # Seed a PAM record directly
     conn = get_conn()
-    pam_no = create_pam_record(conn, 2, "ETF", {
-        "pam_date": "2026-05-31", "pt": "PT. SMART Tbk",
-        "keterangan": "Harry", "total_amount": 1000000.0, "payment_ids": [],
-    })
-    conn.commit()
-    pam_id = conn.execute(
-        "SELECT id FROM pam_records WHERE pam_no=?", (pam_no,)
-    ).fetchone()["id"]
-    conn.close()
+    try:
+        pam_no = create_pam_record(conn, 2, "ETF", {
+            "pam_date": "2026-05-31", "pt": "PT. SMART Tbk",
+            "keterangan": "Harry", "total_amount": 1000000.0, "payment_ids": [],
+        })
+        conn.commit()
+        pam_id = conn.execute(
+            "SELECT id FROM pam_records WHERE pam_no=?", (pam_no,)
+        ).fetchone()["id"]
+    finally:
+        conn.close()
 
     token = _login(client)
     with client.session_transaction() as sess:
