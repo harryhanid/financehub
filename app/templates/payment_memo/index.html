@@ -838,8 +838,102 @@ async function cancelPAM(pamId) {
   if (data.ok) loadPAM();
 }
 
+// ── Days of PAM ───────────────────────────────────────────────────────────────
+const _dopSelected = new Set();
+
+function dopFilter() {
+  const fCode  = document.getElementById('dop-f-code').value.trim().toLowerCase();
+  const fNama  = document.getElementById('dop-f-nama').value.trim().toLowerCase();
+  const fPam   = document.getElementById('dop-f-pam').value.trim().toLowerCase();
+  const fCat1  = document.getElementById('dop-f-cat1').value.trim().toLowerCase();
+  const fCat2  = document.getElementById('dop-f-cat2').value.trim().toLowerCase();
+  const fPersh = document.getElementById('dop-f-perusahaan').value.trim().toLowerCase();
+  const fPill  = document.getElementById('dop-f-pillar').value.trim().toLowerCase();
+
+  _dopSelected.clear();
+  document.getElementById('dop-select-all').checked = false;
+
+  let visible = 0;
+  document.querySelectorAll('#dop-tbody .dop-row').forEach(row => {
+    const match =
+      row.dataset.code.includes(fCode) &&
+      row.dataset.nama.includes(fNama) &&
+      row.dataset.pam.includes(fPam)   &&
+      row.dataset.cat1.includes(fCat1) &&
+      row.dataset.cat2.includes(fCat2) &&
+      row.dataset.perusahaan.includes(fPersh) &&
+      row.dataset.pillar.includes(fPill);
+    row.style.display = match ? '' : 'none';
+    if (match) visible++;
+    const cb = row.querySelector('.dop-cb');
+    if (cb) cb.checked = false;
+  });
+  _dopUpdateInfo(visible);
+}
+
+function dopClearFilter() {
+  document.querySelectorAll('.dop-filter').forEach(el => el.value = '');
+  dopFilter();
+}
+
+function dopToggleCb(cb) {
+  const id = parseInt(cb.dataset.id, 10);
+  if (cb.checked) _dopSelected.add(id);
+  else            _dopSelected.delete(id);
+  _dopUpdateInfo();
+}
+
+function dopToggleSelectAll(masterCb) {
+  document.querySelectorAll('#dop-tbody .dop-row').forEach(row => {
+    if (row.style.display === 'none') return;
+    const cb = row.querySelector('.dop-cb');
+    if (!cb) return;
+    cb.checked = masterCb.checked;
+    const id = parseInt(cb.dataset.id, 10);
+    if (masterCb.checked) _dopSelected.add(id);
+    else                  _dopSelected.delete(id);
+  });
+  _dopUpdateInfo();
+}
+
+function _dopUpdateInfo(visibleOverride) {
+  const totalVisible = visibleOverride !== undefined
+    ? visibleOverride
+    : document.querySelectorAll('#dop-tbody .dop-row:not([style*="display: none"])').length;
+  const sel  = _dopSelected.size;
+  document.getElementById('dop-info').textContent = `${sel} dipilih | ${totalVisible} total`;
+  const btn  = document.getElementById('dop-update-btn');
+  btn.textContent = `Update Terpilih (${sel})`;
+  btn.disabled    = sel === 0;
+  btn.style.opacity = sel === 0 ? '0.5' : '1';
+}
+
+async function dopBulkUpdate() {
+  if (_dopSelected.size === 0) return;
+  const dates = {
+    tanggal:       document.getElementById('dop-d-tanggal').value,
+    tgl_pengajuan: document.getElementById('dop-d-pengajuan').value,
+    tgl_receive:   document.getElementById('dop-d-receive').value,
+    tgl_pa:        document.getElementById('dop-d-pa').value,
+    tgl_final:     document.getElementById('dop-d-final').value,
+  };
+  const hasDate = Object.values(dates).some(v => v);
+  if (!hasDate) { showToast('Isi minimal satu field tanggal.', 'error'); return; }
+
+  const res  = await apiFetch('/payment-memo/days-of-pam/bulk-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [..._dopSelected], dates })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) setTimeout(() => location.reload(), 800);
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  _dopUpdateInfo(document.querySelectorAll('#dop-tbody .dop-row').length);
   const pamBtn = document.querySelector('[data-tab="tab-pam"]');
   if (pamBtn) pamBtn.addEventListener('click', loadPAM);
   // Close cat2 panel on outside click
