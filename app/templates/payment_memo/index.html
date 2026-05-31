@@ -779,6 +779,7 @@ async function dmSearch() {
   const dd = document.getElementById('dm-pam-dropdown');
   if (!q) { dd.style.display = 'none'; return; }
   const resp = await apiFetch(`/payment-memo/pam?search=${encodeURIComponent(q)}`);
+  if (!resp) return;
   const data = await resp.json();
   if (!data.ok || !data.rows.length) { dd.style.display = 'none'; return; }
   dd.innerHTML = data.rows.slice(0, 10).map(r =>
@@ -799,6 +800,7 @@ async function dmSelectPAM(pamId, pamNo) {
   _dmPamId = pamId;
 
   const resp = await apiFetch(`/payment-memo/pam/${pamId}/detail`);
+  if (!resp) return;
   const data = await resp.json();
   if (!data.ok) { showToast('Gagal memuat PAM detail.', 'error'); return; }
 
@@ -912,6 +914,11 @@ async function dmExportPDF() {
     method: 'POST', body: JSON.stringify(payload),
   });
   if (!resp) return;
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    showToast(err.pesan || 'Export gagal.', 'error');
+    return;
+  }
   const blob = await resp.blob();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -927,6 +934,11 @@ async function dmExportExcel() {
     method: 'POST', body: JSON.stringify(payload),
   });
   if (!resp) return;
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    showToast(err.pesan || 'Export gagal.', 'error');
+    return;
+  }
   const blob = await resp.blob();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
