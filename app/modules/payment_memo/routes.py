@@ -10,7 +10,10 @@ from modules.payment_memo.service import (
     get_draft_payment_detail, update_draft_and_linked,
     delete_payment_beasiswa, cancel_pam_record,
 )
-from modules.payment_memo.exports import export_pam_pdf, export_pam_excel
+from modules.payment_memo.exports import (
+    export_pam_pdf, export_pam_excel,
+    export_pam_pdf_custom, export_pam_excel_custom,
+)
 import config, io
 
 bp = Blueprint("payment_memo", __name__, url_prefix="/payment-memo")
@@ -259,3 +262,37 @@ def update_gl_account(pam_id):
         return jsonify({"ok": False, "pesan": "GL Account wajib diisi."}), 400
     result = update_pam_gl_account(pam_id, gl_account, session.get("company_id", 0))
     return jsonify(result)
+
+
+@bp.route("/pam/<int:pam_id>/export/pdf-custom", methods=["POST"])
+@role_required("requester", "verificator", "releaser")
+def export_pam_pdf_custom_route(pam_id):
+    data       = request.get_json(force=True) or {}
+    company_id = session.get("company_id", 0)
+    pam_no     = (data.get("pam_no") or "").strip()
+    payments   = get_pam_payments(pam_no, company_id)
+    pdf_bytes  = export_pam_pdf_custom(data, payments)
+    fname      = f"{pam_no or f'pam_{pam_id}'}.pdf"
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        download_name=fname,
+        as_attachment=True,
+    )
+
+
+@bp.route("/pam/<int:pam_id>/export/excel-custom", methods=["POST"])
+@role_required("requester", "verificator", "releaser")
+def export_pam_excel_custom_route(pam_id):
+    data       = request.get_json(force=True) or {}
+    company_id = session.get("company_id", 0)
+    pam_no     = (data.get("pam_no") or "").strip()
+    payments   = get_pam_payments(pam_no, company_id)
+    xls_bytes  = export_pam_excel_custom(data, payments)
+    fname      = f"{pam_no or f'pam_{pam_id}'}.xlsx"
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=fname,
+        as_attachment=True,
+    )

@@ -144,3 +144,78 @@ def test_pam_detail_includes_payments(client):
     assert len(body["data"]["payments"]) == 1
     assert body["data"]["payments"][0]["siswa_code"] == "S001"
     assert body["data"]["payments"][0]["amount"] == 5000000
+
+
+_CUSTOM_PAYLOAD = {
+    "pam_no": "PAM-001-ETF-05-2026",
+    "pam_date": "2026-05-26",
+    "requestors_name": "Jany Turkanda",
+    "department": "HR",
+    "cost_center": "1008C1POFF",
+    "gl_account": "70110230",
+    "so_sc": "",
+    "pt": "PT. SMART Tbk",
+    "bu_upstream": False, "bu_downstream": False, "bu_corporate": True,
+    "type_downpayment": False, "type_invoice": True, "type_advance": False,
+    "vendor_name": "Terlampir",
+    "invoice_memo_no": "-",
+    "total_amount": 5000000,
+    "due_date": "2026-06-26",
+    "bank_account_name": "Terlampir",
+    "bank_name": "Terlampir",
+    "bank_account_no": "Terlampir",
+    "approved_by_1": "Hong Tjhin",
+    "approved_by_2": "Tenti Kidjo",
+}
+
+
+def _seed_pam_for_custom(conn):
+    from modules.payment_memo.service import create_pam_record
+    pam_no = create_pam_record(conn, 2, "ETF", {
+        "pam_date": "2026-05-26", "pt": "PT. SMART Tbk",
+        "keterangan": "Test", "total_amount": 5000000.0, "payment_ids": [],
+    })
+    conn.commit()
+    pam_id = conn.execute(
+        "SELECT id FROM pam_records WHERE pam_no=?", (pam_no,)
+    ).fetchone()["id"]
+    return pam_id
+
+
+def test_export_pam_pdf_custom_route_returns_pdf(client):
+    from database import get_conn
+    conn = get_conn()
+    try:
+        pam_id = _seed_pam_for_custom(conn)
+    finally:
+        conn.close()
+
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    rv = client.post(f"/payment-memo/pam/{pam_id}/export/pdf-custom",
+                     json=_CUSTOM_PAYLOAD,
+                     headers={"Authorization": f"Bearer {token}"})
+    assert rv.status_code == 200
+    assert rv.content_type == "application/pdf"
+    assert rv.data[:4] == b'%PDF'
+
+
+def test_export_pam_excel_custom_route_returns_xlsx(client):
+    import zipfile, io as _io
+    from database import get_conn
+    conn = get_conn()
+    try:
+        pam_id = _seed_pam_for_custom(conn)
+    finally:
+        conn.close()
+
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    rv = client.post(f"/payment-memo/pam/{pam_id}/export/excel-custom",
+                     json=_CUSTOM_PAYLOAD,
+                     headers={"Authorization": f"Bearer {token}"})
+    assert rv.status_code == 200
+    assert "spreadsheetml" in rv.content_type
+    assert zipfile.is_zipfile(_io.BytesIO(rv.data))
