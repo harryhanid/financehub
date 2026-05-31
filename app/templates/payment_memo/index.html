@@ -24,6 +24,7 @@
     <button class="tab-btn" data-tab="tab-memo-list">Daftar Memo</button>
     <button class="tab-btn" data-tab="tab-draft-pay">Draft Payment ({{ drafts|length }})</button>
     <button class="tab-btn" data-tab="tab-pam">PAM Records</button>
+    <button class="tab-btn" data-tab="tab-days-of-pam">Days of PAM</button>
     <button class="tab-btn" data-tab="tab-draft-memo">Draft Memo</button>
   </div>
 
@@ -172,6 +173,115 @@
           <tr><td colspan="11" style="text-align:center;padding:20px;color:#6b7280;">
             Memuat data...
           </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Days of PAM Tab -->
+  <div class="tab-panel" id="tab-days-of-pam">
+    <!-- Filter Bar -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px">
+      <input id="dop-f-code"       class="dop-filter" type="text" placeholder="Siswa Code"
+             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:100px" oninput="dopFilter()">
+      <input id="dop-f-nama"       class="dop-filter" type="text" placeholder="Nama Siswa"
+             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:130px" oninput="dopFilter()">
+      <input id="dop-f-pam"        class="dop-filter" type="text" placeholder="PAM NO"
+             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:150px" oninput="dopFilter()">
+      <input id="dop-f-cat1"       class="dop-filter" type="text" placeholder="Cat 1"
+             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px"  oninput="dopFilter()">
+      <input id="dop-f-cat2"       class="dop-filter" type="text" placeholder="Cat 2"
+             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px"  oninput="dopFilter()">
+      <input id="dop-f-perusahaan" class="dop-filter" type="text" placeholder="Perusahaan"
+             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:150px" oninput="dopFilter()">
+      <input id="dop-f-pillar"     class="dop-filter" type="text" placeholder="Pillar"
+             style="padding:5px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px"  oninput="dopFilter()">
+      <button onclick="dopClearFilter()"
+              style="padding:5px 10px;background:#e5e7eb;border:none;border-radius:5px;font-size:12px;cursor:pointer">
+        Bersihkan
+      </button>
+    </div>
+
+    <!-- Bulk Date Update Bar -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px">
+      <label style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap">Tanggal:</label>
+      <input id="dop-d-tanggal"   type="date" style="border:1px solid #93c5fd;border-radius:4px;padding:4px 6px;font-size:12px">
+      <label style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap">Pengajuan:</label>
+      <input id="dop-d-pengajuan" type="date" style="border:1px solid #93c5fd;border-radius:4px;padding:4px 6px;font-size:12px">
+      <label style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap">Receive:</label>
+      <input id="dop-d-receive"   type="date" style="border:1px solid #93c5fd;border-radius:4px;padding:4px 6px;font-size:12px">
+      <label style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap">PA:</label>
+      <input id="dop-d-pa"        type="date" style="border:1px solid #93c5fd;border-radius:4px;padding:4px 6px;font-size:12px">
+      <label style="font-size:11px;font-weight:700;color:#374151;white-space:nowrap">Final:</label>
+      <input id="dop-d-final"     type="date" style="border:1px solid #93c5fd;border-radius:4px;padding:4px 6px;font-size:12px">
+      <button id="dop-update-btn" onclick="dopBulkUpdate()" disabled
+              style="padding:5px 14px;background:#1d4ed8;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:600;opacity:0.5">
+        Update Terpilih (0)
+      </button>
+    </div>
+
+    <!-- Selection Info + Select All -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;color:#374151">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+        <input type="checkbox" id="dop-select-all" onchange="dopToggleSelectAll(this)">
+        Select All Terfilter
+      </label>
+      <span id="dop-info" style="color:#6b7280">0 dipilih | 0 total</span>
+    </div>
+
+    <!-- Table -->
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:#1e40af;color:#fff">
+            <th style="padding:7px 6px;text-align:center;width:32px"></th>
+            <th style="padding:7px 8px;text-align:left">Siswa Code</th>
+            <th style="padding:7px 8px;text-align:left">Nama Siswa</th>
+            <th style="padding:7px 8px;text-align:left">PAM NO</th>
+            <th style="padding:7px 8px;text-align:left">Cat 1</th>
+            <th style="padding:7px 8px;text-align:left">Cat 2</th>
+            <th style="padding:7px 8px;text-align:left">Perusahaan</th>
+            <th style="padding:7px 8px;text-align:left">Pillar</th>
+            <th style="padding:7px 8px;text-align:right">Amount</th>
+            <th style="padding:7px 8px;text-align:left">Tanggal</th>
+            <th style="padding:7px 8px;text-align:left">Tgl Pengajuan</th>
+            <th style="padding:7px 8px;text-align:left">Tgl Receive</th>
+            <th style="padding:7px 8px;text-align:left">Tgl PA</th>
+            <th style="padding:7px 8px;text-align:left">Tgl Final</th>
+          </tr>
+        </thead>
+        <tbody id="dop-tbody">
+          {% for r in dop_rows %}
+          <tr class="dop-row"
+              data-id="{{ r.id }}"
+              data-code="{{ (r.siswa_code or '')|lower }}"
+              data-nama="{{ (r.nama or '')|lower }}"
+              data-pam="{{ (r.pam_no or '')|lower }}"
+              data-cat1="{{ (r.cat1 or '')|lower }}"
+              data-cat2="{{ (r.cat2 or '')|lower }}"
+              data-perusahaan="{{ (r.perusahaan or '')|lower }}"
+              data-pillar="{{ (r.pillar or '')|lower }}"
+              style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:6px;text-align:center">
+              <input type="checkbox" class="dop-cb" data-id="{{ r.id }}" onchange="dopToggleCb(this)">
+            </td>
+            <td style="padding:6px 8px">{{ r.siswa_code or '' }}</td>
+            <td style="padding:6px 8px">{{ r.nama or '-' }}</td>
+            <td style="padding:6px 8px;font-family:monospace;color:#1d4ed8">{{ r.pam_no or '' }}</td>
+            <td style="padding:6px 8px">{{ r.cat1 or '' }}</td>
+            <td style="padding:6px 8px">{{ r.cat2 or '' }}</td>
+            <td style="padding:6px 8px">{{ r.perusahaan or '' }}</td>
+            <td style="padding:6px 8px">{{ r.pillar or '' }}</td>
+            <td style="padding:6px 8px;text-align:right">Rp {{ "{:,.0f}".format(r.amount or 0) }}</td>
+            <td style="padding:6px 8px">{{ r.tanggal or '' }}</td>
+            <td style="padding:6px 8px">{{ r.tgl_pengajuan or '' }}</td>
+            <td style="padding:6px 8px">{{ r.tgl_receive or '' }}</td>
+            <td style="padding:6px 8px">{{ r.tgl_pa or '' }}</td>
+            <td style="padding:6px 8px">{{ r.tgl_final or '' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="14" style="padding:20px;text-align:center;color:#6b7280">Belum ada data Days of PAM.</td></tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>
