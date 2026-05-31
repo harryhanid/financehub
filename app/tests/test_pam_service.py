@@ -8,6 +8,7 @@ from database import init_db, get_conn
 from modules.payment_memo.service import (
     generate_pam_number, create_pam_record,
     get_pam_list, get_coa_list, update_pam_gl_account,
+    update_pam_status, update_pam_record, get_pam_payments,
 )
 
 COMPANY_ID   = 2   # ETF
@@ -142,6 +143,68 @@ def test_update_pam_gl_account_success():
     assert row["gl_account"] == "70107800"
 
 
+def test_update_pam_status_approved():
+    conn = get_conn()
+    pam_no = create_pam_record(conn, COMPANY_ID, COMPANY_CODE, {
+        "pam_date": "2026-05-31", "pt": "PT. SMART Tbk",
+        "keterangan": "Harry", "total_amount": 1000000.0, "payment_ids": [],
+    })
+    conn.commit()
+    pam_id = conn.execute(
+        "SELECT id FROM pam_records WHERE pam_no=?", (pam_no,)
+    ).fetchone()["id"]
+    conn.close()
+    result = update_pam_status(pam_id, "approved", COMPANY_ID)
+    assert result["ok"] is True
+    conn2 = get_conn()
+    row = conn2.execute("SELECT status FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    conn2.close()
+    assert row["status"] == "approved"
+
+
+def test_update_pam_status_invalid():
+    conn = get_conn()
+    pam_no = create_pam_record(conn, COMPANY_ID, COMPANY_CODE, {
+        "pam_date": "2026-05-31", "pt": "PT. SMART Tbk",
+        "keterangan": "Harry", "total_amount": 1000000.0, "payment_ids": [],
+    })
+    conn.commit()
+    pam_id = conn.execute(
+        "SELECT id FROM pam_records WHERE pam_no=?", (pam_no,)
+    ).fetchone()["id"]
+    conn.close()
+    result = update_pam_status(pam_id, "invalid_status", COMPANY_ID)
+    assert result["ok"] is False
+
+
+def test_update_pam_record_fields():
+    conn = get_conn()
+    pam_no = create_pam_record(conn, COMPANY_ID, COMPANY_CODE, {
+        "pam_date": "2026-05-31", "pt": "PT. SMART Tbk",
+        "keterangan": "Lama", "total_amount": 1000000.0, "payment_ids": [],
+    })
+    conn.commit()
+    pam_id = conn.execute(
+        "SELECT id FROM pam_records WHERE pam_no=?", (pam_no,)
+    ).fetchone()["id"]
+    conn.close()
+    result = update_pam_record(pam_id, {
+        "keterangan": "Baru", "requestors_name": "Sari", "total_amount": 2000000.0
+    }, COMPANY_ID)
+    assert result["ok"] is True
+    conn2 = get_conn()
+    row = conn2.execute("SELECT * FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    conn2.close()
+    assert row["keterangan"]      == "Baru"
+    assert row["requestors_name"] == "Sari"
+    assert row["total_amount"]    == 2000000.0
+
+
+def test_update_pam_record_not_found():
+    result = update_pam_record(9999, {"keterangan": "X"}, COMPANY_ID)
+    assert result["ok"] is False
+
+
 def test_update_pam_gl_account_invalid_code():
     conn = get_conn()
     pam_no = create_pam_record(conn, COMPANY_ID, COMPANY_CODE, {
@@ -155,3 +218,41 @@ def test_update_pam_gl_account_invalid_code():
     conn.close()
     result = update_pam_gl_account(pam_id, "99999999", COMPANY_ID)
     assert result["ok"] is False
+
+
+def _seed_siswa_and_payment(conn, company_id, pam_no):
+    conn.execute(
+        """INSERT INTO siswa (company_id, code, nama, bank, norek, namarek,
+           jenjang, program, status)
+           VALUES (?,?,?,?,?,?,?,?,?)""",
+        (company_id, "S001", "Harry Santoso", "BCA", "1234567890",
+         "Harry Santoso", "S1", "SMART", "Aktif")
+    )
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, pam, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (company_id, "S001", "General", "Sem 1", "2026-05-26",
+         5000000, "ETF", "PT. SMART Tbk", pam_no, "draft")
+    )
+    conn.commit()
+
+
+def test_get_pam_payments_returns_students():
+    conn = get_conn()
+    _seed_siswa_and_payment(conn, COMPANY_ID, "PAM-052-ETF-05-2026")
+    conn.close()
+    rows = get_pam_payments("PAM-052-ETF-05-2026", COMPANY_ID)
+    assert len(rows) == 1
+    assert rows[0]["nama"] == "Harry Santoso"
+    assert rows[0]["bank"] == "BCA"
+    assert rows[0]["amount"] == 5000000
+
+
+def test_get_pam_payments_empty_for_wrong_company():
+    conn = get_conn()
+    _seed_siswa_and_payment(conn, COMPANY_ID, "PAM-052-ETF-05-2026")
+    conn.close()
+    rows = get_pam_payments("PAM-052-ETF-05-2026", 999)
+    assert rows == []

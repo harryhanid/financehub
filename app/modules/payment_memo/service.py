@@ -172,15 +172,15 @@ def _add_one_month(date_str: str) -> str:
 
 
 def generate_pam_number(company_id: int, company_code: str, year: str,
-                        conn=None) -> str:
-    prefix    = f"PAM/{company_code}/{year}/"
-    pattern   = re.compile(rf"PAM/{re.escape(company_code)}/{re.escape(year)}/(\d+)")
+                        month: str, conn=None) -> str:
+    like_pat  = f"PAM-%-{company_code}-{month}-{year}"
+    pattern   = re.compile(rf"PAM-(\d+)-{re.escape(company_code)}-{re.escape(month)}-{re.escape(year)}")
     owns_conn = conn is None
     if owns_conn:
         conn = get_conn()
     rows = conn.execute(
         "SELECT pam_no FROM pam_records WHERE company_id=? AND pam_no LIKE ?",
-        (company_id, prefix + "%")
+        (company_id, like_pat)
     ).fetchall()
     if owns_conn:
         conn.close()
@@ -191,14 +191,15 @@ def generate_pam_number(company_id: int, company_code: str, year: str,
             seq = int(m.group(1))
             if seq > max_seq:
                 max_seq = seq
-    return f"{prefix}{max_seq + 1:03d}"
+    return f"PAM-{max_seq + 1:03d}-{company_code}-{month}-{year}"
 
 
 def create_pam_record(conn, company_id: int, company_code: str,
                       data: dict) -> str:
     pam_date    = data.get("pam_date") or _ts()[:10]
     year        = pam_date[:4]
-    pam_no      = generate_pam_number(company_id, company_code, year, conn)
+    month       = pam_date[5:7]
+    pam_no      = generate_pam_number(company_id, company_code, year, month, conn)
     due_date    = _add_one_month(pam_date)
     cost_center = config.COST_CENTER_MAP.get(data.get("pt", ""), "")
     conn.execute(
@@ -274,6 +275,349 @@ def update_pam_gl_account(pam_id: int, gl_account: str,
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": f"GL Account diubah ke {gl_account}."}
+
+
+def update_pam_status(pam_id: int, new_status: str, company_id: int) -> dict:
+    allowed = {"draft", "approved", "paid"}
+    if new_status not in allowed:
+        return {"ok": False, "pesan": f"Status '{new_status}' tidak valid."}
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id FROM pam_records WHERE id=? AND company_id=?",
+        (pam_id, company_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "PAM record tidak ditemukan."}
+    conn.execute(
+        "UPDATE pam_records SET status=?, updated_at=? WHERE id=? AND company_id=?",
+        (new_status, _ts(), pam_id, company_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"Status PAM diubah ke '{new_status}'."}
+
+
+def update_pam_record(pam_id: int, data: dict, company_id: int) -> dict:
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id FROM pam_records WHERE id=? AND company_id=?",
+        (pam_id, company_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "PAM record tidak ditemukan."}
+    allowed_fields = ("keterangan", "requestors_name", "total_amount", "due_date", "pam_date")
+    fields, params = [], []
+    for key in allowed_fields:
+        if key in data and data[key] is not None:
+            fields.append(f"{key}=?")
+            params.append(data[key])
+    if not fields:
+        conn.close()
+        return {"ok": False, "pesan": "Tidak ada data yang diubah."}
+    params += [_ts(), pam_id, company_id]
+    conn.execute(
+        f"UPDATE pam_records SET {', '.join(fields)}, updated_at=? WHERE id=? AND company_id=?",
+        params
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "PAM record berhasil diperbarui."}
+
+
+def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT status FROM payment_beasiswa WHERE id=? AND company_id=?",
+        (payment_id, company_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Payment tidak ditemukan."}
+    if row["status"] != "draft":
+        conn.close()
+        return {"ok": False, "pesan": "Hanya payment berstatus draft yang bisa dihapus."}
+    conn.execute("DELETE FROM payment_beasiswa WHERE id=? AND company_id=?", (payment_id, company_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Payment berhasil dihapus."}
+
+
+def cancel_pam_record(pam_id: int, company_id: int) -> dict:
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT pam_no FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id)
+    ).fetchone()
+    if not pam:
+        conn.close()
+        return {"ok": False, "pesan": "PAM record tidak ditemukan."}
+    pam_no = pam["pam_no"]
+    conn.execute("DELETE FROM payment_beasiswa WHERE pam=? AND company_id=?", (pam_no, company_id))
+    conn.execute("DELETE FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"PAM {pam_no} dan payment terkait berhasil dihapus."}
+
+
+def get_pam_detail(pam_id: int, company_id: int) -> dict | None:
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT * FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id)
+    ).fetchone()
+    if not pam:
+        conn.close()
+        return None
+    result = dict(pam)
+    app = conn.execute(
+        """SELECT pa.* FROM payment_application pa
+           JOIN payment_beasiswa pb ON pb.memo_id = pa.memo_id AND pb.company_id = pa.company_id
+           WHERE pb.pam=? AND pa.company_id=? LIMIT 1""",
+        (result["pam_no"], company_id)
+    ).fetchone()
+    result["payment_application"] = dict(app) if app else None
+    conn.close()
+    return result
+
+
+def get_pam_payments(pam_no: str, company_id: int) -> list:
+    conn = get_conn()
+    rows = [dict(r) for r in conn.execute(
+        """SELECT pb.id, pb.siswa_code, pb.cat1, pb.cat2,
+                  pb.amount, pb.tanggal,
+                  s.nama, s.bank, s.norek, s.namarek
+           FROM payment_beasiswa pb
+           LEFT JOIN siswa s
+             ON s.company_id = pb.company_id AND s.code = pb.siswa_code
+           WHERE pb.pam = ? AND pb.company_id = ?
+           ORDER BY pb.id""",
+        (pam_no, company_id)
+    ).fetchall()]
+    conn.close()
+    return rows
+
+
+def update_pam_and_application(pam_id: int, pam_data: dict,
+                                app_data: dict, company_id: int) -> dict:
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT pam_no FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id)
+    ).fetchone()
+    if not pam:
+        conn.close()
+        return {"ok": False, "pesan": "PAM record tidak ditemukan."}
+    _PAM_FIELDS = ("keterangan", "requestors_name", "total_amount", "due_date", "pam_date")
+    f, p = [], []
+    for k in _PAM_FIELDS:
+        if k in pam_data and pam_data[k] is not None:
+            f.append(f"{k}=?"); p.append(pam_data[k])
+    if f:
+        conn.execute(
+            f"UPDATE pam_records SET {','.join(f)}, updated_at=? WHERE id=? AND company_id=?",
+            p + [_ts(), pam_id, company_id]
+        )
+    _APP_FIELDS = ("submitted_at", "target_payment_date", "actual_payment_date", "notes", "status")
+    fa, pa = [], []
+    for k in _APP_FIELDS:
+        if k in app_data and app_data[k] is not None:
+            fa.append(f"{k}=?"); pa.append(app_data[k])
+    if fa:
+        conn.execute(
+            f"UPDATE payment_application SET {','.join(fa)} "
+            "WHERE memo_id IN (SELECT memo_id FROM payment_beasiswa WHERE pam=? AND memo_id IS NOT NULL) "
+            "AND company_id=?",
+            pa + [pam["pam_no"], company_id]
+        )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "PAM & Payment Application berhasil diperbarui."}
+
+
+def get_draft_payment_detail(payment_id: int, company_id: int) -> dict | None:
+    conn = get_conn()
+    pb = conn.execute(
+        """SELECT pb.*, s.nama, s.bank, s.norek, s.namarek
+           FROM payment_beasiswa pb
+           LEFT JOIN siswa s ON s.company_id = pb.company_id AND s.code = pb.siswa_code
+           WHERE pb.id=? AND pb.company_id=?""",
+        (payment_id, company_id)
+    ).fetchone()
+    if not pb:
+        conn.close()
+        return None
+    result = dict(pb)
+    if result.get("pam"):
+        pam = conn.execute(
+            "SELECT * FROM pam_records WHERE pam_no=? AND company_id=?",
+            (result["pam"], company_id)
+        ).fetchone()
+        result["pam_record"] = dict(pam) if pam else None
+    else:
+        result["pam_record"] = None
+    if result.get("memo_id"):
+        app = conn.execute(
+            "SELECT * FROM payment_application WHERE memo_id=? AND company_id=?",
+            (result["memo_id"], company_id)
+        ).fetchone()
+        result["payment_application"] = dict(app) if app else None
+    else:
+        result["payment_application"] = None
+    conn.close()
+    return result
+
+
+def update_draft_and_linked(payment_id: int, pb_data: dict,
+                             pam_data: dict, app_data: dict,
+                             company_id: int) -> dict:
+    conn = get_conn()
+    pb = conn.execute(
+        "SELECT pam, memo_id FROM payment_beasiswa WHERE id=? AND company_id=?",
+        (payment_id, company_id)
+    ).fetchone()
+    if not pb:
+        conn.close()
+        return {"ok": False, "pesan": "Payment tidak ditemukan."}
+    _PB = ("cat1", "cat2", "tanggal", "amount", "pillar", "perusahaan",
+           "tgl_pengajuan", "tgl_receive", "tgl_pa", "tgl_final")
+    f, p = [], []
+    for k in _PB:
+        if k in pb_data and pb_data[k] is not None:
+            f.append(f"{k}=?"); p.append(pb_data[k])
+    if f:
+        conn.execute(
+            f"UPDATE payment_beasiswa SET {','.join(f)} WHERE id=? AND company_id=?",
+            p + [payment_id, company_id]
+        )
+    if pb["pam"] and pam_data:
+        _PAM = ("keterangan", "requestors_name", "total_amount", "due_date", "pam_date")
+        f2, p2 = [], []
+        for k in _PAM:
+            if k in pam_data and pam_data[k] is not None:
+                f2.append(f"{k}=?"); p2.append(pam_data[k])
+        if f2:
+            conn.execute(
+                f"UPDATE pam_records SET {','.join(f2)}, updated_at=? WHERE pam_no=? AND company_id=?",
+                p2 + [_ts(), pb["pam"], company_id]
+            )
+    if pb["memo_id"] and app_data:
+        _APP = ("submitted_at", "target_payment_date", "actual_payment_date", "notes", "status")
+        fa, pa = [], []
+        for k in _APP:
+            if k in app_data and app_data[k] is not None:
+                fa.append(f"{k}=?"); pa.append(app_data[k])
+        if fa:
+            conn.execute(
+                f"UPDATE payment_application SET {','.join(fa)} WHERE memo_id=? AND company_id=?",
+                pa + [pb["memo_id"], company_id]
+            )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Data payment berhasil diperbarui."}
+
+
+def export_pam_excel(pam_id: int, company_id: int) -> bytes:
+    import io, openpyxl
+    from openpyxl.styles import Font, Alignment
+    from datetime import datetime as dt
+
+    conn = get_conn()
+    r = conn.execute(
+        "SELECT * FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id)
+    ).fetchone()
+    conn.close()
+    if not r:
+        raise ValueError("PAM tidak ditemukan.")
+
+    wb  = openpyxl.Workbook()
+    ws  = wb.active
+    ws.title = "PAM NEW"
+
+    bold = Font(bold=True)
+    for col, w in zip("ABCDEFGHIJKLMNOPQ", [1,18,4,4,4,22,22,4,8,4,14,14,4,4,6,18,4]):
+        ws.column_dimensions[col].width = w
+
+    # Row 1 — Title
+    ws.merge_cells("A1:Q1")
+    ws["A1"] = "PAYMENT APPROVAL MEMO"
+    ws["A1"].font = Font(bold=True, size=14)
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 28
+
+    # Rows 4-8 — Header info (left side)
+    for row, label in [(4,"PAM No."),(5,"Date"),(6,"Requestor’s Name"),(7,"Department"),(8,"Company")]:
+        ws.cell(row, 2, label).font = bold
+        ws.cell(row, 5, ":")
+    ws.cell(4, 6, r["pam_no"])
+    # format pam_date
+    try:    ws.cell(5, 6, dt.strptime(r["pam_date"], "%Y-%m-%d")); ws.cell(5,6).number_format = "DD-MMM-YY"
+    except: ws.cell(5, 6, r["pam_date"] or "")
+    ws.cell(6, 6, r["requestors_name"] or "")
+    ws.cell(7, 6, "-")
+    ws.cell(8, 6, r["pt"] or "")
+
+    # Rows 4-6 — Header info (right side)
+    for row, label in [(4,"Cost Center"),(5,"GL Account"),(6,"SO / SC")]:
+        ws.cell(row, 12, label).font = bold
+        ws.cell(row, 15, ":")
+    ws.cell(4, 16, r["cost_center"] or "")
+    ws.cell(5, 16, r["gl_account"] or "")
+
+    # Row 10-11 — Business Unit
+    ws.cell(10, 2, "Bussiness Unit").font = bold
+    ws.cell(11, 7, "  Upstream")
+    ws.cell(11, 11, "  Downstream")
+    ws.cell(11, 14, "V")          # Corporate selected
+    ws.cell(11, 15, "  Corporate")
+
+    # Rows 13-16 — Type of Request
+    ws.cell(13, 2, "Type of Request").font = bold
+    ws.cell(14, 7, "  Downpayment to vendor")
+    ws.cell(15, 5, "V")           # Invoice Payment selected
+    ws.cell(15, 7, "  Invoice Payment – Non PO Invoice")
+    ws.cell(16, 7, "  Employee Advance/ Reimbursement (Fund Transfer)")
+
+    # Rows 18-22 — Invoice Information
+    ws.cell(18, 2, "Invoice Information").font = bold
+    for row, label, val in [
+        (19, "Vendor Name", "Terlampir"),
+        (20, "Invoice/ Memorandum Number", "-"),
+        (22, "Expected Due Date", None),
+    ]:
+        ws.cell(row, 7, label)
+        ws.cell(row, 8, ":")
+        if val is not None:
+            ws.cell(row, 9, val)
+    ws.cell(21, 7, "Invoice Amount")
+    ws.cell(21, 8, ":")
+    ws.cell(21, 9, float(r["total_amount"] or 0))
+    ws.cell(21, 9).number_format = "#,##0"
+    try:    ws.cell(22, 9, dt.strptime(r["due_date"], "%Y-%m-%d")); ws.cell(22,9).number_format = "DD-MMM-YY"
+    except: ws.cell(22, 9, r["due_date"] or "")
+
+    # Rows 24-27 — Vendor Bank Account Details
+    ws.cell(24, 2, "Vendor Bank Account Details").font = bold
+    for row, label in [(25,"Bank Account Name"),(26,"Bank Name"),(27,"Bank Account Number")]:
+        ws.cell(row, 4, label)
+        ws.cell(row, 8, ":")
+        ws.cell(row, 9, "Terlampir")
+
+    # Rows 29, 35 — Request by
+    ws.cell(29, 2, "Request by").font = bold
+    ws.cell(35, 2, r["requestors_name"] or "")
+
+    # Rows 37, 42 — Approved by
+    ws.cell(37, 2, "Approved by").font = bold
+    approvers = [a.strip() for a in (r["keterangan"] or "").split(",")]
+    if approvers:      ws.cell(42, 2, approvers[0])
+    if len(approvers) > 1: ws.cell(42, 7, approvers[1])
+
+    # Row 43 — Checked by QA
+    ws.cell(43, 2, "Checked by (QA)").font = bold
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf.read()
 
 
 def export_memo_pdf(memo_id: int, company_id: int, company_name: str) -> bytes:
