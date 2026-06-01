@@ -180,24 +180,38 @@
 
   <!-- Days of PAM Tab -->
   <div class="tab-panel" id="tab-days-of-pam">
-    <!-- Action bar -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-      <span id="dop-info" style="font-size:12px;color:#6b7280;flex:1;min-width:140px">Ketik filter atau klik Tampilkan Semua</span>
-      <button onclick="dopShowAll()"
-              style="padding:4px 10px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;cursor:pointer">
-        Tampilkan Semua
-      </button>
-      <button onclick="dopClearFilter()"
-              style="padding:4px 10px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;cursor:pointer">
-        Bersihkan Filter
-      </button>
-      <button id="dop-update-btn" onclick="dopBulkUpdate()" disabled
-              style="padding:4px 12px;background:#1d4ed8;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:600;opacity:0.5">
-        Update Terpilih (0)
-      </button>
+    <!-- Search section: PAM No + Nama autocomplete -->
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
+      <div style="position:relative;flex:1;min-width:180px;max-width:260px">
+        <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:3px">PAM No</label>
+        <input id="dop-s-pam" type="text" placeholder="Cari PAM No..." autocomplete="off"
+               style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"
+               oninput="dopSrchInput('pam')" onblur="dopSrchBlur('pam')">
+        <div id="dop-sugg-pam"
+             style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:210px;overflow-y:auto;z-index:900"></div>
+      </div>
+      <div style="position:relative;flex:1;min-width:180px;max-width:260px">
+        <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:3px">Nama Siswa</label>
+        <input id="dop-s-nama" type="text" placeholder="Cari Nama Siswa..." autocomplete="off"
+               style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"
+               oninput="dopSrchInput('nama')" onblur="dopSrchBlur('nama')">
+        <div id="dop-sugg-nama"
+             style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:210px;overflow-y:auto;z-index:900"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding-bottom:1px">
+        <button onclick="dopClearSearch()"
+                style="padding:6px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;cursor:pointer">
+          Bersihkan
+        </button>
+        <button id="dop-update-btn" onclick="dopBulkUpdate()" disabled
+                style="padding:6px 14px;background:#1d4ed8;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:600;opacity:0.5">
+          Update Terpilih (0)
+        </button>
+        <span id="dop-info" style="font-size:12px;color:#6b7280"></span>
+      </div>
     </div>
 
-    <!-- Table — filter inputs & date inputs inline in subheader row -->
+    <!-- Table — secondary filters + date inputs in subheader -->
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>
@@ -223,10 +237,8 @@
             <td style="padding:3px 4px"></td>
             <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-code" type="text" placeholder="cari..."
                 style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
-            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-nama" type="text" placeholder="cari..."
-                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
-            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-pam" type="text" placeholder="cari..."
-                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
+            <td style="padding:3px 4px"></td><!-- Nama — primary search above -->
+            <td style="padding:3px 4px"></td><!-- PAM NO — primary search above -->
             <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-cat1" type="text" placeholder="cari..."
                 style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
             <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-cat2" type="text" placeholder="cari..."
@@ -235,7 +247,7 @@
                 style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
             <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-pillar" type="text" placeholder="cari..."
                 style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
-            <td style="padding:3px 4px"></td><!-- Amount — no filter/date -->
+            <td style="padding:3px 4px"></td>
             <td style="padding:3px 4px"><input id="dop-d-tanggal" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
             <td style="padding:3px 4px"><input id="dop-d-pengajuan" type="date"
@@ -283,9 +295,9 @@
         </tbody>
       </table>
     </div>
-    <!-- Placeholder — shown until user filters or clicks Tampilkan Semua -->
-    <div id="dop-ph" style="padding:24px;text-align:center;color:#9ca3af;border:1px dashed #e2e8f0;border-radius:6px;margin-top:4px;font-size:13px">
-      Ketik filter di atas atau klik <b>Tampilkan Semua</b> untuk memuat data.
+    <!-- Placeholder — shown until user searches -->
+    <div id="dop-ph" style="padding:28px;text-align:center;color:#9ca3af;border:1px dashed #e2e8f0;border-radius:6px;margin-top:4px;font-size:13px">
+      Cari berdasarkan <b>PAM No</b> atau <b>Nama Siswa</b> di atas untuk menampilkan data.
     </div>
   </div>
 
@@ -841,6 +853,7 @@ async function cancelPAM(pamId) {
 }
 
 // ── Days of PAM ───────────────────────────────────────────────────────────────
+const DOP_DATA = {{ dop_rows | tojson }};
 const _dopSelected = new Set();
 
 function _dopReveal() {
@@ -850,15 +863,24 @@ function _dopReveal() {
   if (ph) ph.style.display = 'none';
 }
 
+function _dopHide() {
+  const tb = document.getElementById('dop-tbody');
+  const ph = document.getElementById('dop-ph');
+  if (tb) tb.style.display = 'none';
+  if (ph) ph.style.display = '';
+}
+
 function dopFilter() {
+  const sPam  = (document.getElementById('dop-s-pam')?.value  || '').trim().toLowerCase();
+  const sNama = (document.getElementById('dop-s-nama')?.value || '').trim().toLowerCase();
+  if (!sPam && !sNama) { _dopHide(); return; }
+
   _dopReveal();
-  const fCode  = document.getElementById('dop-f-code').value.trim().toLowerCase();
-  const fNama  = document.getElementById('dop-f-nama').value.trim().toLowerCase();
-  const fPam   = document.getElementById('dop-f-pam').value.trim().toLowerCase();
-  const fCat1  = document.getElementById('dop-f-cat1').value.trim().toLowerCase();
-  const fCat2  = document.getElementById('dop-f-cat2').value.trim().toLowerCase();
-  const fPersh = document.getElementById('dop-f-perusahaan').value.trim().toLowerCase();
-  const fPill  = document.getElementById('dop-f-pillar').value.trim().toLowerCase();
+  const fCode  = (document.getElementById('dop-f-code')?.value       || '').trim().toLowerCase();
+  const fCat1  = (document.getElementById('dop-f-cat1')?.value       || '').trim().toLowerCase();
+  const fCat2  = (document.getElementById('dop-f-cat2')?.value       || '').trim().toLowerCase();
+  const fPersh = (document.getElementById('dop-f-perusahaan')?.value || '').trim().toLowerCase();
+  const fPill  = (document.getElementById('dop-f-pillar')?.value     || '').trim().toLowerCase();
 
   _dopSelected.clear();
   document.getElementById('dop-select-all').checked = false;
@@ -866,13 +888,13 @@ function dopFilter() {
   let visible = 0;
   document.querySelectorAll('#dop-tbody .dop-row').forEach(row => {
     const match =
-      row.dataset.code.includes(fCode) &&
-      row.dataset.nama.includes(fNama) &&
-      row.dataset.pam.includes(fPam)   &&
-      row.dataset.cat1.includes(fCat1) &&
-      row.dataset.cat2.includes(fCat2) &&
-      row.dataset.perusahaan.includes(fPersh) &&
-      row.dataset.pillar.includes(fPill);
+      (!sPam  || row.dataset.pam.includes(sPam))           &&
+      (!sNama || row.dataset.nama.includes(sNama))          &&
+      (!fCode || row.dataset.code.includes(fCode))          &&
+      (!fCat1 || row.dataset.cat1.includes(fCat1))          &&
+      (!fCat2 || row.dataset.cat2.includes(fCat2))          &&
+      (!fPersh || row.dataset.perusahaan.includes(fPersh))  &&
+      (!fPill  || row.dataset.pillar.includes(fPill));
     row.style.display = match ? '' : 'none';
     if (match) visible++;
     const cb = row.querySelector('.dop-cb');
@@ -881,22 +903,59 @@ function dopFilter() {
   _dopUpdateInfo(visible);
 }
 
-function dopShowAll() {
-  document.querySelectorAll('.dop-filter').forEach(el => el.value = '');
-  _dopReveal();
-  _dopSelected.clear();
-  document.getElementById('dop-select-all').checked = false;
-  document.querySelectorAll('#dop-tbody .dop-row').forEach(row => {
-    row.style.display = '';
-    const cb = row.querySelector('.dop-cb');
-    if (cb) cb.checked = false;
-  });
-  _dopUpdateInfo(document.querySelectorAll('#dop-tbody .dop-row').length);
+function dopSrchInput(type) {
+  const inp  = document.getElementById(type === 'pam' ? 'dop-s-pam' : 'dop-s-nama');
+  const sugg = document.getElementById(type === 'pam' ? 'dop-sugg-pam' : 'dop-sugg-nama');
+  const val  = inp.value.trim().toLowerCase();
+
+  if (!val) { sugg.style.display = 'none'; dopFilter(); return; }
+
+  const field = type === 'pam' ? 'pam_no' : 'nama';
+  const seen  = new Set();
+  const hits  = DOP_DATA.filter(r => {
+    const v = (r[field] || '').toLowerCase();
+    if (v.includes(val) && !seen.has(r[field])) { seen.add(r[field]); return true; }
+    return false;
+  }).slice(0, 12);
+
+  sugg.innerHTML = hits.length
+    ? hits.map(r => {
+        const v = type === 'pam' ? r.pam_no : r.nama;
+        const label = type === 'pam'
+          ? `<span style="font-family:monospace;font-size:12px">${r.pam_no}</span>`
+          : `<span style="font-size:12px">${r.nama}</span>&nbsp;<span style="color:#94a3b8;font-size:11px">(${r.siswa_code})</span>`;
+        return `<div onmousedown="dopPickSugg('${type}',${JSON.stringify(v)})"
+                     style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #f8fafc"
+                     onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${label}</div>`;
+      }).join('')
+    : `<div style="padding:7px 10px;font-size:12px;color:#9ca3af">Tidak ada hasil</div>`;
+
+  sugg.style.display = '';
+  dopFilter();
 }
 
-function dopClearFilter() {
-  document.querySelectorAll('.dop-filter').forEach(el => el.value = '');
+function dopPickSugg(type, value) {
+  document.getElementById(type === 'pam' ? 'dop-s-pam' : 'dop-s-nama').value = value;
+  document.getElementById(type === 'pam' ? 'dop-sugg-pam' : 'dop-sugg-nama').style.display = 'none';
   dopFilter();
+}
+
+function dopSrchBlur(type) {
+  setTimeout(() => {
+    const el = document.getElementById(type === 'pam' ? 'dop-sugg-pam' : 'dop-sugg-nama');
+    if (el) el.style.display = 'none';
+  }, 200);
+}
+
+function dopClearSearch() {
+  ['dop-s-pam','dop-s-nama'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.querySelectorAll('.dop-filter').forEach(el => el.value = '');
+  _dopSelected.clear();
+  const sa = document.getElementById('dop-select-all');
+  if (sa) sa.checked = false;
+  _dopHide();
+  const info = document.getElementById('dop-info');
+  if (info) info.textContent = '';
 }
 
 function dopToggleCb(cb) {
