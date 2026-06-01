@@ -6,10 +6,11 @@ from modules.payment_memo.service import (
     update_memo_status, export_memo_pdf,
     get_pam_list, get_coa_list, update_pam_gl_account,
     update_pam_status, update_pam_record,
-    get_pam_detail, get_pam_payments, update_pam_and_application,
+    get_pam_detail, get_pam_payments, get_pam_payments_detail,
+    update_pam_and_application,
     get_draft_payment_detail, update_draft_and_linked,
     delete_payment_beasiswa, cancel_pam_record,
-    get_days_of_pam, bulk_update_dates,
+    get_days_of_pam, get_days_of_pam_candidates, bulk_update_dates,
 )
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
@@ -42,12 +43,10 @@ def index():
     company_id = session["company_id"]
     memos      = get_memo_list(company_id)
     drafts     = get_draft_payments(company_id)
-    dop_rows   = get_days_of_pam(company_id)
     return render_template(
         "payment_memo/index.html",
         memos=memos,
         drafts=drafts,
-        dop_rows=dop_rows,
         cat1_list=config.CAT1_BGT,
         cat2_list=config.CAT2_SEM,
         active_page="payment_memo",
@@ -167,6 +166,7 @@ def get_pam_detail_route(pam_id):
     if not detail:
         return jsonify({"ok": False, "pesan": "PAM record tidak ditemukan."}), 404
     detail["payments"] = get_pam_payments(detail["pam_no"], company_id)
+    detail["payments_detail"] = get_pam_payments_detail(detail["pam_no"], company_id)
     return jsonify({"ok": True, "data": detail})
 
 
@@ -218,7 +218,6 @@ def export_pam_pdf_route(pam_id):
         pdf_bytes = export_pam_pdf(pam_id, company_id, approved_by_1, approved_by_2)
     except ValueError as e:
         return jsonify({"ok": False, "pesan": str(e)}), 404
-    from modules.payment_memo.service import get_pam_detail
     pam      = get_pam_detail(pam_id, company_id)
     filename = f"{pam['pam_no']}.pdf" if pam else f"pam_{pam_id}.pdf"
     return send_file(
@@ -239,7 +238,6 @@ def export_pam_excel_route(pam_id):
         xls_bytes = export_pam_excel(pam_id, company_id, approved_by_1, approved_by_2)
     except ValueError as e:
         return jsonify({"ok": False, "pesan": str(e)}), 404
-    from modules.payment_memo.service import get_pam_detail
     pam      = get_pam_detail(pam_id, company_id)
     filename = f"{pam['pam_no']}.xlsx" if pam else f"pam_{pam_id}.xlsx"
     return send_file(
@@ -263,6 +261,33 @@ def days_of_pam_bulk_update():
         return jsonify({"ok": False, "pesan": "Format ids tidak valid."}), 400
     result = bulk_update_dates(ids, dates, company_id)
     return jsonify(result)
+
+
+@bp.route("/days-of-pam/candidates")
+@role_required("requester", "verificator", "releaser")
+def days_of_pam_candidates_route():
+    company_id = session.get("company_id")
+    if not company_id:
+        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
+    return jsonify({"ok": True, "candidates": get_days_of_pam_candidates(company_id)})
+
+
+@bp.route("/days-of-pam/search")
+@role_required("requester", "verificator", "releaser")
+def days_of_pam_search_route():
+    company_id = session.get("company_id")
+    if not company_id:
+        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
+    pam  = request.args.get("pam",  "").strip()
+    nama = request.args.get("nama", "").strip().lower()
+    if not pam and not nama:
+        return jsonify({"ok": True, "rows": []})
+    rows = get_days_of_pam(company_id)
+    if pam:
+        rows = [r for r in rows if r["pam_no"] == pam]
+    if nama:
+        rows = [r for r in rows if nama in (r["nama"] or "").lower()]
+    return jsonify({"ok": True, "rows": rows})
 
 
 @bp.route("/pam/<int:pam_id>/cancel", methods=["POST"])
@@ -291,6 +316,7 @@ def export_pam_pdf_custom_route(pam_id):
     if not get_pam_detail(pam_id, company_id):
         return jsonify({"ok": False, "pesan": "PAM record tidak ditemukan."}), 404
     pam_no     = (data.get("pam_no") or "").strip()
+    data["company_id"] = company_id
     payments   = get_pam_payments(pam_no, company_id)
     pdf_bytes  = export_pam_pdf_custom(data, payments)
     fname      = f"{pam_no or f'pam_{pam_id}'}.pdf"
@@ -309,9 +335,10 @@ def export_pam_excel_custom_route(pam_id):
     company_id = session.get("company_id", 0)
     if not get_pam_detail(pam_id, company_id):
         return jsonify({"ok": False, "pesan": "PAM record tidak ditemukan."}), 404
-    pam_no     = (data.get("pam_no") or "").strip()
-    payments   = get_pam_payments(pam_no, company_id)
-    xls_bytes  = export_pam_excel_custom(data, payments)
+    pam_no                = (data.get("pam_no") or "").strip()
+    data["company_id"]    = company_id
+    payments              = get_pam_payments(pam_no, company_id)
+    xls_bytes             = export_pam_excel_custom(data, payments)
     fname      = f"{pam_no or f'pam_{pam_id}'}.xlsx"
     return send_file(
         io.BytesIO(xls_bytes),
