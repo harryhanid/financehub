@@ -974,7 +974,7 @@ function dopSrchInput(type) {
         const label = type === 'pam'
           ? `<span style="font-family:monospace;font-size:12px">${r.pam_no}</span>`
           : `<span style="font-size:12px">${r.nama}</span>&nbsp;<span style="color:#94a3b8;font-size:11px">(${r.siswa_code})</span>`;
-        return `<div onmousedown="dopPickSugg('${type}',${JSON.stringify(v)})"
+        return `<div onmousedown="dopPickSugg('${type}',${JSON.stringify(v).replace(/"/g,'&quot;')})"
                      style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #f8fafc"
                      onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${label}</div>`;
       }).join('')
