@@ -294,18 +294,25 @@ def _seed_dop_row(company_id=2, pam_no="PAM-001-ETF-05-2026",
     """Seed one payment_beasiswa row that has a pam value."""
     from database import get_conn
     conn = get_conn()
-    conn.execute(
-        "INSERT OR IGNORE INTO siswa (company_id, code, nama) VALUES (?,?,?)",
-        (company_id, siswa_code, nama)
-    )
-    conn.execute(
-        """INSERT INTO payment_beasiswa
-           (company_id, siswa_code, cat1, tanggal, amount, pam)
-           VALUES (?,?,?,?,?,?)""",
-        (company_id, siswa_code, "General", "2026-05-01", 3000000.0, pam_no)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+            (company_id, siswa_code, nama)
+        )
+        conn.execute(
+            """INSERT INTO payment_beasiswa
+               (company_id, siswa_code, cat1, tanggal, amount, pam)
+               VALUES (?,?,?,?,?,?)""",
+            (company_id, siswa_code, "General", "2026-05-01", 3000000.0, pam_no)
+        )
+        conn.commit()
+        row_id = conn.execute(
+            "SELECT id FROM payment_beasiswa WHERE siswa_code=? AND company_id=?",
+            (siswa_code, company_id)
+        ).fetchone()["id"]
+    finally:
+        conn.close()
+    return row_id
 
 
 def test_get_dop_candidates_empty(client):
@@ -368,6 +375,7 @@ def test_dop_search_by_nama(client):
     assert data["ok"] is True
     assert len(data["rows"]) == 1
     assert data["rows"][0]["siswa_code"] == "S099"
+    assert data["rows"][0]["pam_no"] == "PAM-001-ETF-05-2026"
 
 
 def test_dop_search_no_match(client):
@@ -383,3 +391,28 @@ def test_dop_search_no_match(client):
     data = rv.get_json()
     assert data["ok"] is True
     assert data["rows"] == []
+
+
+def test_dop_candidates_requires_auth(client):
+    rv = client.get("/payment-memo/days-of-pam/candidates")
+    assert rv.status_code == 401
+
+
+def test_dop_search_requires_auth(client):
+    rv = client.get("/payment-memo/days-of-pam/search?pam=PAM-001-ETF-05-2026")
+    assert rv.status_code == 401
+
+
+def test_dop_candidates_no_session(client):
+    token = _login(client)
+    # no company_id in session
+    rv = client.get("/payment-memo/days-of-pam/candidates",
+                    headers={"Authorization": f"Bearer {token}"})
+    assert rv.status_code == 400
+
+
+def test_dop_search_no_session(client):
+    token = _login(client)
+    rv = client.get("/payment-memo/days-of-pam/search?pam=PAM-001-ETF-05-2026",
+                    headers={"Authorization": f"Bearer {token}"})
+    assert rv.status_code == 400
