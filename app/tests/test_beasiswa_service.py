@@ -351,3 +351,33 @@ def test_get_budget_list_payment_totals_filtered_by_search():
     result = get_budget_list(COMPANY_ID, search="Budi")
     assert result["payment_totals"].get("By Pendidikan") == 5000000
     assert result["payment_grand"] == 5000000
+
+
+# ── get_payment_list cross-tab budget_totals ───────────────────────────────────
+
+def test_get_payment_list_returns_budget_totals():
+    _seed_budi()
+    result = get_payment_list(COMPANY_ID)
+    assert "budget_totals" in result
+    assert result["budget_totals"].get("By Pendidikan") == 8000000
+    assert result["budget_totals"].get("By Tunjangan")  == 2000000
+    assert result["budget_grand"] == 10000000
+
+
+def test_get_payment_list_budget_totals_filtered_by_search():
+    _seed_budi()
+    # Add another siswa with budget that should NOT appear
+    add_siswa(COMPANY_ID, {
+        "code": "1250002", "nama": "Rina Wati", "jenjang": "S1",
+        "angkatan": 2025, "program": "SMART", "fakultas": "", "universitas": "",
+        "bank": "", "norek": "", "namarek": "", "referensi": "",
+        "status": "Aktif", "catatan": "",
+    })
+    add_budget_batch(COMPANY_ID, "1250002", "2025-03-10", "AGRI", [
+        {"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 6000000},
+    ])
+    # Filter by Budi only
+    result = get_payment_list(COMPANY_ID, search="Budi")
+    assert result["budget_totals"].get("By Pendidikan") == 8000000
+    # Rina's 6_000_000 must not be included
+    assert result["budget_grand"] == 10000000

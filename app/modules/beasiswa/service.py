@@ -510,11 +510,45 @@ def get_payment_list(company_id: int, search: str = "", bulan: str = "",
     ) + " GROUP BY pb.cat1"
     totals = {r[0]: r[1] for r in conn.execute(agg_sql, params).fetchall()}
     grand  = sum(totals.values())
+    # Cross-tab: budget totals for same filter scope
+    bgt_sql = (
+        "SELECT bb.cat1, SUM(bb.amount) AS total FROM budget_beasiswa bb "
+        "LEFT JOIN siswa s ON s.company_id=bb.company_id AND s.code=bb.siswa_code "
+        "WHERE bb.company_id=?"
+    )
+    bgt_params = [company_id]
+    if search:
+        q2 = f"%{search}%"
+        bgt_sql += (" AND (bb.siswa_code LIKE ? OR s.nama LIKE ? OR bb.cat1 LIKE ?"
+                    " OR bb.cat2 LIKE ? OR bb.pillar LIKE ? OR s.program LIKE ?)")
+        bgt_params += [q2, q2, q2, q2, q2, q2]
+    if cat1:
+        bgt_sql += " AND bb.cat1=?"
+        bgt_params += [cat1]
+    if pillar:
+        bgt_sql += " AND bb.pillar=?"
+        bgt_params += [pillar]
+    if program:
+        bgt_sql += " AND s.program=?"
+        bgt_params += [program]
+    if bulan:
+        bgt_sql += " AND strftime('%m', bb.tanggal) = ?"
+        bgt_params += [bulan.zfill(2)]
+    if tahun:
+        bgt_sql += " AND strftime('%Y', bb.tanggal) = ?"
+        bgt_params += [tahun]
+    bgt_sql += " GROUP BY bb.cat1"
+    budget_totals = {r[0]: r[1] for r in conn.execute(bgt_sql, bgt_params).fetchall()}
+    budget_grand  = sum(budget_totals.values())
     sql   += " ORDER BY pb.tanggal DESC"
     total  = conn.execute(f"SELECT COUNT(*) FROM ({sql})", params).fetchone()[0]
     rows   = [dict(r) for r in conn.execute(sql + " LIMIT ?", params + [limit]).fetchall()]
     conn.close()
-    return {"rows": rows, "total": total, "totals": totals, "grand": grand}
+    return {
+        "rows": rows, "total": total,
+        "totals": totals, "grand": grand,
+        "budget_totals": budget_totals, "budget_grand": budget_grand,
+    }
 
 
 def get_financial_summary(company_id: int) -> dict:
