@@ -285,3 +285,101 @@ def test_days_of_pam_bulk_update_invalid_ids(client):
         headers={"Authorization": f"Bearer {token}"}
     )
     assert r.status_code == 400
+
+
+# ── Days of PAM candidates + search ──────────────────────────────────────────
+
+def _seed_dop_row(company_id=2, pam_no="PAM-001-ETF-05-2026",
+                  siswa_code="S099", nama="Harry"):
+    """Seed one payment_beasiswa row that has a pam value."""
+    from database import get_conn
+    conn = get_conn()
+    conn.execute(
+        "INSERT OR IGNORE INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (company_id, siswa_code, nama)
+    )
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, tanggal, amount, pam)
+           VALUES (?,?,?,?,?,?)""",
+        (company_id, siswa_code, "General", "2026-05-01", 3000000.0, pam_no)
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_get_dop_candidates_empty(client):
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    rv = client.get("/payment-memo/days-of-pam/candidates",
+                    headers={"Authorization": f"Bearer {token}"})
+    assert rv.status_code == 200
+    data = rv.get_json()
+    assert data["ok"] is True
+    assert data["candidates"] == []
+
+
+def test_get_dop_candidates_with_data(client):
+    _seed_dop_row()
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    rv = client.get("/payment-memo/days-of-pam/candidates",
+                    headers={"Authorization": f"Bearer {token}"})
+    assert rv.status_code == 200
+    data = rv.get_json()
+    assert data["ok"] is True
+    assert len(data["candidates"]) == 1
+    c = data["candidates"][0]
+    assert c["pam_no"] == "PAM-001-ETF-05-2026"
+    assert c["siswa_code"] == "S099"
+    assert c["nama"] == "Harry"
+
+
+def test_dop_search_by_pam(client):
+    _seed_dop_row()
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    rv = client.get(
+        "/payment-memo/days-of-pam/search?pam=PAM-001-ETF-05-2026",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert rv.status_code == 200
+    data = rv.get_json()
+    assert data["ok"] is True
+    assert len(data["rows"]) == 1
+    assert data["rows"][0]["siswa_code"] == "S099"
+    assert data["rows"][0]["pam_no"] == "PAM-001-ETF-05-2026"
+
+
+def test_dop_search_by_nama(client):
+    _seed_dop_row()
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    rv = client.get(
+        "/payment-memo/days-of-pam/search?nama=harry",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert rv.status_code == 200
+    data = rv.get_json()
+    assert data["ok"] is True
+    assert len(data["rows"]) == 1
+    assert data["rows"][0]["siswa_code"] == "S099"
+
+
+def test_dop_search_no_match(client):
+    _seed_dop_row()
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    rv = client.get(
+        "/payment-memo/days-of-pam/search?pam=NOPE-999",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert rv.status_code == 200
+    data = rv.get_json()
+    assert data["ok"] is True
+    assert data["rows"] == []
