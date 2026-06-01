@@ -7,98 +7,456 @@
 
 <div data-tabs>
   <div class="tabs">
-    <button class="tab-btn" data-tab="tab-siswa">Data Siswa</button>
-    <button class="tab-btn" data-tab="tab-budget">Budget</button>
-    <button class="tab-btn" data-tab="tab-payment">Payment</button>
-    <button class="tab-btn" data-tab="tab-rekap">Rekap</button>
+    <button class="tab-btn" data-tab="tab-siswa" onclick="loadRekap()">Data Siswa</button>
+    <button class="tab-btn" data-tab="tab-input-budget" onclick="ibgtReset()">Input Budget</button>
+    <button class="tab-btn" data-tab="tab-budget" onclick="loadBudgetList()">Data Budget</button>
+    <button class="tab-btn" data-tab="tab-input-payment" onclick="ipayReset()">Input Payment</button>
+    <button class="tab-btn" data-tab="tab-input-klaim" onclick="iklaimReset()">Input Klaim</button>
+    <button class="tab-btn" data-tab="tab-payment" onclick="loadPaymentList()">Data Payment</button>
+    <button class="tab-btn" data-tab="tab-laporan" onclick="lprReset()">Report Siswa</button>
   </div>
 
-  <!-- TAB SISWA -->
+  <!-- TAB DATA BEASISWA (siswa + rekap) -->
   <div class="tab-panel" id="tab-siswa">
-    <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
-      <input type="text" id="siswa-search" placeholder="Cari nama/kode..." style="width:220px" oninput="filterSiswa()">
-      <select id="siswa-filter-status" onchange="filterSiswa()" style="width:140px">
-        <option value="">Semua Status</option>
-        {% for s in status_siswa %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-      </select>
-      {% if current_role in ['requester','verificator'] %}
-      <button class="btn btn-primary btn-sm" onclick="openModal('modal-siswa-tambah')">+ Tambah Siswa</button>
-      {% endif %}
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:flex-end">
+      <div class="form-group" style="margin:0;flex:1;min-width:180px">
+        <label>Cari / Kata Kunci</label>
+        <input type="text" id="rekap-search" placeholder="Nama atau kode siswa..." oninput="loadRekap()">
+      </div>
+      <div class="form-group" style="margin:0;min-width:150px">
+        <label>Program</label>
+        <select id="rekap-program" onchange="loadRekap()">
+          <option value="">Semua Program</option>
+          {% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:130px">
+        <label>Pillar</label>
+        <select id="rekap-pillar" onchange="loadRekap()">
+          <option value="">Semua Pillar</option>
+          {% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:120px">
+        <label>Status</label>
+        <select id="rekap-status" onchange="loadRekap()">
+          <option value="">Semua Status</option>
+          {% for s in status_siswa %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div style="align-self:flex-end;display:flex;gap:.375rem">
+        {% if current_role in ['requester','verificator','releaser'] %}
+        <button class="btn btn-primary btn-sm" onclick="openModal('modal-siswa-tambah')">+ Tambah Siswa</button>
+        {% endif %}
+        <button class="btn btn-secondary btn-sm" onclick="exportRekap('csv')">📥 CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportRekap('pdf')">📄 PDF</button>
+      </div>
     </div>
     <div class="table-wrap">
-      <table id="siswa-table">
+      <table id="rekap-table">
         <thead>
-          <tr><th>Code</th><th>Nama</th><th>Jenjang</th><th>Angkatan</th><th>Program</th><th>Universitas</th><th>Status</th><th>Aksi</th></tr>
-        </thead>
-        <tbody>
-          {% for s in siswa_list %}
-          <tr data-search="{{ s.nama|lower }} {{ s.code|lower }}" data-status="{{ s.status }}">
-            <td><code>{{ s.code }}</code></td>
-            <td>{{ s.nama }}</td>
-            <td>{{ s.jenjang }}</td>
-            <td>{{ s.angkatan }}</td>
-            <td>{{ s.program }}</td>
-            <td>{{ s.universitas }}</td>
-            <td><span class="badge {% if s.status=='Aktif' %}badge-green{% elif s.status=='lulus' %}badge-blue{% else %}badge-red{% endif %}">{{ s.status }}</span></td>
-            <td>
-              <button class="btn btn-secondary btn-sm" onclick="openEditSiswa('{{ s.code }}')">Edit</button>
-              <button class="btn btn-secondary btn-sm" onclick="openBudgetSiswa('{{ s.code }}','{{ s.nama }}')">Sisa</button>
-            </td>
+          <tr>
+            <th>Code</th><th>Nama</th><th>Jenjang</th><th>Angkatan</th><th>Program</th><th>Status</th>
+            <th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th>
+            <th>Aksi</th>
           </tr>
-          {% endfor %}
-        </tbody>
+        </thead>
+        <tbody id="rekap-tbody"><tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="6"><strong>Total</strong></td>
+            <td class="num-right" id="rekap-total-b"></td>
+            <td class="num-right" id="rekap-total-p"></td>
+            <td class="num-right" id="rekap-total-s"></td>
+            <td></td>
+          </tr>
+        </tfoot>
       </table>
+    </div>
+  </div>
+
+  <!-- TAB INPUT BUDGET -->
+  <div class="tab-panel" id="tab-input-budget">
+    <div style="max-width:480px;margin-bottom:1.25rem;position:relative">
+      <label style="font-weight:600;display:block;margin-bottom:.375rem">Pilih Siswa</label>
+      <input type="text" id="ibgt-search" placeholder="Ketik nama atau kode siswa..." autocomplete="off"
+             style="width:100%" oninput="ibgtSearchInput()"
+             onblur="setTimeout(()=>document.getElementById('ibgt-sugg').style.display='none',200)">
+      <div id="ibgt-sugg" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:400;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+    </div>
+    <div id="ibgt-content" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
+        <div id="ibgt-title" style="font-weight:600;color:#1a56db;font-size:.95rem"></div>
+        <div style="display:flex;gap:.375rem">
+          {% if current_role in ['requester','verificator','releaser'] %}
+          <button class="btn btn-primary btn-sm" onclick="ibgtOpenAdd()">+ Tambah Budget</button>
+          {% endif %}
+          <button class="btn btn-secondary btn-sm" onclick="exportInputBudget('csv')">📥 CSV</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportInputBudget('pdf')">📄 PDF</button>
+        </div>
+      </div>
+      <!-- Catatan Budget (per siswa, global) -->
+      <div id="ibgt-catatan-view" style="display:none;margin-bottom:.75rem;padding:.5rem .75rem;background:#fffbeb;border:1px solid #fde68a;border-radius:.375rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
+          <div style="flex:1">
+            <div style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.2rem">Catatan Budget</div>
+            <div id="ibgt-catatan-text" style="font-size:.875rem;color:#78350f;white-space:pre-wrap"></div>
+          </div>
+          {% if current_role in ['requester','verificator','releaser'] %}
+          <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="ibgtEditCatatan()">Edit</button>
+          {% endif %}
+        </div>
+      </div>
+      <div id="ibgt-catatan-form" style="display:none;margin-bottom:.75rem">
+        <div class="form-group" style="margin:0 0 .375rem">
+          <label style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Catatan Budget</label>
+          <textarea id="ibgt-catatan-input" rows="2" style="width:100%" placeholder="Tambah catatan budget siswa ini..."></textarea>
+        </div>
+        <div style="display:flex;gap:.375rem">
+          <button class="btn btn-primary btn-sm" onclick="ibgtSaveCatatan()">Simpan</button>
+          <button class="btn btn-secondary btn-sm" onclick="ibgtCancelCatatan()">Batal</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="ibgt-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Pilih siswa untuk melihat budget.</td></tr>
+          </tbody>
+          <tfoot>
+            <tr><th colspan="4">Total</th><th class="num-right" id="ibgt-total">—</th><th></th></tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   </div>
 
   <!-- TAB BUDGET -->
   <div class="tab-panel" id="tab-budget">
-    <div class="card">
-      <div class="card-title">Input Budget</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem">
-        <div class="form-group">
-          <label>Siswa</label>
-          <select id="bgt-siswa">
-            <option value="">-- Pilih Siswa --</option>
-            {% for s in siswa_list %}<option value="{{ s.code }}">{{ s.code }} — {{ s.nama }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="form-group"><label>Tanggal</label><input type="date" id="bgt-tgl"></div>
-        <div class="form-group">
-          <label>Pillar</label>
-          <select id="bgt-pillar">
-            <option value="">-- Pillar --</option>
-            {% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-          </select>
+    <div id="bgt-summary" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.625rem;margin-bottom:1.25rem">
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:.5rem;padding:.75rem">
+        <div style="font-size:.72rem;color:#3b82f6;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">By Pendidikan</div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.18rem"><span style="color:#6b7280">Budget</span><span id="bgt-sum-pend-b" style="font-weight:600;color:#1e40af">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem"><span style="color:#6b7280">Payment</span><span id="bgt-sum-pend-p" style="font-weight:600;color:#1e40af">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;border-top:1px solid #bfdbfe;padding-top:.25rem"><span style="color:#3b82f6;font-weight:600">Selisih</span><span id="bgt-sum-pend-s" style="font-weight:700;color:#1e40af">—</span></div>
+      </div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:.5rem;padding:.75rem">
+        <div style="font-size:.72rem;color:#16a34a;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">By Tunjangan</div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.18rem"><span style="color:#6b7280">Budget</span><span id="bgt-sum-tunj-b" style="font-weight:600;color:#15803d">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem"><span style="color:#6b7280">Payment</span><span id="bgt-sum-tunj-p" style="font-weight:600;color:#15803d">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;border-top:1px solid #bbf7d0;padding-top:.25rem"><span style="color:#16a34a;font-weight:600">Selisih</span><span id="bgt-sum-tunj-s" style="font-weight:700;color:#15803d">—</span></div>
+      </div>
+      <div style="background:#fefce8;border:1px solid #fde68a;border-radius:.5rem;padding:.75rem">
+        <div style="font-size:.72rem;color:#d97706;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">By Penelitian</div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.18rem"><span style="color:#6b7280">Budget</span><span id="bgt-sum-penel-b" style="font-weight:600;color:#b45309">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem"><span style="color:#6b7280">Payment</span><span id="bgt-sum-penel-p" style="font-weight:600;color:#b45309">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;border-top:1px solid #fde68a;padding-top:.25rem"><span style="color:#d97706;font-weight:600">Selisih</span><span id="bgt-sum-penel-s" style="font-weight:700;color:#b45309">—</span></div>
+      </div>
+      <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:.5rem;padding:.75rem">
+        <div style="font-size:.72rem;color:#db2777;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">By Medical</div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.18rem"><span style="color:#6b7280">Budget</span><span id="bgt-sum-med-b" style="font-weight:600;color:#be185d">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem"><span style="color:#6b7280">Payment</span><span id="bgt-sum-med-p" style="font-weight:600;color:#be185d">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;border-top:1px solid #f9a8d4;padding-top:.25rem"><span style="color:#db2777;font-weight:600">Selisih</span><span id="bgt-sum-med-s" style="font-weight:700;color:#be185d">—</span></div>
+      </div>
+      <div style="background:#1a56db;border-radius:.5rem;padding:.75rem">
+        <div style="font-size:.72rem;color:#bfdbfe;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">Total</div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.18rem"><span style="color:#93c5fd">Budget</span><span id="bgt-sum-tot-b" style="font-weight:600;color:#fff">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem"><span style="color:#93c5fd">Payment</span><span id="bgt-sum-tot-p" style="font-weight:600;color:#fff">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;border-top:1px solid rgba(255,255,255,.2);padding-top:.25rem"><span style="color:#bfdbfe;font-weight:600">Selisih</span><span id="bgt-sum-tot-s" style="font-weight:700;color:#fff">—</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:flex-end">
+      <div class="form-group" style="margin:0;flex:1;min-width:200px">
+        <label>Cari / Kata Kunci</label>
+        <input type="text" id="bgt-list-search" placeholder="Nama, kode, kategori, pillar..." oninput="loadBudgetList()">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Kategori 1</label>
+        <select id="bgt-list-cat1" onchange="loadBudgetList()">
+          <option value="">Semua</option>
+          {% for c in cat1_bgt %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Pillar</label>
+        <select id="bgt-list-pillar" onchange="loadBudgetList()">
+          <option value="">Semua Pillar</option>
+          {% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Bulan</label>
+        <select id="bgt-list-bulan" onchange="loadBudgetList()">
+          <option value="">Semua Bulan</option>
+          {% set bulan_list = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"] %}
+          {% for b in bulan_list %}<option value="{{ "%02d" % loop.index }}">{{ b }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Tahun</label>
+        <select id="bgt-list-tahun" onchange="loadBudgetList()">
+          <option value="">Semua Tahun</option>
+          {% for y in range(2015, 2028) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Program</label>
+        <select id="bgt-list-program" onchange="loadBudgetList()">
+          <option value="">Semua Program</option>
+          {% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+        </select>
+      </div>
+      <div style="align-self:flex-end;display:flex;gap:.375rem">
+        <button class="btn btn-secondary btn-sm" onclick="exportBudget('csv')">📥 CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportBudget('pdf')">📄 PDF</button>
+      </div>
+    </div>
+
+    <div id="bgt-list-info" style="font-size:.8rem;color:var(--text-muted);margin-bottom:.5rem"></div>
+
+    <div class="table-wrap">
+      <table id="bgt-list-table">
+        <thead>
+          <tr>
+            <th>Kode</th><th>Nama Siswa</th><th>Program</th><th>Kategori 1</th><th>Kategori 2</th>
+            <th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th><th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="bgt-list-tbody">
+          <tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Klik tab Data Budget untuk memuat data.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB LAPORAN SISWA -->
+  <div class="tab-panel" id="tab-laporan">
+    <div style="max-width:480px;margin-bottom:1.25rem;position:relative">
+      <label style="font-weight:600;display:block;margin-bottom:.375rem">Pilih Siswa</label>
+      <input type="text" id="lpr-search" placeholder="Ketik nama atau kode siswa..." autocomplete="off"
+             style="width:100%" oninput="lprSearchInput()" onblur="setTimeout(()=>document.getElementById('lpr-sugg').style.display='none',200)">
+      <div id="lpr-sugg" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:400;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+    </div>
+    <div id="lpr-content" style="display:none">
+      <div style="display:flex;justify-content:flex-end;gap:.375rem;margin-bottom:.75rem">
+        <button class="btn btn-secondary btn-sm" onclick="exportLaporan('csv')">📥 CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportLaporan('pdf')">📄 PDF</button>
+      </div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-title" id="lpr-nama-title">—</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem .75rem;font-size:.875rem" id="lpr-info-grid"></div>
+        <div id="lpr-ipk-section" style="margin-top:.75rem"></div>
+      </div>
+      <div id="lpr-cat1-badges" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.625rem;margin-bottom:.625rem"></div>
+      <div id="lpr-total-badges" style="display:grid;grid-template-columns:repeat(3,1fr);gap:.625rem;margin-bottom:1.25rem"></div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-title">Rekapitulasi per Kategori</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Kategori</th><th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th></tr></thead>
+            <tbody id="lpr-cat-tbody"></tbody>
+            <tfoot><tr>
+              <th>Total</th>
+              <th class="num-right" id="lpr-total-b"></th>
+              <th class="num-right" id="lpr-total-p"></th>
+              <th class="num-right" id="lpr-total-s"></th>
+            </tr></tfoot>
+          </table>
         </div>
       </div>
-      <div id="bgt-items">
-        <div class="bgt-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end">
-          <div class="form-group" style="margin:0"><label>Kategori 1</label>
-            <select class="bgt-cat1">{% for c in cat1_bgt %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
-          <div class="form-group" style="margin:0"><label>Kategori 2</label>
-            <select class="bgt-cat2">{% for c in cat2_sem %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
-          <div class="form-group" style="margin:0"><label>Amount</label>
-            <input type="number" class="bgt-amount" placeholder="0" min="0"></div>
-          <button class="btn btn-secondary btn-sm" onclick="removeBgtRow(this)">✕</button>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-title">Detail Budget</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th></tr></thead>
+            <tbody id="lpr-bgt-tbody"></tbody>
+          </table>
         </div>
       </div>
-      <div style="display:flex;gap:.5rem;margin-top:.5rem">
-        <button class="btn btn-secondary btn-sm" onclick="addBgtRow()">+ Baris</button>
-        <button class="btn btn-primary" onclick="saveBudget()">💾 Simpan Budget</button>
+      <div class="card">
+        <div class="card-title">Detail Payment</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>PAM</th><th>Perusahaan</th><th class="num-right">Amount</th><th>Status</th></tr></thead>
+            <tbody id="lpr-pay-tbody"></tbody>
+          </table>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <!-- TAB INPUT PAYMENT -->
+  <div class="tab-panel" id="tab-input-payment">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem;max-width:800px">
+      <div class="form-group">
+        <label>Tanggal</label>
+        <input type="date" id="ipay-tgl">
+      </div>
+      <div class="form-group">
+        <label>PAM</label>
+        <div style="display:flex;gap:.375rem;align-items:center">
+          <span style="font-size:.875rem;color:#6b7280;white-space:nowrap">PAM-</span>
+          <input type="text" id="ipay-pam-seq" placeholder="001" style="width:56px;text-align:center" oninput="ipayUpdatePAM()" maxlength="10">
+          <span id="ipay-pam-preview" style="font-size:.75rem;color:#6b7280;white-space:nowrap"></span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Perusahaan</label>
+        <div style="position:relative">
+          <input type="text" id="ipay-perusahaan-search" placeholder="Cari vendor..." autocomplete="off"
+                 oninput="ipayVendorSearch()" onblur="setTimeout(()=>document.getElementById('ipay-vendor-sugg').style.display='none',200)">
+          <input type="hidden" id="ipay-perusahaan">
+          <div id="ipay-vendor-sugg" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Pillar</label>
+        <input type="text" id="ipay-pillar" readonly placeholder="Auto dari vendor"
+               style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
+      </div>
+    </div>
+    <input type="hidden" id="ipay-pam-full">
+
+    <div class="table-wrap">
+      <table id="ipay-table" style="min-width:1200px">
+        <thead>
+          <tr>
+            <th style="min-width:240px">Siswa</th>
+            <th style="min-width:170px">Kategori 1</th>
+            <th style="min-width:170px">Kategori 2</th>
+            <th style="min-width:150px">Amount</th>
+            <th style="min-width:130px">Tgl Pengajuan</th>
+            <th style="min-width:130px">Tgl Receive</th>
+            <th style="min-width:130px">Tgl PA</th>
+            <th style="min-width:130px">Tgl Final</th>
+            <th style="width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="ipay-tbody">
+          <tr id="ipay-empty-row">
+            <td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem;color:#374151">Total Amount:</td>
+            <td id="ipay-total-amt" class="num-right" style="font-weight:700;color:#1a56db;white-space:nowrap">Rp 0</td>
+            <td colspan="5"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
+      <button class="btn btn-secondary btn-sm" onclick="ipayAddRow()">+ Tambah Baris</button>
+      <button class="btn btn-primary" onclick="ipaySave()">💾 Simpan Payment</button>
+    </div>
+  </div>
+
+  <!-- TAB INPUT KLAIM -->
+  <div class="tab-panel" id="tab-input-klaim">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem;max-width:600px">
+      <div class="form-group">
+        <label>PAM</label>
+        <div style="display:flex;gap:.375rem;align-items:center">
+          <span style="font-size:.875rem;color:#6b7280;white-space:nowrap">PAM-</span>
+          <input type="text" id="iklaim-pam-seq" placeholder="001" style="width:56px;text-align:center" oninput="iklaimUpdatePAM()" maxlength="10">
+          <span id="iklaim-pam-preview" style="font-size:.75rem;color:#6b7280;white-space:nowrap"></span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Perusahaan</label>
+        <div style="position:relative">
+          <input type="text" id="iklaim-perusahaan-search" placeholder="Cari vendor..." autocomplete="off"
+                 oninput="iklaimVendorSearch()" onblur="setTimeout(()=>document.getElementById('iklaim-vendor-sugg').style.display='none',200)">
+          <input type="hidden" id="iklaim-perusahaan">
+          <div id="iklaim-vendor-sugg" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #f9a8d4;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Pillar</label>
+        <input type="text" id="iklaim-pillar" readonly placeholder="Auto dari vendor"
+               style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
+      </div>
+    </div>
+    <input type="hidden" id="iklaim-pam-full">
+
+    <div class="table-wrap">
+      <table id="iklaim-table" style="min-width:1200px">
+        <thead>
+          <tr>
+            <th style="min-width:200px">Siswa</th>
+            <th style="min-width:110px">Tanggal</th>
+            <th style="min-width:110px">Amount</th>
+            <th style="min-width:130px">Perawatan</th>
+            <th style="min-width:100px">Kelas</th>
+            <th style="min-width:140px">Rumah Sakit</th>
+            <th style="min-width:130px">Diagnosa</th>
+            <th style="min-width:130px">Spesialisasi</th>
+            <th style="width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="iklaim-tbody">
+          <tr id="iklaim-empty-row">
+            <td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input klaim.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
+      <button class="btn btn-secondary btn-sm" onclick="iklaimAddRow()">+ Tambah Baris</button>
+      {% if current_role == 'requester' %}
+      <button class="btn btn-primary" style="background:#db2777;border-color:#db2777" onclick="iklaimSave()">💾 Simpan Klaim</button>
+      {% endif %}
     </div>
   </div>
 
   <!-- TAB PAYMENT -->
   <div class="tab-panel" id="tab-payment">
+    <div id="pay-summary" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.625rem;margin-bottom:1.25rem">
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:.5rem;padding:.75rem">
+        <div style="font-size:.72rem;color:#3b82f6;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">By Pendidikan</div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.18rem"><span style="color:#6b7280">Budget</span><span id="pay-sum-pend-b" style="font-weight:600;color:#1e40af">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem"><span style="color:#6b7280">Payment</span><span id="pay-sum-pend-p" style="font-weight:600;color:#1e40af">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;border-top:1px solid #bfdbfe;padding-top:.25rem"><span style="color:#3b82f6;font-weight:600">Selisih</span><span id="pay-sum-pend-s" style="font-weight:700;color:#1e40af">—</span></div>
+      </div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:.5rem;padding:.75rem">
+        <div style="font-size:.72rem;color:#16a34a;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">By Tunjangan</div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.18rem"><span style="color:#6b7280">Budget</span><span id="pay-sum-tunj-b" style="font-weight:600;color:#15803d">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem"><span style="color:#6b7280">Payment</span><span id="pay-sum-tunj-p" style="font-weight:600;color:#15803d">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;border-top:1px solid #bbf7d0;padding-top:.25rem"><span style="color:#16a34a;font-weight:600">Selisih</span><span id="pay-sum-tunj-s" style="font-weight:700;color:#15803d">—</span></div>
+      </div>
+      <div style="background:#fefce8;border:1px solid #fde68a;border-radius:.5rem;padding:.75rem">
+        <div style="font-size:.72rem;color:#d97706;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">By Penelitian</div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.18rem"><span style="color:#6b7280">Budget</span><span id="pay-sum-penel-b" style="font-weight:600;color:#b45309">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem"><span style="color:#6b7280">Payment</span><span id="pay-sum-penel-p" style="font-weight:600;color:#b45309">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;border-top:1px solid #fde68a;padding-top:.25rem"><span style="color:#d97706;font-weight:600">Selisih</span><span id="pay-sum-penel-s" style="font-weight:700;color:#b45309">—</span></div>
+      </div>
+      <div style="background:#fdf2f8;border:1px solid #f9a8d4;border-radius:.5rem;padding:.75rem">
+        <div style="font-size:.72rem;color:#db2777;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">By Medical</div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.18rem"><span style="color:#6b7280">Budget</span><span id="pay-sum-med-b" style="font-weight:600;color:#be185d">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem"><span style="color:#6b7280">Payment</span><span id="pay-sum-med-p" style="font-weight:600;color:#be185d">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;border-top:1px solid #f9a8d4;padding-top:.25rem"><span style="color:#db2777;font-weight:600">Selisih</span><span id="pay-sum-med-s" style="font-weight:700;color:#be185d">—</span></div>
+      </div>
+      <div style="background:#1a56db;border-radius:.5rem;padding:.75rem">
+        <div style="font-size:.72rem;color:#bfdbfe;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">Total</div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.18rem"><span style="color:#93c5fd">Budget</span><span id="pay-sum-tot-b" style="font-weight:600;color:#fff">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.25rem"><span style="color:#93c5fd">Payment</span><span id="pay-sum-tot-p" style="font-weight:600;color:#fff">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;border-top:1px solid rgba(255,255,255,.2);padding-top:.25rem"><span style="color:#bfdbfe;font-weight:600">Selisih</span><span id="pay-sum-tot-s" style="font-weight:700;color:#fff">—</span></div>
+      </div>
+    </div>
+
     {% if current_role == 'requester' %}
     <div class="card">
       <div class="card-title">Input Payment</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem">
         <div class="form-group">
           <label>Siswa</label>
-          <select id="pay-siswa">
+          <select id="pay-siswa" onchange="onPaySiswaChange()">
             <option value="">-- Pilih Siswa --</option>
             {% for s in siswa_list %}<option value="{{ s.code }}">{{ s.code }} — {{ s.nama }}</option>{% endfor %}
           </select>
@@ -119,17 +477,29 @@
           </select>
         </div>
       </div>
-      <div id="pay-items">
-        <div class="pay-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end">
-          <div class="form-group" style="margin:0"><label>Cat 1</label>
-            <select class="pay-cat1">{% for c in cat1_bgt %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
-          <div class="form-group" style="margin:0"><label>Cat 2</label>
-            <select class="pay-cat2">{% for c in cat2_sem %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
-          <div class="form-group" style="margin:0"><label>Amount</label>
-            <input type="number" class="pay-amount" placeholder="0" min="0"></div>
-          <button class="btn btn-secondary btn-sm" onclick="removePayRow(this)">✕</button>
+      <!-- Catatan Payment per siswa -->
+      <div id="pay-catpay-view" style="display:none;margin-bottom:.75rem;padding:.5rem .75rem;background:#fffbeb;border:1px solid #fde68a;border-radius:.375rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
+          <div style="flex:1">
+            <div style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.2rem">Catatan Payment</div>
+            <div id="pay-catpay-text" style="font-size:.875rem;color:#78350f;white-space:pre-wrap"></div>
+          </div>
+          {% if current_role in ['requester','verificator','releaser'] %}
+          <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="payEditCatpay()">Edit</button>
+          {% endif %}
         </div>
       </div>
+      <div id="pay-catpay-form" style="display:none;margin-bottom:.75rem">
+        <div class="form-group" style="margin:0 0 .375rem">
+          <label style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Catatan Payment</label>
+          <textarea id="pay-catpay-input" rows="2" style="width:100%" placeholder="Catatan review payment untuk siswa ini..."></textarea>
+        </div>
+        <div style="display:flex;gap:.375rem">
+          <button class="btn btn-primary btn-sm" onclick="paySaveCatpay()">Simpan</button>
+          <button class="btn btn-secondary btn-sm" onclick="payCancelCatpay()">Batal</button>
+        </div>
+      </div>
+      <div id="pay-items"></div>
       <div style="display:flex;gap:.5rem;margin-top:.5rem">
         <button class="btn btn-secondary btn-sm" onclick="addPayRow()">+ Baris</button>
         <button class="btn btn-primary" onclick="savePayment()">💾 Simpan Payment</button>
@@ -137,54 +507,79 @@
     </div>
     {% endif %}
     <div class="card">
-      <div class="card-title">Daftar Payment Draft</div>
-      <p style="color:var(--text-muted);font-size:.875rem" id="pay-list-msg">Reload halaman untuk melihat payment terbaru.</p>
+      <div class="card-title">Daftar Payment</div>
+      <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="margin:0;flex:1;min-width:200px">
+          <label>Cari / Kata Kunci</label>
+          <input type="text" id="pay-search" placeholder="Nama, kode, kategori, PAM, pillar..." oninput="loadPaymentList()">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Kategori 1</label>
+          <select id="pay-filter-cat1" onchange="loadPaymentList()">
+            <option value="">Semua</option>
+            {% for c in cat1_bgt %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Pillar</label>
+          <select id="pay-filter-pillar" onchange="loadPaymentList()">
+            <option value="">Semua Pillar</option>
+            {% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Bulan</label>
+          <select id="pay-filter-bulan" onchange="loadPaymentList()">
+            <option value="">Semua Bulan</option>
+            {% set bulan_list = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"] %}
+            {% for b in bulan_list %}<option value="{{ "%02d" % loop.index }}">{{ b }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Tahun</label>
+          <select id="pay-filter-tahun" onchange="loadPaymentList()">
+            <option value="">Semua Tahun</option>
+            {% for y in range(2015, 2028) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Program</label>
+          <select id="pay-filter-program" onchange="loadPaymentList()">
+            <option value="">Semua Program</option>
+            {% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Status</label>
+          <select id="pay-filter-status" onchange="loadPaymentList()">
+            <option value="">Semua Status</option>
+            <option value="approved">Approved</option>
+            <option value="draft">Draft</option>
+          </select>
+        </div>
+        <div style="align-self:flex-end;display:flex;gap:.375rem">
+          <button class="btn btn-secondary btn-sm" onclick="exportPayment('csv')">📥 CSV</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportPayment('pdf')">📄 PDF</button>
+        </div>
+      </div>
+      <div id="pay-list-info" style="font-size:.8rem;color:var(--text-muted);margin-bottom:.5rem"></div>
+      <div class="table-wrap">
+        <table id="pay-table">
+          <thead>
+            <tr>
+              <th>Kode</th><th>Nama Siswa</th><th>Program</th><th>Kategori 1</th><th>Kategori 2</th>
+              <th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th>
+              <th>PAM</th><th>Perusahaan</th><th>Status</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="pay-tbody">
+            <tr><td colspan="12" style="text-align:center;color:var(--text-muted)">Klik tab Data Payment untuk memuat data.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <!-- TAB REKAP -->
-  <div class="tab-panel" id="tab-rekap">
-    <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:flex-end">
-      <div class="form-group" style="margin:0;min-width:160px">
-        <label>Program</label>
-        <select id="rekap-program" onchange="loadRekap()">
-          <option value="">Semua Program</option>
-          {% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-group" style="margin:0;min-width:140px">
-        <label>Pillar</label>
-        <select id="rekap-pillar" onchange="loadRekap()">
-          <option value="">Semua Pillar</option>
-          {% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-group" style="margin:0;min-width:140px">
-        <label>Status</label>
-        <select id="rekap-status" onchange="loadRekap()">
-          <option value="">Semua Status</option>
-          {% for s in status_siswa %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
-        </select>
-      </div>
-      <button class="btn btn-secondary" onclick="exportRekap('csv')">📥 CSV</button>
-      <button class="btn btn-secondary" onclick="exportRekap('pdf')">📄 PDF</button>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>Code</th><th>Nama</th><th>Jenjang</th><th>Program</th><th>Status</th>
-          <th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th></tr>
-        </thead>
-        <tbody id="rekap-tbody"></tbody>
-        <tfoot>
-          <tr><td colspan="5"><strong>Total</strong></td>
-          <td class="num-right" id="rekap-total-b"></td>
-          <td class="num-right" id="rekap-total-p"></td>
-          <td class="num-right" id="rekap-total-s"></td></tr>
-        </tfoot>
-      </table>
-    </div>
-  </div>
 </div>
 
 <!-- MODAL: Tambah/Edit Siswa -->
@@ -216,10 +611,106 @@
       <div class="form-group"><label>Nama Rekening</label><input type="text" id="s-namarek"></div>
       <div class="form-group"><label>Referensi</label><input type="text" id="s-referensi"></div>
     </div>
+    <div style="margin-top:.75rem">
+      <div style="font-weight:600;font-size:.875rem;margin-bottom:.5rem;color:var(--text-muted)">IPK Pendidikan per Semester</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.75rem">
+        {% for i in range(1,11) %}
+        <div class="form-group" style="margin:0">
+          <label style="font-size:.75rem">Sem {{ i }}</label>
+          <input type="number" id="s-ipk-sem{{ i }}" step="0.01" min="0" max="4" placeholder="0.00">
+        </div>
+        {% endfor %}
+      </div>
+      <div style="font-weight:600;font-size:.875rem;margin-bottom:.5rem;color:var(--text-muted)">IPK Penelitian</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem">
+        {% for i in range(1,4) %}
+        <div class="form-group" style="margin:0">
+          <label style="font-size:.75rem">Tahap {{ i }}</label>
+          <input type="number" id="s-ipk-pen{{ i }}" step="0.01" min="0" max="4" placeholder="0.00">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
     <div class="form-group"><label>Catatan</label><textarea id="s-catatan" rows="2"></textarea></div>
+    <div class="form-group"><label>Catatan Budget</label><textarea id="s-catatan_budget" rows="2" placeholder="Catatan khusus anggaran siswa ini..."></textarea></div>
+    <div class="form-group"><label>Catatan Payment</label><textarea id="s-catatan_payment" rows="2" placeholder="Catatan review payment — muncul saat nama dipilih di form payment/klaim..."></textarea></div>
     <div style="display:flex;gap:.75rem;margin-top:.75rem;justify-content:flex-end">
       <button class="btn btn-secondary" onclick="closeModal('modal-siswa-tambah')">Batal</button>
       <button class="btn btn-primary" onclick="simpanSiswa()">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Tambah / Edit Budget -->
+<div class="modal-overlay" id="modal-bgt-form">
+  <div class="modal" style="width:min(620px,95vw)">
+    <div class="modal-header">
+      <span class="modal-title" id="bgt-modal-title">Tambah Budget</span>
+      <button class="modal-close" onclick="closeModal('modal-bgt-form')">✕</button>
+    </div>
+
+    <!-- Student picker — only shown in add mode -->
+    <div id="bgt-modal-siswa" style="margin-bottom:1rem;position:relative">
+      <label style="font-weight:600;display:block;margin-bottom:.375rem">Pilih Siswa</label>
+      <input type="text" id="bgt-search" placeholder="Ketik nama atau kode siswa..." autocomplete="off"
+             style="width:100%" oninput="bgtSearchInput()" onblur="setTimeout(()=>document.getElementById('bgt-sugg').style.display='none',200)">
+      <div id="bgt-sugg" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:400;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+    </div>
+
+    <div id="bgt-panel">
+      <div id="bgt-panel-title" style="font-weight:600;font-size:.9rem;color:#1a56db;margin-bottom:.75rem"></div>
+      <input type="hidden" id="bgt-edit-id">
+
+      <!-- ADD BATCH section -->
+      <div id="bgt-add-section">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem;max-width:420px">
+          <div class="form-group" style="margin:0"><label>Tanggal</label><input type="date" id="bgt-tgl"></div>
+          <div class="form-group" style="margin:0">
+            <label>Pillar</label>
+            <select id="bgt-pillar">{% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select>
+          </div>
+        </div>
+        <div id="bgt-items"></div>
+        <button class="btn btn-secondary btn-sm" onclick="_bgtAddItemRow()" style="margin-bottom:.75rem">+ Baris</button>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-primary btn-sm" onclick="bgtSaveRows()">Simpan</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-bgt-form')">Batal</button>
+        </div>
+      </div>
+
+      <!-- EDIT SINGLE row section -->
+      <div id="bgt-edit-section" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:.5rem;margin-bottom:.5rem">
+          <div class="form-group" style="margin:0">
+            <label>Kategori 1</label>
+            <select id="bgt-cat1">{% for c in cat1_bgt %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
+          </div>
+          <div class="form-group" style="margin:0;position:relative">
+            <label>Kategori 2</label>
+            <input type="hidden" id="bgt-cat2">
+            <div id="bgt-cat2-display" onclick="bgtCat2Toggle()" style="border:1px solid #d1d5db;border-radius:.375rem;padding:.45rem .75rem;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:38px">
+              <span id="bgt-cat2-text" style="color:#9ca3af;font-size:.875rem">Pilih kategori...</span>
+              <span style="color:#6b7280;font-size:.7rem;flex-shrink:0">▾</span>
+            </div>
+            <div id="bgt-cat2-panel" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px">
+              <div style="padding:6px">
+                <input type="text" id="bgt-cat2-search" placeholder="Cari..." oninput="bgtCat2Filter()" autocomplete="off" style="width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:.25rem;padding:.3rem .6rem;font-size:.875rem">
+              </div>
+              <div id="bgt-cat2-opts" style="max-height:200px;overflow-y:auto"></div>
+            </div>
+          </div>
+          <div class="form-group" style="margin:0"><label>Tanggal</label><input type="date" id="bgt-edit-tgl"></div>
+          <div class="form-group" style="margin:0">
+            <label>Pillar</label>
+            <select id="bgt-edit-pillar">{% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select>
+          </div>
+          <div class="form-group" style="margin:0"><label>Amount</label><input type="number" id="bgt-amount" placeholder="0" min="0"></div>
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-primary btn-sm" onclick="bgtSaveRow()">Update</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-bgt-form')">Batal</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -251,15 +742,10 @@
 <script>
 const CAT1 = {{ cat1_bgt | tojson }};
 const CAT2 = {{ cat2_sem | tojson }};
+const VENDOR_LIST = {{ vendor_list | tojson }};
+const COMPANY_CODE = "{{ company_code }}";
 let _editMode = false, _editCode = "";
 
-function filterSiswa() {
-  const q = document.getElementById("siswa-search").value.toLowerCase();
-  const st = document.getElementById("siswa-filter-status").value;
-  document.querySelectorAll("#siswa-table tbody tr").forEach(tr => {
-    tr.style.display = (!q || tr.dataset.search.includes(q)) && (!st || tr.dataset.status === st) ? "" : "none";
-  });
-}
 
 let _genTimer;
 async function genKode() {
@@ -289,7 +775,17 @@ async function simpanSiswa() {
     referensi: document.getElementById("s-referensi").value,
     status: document.getElementById("s-status").value,
     catatan: document.getElementById("s-catatan").value,
+    catatan_budget: document.getElementById("s-catatan_budget").value,
+    catatan_payment: document.getElementById("s-catatan_payment").value,
   };
+  for (let i = 1; i <= 10; i++) {
+    const el = document.getElementById(`s-ipk-sem${i}`);
+    payload[`ipk_sem${i}`] = el ? (parseFloat(el.value) || 0) : 0;
+  }
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`s-ipk-pen${i}`);
+    payload[`ipk_pen${i}`] = el ? (parseFloat(el.value) || 0) : 0;
+  }
   const url = _editMode ? `/beasiswa/siswa/${_editCode}/update` : "/beasiswa/siswa/tambah";
   const resp = await apiFetch(url, { method:"POST", body:JSON.stringify(payload) });
   const data = await resp.json();
@@ -303,13 +799,28 @@ async function openEditSiswa(code) {
   if (!d.ok) { showToast("Gagal load data", "error"); return; }
   const s = d.data;
   _editMode = true; _editCode = code;
-  document.getElementById("siswa-modal-title").textContent = `Edit Siswa — ${code}`;
+  document.getElementById("siswa-modal-title").textContent = `Update Data Siswa — ${code}`;
   ["code","jenjang","angkatan","nama","program","status","fakultas","universitas",
-   "bank","norek","namarek","referensi","catatan"].forEach(k => {
+   "bank","norek","namarek","referensi","catatan","catatan_budget","catatan_payment"].forEach(k => {
     const el = document.getElementById(`s-${k}`);
     if (el) el.value = s[k] || "";
   });
+  for (let i = 1; i <= 10; i++) {
+    const el = document.getElementById(`s-ipk-sem${i}`);
+    if (el) el.value = s[`ipk_sem${i}`] || "";
+  }
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`s-ipk-pen${i}`);
+    if (el) el.value = s[`ipk_pen${i}`] || "";
+  }
   openModal("modal-siswa-tambah");
+}
+
+async function hapusSiswa(code, nama) {
+  if (!confirm(`Hapus siswa "${nama}" (${code})?\nSemua data budget dan payment siswa ini juga akan dihapus.`)) return;
+  const d = await (await apiFetch(`/beasiswa/siswa/${code}/hapus`, { method: "POST" })).json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if (d.ok) setTimeout(() => location.reload(), 800);
 }
 
 async function openBudgetSiswa(code, nama) {
@@ -329,30 +840,448 @@ async function openBudgetSiswa(code, nama) {
   openModal("modal-sisa");
 }
 
-function _makeRow(cls, catSel) {
-  const div = document.createElement("div");
-  div.className = cls;
-  div.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end";
-  div.innerHTML = `
-    <div class="form-group" style="margin:0"><select class="${cls}-cat1">${CAT1.map(c=>`<option value="${c}">${c}</option>`).join("")}</select></div>
-    <div class="form-group" style="margin:0"><select class="${cls}-cat2">${CAT2.map(c=>`<option value="${c}">${c}</option>`).join("")}</select></div>
-    <div class="form-group" style="margin:0"><input type="number" class="${cls}-amount" placeholder="0" min="0"></div>
-    <button class="btn btn-secondary btn-sm" onclick="this.closest('.${cls}').remove()">✕</button>`;
-  return div;
-}
-function addBgtRow() { document.getElementById("bgt-items").appendChild(_makeRow("bgt-row","bgt-row")); }
-function addPayRow() { document.getElementById("pay-items").appendChild(_makeRow("pay-row","pay-row")); }
-function removeBgtRow(b) { b.closest(".bgt-row").remove(); }
-function removePayRow(b) { b.closest(".pay-row").remove(); }
+const SISWA_LIST = {{ siswa_list | tojson }};
+let _bgtCode = "";
 
-async function saveBudget() {
-  const code=document.getElementById("bgt-siswa").value, tgl=document.getElementById("bgt-tgl").value, pillar=document.getElementById("bgt-pillar").value;
-  if (!code||!tgl||!pillar) { showToast("Pilih siswa, tanggal, dan pillar.","error"); return; }
-  const items=[...document.querySelectorAll(".bgt-row")].map(r=>({
-    cat1:r.querySelector(".bgt-cat1").value, cat2:r.querySelector(".bgt-cat2").value,
-    amount:parseFloat(r.querySelector(".bgt-amount").value)||0 }));
-  const d=await (await apiFetch("/beasiswa/budget/tambah",{method:"POST",body:JSON.stringify({code,tanggal:tgl,pillar,items})})).json();
-  showToast(d.pesan, d.ok?"success":"error");
+function bgtSearchInput() {
+  const q = document.getElementById("bgt-search").value.toLowerCase().trim();
+  const sug = document.getElementById("bgt-sugg");
+  if (!q) { sug.style.display = "none"; return; }
+  const hits = SISWA_LIST.filter(s =>
+    (s.nama && s.nama.toLowerCase().includes(q)) ||
+    (s.code && String(s.code).includes(q))
+  ).slice(0, 12);
+  if (!hits.length) { sug.style.display = "none"; return; }
+  sug.innerHTML = "";
+  hits.forEach(s => {
+    const div = document.createElement("div");
+    div.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
+    div.innerHTML = `<strong>${s.code}</strong> — ${s.nama}`;
+    div.addEventListener("mousedown", () => bgtSelectSiswa(s.code, s.nama));
+    div.addEventListener("mouseover", () => { div.style.background = "#eff6ff"; });
+    div.addEventListener("mouseout",  () => { div.style.background = ""; });
+    sug.appendChild(div);
+  });
+  sug.style.display = "block";
+}
+
+function bgtSelectSiswa(code, nama) {
+  document.getElementById("bgt-search").value = `${code} — ${nama}`;
+  document.getElementById("bgt-sugg").style.display = "none";
+  _bgtCode = code;
+  document.getElementById("bgt-panel-title").textContent = `Siswa: ${nama} (${code})`;
+}
+
+function bgtOpenAdd() {
+  _bgtCode = "";
+  document.getElementById("bgt-search").value = "";
+  document.getElementById("bgt-sugg").style.display = "none";
+  document.getElementById("bgt-panel-title").textContent = "";
+  document.getElementById("bgt-modal-title").textContent = "Tambah Budget";
+  document.getElementById("bgt-modal-siswa").style.display = "block";
+  document.getElementById("bgt-add-section").style.display = "block";
+  document.getElementById("bgt-edit-section").style.display = "none";
+  document.getElementById("bgt-edit-id").value = "";
+  document.getElementById("bgt-tgl").value = "";
+  document.getElementById("bgt-items").innerHTML = "";
+  _bgtAddItemRow();
+  openModal("modal-bgt-form");
+}
+
+function bgtEditRow(id, cat1, cat2, tanggal, pillar, amount) {
+  document.getElementById("bgt-modal-title").textContent = "Edit Budget";
+  document.getElementById("bgt-modal-siswa").style.display = "none";
+  document.getElementById("bgt-add-section").style.display = "none";
+  document.getElementById("bgt-edit-section").style.display = "block";
+  document.getElementById("bgt-edit-id").value = id;
+  document.getElementById("bgt-cat1").value = cat1;
+  bgtCat2Select(cat2);
+  document.getElementById("bgt-edit-tgl").value = tanggal;
+  document.getElementById("bgt-edit-pillar").value = pillar;
+  document.getElementById("bgt-amount").value = amount;
+  openModal("modal-bgt-form");
+}
+
+let _bgtListTimer = null;
+async function loadBudgetList() {
+  clearTimeout(_bgtListTimer);
+  _bgtListTimer = setTimeout(async () => {
+    const search  = (document.getElementById("bgt-list-search")?.value || "").trim();
+    const cat1    = document.getElementById("bgt-list-cat1")?.value || "";
+    const pillar  = document.getElementById("bgt-list-pillar")?.value || "";
+    const bulan   = document.getElementById("bgt-list-bulan")?.value || "";
+    const tahun   = document.getElementById("bgt-list-tahun")?.value || "";
+    const program = document.getElementById("bgt-list-program")?.value || "";
+    const params  = new URLSearchParams({ search, cat1, pillar, bulan, tahun, program });
+    const tbody   = document.getElementById("bgt-list-tbody");
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
+    const d = await (await apiFetch(`/beasiswa/budget/list?${params}`)).json();
+    _renderTabSummary('bgt', d.totals, d.payment_totals);
+    if (!d.ok || !d.rows?.length) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+      document.getElementById("bgt-list-info").textContent = "";
+      return;
+    }
+    document.getElementById("bgt-list-info").textContent =
+      `Menampilkan ${d.rows.length.toLocaleString("id-ID")} dari ${d.total.toLocaleString("id-ID")} record`;
+    tbody.innerHTML = d.rows.map(row => {
+      const a = row.amount || 0;
+      return `<tr>
+        <td style="white-space:nowrap"><code>${row.siswa_code||""}</code></td>
+        <td>${row.nama||""}</td>
+        <td style="font-size:.8rem">${row.program||""}</td>
+        <td>${row.cat1||""}</td>
+        <td>${row.cat2||""}</td>
+        <td style="white-space:nowrap">${row.tanggal||""}</td>
+        <td>${row.pillar||""}</td>
+        <td class="num-right">${fmtRupiah(a)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-secondary btn-sm" onclick="bgtEditRow(${row.id},'${(row.cat1||"").replace(/'/g,"\\'")}','${(row.cat2||"").replace(/'/g,"\\'")}','${row.tanggal||""}','${row.pillar||""}',${a})">Edit</button>
+          <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="bgtDeleteRow(${row.id})">Hapus</button>
+        </td>
+      </tr>`;
+    }).join("");
+  }, 300);
+}
+
+function exportBudget(fmt) {
+  const p = new URLSearchParams({
+    search:  (document.getElementById("bgt-list-search")?.value || "").trim(),
+    cat1:    document.getElementById("bgt-list-cat1")?.value || "",
+    pillar:  document.getElementById("bgt-list-pillar")?.value || "",
+    bulan:   document.getElementById("bgt-list-bulan")?.value || "",
+    tahun:   document.getElementById("bgt-list-tahun")?.value || "",
+    program: document.getElementById("bgt-list-program")?.value || "",
+  });
+  window.location.href = `/beasiswa/budget/export/${fmt}?${p}`;
+}
+
+function bgtCat2Toggle() {
+  const panel = document.getElementById("bgt-cat2-panel");
+  if (panel.style.display !== "none") { panel.style.display = "none"; return; }
+  document.getElementById("bgt-cat2-search").value = "";
+  bgtCat2Filter();
+  panel.style.display = "block";
+  document.getElementById("bgt-cat2-search").focus();
+}
+
+function bgtCat2Filter() {
+  const q    = document.getElementById("bgt-cat2-search").value.toLowerCase();
+  const list = document.getElementById("bgt-cat2-opts");
+  list.innerHTML = "";
+  CAT2.filter(c => c.toLowerCase().includes(q)).forEach(c => {
+    const div = document.createElement("div");
+    div.textContent = c;
+    div.style.cssText = "padding:7px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
+    div.addEventListener("mousedown", () => bgtCat2Select(c));
+    div.addEventListener("mouseover", () => { div.style.background = "#eff6ff"; });
+    div.addEventListener("mouseout",  () => { div.style.background = ""; });
+    list.appendChild(div);
+  });
+}
+
+function bgtCat2Select(val) {
+  document.getElementById("bgt-cat2").value = val;
+  const txt = document.getElementById("bgt-cat2-text");
+  txt.textContent = val;
+  txt.style.color = "";
+  document.getElementById("bgt-cat2-panel").style.display = "none";
+}
+
+document.addEventListener("mousedown", e => {
+  if (!e.target.closest("#bgt-cat2-display") && !e.target.closest("#bgt-cat2-panel")) {
+    document.getElementById("bgt-cat2-panel").style.display = "none";
+  }
+});
+
+async function bgtSaveRow() {
+  const id     = document.getElementById("bgt-edit-id").value;
+  const cat1   = document.getElementById("bgt-cat1").value;
+  const cat2   = document.getElementById("bgt-cat2").value;
+  const tanggal= document.getElementById("bgt-edit-tgl").value;
+  const pillar = document.getElementById("bgt-edit-pillar").value;
+  const amount = parseFloat(document.getElementById("bgt-amount").value) || 0;
+  if (!tanggal) { showToast("Tanggal wajib diisi.", "error"); return; }
+  if (amount <= 0) { showToast("Amount harus lebih dari 0.", "error"); return; }
+  const body = JSON.stringify({ cat1, cat2, tanggal, pillar, amount });
+  const d = await (await apiFetch(`/beasiswa/budget/${id}/update`, { method: "POST", body })).json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if (d.ok) { closeModal("modal-bgt-form"); await _bgtAfterSave(); }
+}
+
+function _mkDrop(opts, ph) {
+  const w   = document.createElement("div"); w.style.position = "relative";
+  const hid = document.createElement("input"); hid.type = "hidden";
+  const dsp = document.createElement("div");
+  dsp.style.cssText = "border:1px solid #d1d5db;border-radius:.375rem;padding:.45rem .75rem;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:38px";
+  const lbl = document.createElement("span");
+  lbl.textContent = ph; lbl.style.cssText = "color:#9ca3af;font-size:.875rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+  const arr = document.createElement("span");
+  arr.textContent = "▾"; arr.style.cssText = "color:#6b7280;font-size:.7rem;flex-shrink:0;margin-left:4px";
+  dsp.appendChild(lbl); dsp.appendChild(arr);
+  // pan is attached to document.body with position:fixed to escape .table-wrap overflow:hidden clipping
+  const pan = document.createElement("div");
+  pan.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12)";
+  const sw = document.createElement("div"); sw.style.padding = "6px";
+  const si = document.createElement("input"); si.type = "text"; si.placeholder = "Cari...";
+  si.style.cssText = "width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:.25rem;padding:.3rem .6rem;font-size:.875rem";
+  sw.appendChild(si);
+  const lst = document.createElement("div"); lst.style.cssText = "max-height:200px;overflow-y:auto";
+  pan.appendChild(sw); pan.appendChild(lst);
+  document.body.appendChild(pan);
+  function _posPan() {
+    const r = dsp.getBoundingClientRect();
+    pan.style.top   = (r.bottom + 2) + "px";
+    pan.style.left  = r.left + "px";
+    pan.style.width = r.width + "px";
+  }
+  function render(q) {
+    lst.innerHTML = "";
+    opts.filter(c => c.toLowerCase().includes(q.toLowerCase())).forEach(c => {
+      const d = document.createElement("div");
+      d.textContent = c;
+      d.style.cssText = "padding:7px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
+      d.addEventListener("mousedown", () => { hid.value=c; lbl.textContent=c; lbl.style.color=""; pan.style.display="none"; si.value=""; });
+      d.addEventListener("mouseover", () => { d.style.background="#eff6ff"; });
+      d.addEventListener("mouseout",  () => { d.style.background=""; });
+      lst.appendChild(d);
+    });
+  }
+  dsp.addEventListener("click", () => {
+    if (pan.style.display !== "none") { pan.style.display="none"; return; }
+    si.value=""; render(""); _posPan(); pan.style.display="block"; si.focus();
+  });
+  si.addEventListener("input", () => render(si.value));
+  // Check both w and pan since pan is no longer a child of w
+  document.addEventListener("mousedown", e => { if (!w.contains(e.target) && !pan.contains(e.target)) pan.style.display="none"; });
+  w.appendChild(hid); w.appendChild(dsp);
+  w._hid = hid;
+  w._pan = pan;
+  return w;
+}
+
+function _bgtAddItemRow() {
+  const row = document.createElement("div");
+  row.className = "bgt-item-row";
+  row.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end";
+  function fg(txt, el) {
+    const d = document.createElement("div"); d.className = "form-group"; d.style.margin = "0";
+    const l = document.createElement("label"); l.textContent = txt;
+    d.appendChild(l); d.appendChild(el); return d;
+  }
+  const cat1 = _mkDrop(CAT1, "Pilih kategori 1..."); cat1.classList.add("bgt-row-cat1");
+  const cat2 = _mkDrop(CAT2, "Pilih kategori 2..."); cat2.classList.add("bgt-row-cat2");
+  const amtFg = document.createElement("div"); amtFg.className = "form-group"; amtFg.style.margin = "0";
+  const amtLbl = document.createElement("label"); amtLbl.textContent = "Amount";
+  const amtInp = document.createElement("input");
+  amtInp.type = "number"; amtInp.className = "bgt-row-amount";
+  amtInp.placeholder = "0"; amtInp.min = "0"; amtInp.style.width = "100%";
+  amtFg.appendChild(amtLbl); amtFg.appendChild(amtInp);
+  const rmBtn = document.createElement("button");
+  rmBtn.className = "btn btn-sm";
+  rmBtn.style.cssText = "background:#ef4444;color:#fff;margin-bottom:0";
+  rmBtn.textContent = "✕";
+  rmBtn.addEventListener("click", () => { cat1._pan?.remove(); cat2._pan?.remove(); row.remove(); });
+  row.appendChild(fg("Kategori 1", cat1));
+  row.appendChild(fg("Kategori 2", cat2));
+  row.appendChild(amtFg);
+  row.appendChild(rmBtn);
+  document.getElementById("bgt-items").appendChild(row);
+}
+
+async function bgtSaveRows() {
+  if (!_bgtCode) { showToast("Siswa wajib dipilih.", "error"); return; }
+  const tanggal = document.getElementById("bgt-tgl").value;
+  const pillar  = document.getElementById("bgt-pillar").value;
+  if (!tanggal) { showToast("Tanggal wajib diisi.", "error"); return; }
+  const itemEls = [...document.querySelectorAll(".bgt-item-row")];
+  if (!itemEls.length) { showToast("Tambah minimal 1 baris.", "error"); return; }
+  const items = itemEls.map(r => ({
+    cat1:   r.querySelector(".bgt-row-cat1")._hid.value,
+    cat2:   r.querySelector(".bgt-row-cat2")._hid.value,
+    amount: parseFloat(r.querySelector(".bgt-row-amount").value) || 0,
+  })).filter(it => it.amount > 0);
+  if (!items.length) { showToast("Minimal 1 baris dengan amount > 0.", "error"); return; }
+  const body = JSON.stringify({ code: _bgtCode, tanggal, pillar, items });
+  const d = await (await apiFetch("/beasiswa/budget/tambah", { method: "POST", body })).json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if (d.ok) { closeModal("modal-bgt-form"); await _bgtAfterSave(); }
+}
+
+async function bgtDeleteRow(id) {
+  if (!confirm("Hapus baris budget ini?")) return;
+  const d = await (await apiFetch(`/beasiswa/budget/${id}/hapus`, { method: "POST" })).json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if (d.ok) await _bgtAfterSave();
+}
+
+// ── Input Budget tab ──────────────────────────────────────────────────────────
+let _ibgtCode = "", _ibgtNama = "";
+let _bgtContext = "list";
+
+async function _bgtAfterSave() {
+  if (_bgtContext === "input") {
+    await loadInputBudget(_ibgtCode);
+  } else {
+    await loadBudgetList();
+  }
+  _bgtContext = "list";
+}
+
+function ibgtReset() {
+  document.getElementById("ibgt-search").value = "";
+  document.getElementById("ibgt-sugg").style.display = "none";
+  document.getElementById("ibgt-content").style.display = "none";
+  _ibgtCode = ""; _ibgtNama = "";
+}
+
+function ibgtSearchInput() {
+  const q = document.getElementById("ibgt-search").value.toLowerCase().trim();
+  const sug = document.getElementById("ibgt-sugg");
+  if (!q) { sug.style.display = "none"; return; }
+  const hits = SISWA_LIST.filter(s =>
+    (s.nama && s.nama.toLowerCase().includes(q)) ||
+    (s.code && String(s.code).toLowerCase().includes(q))
+  ).slice(0, 12);
+  if (!hits.length) { sug.style.display = "none"; return; }
+  sug.innerHTML = "";
+  hits.forEach(s => {
+    const div = document.createElement("div");
+    div.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
+    div.innerHTML = `<strong>${s.code}</strong> — ${s.nama}`;
+    div.addEventListener("mousedown", () => ibgtSelectSiswa(s.code, s.nama));
+    div.addEventListener("mouseover", () => { div.style.background = "#eff6ff"; });
+    div.addEventListener("mouseout",  () => { div.style.background = ""; });
+    sug.appendChild(div);
+  });
+  sug.style.display = "block";
+}
+
+async function ibgtSelectSiswa(code, nama) {
+  _ibgtCode = code; _ibgtNama = nama;
+  document.getElementById("ibgt-search").value = `${code} — ${nama}`;
+  document.getElementById("ibgt-sugg").style.display = "none";
+  await loadInputBudget(code);
+}
+
+async function loadInputBudget(code) {
+  const content = document.getElementById("ibgt-content");
+  content.style.display = "block";
+  const tbody = document.getElementById("ibgt-tbody");
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
+  const d = await (await apiFetch(`/beasiswa/budget/siswa/${code}`)).json();
+  document.getElementById("ibgt-title").textContent = `${d.nama || ""} (${code})`;
+  document.getElementById("ibgt-total").textContent = fmtRupiah(d.grand || 0);
+  // tampilkan catatan budget
+  const catatan = (d.catatan_budget || "").trim();
+  document.getElementById("ibgt-catatan-input").value = catatan;
+  document.getElementById("ibgt-catatan-text").textContent = catatan || "—";
+  document.getElementById("ibgt-catatan-view").style.display = "block";
+  document.getElementById("ibgt-catatan-form").style.display = "none";
+  if (!d.ok || !d.rows?.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Belum ada data budget.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = d.rows.map(r => {
+    const a = r.amount || 0;
+    return `<tr>
+      <td>${r.cat1||""}</td>
+      <td>${r.cat2||""}</td>
+      <td style="white-space:nowrap">${r.tanggal||""}</td>
+      <td>${r.pillar||""}</td>
+      <td class="num-right">${fmtRupiah(a)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="ibgtEditRow(${r.id},'${(r.cat1||"").replace(/'/g,"\\'")}','${(r.cat2||"").replace(/'/g,"\\'")}','${r.tanggal||""}','${r.pillar||""}',${a})">Edit</button>
+        <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="ibgtDeleteRow(${r.id})">Hapus</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function ibgtEditCatatan() {
+  document.getElementById("ibgt-catatan-view").style.display = "none";
+  document.getElementById("ibgt-catatan-form").style.display = "block";
+  document.getElementById("ibgt-catatan-input").focus();
+}
+
+function ibgtCancelCatatan() {
+  document.getElementById("ibgt-catatan-form").style.display = "none";
+  document.getElementById("ibgt-catatan-view").style.display = "block";
+}
+
+async function ibgtSaveCatatan() {
+  if (!_ibgtCode) return;
+  const catatan = document.getElementById("ibgt-catatan-input").value;
+  const d = await (await apiFetch(`/beasiswa/siswa/${_ibgtCode}/catatan`,
+    { method: "POST", body: JSON.stringify({ catatan }) })).json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if (d.ok) {
+    document.getElementById("ibgt-catatan-text").textContent = catatan.trim() || "—";
+    ibgtCancelCatatan();
+  }
+}
+
+function ibgtOpenAdd() {
+  _bgtContext = "input";
+  _bgtCode = _ibgtCode;
+  document.getElementById("bgt-search").value = `${_ibgtCode} — ${_ibgtNama}`;
+  document.getElementById("bgt-sugg").style.display = "none";
+  document.getElementById("bgt-panel-title").textContent = `Siswa: ${_ibgtNama} (${_ibgtCode})`;
+  document.getElementById("bgt-modal-title").textContent = "Tambah Budget";
+  document.getElementById("bgt-modal-siswa").style.display = "none";
+  document.getElementById("bgt-add-section").style.display = "block";
+  document.getElementById("bgt-edit-section").style.display = "none";
+  document.getElementById("bgt-edit-id").value = "";
+  document.getElementById("bgt-tgl").value = "";
+  document.getElementById("bgt-items").innerHTML = "";
+  _bgtAddItemRow();
+  openModal("modal-bgt-form");
+}
+
+function ibgtEditRow(id, cat1, cat2, tanggal, pillar, amount) {
+  _bgtContext = "input";
+  bgtEditRow(id, cat1, cat2, tanggal, pillar, amount);
+}
+
+async function ibgtDeleteRow(id) {
+  _bgtContext = "input";
+  await bgtDeleteRow(id);
+}
+
+function exportInputBudget(fmt) {
+  if (!_ibgtCode) return;
+  window.location.href = `/beasiswa/budget/siswa/${_ibgtCode}/export/${fmt}`;
+}
+
+function addPayRow() { document.getElementById("pay-items").appendChild(_makePayRow()); }
+function removePayRow(b) { b.closest(".pay-row").remove(); }
+function _makePayRow() {
+  function fg(txt, el) {
+    const d = document.createElement("div"); d.className = "form-group"; d.style.margin = "0";
+    const l = document.createElement("label"); l.textContent = txt;
+    d.appendChild(l); d.appendChild(el); return d;
+  }
+  const row = document.createElement("div");
+  row.className = "pay-row";
+  row.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end";
+  const cat1 = _mkDrop(CAT1, "Pilih kategori 1..."); cat1.classList.add("pay-row-cat1");
+  const cat2 = _mkDrop(CAT2, "Pilih kategori 2..."); cat2.classList.add("pay-row-cat2");
+  const amtFg = document.createElement("div"); amtFg.className = "form-group"; amtFg.style.margin = "0";
+  const amtLbl = document.createElement("label"); amtLbl.textContent = "Amount";
+  const amtInp = document.createElement("input");
+  amtInp.type = "number"; amtInp.className = "pay-row-amount";
+  amtInp.placeholder = "0"; amtInp.min = "0"; amtInp.style.width = "100%";
+  amtFg.appendChild(amtLbl); amtFg.appendChild(amtInp);
+  const rmBtn = document.createElement("button");
+  rmBtn.className = "btn btn-secondary btn-sm";
+  rmBtn.style.marginBottom = "0";
+  rmBtn.textContent = "✕";
+  rmBtn.addEventListener("click", () => { cat1._pan?.remove(); cat2._pan?.remove(); row.remove(); });
+  row.appendChild(fg("Kategori 1", cat1));
+  row.appendChild(fg("Kategori 2", cat2));
+  row.appendChild(amtFg);
+  row.appendChild(rmBtn);
+  return row;
 }
 
 async function savePayment() {
@@ -360,40 +1289,842 @@ async function savePayment() {
         pillar=document.getElementById("pay-pillar").value, per=document.getElementById("pay-perusahaan").value;
   if (!code||!tgl||!pillar||!per) { showToast("Semua field wajib diisi.","error"); return; }
   const items=[...document.querySelectorAll(".pay-row")].map(r=>({
-    cat1:r.querySelector(".pay-row-cat1").value, cat2:r.querySelector(".pay-row-cat2").value,
+    cat1:r.querySelector(".pay-row-cat1")._hid.value, cat2:r.querySelector(".pay-row-cat2")._hid.value,
     cat3:"",cat4:"", amount:parseFloat(r.querySelector(".pay-row-amount").value)||0 }));
+  if (!items.some(it=>it.amount>0)) { showToast("Minimal 1 baris dengan amount > 0.","error"); return; }
   const d=await (await apiFetch("/beasiswa/payment/tambah",{method:"POST",body:JSON.stringify({code,tanggal:tgl,pillar,perusahaan:per,items})})).json();
   showToast(d.pesan, d.ok?"success":"error");
+  if (d.ok) {
+    document.getElementById("pay-siswa").value = "";
+    document.getElementById("pay-tgl").value = "";
+    document.getElementById("pay-pillar").value = "";
+    document.getElementById("pay-perusahaan").value = "";
+    document.getElementById("pay-items").innerHTML = "";
+    document.getElementById("pay-catpay-view").style.display = "none";
+    document.getElementById("pay-catpay-form").style.display = "none";
+    addPayRow();
+    await loadPaymentList();
+  }
+}
+
+let _payCurrentSiswaCode = "";
+function onPaySiswaChange() {
+  const code = document.getElementById("pay-siswa").value;
+  _payCurrentSiswaCode = code;
+  const view = document.getElementById("pay-catpay-view");
+  const form = document.getElementById("pay-catpay-form");
+  if (!code) { view.style.display = "none"; form.style.display = "none"; return; }
+  const sw = SISWA_LIST.find(s => s.code === code);
+  const cp = (sw?.catatan_payment || "").trim();
+  document.getElementById("pay-catpay-input").value = cp;
+  document.getElementById("pay-catpay-text").textContent = cp || "—";
+  view.style.display = "block";
+  form.style.display = "none";
+}
+function payEditCatpay() {
+  document.getElementById("pay-catpay-view").style.display = "none";
+  document.getElementById("pay-catpay-form").style.display = "block";
+  document.getElementById("pay-catpay-input").focus();
+}
+function payCancelCatpay() {
+  document.getElementById("pay-catpay-form").style.display = "none";
+  document.getElementById("pay-catpay-view").style.display = "block";
+}
+async function paySaveCatpay() {
+  if (!_payCurrentSiswaCode) return;
+  const catatan_payment = document.getElementById("pay-catpay-input").value;
+  const d = await (await apiFetch(`/beasiswa/siswa/${_payCurrentSiswaCode}/catatan-payment`,
+    { method: "POST", body: JSON.stringify({ catatan_payment }) })).json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if (d.ok) {
+    document.getElementById("pay-catpay-text").textContent = catatan_payment.trim() || "—";
+    const sw = SISWA_LIST.find(s => s.code === _payCurrentSiswaCode);
+    if (sw) sw.catatan_payment = catatan_payment;
+    payCancelCatpay();
+  }
+}
+
+let _paySearchTimer = null;
+async function loadPaymentList() {
+  clearTimeout(_paySearchTimer);
+  _paySearchTimer = setTimeout(async () => {
+    const search  = (document.getElementById("pay-search")?.value || "").trim();
+    const cat1    = document.getElementById("pay-filter-cat1")?.value || "";
+    const pillar  = document.getElementById("pay-filter-pillar")?.value || "";
+    const bulan   = document.getElementById("pay-filter-bulan")?.value || "";
+    const tahun   = document.getElementById("pay-filter-tahun")?.value || "";
+    const status  = document.getElementById("pay-filter-status")?.value || "";
+    const program = document.getElementById("pay-filter-program")?.value || "";
+    const params  = new URLSearchParams({ search, cat1, pillar, bulan, tahun, status, program });
+    const tbody   = document.getElementById("pay-tbody");
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
+    const d = await (await apiFetch(`/beasiswa/payment/list?${params}`)).json();
+    _renderTabSummary('pay', d.budget_totals, d.totals);
+    if (!d.ok || !d.rows?.length) {
+      tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+      document.getElementById("pay-list-info").textContent = "";
+      return;
+    }
+    document.getElementById("pay-list-info").textContent =
+      `Menampilkan ${d.rows.length.toLocaleString("id-ID")} dari ${d.total.toLocaleString("id-ID")} record`;
+    const BADGE = {
+      approved: `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Approved</span>`,
+      draft:    `<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Draft</span>`,
+    };
+    tbody.innerHTML = d.rows.map(r => `<tr>
+      <td style="white-space:nowrap"><code>${r.siswa_code||""}</code></td>
+      <td>${r.nama||""}</td>
+      <td style="font-size:.8rem">${r.program||""}</td>
+      <td>${r.cat1||""}</td>
+      <td>${r.cat2||""}</td>
+      <td style="white-space:nowrap">${r.tanggal||""}</td>
+      <td>${r.pillar||""}</td>
+      <td class="num-right">${fmtRupiah(r.amount||0)}</td>
+      <td style="font-size:.8rem">${r.pam||""}</td>
+      <td style="font-size:.8rem">${r.perusahaan||""}</td>
+      <td>${BADGE[r.status] || r.status||""}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="payDeleteRow(${r.id})">Hapus</button>
+      </td>
+    </tr>`).join("");
+  }, 300);
+}
+
+async function payDeleteRow(id) {
+  if (!confirm("Hapus baris payment ini?")) return;
+  const d = await (await apiFetch(`/beasiswa/payment/${id}/hapus`, { method: "POST" })).json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if (d.ok) await loadPaymentList();
+}
+
+function _renderTabSummary(prefix, bgtTotals, payTotals) {
+  const CATS = [
+    { key: "By Pendidikan", pfx: "pend"  },
+    { key: "By Tunjangan",  pfx: "tunj"  },
+    { key: "By Penelitian", pfx: "penel" },
+    { key: "By Medical",    pfx: "med"   },
+  ];
+  let totB = 0, totP = 0;
+  CATS.forEach(({ key, pfx }) => {
+    const b = (bgtTotals && bgtTotals[key]) || 0;
+    const p = (payTotals && payTotals[key]) || 0;
+    document.getElementById(`${prefix}-sum-${pfx}-b`).textContent = fmtRupiah(b);
+    document.getElementById(`${prefix}-sum-${pfx}-p`).textContent = fmtRupiah(p);
+    const sel = document.getElementById(`${prefix}-sum-${pfx}-s`);
+    sel.textContent = fmtRupiah(b - p);
+    sel.style.color = (b - p) < 0 ? "var(--danger)" : "";
+    totB += b; totP += p;
+  });
+  document.getElementById(`${prefix}-sum-tot-b`).textContent = fmtRupiah(totB);
+  document.getElementById(`${prefix}-sum-tot-p`).textContent = fmtRupiah(totP);
+  const totSel = document.getElementById(`${prefix}-sum-tot-s`);
+  totSel.textContent = fmtRupiah(totB - totP);
+  totSel.style.color = (totB - totP) < 0 ? "var(--danger)" : "";
+}
+
+async function loadSummary() {
+  const d = await (await apiFetch("/beasiswa/summary")).json();
+  if (!d.ok) return;
+  const CATS = [
+    { key:"By Pendidikan", pfx:"pend" },
+    { key:"By Tunjangan",  pfx:"tunj" },
+    { key:"By Penelitian", pfx:"penel" },
+    { key:"By Medical",    pfx:"med" },
+  ];
+  CATS.forEach(({ key, pfx }) => {
+    const c = (d.categories || []).find(x => x.cat1 === key) || { budget:0, payment:0, selisih:0 };
+    ["bgt","pay"].forEach(tab => {
+      document.getElementById(`${tab}-sum-${pfx}-b`).textContent = fmtRupiah(c.budget);
+      document.getElementById(`${tab}-sum-${pfx}-p`).textContent = fmtRupiah(c.payment);
+      const sel = document.getElementById(`${tab}-sum-${pfx}-s`);
+      sel.textContent = fmtRupiah(c.selisih);
+      sel.style.color = c.selisih < 0 ? "var(--danger)" : "";
+    });
+  });
+  const t = d.total || { budget:0, payment:0, selisih:0 };
+  ["bgt","pay"].forEach(tab => {
+    document.getElementById(`${tab}-sum-tot-b`).textContent = fmtRupiah(t.budget);
+    document.getElementById(`${tab}-sum-tot-p`).textContent = fmtRupiah(t.payment);
+    const sel = document.getElementById(`${tab}-sum-tot-s`);
+    sel.textContent = fmtRupiah(t.selisih);
+    sel.style.color = t.selisih < 0 ? "var(--danger)" : "";
+  });
+}
+
+function exportPayment(fmt) {
+  const p = new URLSearchParams({
+    search:  (document.getElementById("pay-search")?.value || "").trim(),
+    cat1:    document.getElementById("pay-filter-cat1")?.value || "",
+    pillar:  document.getElementById("pay-filter-pillar")?.value || "",
+    bulan:   document.getElementById("pay-filter-bulan")?.value || "",
+    tahun:   document.getElementById("pay-filter-tahun")?.value || "",
+    status:  document.getElementById("pay-filter-status")?.value || "",
+    program: document.getElementById("pay-filter-program")?.value || "",
+  });
+  window.location.href = `/beasiswa/payment/export/${fmt}?${p}`;
 }
 
 async function loadRekap() {
-  const params=new URLSearchParams({
-    program:document.getElementById("rekap-program").value,
-    pillar:document.getElementById("rekap-pillar").value,
-    status:document.getElementById("rekap-status").value });
-  const d=await (await apiFetch(`/beasiswa/rekap/data?${params}`)).json();
-  if (!d.ok) return;
-  document.getElementById("rekap-tbody").innerHTML=d.rows.map(r=>`<tr>
-    <td><code>${r.code}</code></td><td>${r.nama}</td><td>${r.jenjang||""}</td><td>${r.program||""}</td>
+  const params = new URLSearchParams({
+    search:  (document.getElementById("rekap-search")?.value || "").trim(),
+    program: document.getElementById("rekap-program")?.value || "",
+    pillar:  document.getElementById("rekap-pillar")?.value || "",
+    status:  document.getElementById("rekap-status")?.value || "",
+  });
+  const tbody = document.getElementById("rekap-tbody");
+  tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
+  const d = await (await apiFetch(`/beasiswa/rekap/data?${params}`)).json();
+  if (!d.ok) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Gagal memuat.</td></tr>`; return; }
+  if (!d.rows.length) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`; return; }
+  tbody.innerHTML = d.rows.map(r => `<tr>
+    <td style="white-space:nowrap"><code>${r.code}</code></td>
+    <td>${r.nama}</td>
+    <td>${r.jenjang||""}</td>
+    <td>${r.angkatan||""}</td>
+    <td>${r.program||""}</td>
     <td><span class="badge ${r.status==='Aktif'?'badge-green':r.status==='lulus'?'badge-blue':'badge-red'}">${r.status}</span></td>
     <td class="num-right">${fmtRupiah(r.total_budget)}</td>
     <td class="num-right">${fmtRupiah(r.total_payment)}</td>
     <td class="num-right" style="color:${r.sisa<0?'var(--danger)':'inherit'}">${fmtRupiah(r.sisa)}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-secondary btn-sm" onclick="openEditSiswa('${r.code}')">Update</button>
+      <button class="btn btn-secondary btn-sm" onclick="openBudgetSiswa('${r.code}','${r.nama.replace(/'/g,"\\'")}')">Sisa</button>
+      <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="hapusSiswa('${r.code}','${r.nama.replace(/'/g,"\\'")}')">Hapus</button>
+    </td>
   </tr>`).join("");
-  const tb=d.rows.reduce((s,r)=>s+r.total_budget,0), tp=d.rows.reduce((s,r)=>s+r.total_payment,0);
-  document.getElementById("rekap-total-b").textContent=fmtRupiah(tb);
-  document.getElementById("rekap-total-p").textContent=fmtRupiah(tp);
-  document.getElementById("rekap-total-s").textContent=fmtRupiah(tb-tp);
+  const tb = d.rows.reduce((s,r)=>s+r.total_budget,0), tp = d.rows.reduce((s,r)=>s+r.total_payment,0);
+  document.getElementById("rekap-total-b").textContent = fmtRupiah(tb);
+  document.getElementById("rekap-total-p").textContent = fmtRupiah(tp);
+  document.getElementById("rekap-total-s").textContent = fmtRupiah(tb-tp);
 }
 
 function exportRekap(fmt) {
-  const p=new URLSearchParams({
-    program:document.getElementById("rekap-program").value,
-    pillar:document.getElementById("rekap-pillar").value,
-    status:document.getElementById("rekap-status").value });
-  window.location.href=`/beasiswa/rekap/export/${fmt}?${p}`;
+  const p = new URLSearchParams({
+    search:  (document.getElementById("rekap-search")?.value || "").trim(),
+    program: document.getElementById("rekap-program")?.value || "",
+    pillar:  document.getElementById("rekap-pillar")?.value || "",
+    status:  document.getElementById("rekap-status")?.value || "",
+  });
+  window.location.href = `/beasiswa/rekap/export/${fmt}?${p}`;
 }
 
-document.addEventListener("DOMContentLoaded", loadRekap);
+// ── Vendor search helpers ─────────────────────────────────────────────────────
+function _vendorSuggRender(hits, suggEl, onSelect) {
+  suggEl.innerHTML = "";
+  hits.forEach(v => {
+    const d = document.createElement("div");
+    d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
+    const cc = v.cost_center ? `<span style="font-size:.68rem;color:#9ca3af;margin-left:4px">${v.cost_center}</span>` : "";
+    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">
+      <span style="flex:1">${v.name}${cc}</span>
+      <span style="font-size:.72rem;color:#6b7280;background:#f3f4f6;padding:1px 7px;border-radius:99px;white-space:nowrap">${v.pillar}</span>
+    </div>`;
+    d.addEventListener("mousedown", () => onSelect(v));
+    d.addEventListener("mouseover", () => { d.style.background = "#eff6ff"; });
+    d.addEventListener("mouseout",  () => { d.style.background = ""; });
+    suggEl.appendChild(d);
+  });
+}
+
+function _vendorPos(inputEl, suggEl) {
+  const r = inputEl.getBoundingClientRect();
+  suggEl.style.top   = (r.bottom + 2) + "px";
+  suggEl.style.left  = r.left + "px";
+  suggEl.style.width = r.width + "px";
+}
+
+function ipayVendorSearch() {
+  const inp  = document.getElementById("ipay-perusahaan-search");
+  const sugg = document.getElementById("ipay-vendor-sugg");
+  const q    = inp.value.toLowerCase().trim();
+  if (!q) {
+    sugg.style.display = "none";
+    document.getElementById("ipay-perusahaan").value = "";
+    document.getElementById("ipay-pillar").value = "";
+    return;
+  }
+  const hits = VENDOR_LIST.filter(v => v.name.toLowerCase().includes(q)).slice(0, 15);
+  if (!hits.length) { sugg.style.display = "none"; return; }
+  _vendorSuggRender(hits, sugg, v => {
+    document.getElementById("ipay-perusahaan-search").value = v.name;
+    document.getElementById("ipay-perusahaan").value = v.name;
+    document.getElementById("ipay-pillar").value = v.pillar;
+    sugg.style.display = "none";
+  });
+  _vendorPos(inp, sugg);
+  sugg.style.display = "block";
+}
+
+function iklaimVendorSearch() {
+  const inp  = document.getElementById("iklaim-perusahaan-search");
+  const sugg = document.getElementById("iklaim-vendor-sugg");
+  const q    = inp.value.toLowerCase().trim();
+  if (!q) {
+    sugg.style.display = "none";
+    document.getElementById("iklaim-perusahaan").value = "";
+    document.getElementById("iklaim-pillar").value = "";
+    return;
+  }
+  const hits = VENDOR_LIST.filter(v => v.name.toLowerCase().includes(q)).slice(0, 15);
+  if (!hits.length) { sugg.style.display = "none"; return; }
+  _vendorSuggRender(hits, sugg, v => {
+    document.getElementById("iklaim-perusahaan-search").value = v.name;
+    document.getElementById("iklaim-perusahaan").value = v.name;
+    document.getElementById("iklaim-pillar").value = v.pillar;
+    sugg.style.display = "none";
+  });
+  _vendorPos(inp, sugg);
+  sugg.style.display = "block";
+}
+
+// ── Input Payment tab ─────────────────────────────────────────────────────────
+let _ipayRowId = 0;
+
+function ipayReset() {
+  document.querySelectorAll("[data-ipaysugg]").forEach(el => el.remove());
+  document.getElementById("ipay-tgl").value = "";
+  document.getElementById("ipay-pam-seq").value = "";
+  document.getElementById("ipay-pam-preview").textContent = "";
+  document.getElementById("ipay-pam-full").value = "";
+  document.getElementById("ipay-perusahaan-search").value = "";
+  document.getElementById("ipay-perusahaan").value = "";
+  document.getElementById("ipay-pillar").value = "";
+  document.getElementById("ipay-vendor-sugg").style.display = "none";
+  document.getElementById("ipay-tbody").innerHTML =
+    `<tr id="ipay-empty-row"><td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
+  const totalEl = document.getElementById("ipay-total-amt");
+  if (totalEl) totalEl.textContent = fmtRupiah(0);
+  _ipayRowId = 0;
+}
+
+function ipayUpdateTotal() {
+  let total = 0;
+  document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]").forEach(tr => {
+    total += parseFloat(tr._amtInp?.value) || 0;
+  });
+  const el = document.getElementById("ipay-total-amt");
+  if (el) el.textContent = fmtRupiah(total);
+}
+
+function ipayUpdatePAM() {
+  const seq = document.getElementById("ipay-pam-seq").value.trim();
+  const tgl = document.getElementById("ipay-tgl").value;
+  let datePart = "";
+  if (tgl) {
+    const d = new Date(tgl);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    datePart = `-${COMPANY_CODE}-${mm}-${yyyy}`;
+  }
+  const full = seq ? `PAM-${seq}${datePart}` : "";
+  document.getElementById("ipay-pam-preview").textContent = datePart ? datePart : "";
+  document.getElementById("ipay-pam-full").value = full;
+}
+
+function ipayAddRow() {
+  const empty = document.getElementById("ipay-empty-row");
+  if (empty) empty.remove();
+
+  const rid = ++_ipayRowId;
+  const tr = document.createElement("tr");
+  tr.dataset.rid = rid;
+  tr.dataset.siswaCode = "";
+
+  function tdInput(type, cls, placeholder, extra) {
+    const td = document.createElement("td");
+    const inp = document.createElement("input");
+    inp.type = type; inp.className = cls; inp.placeholder = placeholder || "";
+    if (extra) Object.assign(inp, extra);
+    inp.style.width = "100%"; inp.style.boxSizing = "border-box";
+    td.appendChild(inp);
+    return { td, inp };
+  }
+
+  // Siswa picker — sugg appended to body (fixed) to escape table-wrap overflow clipping
+  const tdSiswa = document.createElement("td");
+  const siswaInp = document.createElement("input");
+  siswaInp.type = "text"; siswaInp.placeholder = "Cari siswa...";
+  siswaInp.style.cssText = "width:100%;box-sizing:border-box";
+  siswaInp.autocomplete = "off";
+  const sugg = document.createElement("div");
+  sugg.dataset.ipaysugg = "1";
+  sugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  document.body.appendChild(sugg);
+
+  function _positionSugg() {
+    const r = siswaInp.getBoundingClientRect();
+    sugg.style.top  = (r.bottom + 2) + "px";
+    sugg.style.left = r.left + "px";
+    sugg.style.width = r.width + "px";
+  }
+
+  siswaInp.addEventListener("input", () => {
+    const q = siswaInp.value.toLowerCase().trim();
+    if (!q) { sugg.style.display = "none"; return; }
+    const hits = SISWA_LIST.filter(s =>
+      (s.nama && s.nama.toLowerCase().includes(q)) ||
+      (s.code && String(s.code).toLowerCase().includes(q))
+    ).slice(0, 10);
+    if (!hits.length) {
+      sugg.innerHTML = SISWA_LIST.length
+        ? `<div style="padding:10px 12px;font-size:.875rem;color:#6b7280">Tidak ditemukan.</div>`
+        : `<div style="padding:10px 12px;font-size:.875rem;color:#6b7280">Belum ada data siswa. Tambahkan di tab Data Siswa.</div>`;
+      _positionSugg(); sugg.style.display = "block"; return;
+    }
+    sugg.innerHTML = "";
+    hits.forEach(s => {
+      const d = document.createElement("div");
+      d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:.5rem";
+      d.innerHTML = `<span style="font-weight:600;color:#1a56db;min-width:72px">${s.code}</span><span style="color:#374151">${s.nama}</span>`;
+      d.addEventListener("mousedown", () => {
+        siswaInp.value = `${s.code} — ${s.nama}`;
+        tr.dataset.siswaCode = s.code;
+        sugg.style.display = "none";
+      });
+      d.addEventListener("mouseover",  () => { d.style.background = "#eff6ff"; });
+      d.addEventListener("mouseout",   () => { d.style.background = ""; });
+      sugg.appendChild(d);
+    });
+    _positionSugg();
+    sugg.style.display = "block";
+  });
+  siswaInp.addEventListener("focus", () => { if (sugg.children.length) _positionSugg(); });
+  siswaInp.addEventListener("blur",  () => setTimeout(() => { sugg.style.display = "none"; }, 200));
+  tdSiswa.appendChild(siswaInp);
+
+  // Cat1 select
+  const tdCat1 = document.createElement("td");
+  const sCat1 = document.createElement("select");
+  sCat1.style.width = "100%";
+  sCat1.innerHTML = `<option value="">— Kat 1 —</option>` + CAT1.map(c => `<option value="${c}">${c}</option>`).join("");
+  tdCat1.appendChild(sCat1);
+
+  // Cat2 dropdown (reuse _mkDrop)
+  const tdCat2 = document.createElement("td");
+  const cat2Drop = _mkDrop(CAT2, "Pilih kat 2...");
+  cat2Drop.style.width = "100%";
+  tdCat2.appendChild(cat2Drop);
+
+  // Amount
+  const { td: tdAmt, inp: amtInp } = tdInput("number", "", "0", { min: "0" });
+  amtInp.addEventListener("input", ipayUpdateTotal);
+
+  // 4 SLA date inputs
+  const { td: tdTglPengajuan, inp: inpTglPengajuan } = tdInput("date", "");
+  const { td: tdTglReceive,   inp: inpTglReceive   } = tdInput("date", "");
+  const { td: tdTglPa,        inp: inpTglPa        } = tdInput("date", "");
+  const { td: tdTglFinal,     inp: inpTglFinal     } = tdInput("date", "");
+
+  // Delete button
+  const tdDel = document.createElement("td");
+  const btnDel = document.createElement("button");
+  btnDel.className = "btn btn-sm";
+  btnDel.style.cssText = "background:#ef4444;color:#fff;padding:2px 8px";
+  btnDel.textContent = "✕";
+  btnDel.addEventListener("click", () => {
+    sugg.remove();
+    cat2Drop._pan?.remove();
+    tr.remove();
+    ipayUpdateTotal();
+    if (!document.getElementById("ipay-tbody").querySelector("tr[data-rid]")) {
+      document.getElementById("ipay-tbody").innerHTML =
+        `<tr id="ipay-empty-row"><td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
+    }
+  });
+  tdDel.appendChild(btnDel);
+
+  tr._cat2Drop = cat2Drop;
+  tr._amtInp   = amtInp;
+  tr._tgls     = [inpTglPengajuan, inpTglReceive, inpTglPa, inpTglFinal];
+
+  [tdSiswa, tdCat1, tdCat2, tdAmt, tdTglPengajuan, tdTglReceive, tdTglPa, tdTglFinal, tdDel]
+    .forEach(td => tr.appendChild(td));
+  tr._cat1Select = sCat1;
+  document.getElementById("ipay-tbody").appendChild(tr);
+}
+
+async function ipaySave() {
+  const tanggal    = document.getElementById("ipay-tgl").value;
+  const pillar     = document.getElementById("ipay-pillar").value;
+  const perusahaan = document.getElementById("ipay-perusahaan").value;
+  const pam        = document.getElementById("ipay-pam-full").value;
+  if (!tanggal || !pillar || !perusahaan) {
+    showToast("Tanggal, Pillar, dan Perusahaan wajib diisi.", "error"); return;
+  }
+  const rows = [...document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]")].map(tr => ({
+    siswa_code:    tr.dataset.siswaCode || "",
+    cat1:          tr._cat1Select.value,
+    cat2:          tr._cat2Drop._hid.value,
+    amount:        parseFloat(tr._amtInp.value) || 0,
+    tgl_pengajuan: tr._tgls[0].value,
+    tgl_receive:   tr._tgls[1].value,
+    tgl_pa:        tr._tgls[2].value,
+    tgl_final:     tr._tgls[3].value,
+  })).filter(r => r.amount > 0);
+  if (!rows.length) { showToast("Minimal 1 baris dengan amount > 0.", "error"); return; }
+  const missing = rows.filter(r => !r.siswa_code);
+  if (missing.length) { showToast("Semua baris harus memilih siswa.", "error"); return; }
+  const body = JSON.stringify({ tanggal, pillar, perusahaan, pam, rows });
+  const d = await (await apiFetch("/beasiswa/payment/tambah-multi", { method: "POST", body })).json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if (d.ok) { ipayReset(); loadSummary(); }
+}
+
+// ── Input Klaim tab ────────────────────────────────────────────────────────────
+const PERAWATAN_LIST = ["Rawat Inap", "Rawat Jalan"];
+let _iklaimRowId = 0;
+
+function iklaimReset() {
+  document.querySelectorAll("[data-iklaimsugg]").forEach(el => el.remove());
+  document.getElementById("iklaim-pam-seq").value = "";
+  document.getElementById("iklaim-pam-preview").textContent = "";
+  document.getElementById("iklaim-pam-full").value = "";
+  document.getElementById("iklaim-perusahaan-search").value = "";
+  document.getElementById("iklaim-perusahaan").value = "";
+  document.getElementById("iklaim-pillar").value = "";
+  document.getElementById("iklaim-vendor-sugg").style.display = "none";
+  document.getElementById("iklaim-tbody").innerHTML =
+    `<tr id="iklaim-empty-row"><td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input klaim.</td></tr>`;
+  _iklaimRowId = 0;
+}
+
+function iklaimUpdatePAM() {
+  const seq = document.getElementById("iklaim-pam-seq").value.trim();
+  const now = new Date();
+  const mm  = String(now.getMonth() + 1).padStart(2, "0");
+  const yyyy = now.getFullYear();
+  const datePart = `-${COMPANY_CODE}-${mm}-${yyyy}`;
+  const full = seq ? `PAM-${seq}${datePart}` : "";
+  document.getElementById("iklaim-pam-full").value = full;
+  document.getElementById("iklaim-pam-preview").textContent = seq ? datePart : "";
+}
+
+function iklaimAddRow() {
+  const empty = document.getElementById("iklaim-empty-row");
+  if (empty) empty.remove();
+
+  const rid = ++_iklaimRowId;
+  const tr = document.createElement("tr");
+  tr.dataset.rid = rid;
+  tr.dataset.siswaCode = "";
+
+  function tdInp(type, placeholder, extra) {
+    const td = document.createElement("td");
+    const inp = document.createElement("input");
+    inp.type = type; inp.placeholder = placeholder || "";
+    if (extra) Object.assign(inp, extra);
+    inp.style.cssText = "width:100%;box-sizing:border-box";
+    td.appendChild(inp);
+    return { td, inp };
+  }
+
+  // Siswa picker (body-attached dropdown to escape table-wrap clipping)
+  const tdSiswa = document.createElement("td");
+  const siswaInp = document.createElement("input");
+  siswaInp.type = "text"; siswaInp.placeholder = "Cari siswa...";
+  siswaInp.style.cssText = "width:100%;box-sizing:border-box";
+  siswaInp.autocomplete = "off";
+  const sugg = document.createElement("div");
+  sugg.dataset.iklaimsugg = "1";
+  sugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #f9a8d4;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  document.body.appendChild(sugg);
+
+  function _posSugg() {
+    const r = siswaInp.getBoundingClientRect();
+    sugg.style.top = (r.bottom + 2) + "px";
+    sugg.style.left = r.left + "px";
+    sugg.style.width = r.width + "px";
+  }
+  siswaInp.addEventListener("input", () => {
+    const q = siswaInp.value.toLowerCase().trim();
+    if (!q) { sugg.style.display = "none"; return; }
+    const hits = SISWA_LIST.filter(s =>
+      (s.nama && s.nama.toLowerCase().includes(q)) ||
+      (s.code && String(s.code).toLowerCase().includes(q))
+    ).slice(0, 10);
+    if (!hits.length) { sugg.style.display = "none"; return; }
+    sugg.innerHTML = "";
+    hits.forEach(s => {
+      const d = document.createElement("div");
+      d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:.5rem";
+      d.innerHTML = `<span style="font-weight:600;color:#db2777;min-width:72px">${s.code}</span><span style="color:#374151">${s.nama}</span>`;
+      d.addEventListener("mousedown", () => {
+        siswaInp.value = `${s.code} — ${s.nama}`;
+        tr.dataset.siswaCode = s.code;
+        sugg.style.display = "none";
+        const cp = (s.catatan_payment || "").trim();
+        catatPayNote.textContent = cp;
+        catatPayNote.style.display = cp ? "block" : "none";
+      });
+      d.addEventListener("mouseover", () => { d.style.background = "#fdf2f8"; });
+      d.addEventListener("mouseout",  () => { d.style.background = ""; });
+      sugg.appendChild(d);
+    });
+    _posSugg(); sugg.style.display = "block";
+  });
+  siswaInp.addEventListener("focus", () => { if (sugg.children.length) _posSugg(); });
+  siswaInp.addEventListener("blur",  () => setTimeout(() => { sugg.style.display = "none"; }, 200));
+  const catatPayNote = document.createElement("div");
+  catatPayNote.style.cssText = "display:none;font-size:.68rem;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:3px;padding:2px 5px;margin-top:3px;white-space:pre-wrap;line-height:1.3";
+  tdSiswa.appendChild(siswaInp);
+  tdSiswa.appendChild(catatPayNote);
+
+  // Tanggal
+  const { td: tdTgl, inp: inpTgl } = tdInp("date", "");
+
+  // Amount
+  const { td: tdAmt, inp: inpAmt } = tdInp("number", "0", { min: "0" });
+
+  // Perawatan dropdown
+  const tdPerawatan = document.createElement("td");
+  const selPerawatan = document.createElement("select");
+  selPerawatan.style.width = "100%";
+  selPerawatan.innerHTML = `<option value="">— Perawatan —</option>` +
+    PERAWATAN_LIST.map(p => `<option value="${p}">${p}</option>`).join("");
+  tdPerawatan.appendChild(selPerawatan);
+
+  // Kelas, Rumah Sakit, Diagnosa, Spesialisasi — free text
+  const { td: tdKelas,       inp: inpKelas       } = tdInp("text", "Kelas...");
+  const { td: tdRS,          inp: inpRS          } = tdInp("text", "Rumah Sakit...");
+  const { td: tdDiagnosa,    inp: inpDiagnosa    } = tdInp("text", "Diagnosa...");
+  const { td: tdSpesialisasi,inp: inpSpesialisasi} = tdInp("text", "Spesialisasi...");
+
+  // Delete
+  const tdDel = document.createElement("td");
+  const btnDel = document.createElement("button");
+  btnDel.className = "btn btn-sm";
+  btnDel.style.cssText = "background:#ef4444;color:#fff;padding:2px 8px";
+  btnDel.textContent = "✕";
+  btnDel.addEventListener("click", () => {
+    sugg.remove(); tr.remove();
+    if (!document.getElementById("iklaim-tbody").querySelector("tr[data-rid]")) {
+      document.getElementById("iklaim-tbody").innerHTML =
+        `<tr id="iklaim-empty-row"><td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input klaim.</td></tr>`;
+    }
+  });
+  tdDel.appendChild(btnDel);
+
+  tr._inpTgl          = inpTgl;
+  tr._inpAmt          = inpAmt;
+  tr._selPerawatan    = selPerawatan;
+  tr._inpKelas        = inpKelas;
+  tr._inpRS           = inpRS;
+  tr._inpDiagnosa     = inpDiagnosa;
+  tr._inpSpesialisasi = inpSpesialisasi;
+
+  [tdSiswa, tdTgl, tdAmt, tdPerawatan, tdKelas, tdRS, tdDiagnosa, tdSpesialisasi, tdDel]
+    .forEach(td => tr.appendChild(td));
+  document.getElementById("iklaim-tbody").appendChild(tr);
+}
+
+async function iklaimSave() {
+  const pam        = document.getElementById("iklaim-pam-full").value;
+  const pillar     = document.getElementById("iklaim-pillar").value;
+  const perusahaan = document.getElementById("iklaim-perusahaan").value;
+  if (!pillar || !perusahaan) {
+    showToast("Pillar dan Perusahaan wajib diisi.", "error"); return;
+  }
+  const rows = [...document.getElementById("iklaim-tbody").querySelectorAll("tr[data-rid]")].map(tr => ({
+    siswa_code:   tr.dataset.siswaCode || "",
+    tanggal:      tr._inpTgl.value,
+    amount:       parseFloat(tr._inpAmt.value) || 0,
+    perawatan:    tr._selPerawatan.value,
+    kelas:        tr._inpKelas.value,
+    rumah_sakit:  tr._inpRS.value,
+    diagnosa:     tr._inpDiagnosa.value,
+    spesialisasi: tr._inpSpesialisasi.value,
+  })).filter(r => r.amount > 0);
+  if (!rows.length) { showToast("Minimal 1 baris dengan amount > 0.", "error"); return; }
+  const missing = rows.filter(r => !r.siswa_code);
+  if (missing.length) { showToast("Semua baris harus memilih siswa.", "error"); return; }
+  const noDate = rows.filter(r => !r.tanggal);
+  if (noDate.length) { showToast("Semua baris harus mengisi tanggal.", "error"); return; }
+  const body = JSON.stringify({ pam, pillar, perusahaan, rows });
+  const d = await (await apiFetch("/beasiswa/klaim/tambah-multi", { method: "POST", body })).json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if (d.ok) { iklaimReset(); loadSummary(); }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadRekap();
+  loadSummary();
+  if (document.getElementById("pay-items")) addPayRow();
+  document.getElementById("ipay-tgl").addEventListener("change", ipayUpdatePAM);
+});
+
+function lprReset() {
+  document.getElementById("lpr-search").value = "";
+  document.getElementById("lpr-sugg").style.display = "none";
+  document.getElementById("lpr-content").style.display = "none";
+}
+
+function lprSearchInput() {
+  const q = document.getElementById("lpr-search").value.toLowerCase().trim();
+  const sug = document.getElementById("lpr-sugg");
+  if (!q) { sug.style.display = "none"; return; }
+  const hits = SISWA_LIST.filter(s =>
+    (s.nama && s.nama.toLowerCase().includes(q)) ||
+    (s.code && String(s.code).includes(q))
+  ).slice(0, 12);
+  if (!hits.length) { sug.style.display = "none"; return; }
+  sug.innerHTML = "";
+  hits.forEach(s => {
+    const div = document.createElement("div");
+    div.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
+    div.innerHTML = `<strong>${s.code}</strong> — ${s.nama}`;
+    div.addEventListener("mousedown", () => lprSelectSiswa(s.code, s.nama));
+    div.addEventListener("mouseover", () => { div.style.background = "#eff6ff"; });
+    div.addEventListener("mouseout",  () => { div.style.background = ""; });
+    sug.appendChild(div);
+  });
+  sug.style.display = "block";
+}
+
+async function lprSelectSiswa(code, nama) {
+  document.getElementById("lpr-search").value = `${code} — ${nama}`;
+  document.getElementById("lpr-sugg").style.display = "none";
+  await loadLaporan(code);
+}
+
+let _lprCode = "";
+
+function exportLaporan(fmt) {
+  if (!_lprCode) return;
+  window.location.href = `/beasiswa/laporan/siswa/${_lprCode}/export/${fmt}`;
+}
+
+async function loadLaporan(code) {
+  _lprCode = code;
+  const content = document.getElementById("lpr-content");
+  content.style.display = "block";
+  document.getElementById("lpr-cat-tbody").innerHTML =
+    `<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
+  const d = await (await apiFetch(`/beasiswa/laporan/siswa/${code}`)).json();
+  if (!d.ok) { showToast(d.pesan || "Gagal memuat", "error"); return; }
+  const s = d.siswa;
+  document.getElementById("lpr-nama-title").textContent = `${s.nama} — ${s.code}`;
+  const fields = [
+    ["Jenjang", s.jenjang], ["Angkatan", s.angkatan], ["Program", s.program],
+    ["Universitas", s.universitas], ["Fakultas", s.fakultas], ["Status", s.status],
+    ["Bank", s.bank], ["No. Rekening", s.norek], ["Nama Rekening", s.namarek],
+    ["Referensi", s.referensi],
+  ];
+  document.getElementById("lpr-info-grid").innerHTML = fields
+    .filter(([, v]) => v)
+    .map(([k, v]) => `<div><span style="color:var(--text-muted);font-size:.78rem">${k}</span><div style="font-weight:500">${v}</div></div>`)
+    .join("");
+
+  // IPK
+  const ipkSems = [], ipkPens = [];
+  for (let i = 1; i <= 10; i++) if (s[`ipk_sem${i}`]) ipkSems.push([i, s[`ipk_sem${i}`]]);
+  for (let i = 1; i <= 3; i++)  if (s[`ipk_pen${i}`]) ipkPens.push([i, s[`ipk_pen${i}`]]);
+  const ipkSec = document.getElementById("lpr-ipk-section");
+  if (ipkSems.length || ipkPens.length) {
+    let h = `<div style="border-top:1px solid #e5e7eb;padding-top:.625rem">`;
+    if (ipkSems.length) {
+      h += `<div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.375rem">IPK per Semester</div>
+            <div style="display:flex;flex-wrap:wrap;gap:.375rem;margin-bottom:.5rem">`;
+      ipkSems.forEach(([i, v]) => {
+        h += `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:.375rem;padding:.2rem .6rem;font-size:.8rem">
+          <span style="color:#6b7280">Sem ${i}:</span> <strong style="color:#1e40af">${parseFloat(v).toFixed(2)}</strong></div>`;
+      });
+      h += `</div>`;
+    }
+    if (ipkPens.length) {
+      h += `<div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.375rem">IPK Penelitian</div>
+            <div style="display:flex;flex-wrap:wrap;gap:.375rem">`;
+      ipkPens.forEach(([i, v]) => {
+        h += `<div style="background:#fefce8;border:1px solid #fde68a;border-radius:.375rem;padding:.2rem .6rem;font-size:.8rem">
+          <span style="color:#6b7280">Tahap ${i}:</span> <strong style="color:#b45309">${parseFloat(v).toFixed(2)}</strong></div>`;
+      });
+      h += `</div>`;
+    }
+    ipkSec.innerHTML = h + `</div>`;
+  } else { ipkSec.innerHTML = ""; }
+
+  // Summary badges — 5 cards (4 cats + Total) each with Budget / Payment / Selisih
+  const catMap = {};
+  (d.cat_summary || []).forEach(c => { catMap[c.cat1] = c; });
+  const C1DEFS = [
+    { key:"By Pendidikan", bg:"#eff6ff", border:"#bfdbfe", lc:"#3b82f6", vc:"#1e40af" },
+    { key:"By Tunjangan",  bg:"#f0fdf4", border:"#bbf7d0", lc:"#16a34a", vc:"#15803d" },
+    { key:"By Penelitian", bg:"#fefce8", border:"#fde68a", lc:"#d97706", vc:"#b45309" },
+    { key:"By Medical",    bg:"#fdf2f8", border:"#f9a8d4", lc:"#db2777", vc:"#be185d" },
+  ];
+  const tsel = d.total_sisa;
+  const cat1El = document.getElementById("lpr-cat1-badges");
+  cat1El.style.gridTemplateColumns = "repeat(5,1fr)";
+  cat1El.innerHTML = C1DEFS.map(c => {
+    const row = catMap[c.key] || { budget:0, payment:0, sisa:0 };
+    const neg = row.sisa < 0;
+    return `<div style="background:${c.bg};border:1px solid ${c.border};border-radius:.5rem;padding:.75rem">
+      <div style="font-size:.68rem;color:${c.lc};font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">${c.key}</div>
+      <div style="display:flex;flex-direction:column;gap:.2rem">
+        <div style="display:flex;justify-content:space-between;font-size:.78rem">
+          <span style="color:var(--text-muted)">Budget</span>
+          <span style="font-weight:600;color:${c.vc}">${fmtRupiah(row.budget)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.78rem">
+          <span style="color:var(--text-muted)">Payment</span>
+          <span style="font-weight:600;color:#065f46">${fmtRupiah(row.payment)}</span>
+        </div>
+        <div style="border-top:1px solid ${c.border};margin-top:.15rem;padding-top:.25rem;display:flex;justify-content:space-between;font-size:.78rem">
+          <span style="color:var(--text-muted)">Selisih</span>
+          <span style="font-weight:700;color:${neg ? "var(--danger)" : c.vc}">${fmtRupiah(row.sisa)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join("") + `<div style="background:#1e3a5f;border:1px solid #3b82f6;border-radius:.5rem;padding:.75rem">
+    <div style="font-size:.68rem;color:#bfdbfe;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">Total</div>
+    <div style="display:flex;flex-direction:column;gap:.2rem">
+      <div style="display:flex;justify-content:space-between;font-size:.78rem">
+        <span style="color:#93c5fd">Budget</span>
+        <span style="font-weight:600;color:#fff">${fmtRupiah(d.total_budget)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.78rem">
+        <span style="color:#93c5fd">Payment</span>
+        <span style="font-weight:600;color:#a7f3d0">${fmtRupiah(d.total_payment)}</span>
+      </div>
+      <div style="border-top:1px solid #3b82f6;margin-top:.15rem;padding-top:.25rem;display:flex;justify-content:space-between;font-size:.78rem">
+        <span style="color:#93c5fd">Selisih</span>
+        <span style="font-weight:700;color:${tsel < 0 ? "#fca5a5" : "#fff"}">${fmtRupiah(tsel)}</span>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById("lpr-total-badges").innerHTML = "";
+
+  const LBADGE = {
+    approved: `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Approved</span>`,
+    draft:    `<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Draft</span>`,
+  };
+  document.getElementById("lpr-cat-tbody").innerHTML = (d.cat_summary || []).map(c => {
+    const neg = c.sisa < 0;
+    return `<tr>
+      <td>${c.cat1 || "—"}</td>
+      <td class="num-right">${fmtRupiah(c.budget)}</td>
+      <td class="num-right">${fmtRupiah(c.payment)}</td>
+      <td class="num-right" style="color:${neg ? "var(--danger)" : "inherit"}">${fmtRupiah(c.sisa)}</td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+  const ts = d.total_sisa;
+  document.getElementById("lpr-total-b").textContent = fmtRupiah(d.total_budget);
+  document.getElementById("lpr-total-p").textContent = fmtRupiah(d.total_payment);
+  document.getElementById("lpr-total-s").textContent = fmtRupiah(ts);
+  document.getElementById("lpr-total-s").style.color = ts < 0 ? "var(--danger)" : "";
+  document.getElementById("lpr-bgt-tbody").innerHTML = (d.budget_rows || []).map(r => `<tr>
+    <td>${r.cat1 || ""}</td><td>${r.cat2 || ""}</td>
+    <td style="white-space:nowrap">${r.tanggal || ""}</td>
+    <td>${r.pillar || ""}</td>
+    <td class="num-right">${fmtRupiah(r.amount || 0)}</td>
+  </tr>`).join("") || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+  document.getElementById("lpr-pay-tbody").innerHTML = (d.payment_rows || []).map(r => `<tr>
+    <td>${r.cat1 || ""}</td><td>${r.cat2 || ""}</td>
+    <td style="white-space:nowrap">${r.tanggal || ""}</td>
+    <td style="font-size:.8rem">${r.pam || ""}</td>
+    <td style="font-size:.8rem">${r.perusahaan || ""}</td>
+    <td class="num-right">${fmtRupiah(r.amount || 0)}</td>
+    <td>${LBADGE[r.status] || r.status || ""}</td>
+  </tr>`).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+}
 </script>
 {% endblock %}
