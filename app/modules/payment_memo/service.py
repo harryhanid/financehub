@@ -397,6 +397,90 @@ def get_pam_payments(pam_no: str, company_id: int) -> list:
     return rows
 
 
+def get_pam_payments_detail(pam_no: str, company_id: int) -> list:
+    conn = get_conn()
+    pay_rows = [dict(r) for r in conn.execute(
+        """SELECT pb.siswa_code, pb.cat1, pb.cat2, pb.amount,
+                  s.nama, s.angkatan, s.jenjang, s.program, s.universitas, s.fakultas,
+                  s.bank, s.norek, s.namarek
+           FROM payment_beasiswa pb
+           LEFT JOIN siswa s ON s.company_id = pb.company_id AND s.code = pb.siswa_code
+           WHERE pb.pam = ? AND pb.company_id = ?
+           ORDER BY pb.siswa_code, pb.id""",
+        (pam_no, company_id)
+    ).fetchall()]
+    if not pay_rows:
+        conn.close()
+        return []
+
+    codes = list(dict.fromkeys(r["siswa_code"] for r in pay_rows))
+    ph    = ",".join("?" * len(codes))
+
+    bud = {r["siswa_code"]: dict(r) for r in conn.execute(
+        f"""SELECT siswa_code,
+                   SUM(CASE WHEN cat1='By Pendidikan' THEN amount ELSE 0 END) AS bud_p,
+                   SUM(CASE WHEN cat1='By Tunjangan'  THEN amount ELSE 0 END) AS bud_t,
+                   SUM(CASE WHEN cat1='By Penelitian' THEN amount ELSE 0 END) AS bud_r
+            FROM budget_beasiswa
+            WHERE company_id=? AND siswa_code IN ({ph})
+            GROUP BY siswa_code""",
+        [company_id] + codes
+    ).fetchall()}
+
+    paid = {r["siswa_code"]: dict(r) for r in conn.execute(
+        f"""SELECT siswa_code,
+                   SUM(CASE WHEN cat1='By Pendidikan' THEN amount ELSE 0 END) AS paid_p,
+                   SUM(CASE WHEN cat1='By Tunjangan'  THEN amount ELSE 0 END) AS paid_t,
+                   SUM(CASE WHEN cat1='By Penelitian' THEN amount ELSE 0 END) AS paid_r
+            FROM payment_beasiswa
+            WHERE company_id=? AND siswa_code IN ({ph})
+            GROUP BY siswa_code""",
+        [company_id] + codes
+    ).fetchall()}
+
+    conn.close()
+
+    siswa_info = {}
+    ket_map    = {}
+    ket_order  = {}
+
+    for r in pay_rows:
+        code = r["siswa_code"]
+        if code not in siswa_info:
+            siswa_info[code] = {k: r[k] for k in
+                ("nama","angkatan","jenjang","program","universitas","fakultas",
+                 "bank","norek","namarek")}
+            ket_map[code]   = {}
+            ket_order[code] = []
+        ket = r["cat2"] or ""
+        if ket not in ket_map[code]:
+            ket_map[code][ket] = {"pendidikan": 0.0, "tunjangan": 0.0, "penelitian": 0.0}
+            ket_order[code].append(ket)
+        cat1 = (r["cat1"] or "").lower()
+        amt  = float(r["amount"] or 0)
+        if   cat1 == "by pendidikan": ket_map[code][ket]["pendidikan"] += amt
+        elif cat1 == "by tunjangan":  ket_map[code][ket]["tunjangan"]  += amt
+        elif cat1 == "by penelitian": ket_map[code][ket]["penelitian"] += amt
+
+    result = []
+    for i, code in enumerate(codes, 1):
+        b    = bud.get(code, {})
+        p    = paid.get(code, {})
+        rows = [{"keterangan": k, **ket_map[code][k]} for k in ket_order[code]]
+        total = sum(r["pendidikan"] + r["tunjangan"] + r["penelitian"] for r in rows)
+        result.append({
+            "no": i,
+            "siswa_code": code,
+            **siswa_info[code],
+            "total_pembayaran": total,
+            "sisa_pendidikan": float(b.get("bud_p") or 0) - float(p.get("paid_p") or 0),
+            "sisa_tunjangan":  float(b.get("bud_t") or 0) - float(p.get("paid_t") or 0),
+            "sisa_penelitian": float(b.get("bud_r") or 0) - float(p.get("paid_r") or 0),
+            "rows": rows,
+        })
+    return result
+
+
 def get_days_of_pam(company_id: int) -> list:
     conn = get_conn()
     rows = [dict(r) for r in conn.execute(
@@ -412,6 +496,26 @@ def get_days_of_pam(company_id: int) -> list:
            WHERE pb.company_id = ?
              AND pb.pam IS NOT NULL AND pb.pam != ''
            ORDER BY pb.tanggal DESC""",
+        (company_id,)
+    ).fetchall()]
+    conn.close()
+    return rows
+
+
+def get_days_of_pam_candidates(company_id: int) -> list:
+    """Lightweight SELECT for autocomplete — only 3 fields, DISTINCT rows."""
+    conn = get_conn()
+    rows = [dict(r) for r in conn.execute(
+        """SELECT DISTINCT
+               pb.pam        AS pam_no,
+               pb.siswa_code,
+               s.nama
+           FROM payment_beasiswa pb
+           LEFT JOIN siswa s
+                  ON s.company_id = pb.company_id AND s.code = pb.siswa_code
+           WHERE pb.company_id = ?
+             AND pb.pam IS NOT NULL AND pb.pam != ''
+           ORDER BY pb.pam""",
         (company_id,)
     ).fetchall()]
     conn.close()
