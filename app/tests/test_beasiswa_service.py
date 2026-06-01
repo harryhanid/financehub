@@ -9,7 +9,7 @@ from modules.beasiswa.service import (
     generate_kode_siswa, get_siswa_list, add_siswa, update_siswa,
     add_budget_batch, add_payment_batch, get_rekap, get_sisa_budget,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
-    add_payment_multi,
+    add_payment_multi, get_budget_list, get_payment_list,
 )
 
 COMPANY_ID = 2  # ETF
@@ -306,3 +306,48 @@ def test_add_payment_multi_zero_rows_no_pam():
     count = conn.execute("SELECT COUNT(*) FROM pam_records").fetchone()[0]
     conn.close()
     assert count == 0   # No PAM created when no valid rows
+
+
+# ── get_budget_list cross-tab payment_totals ───────────────────────────────────
+
+def _seed_budi():
+    """Helper: adds siswa Budi with budget + payment rows."""
+    add_siswa(COMPANY_ID, {
+        "code": "1250001", "nama": "Budi Santoso", "jenjang": "S1",
+        "angkatan": 2025, "program": "SMART", "fakultas": "", "universitas": "",
+        "bank": "", "norek": "", "namarek": "", "referensi": "",
+        "status": "Aktif", "catatan": "",
+    })
+    add_budget_batch(COMPANY_ID, "1250001", "2025-03-10", "AGRI", [
+        {"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 8000000},
+        {"cat1": "By Tunjangan",  "cat2": "Bulanan",    "amount": 2000000},
+    ])
+    add_payment_batch(COMPANY_ID, "1250001", "2025-03-15", "AGRI", "PT. SMART Tbk", [
+        {"cat1": "By Pendidikan", "cat2": "Semester 1", "cat3": "", "cat4": "", "amount": 5000000},
+    ])
+
+
+def test_get_budget_list_returns_payment_totals():
+    _seed_budi()
+    result = get_budget_list(COMPANY_ID)
+    assert "payment_totals" in result
+    assert result["payment_totals"].get("By Pendidikan") == 5000000
+    assert result["payment_grand"] == 5000000
+
+
+def test_get_budget_list_payment_totals_filtered_by_search():
+    _seed_budi()
+    # Add another siswa with payment that should NOT appear
+    add_siswa(COMPANY_ID, {
+        "code": "1250002", "nama": "Rina Wati", "jenjang": "S1",
+        "angkatan": 2025, "program": "SMART", "fakultas": "", "universitas": "",
+        "bank": "", "norek": "", "namarek": "", "referensi": "",
+        "status": "Aktif", "catatan": "",
+    })
+    add_payment_batch(COMPANY_ID, "1250002", "2025-03-20", "AGRI", "PT. SMART Tbk", [
+        {"cat1": "By Pendidikan", "cat2": "Semester 1", "cat3": "", "cat4": "", "amount": 3000000},
+    ])
+    # Filter by Budi's name only
+    result = get_budget_list(COMPANY_ID, search="Budi")
+    assert result["payment_totals"].get("By Pendidikan") == 5000000
+    assert result["payment_grand"] == 5000000

@@ -9,6 +9,21 @@ def _ts():
     return datetime.now().isoformat(timespec="seconds")
 
 
+def get_vendors(search: str = "") -> list:
+    conn = get_conn()
+    if search:
+        rows = conn.execute(
+            "SELECT name, pillar, cost_center FROM vendors WHERE name LIKE ? ORDER BY name",
+            (f"%{search}%",)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT name, pillar, cost_center FROM vendors ORDER BY name"
+        ).fetchall()
+    conn.close()
+    return [{"name": r["name"], "pillar": r["pillar"], "cost_center": r["cost_center"] or ""} for r in rows]
+
+
 def generate_kode_siswa(jenjang: str, angkatan: int, company_id: int) -> str:
     kode_j = config.KODE_JENJANG.get(jenjang.strip(), "0")
     tahun2 = str(angkatan)[-2:]
@@ -87,15 +102,16 @@ def add_siswa(company_id: int, data: dict) -> dict:
             ipk_sem1,ipk_sem2,ipk_sem3,ipk_sem4,ipk_sem5,
             ipk_sem6,ipk_sem7,ipk_sem8,ipk_sem9,ipk_sem10,
             ipk_pen1,ipk_pen2,ipk_pen3,
-            status, catatan, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            status, catatan, catatan_budget, catatan_payment, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (company_id, code, nama,
          data.get("jenjang", ""), data.get("angkatan") or None,
          data.get("program", ""), data.get("fakultas", ""), data.get("universitas", ""),
          data.get("bank", ""), data.get("norek", ""), data.get("namarek", ""),
          data.get("referensi", ""),
          *ipk_sem, *ipk_pen,
-         data.get("status", "Aktif"), data.get("catatan", ""), _ts())
+         data.get("status", "Aktif"), data.get("catatan", ""),
+         data.get("catatan_budget", ""), data.get("catatan_payment", ""), _ts())
     )
     conn.commit()
     conn.close()
@@ -121,14 +137,15 @@ def update_siswa(company_id: int, code: str, data: dict) -> dict:
            ipk_sem1=?,ipk_sem2=?,ipk_sem3=?,ipk_sem4=?,ipk_sem5=?,
            ipk_sem6=?,ipk_sem7=?,ipk_sem8=?,ipk_sem9=?,ipk_sem10=?,
            ipk_pen1=?,ipk_pen2=?,ipk_pen3=?,
-           status=?,catatan=?,updated_at=?
+           status=?,catatan=?,catatan_budget=?,catatan_payment=?,updated_at=?
            WHERE company_id=? AND code=?""",
         (data.get("nama",""), data.get("jenjang",""), data.get("angkatan") or None,
          data.get("program",""), data.get("fakultas",""), data.get("universitas",""),
          data.get("bank",""), data.get("norek",""), data.get("namarek",""),
          data.get("referensi",""),
          *ipk_sem, *ipk_pen,
-         data.get("status","Aktif"), data.get("catatan",""), _ts(),
+         data.get("status","Aktif"), data.get("catatan",""),
+         data.get("catatan_budget",""), data.get("catatan_payment",""), _ts(),
          company_id, code)
     )
     conn.commit()
@@ -145,12 +162,29 @@ def update_siswa_catatan(company_id: int, code: str, catatan: str) -> dict:
         conn.close()
         return {"ok": False, "pesan": "Siswa tidak ditemukan."}
     conn.execute(
-        "UPDATE siswa SET catatan=?,updated_at=? WHERE company_id=? AND code=?",
+        "UPDATE siswa SET catatan_budget=?,updated_at=? WHERE company_id=? AND code=?",
         (catatan, _ts(), company_id, code)
     )
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": "Catatan budget diupdate."}
+
+
+def update_siswa_catatan_payment(company_id: int, code: str, catatan_payment: str) -> dict:
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id FROM siswa WHERE company_id=? AND code=?", (company_id, code)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Siswa tidak ditemukan."}
+    conn.execute(
+        "UPDATE siswa SET catatan_payment=?,updated_at=? WHERE company_id=? AND code=?",
+        (catatan_payment, _ts(), company_id, code)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Catatan payment diupdate."}
 
 
 def delete_siswa(company_id: int, code: str) -> dict:
@@ -395,11 +429,45 @@ def get_budget_list(company_id: int, search: str = "", cat1: str = "",
     ) + " GROUP BY bb.cat1"
     totals = {r[0]: r[1] for r in conn.execute(agg_sql, params).fetchall()}
     grand  = sum(totals.values())
+    # Cross-tab: payment totals for same filter scope
+    pay_sql = (
+        "SELECT pb.cat1, SUM(pb.amount) AS total FROM payment_beasiswa pb "
+        "LEFT JOIN siswa s ON s.company_id=pb.company_id AND s.code=pb.siswa_code "
+        "WHERE pb.company_id=?"
+    )
+    pay_params = [company_id]
+    if search:
+        q2 = f"%{search}%"
+        pay_sql += (" AND (pb.siswa_code LIKE ? OR s.nama LIKE ? OR pb.cat1 LIKE ?"
+                    " OR pb.cat2 LIKE ? OR pb.pillar LIKE ? OR s.program LIKE ?)")
+        pay_params += [q2, q2, q2, q2, q2, q2]
+    if cat1:
+        pay_sql += " AND pb.cat1=?"
+        pay_params += [cat1]
+    if pillar:
+        pay_sql += " AND pb.pillar=?"
+        pay_params += [pillar]
+    if program:
+        pay_sql += " AND s.program=?"
+        pay_params += [program]
+    if bulan:
+        pay_sql += " AND strftime('%m', pb.tanggal) = ?"
+        pay_params += [bulan.zfill(2)]
+    if tahun:
+        pay_sql += " AND strftime('%Y', pb.tanggal) = ?"
+        pay_params += [tahun]
+    pay_sql += " GROUP BY pb.cat1"
+    payment_totals = {r[0]: r[1] for r in conn.execute(pay_sql, pay_params).fetchall()}
+    payment_grand  = sum(payment_totals.values())
     sql   += " ORDER BY bb.tanggal DESC"
     total  = conn.execute(f"SELECT COUNT(*) FROM ({sql})", params).fetchone()[0]
     rows   = [dict(r) for r in conn.execute(sql + " LIMIT ?", params + [limit]).fetchall()]
     conn.close()
-    return {"rows": rows, "total": total, "totals": totals, "grand": grand}
+    return {
+        "rows": rows, "total": total,
+        "totals": totals, "grand": grand,
+        "payment_totals": payment_totals, "payment_grand": payment_grand,
+    }
 
 
 def get_payment_list(company_id: int, search: str = "", bulan: str = "",
@@ -437,7 +505,7 @@ def get_payment_list(company_id: int, search: str = "", bulan: str = "",
         params += [status]
     conn  = get_conn()
     agg_sql = sql.replace(
-        "SELECT pb.*, s.nama FROM",
+        "SELECT pb.*, s.nama, s.program FROM",
         "SELECT pb.cat1, SUM(pb.amount) AS total FROM"
     ) + " GROUP BY pb.cat1"
     totals = {r[0]: r[1] for r in conn.execute(agg_sql, params).fetchall()}
