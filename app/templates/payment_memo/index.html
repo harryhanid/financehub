@@ -24,7 +24,7 @@
     <button class="tab-btn" data-tab="tab-memo-list">Daftar Memo</button>
     <button class="tab-btn" data-tab="tab-draft-pay">Draft Payment ({{ drafts|length }})</button>
     <button class="tab-btn" data-tab="tab-pam">PAM Records</button>
-    <button class="tab-btn" data-tab="tab-days-of-pam">Days of PAM</button>
+    <button class="tab-btn" data-tab="tab-days-of-pam" onclick="dopTabOpened()">Days of PAM</button>
     <button class="tab-btn" data-tab="tab-draft-memo">Draft Memo</button>
   </div>
 
@@ -199,6 +199,10 @@
              style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:210px;overflow-y:auto;z-index:900"></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding-bottom:1px">
+        <button onclick="_dopFetchCurrent()"
+                style="padding:6px 14px;background:#0f766e;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:600">
+          🔍 Cari
+        </button>
         <button onclick="dopClearSearch()"
                 style="padding:6px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;cursor:pointer">
           Bersihkan
@@ -261,37 +265,6 @@
           </tr>
         </thead>
         <tbody id="dop-tbody" style="display:none">
-          {% for r in dop_rows %}
-          <tr class="dop-row"
-              data-id="{{ r.id }}"
-              data-code="{{ (r.siswa_code or '')|lower }}"
-              data-nama="{{ (r.nama or '')|lower }}"
-              data-pam="{{ (r.pam_no or '')|lower }}"
-              data-cat1="{{ (r.cat1 or '')|lower }}"
-              data-cat2="{{ (r.cat2 or '')|lower }}"
-              data-perusahaan="{{ (r.perusahaan or '')|lower }}"
-              data-pillar="{{ (r.pillar or '')|lower }}"
-              style="border-bottom:1px solid #f1f5f9">
-            <td style="padding:6px;text-align:center">
-              <input type="checkbox" class="dop-cb" data-id="{{ r.id }}" onchange="dopToggleCb(this)">
-            </td>
-            <td style="padding:6px 8px">{{ r.siswa_code or '' }}</td>
-            <td style="padding:6px 8px">{{ r.nama or '-' }}</td>
-            <td style="padding:6px 8px;font-family:monospace;color:#1d4ed8">{{ r.pam_no or '' }}</td>
-            <td style="padding:6px 8px">{{ r.cat1 or '' }}</td>
-            <td style="padding:6px 8px">{{ r.cat2 or '' }}</td>
-            <td style="padding:6px 8px">{{ r.perusahaan or '' }}</td>
-            <td style="padding:6px 8px">{{ r.pillar or '' }}</td>
-            <td style="padding:6px 8px;text-align:right">Rp {{ "{:,.0f}".format(r.amount or 0) }}</td>
-            <td style="padding:6px 8px">{{ r.tanggal or '' }}</td>
-            <td style="padding:6px 8px">{{ r.tgl_pengajuan or '' }}</td>
-            <td style="padding:6px 8px">{{ r.tgl_receive or '' }}</td>
-            <td style="padding:6px 8px">{{ r.tgl_pa or '' }}</td>
-            <td style="padding:6px 8px">{{ r.tgl_final or '' }}</td>
-          </tr>
-          {% else %}
-          <tr><td colspan="14" style="padding:20px;text-align:center;color:#6b7280">Belum ada data Days of PAM.</td></tr>
-          {% endfor %}
         </tbody>
       </table>
     </div>
@@ -328,6 +301,13 @@
         &#x25b6; Lampiran &mdash; Jadwal Pembayaran
       </button>
       <div id="dm-lampiran-body" style="display:none;margin-top:4px;border:1px solid #e2e8f0;border-radius:4px;overflow:hidden"></div>
+    </div>
+    <div id="dm-detail-wrap" style="display:none;margin-top:8px;max-width:100%">
+      <button id="dm-detail-toggle" onclick="toggleDetailPAM()"
+        style="background:#1e3a5f;color:#fff;border:none;border-radius:5px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;width:100%;text-align:left;letter-spacing:.3px">
+        &#x25b6; Detail PAM
+      </button>
+      <div id="dm-detail-body" style="display:none;margin-top:4px;border:1px solid #e2e8f0;border-radius:4px;overflow:auto"></div>
     </div>
   </div>
 </div>
@@ -853,8 +833,10 @@ async function cancelPAM(pamId) {
 }
 
 // ── Days of PAM ───────────────────────────────────────────────────────────────
-const DOP_DATA = {{ dop_rows | tojson }};
-const _dopSelected = new Set();
+let _dopCandidates  = null;   // cached after first tab open
+let _dopLoaded      = false;  // true once candidates fetched
+let _dopLastSearchQs = '';    // last search query string (to refresh after bulk update)
+const _dopSelected  = new Set();
 
 function _dopReveal() {
   const tb = document.getElementById('dop-tbody');
@@ -870,35 +852,103 @@ function _dopHide() {
   if (ph) ph.style.display = '';
 }
 
-function dopFilter() {
-  const sPam  = (document.getElementById('dop-s-pam')?.value  || '').trim().toLowerCase();
-  const sNama = (document.getElementById('dop-s-nama')?.value || '').trim().toLowerCase();
-  if (!sPam && !sNama) { _dopHide(); return; }
+async function dopTabOpened() {
+  if (_dopLoaded) return;
+  _dopLoaded = true;
+  const res = await apiFetch('/payment-memo/days-of-pam/candidates');
+  if (!res) return;
+  const data = await res.json();
+  if (data.ok) _dopCandidates = data.candidates;
+}
 
+function dopRenderRows(rows) {
+  const tb = document.getElementById('dop-tbody');
+  if (!tb) return;
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="14" style="padding:20px;text-align:center;color:#6b7280">Tidak ada data untuk pencarian ini.</td></tr>';
+    _dopReveal();
+    _dopUpdateInfo(0);
+    return;
+  }
+  tb.innerHTML = rows.map(r => `
+    <tr class="dop-row"
+        data-id="${r.id}"
+        data-code="${(r.siswa_code||'').toLowerCase()}"
+        data-nama="${(r.nama||'').toLowerCase()}"
+        data-pam="${(r.pam_no||'').toLowerCase()}"
+        data-cat1="${(r.cat1||'').toLowerCase()}"
+        data-cat2="${(r.cat2||'').toLowerCase()}"
+        data-perusahaan="${(r.perusahaan||'').toLowerCase()}"
+        data-pillar="${(r.pillar||'').toLowerCase()}"
+        style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:6px;text-align:center">
+        <input type="checkbox" class="dop-cb" data-id="${r.id}" onchange="dopToggleCb(this)">
+      </td>
+      <td style="padding:6px 8px">${r.siswa_code||''}</td>
+      <td style="padding:6px 8px">${r.nama||'-'}</td>
+      <td style="padding:6px 8px;font-family:monospace;color:#1d4ed8">${r.pam_no||''}</td>
+      <td style="padding:6px 8px">${r.cat1||''}</td>
+      <td style="padding:6px 8px">${r.cat2||''}</td>
+      <td style="padding:6px 8px">${r.perusahaan||''}</td>
+      <td style="padding:6px 8px">${r.pillar||''}</td>
+      <td style="padding:6px 8px;text-align:right">Rp ${new Intl.NumberFormat('id-ID').format(r.amount||0)}</td>
+      <td style="padding:6px 8px">${r.tanggal||''}</td>
+      <td style="padding:6px 8px">${r.tgl_pengajuan||''}</td>
+      <td style="padding:6px 8px">${r.tgl_receive||''}</td>
+      <td style="padding:6px 8px">${r.tgl_pa||''}</td>
+      <td style="padding:6px 8px">${r.tgl_final||''}</td>
+    </tr>`).join('');
+  _dopSelected.clear();
+  const sa = document.getElementById('dop-select-all');
+  if (sa) sa.checked = false;
   _dopReveal();
+  _dopUpdateInfo(rows.length);
+  // re-apply any active secondary filters
+  dopFilter();
+}
+
+async function _dopFetch(qs) {
+  _dopLastSearchQs = qs;
+  const res = await apiFetch(`/payment-memo/days-of-pam/search?${qs}`);
+  if (!res) return;
+  const data = await res.json();
+  if (data.ok) dopRenderRows(data.rows);
+  else showToast(data.pesan || 'Gagal memuat data.', 'error');
+}
+
+function _dopFetchCurrent() {
+  const pam  = (document.getElementById('dop-s-pam')?.value  || '').trim();
+  const nama = (document.getElementById('dop-s-nama')?.value || '').trim();
+  if (!pam && !nama) { _dopHide(); return; }
+  const parts = [];
+  if (pam)  parts.push(`pam=${encodeURIComponent(pam)}`);
+  if (nama) parts.push(`nama=${encodeURIComponent(nama)}`);
+  _dopFetch(parts.join('&'));
+}
+
+function dopFilter() {
+  // Secondary client-side filter on already-rendered <tr> rows
   const fCode  = (document.getElementById('dop-f-code')?.value       || '').trim().toLowerCase();
   const fCat1  = (document.getElementById('dop-f-cat1')?.value       || '').trim().toLowerCase();
   const fCat2  = (document.getElementById('dop-f-cat2')?.value       || '').trim().toLowerCase();
   const fPersh = (document.getElementById('dop-f-perusahaan')?.value || '').trim().toLowerCase();
   const fPill  = (document.getElementById('dop-f-pillar')?.value     || '').trim().toLowerCase();
 
-  _dopSelected.clear();
-  document.getElementById('dop-select-all').checked = false;
-
   let visible = 0;
   document.querySelectorAll('#dop-tbody .dop-row').forEach(row => {
     const match =
-      (!sPam  || row.dataset.pam.includes(sPam))           &&
-      (!sNama || row.dataset.nama.includes(sNama))          &&
-      (!fCode || row.dataset.code.includes(fCode))          &&
-      (!fCat1 || row.dataset.cat1.includes(fCat1))          &&
-      (!fCat2 || row.dataset.cat2.includes(fCat2))          &&
-      (!fPersh || row.dataset.perusahaan.includes(fPersh))  &&
+      (!fCode  || row.dataset.code.includes(fCode))           &&
+      (!fCat1  || row.dataset.cat1.includes(fCat1))           &&
+      (!fCat2  || row.dataset.cat2.includes(fCat2))           &&
+      (!fPersh || row.dataset.perusahaan.includes(fPersh))    &&
       (!fPill  || row.dataset.pillar.includes(fPill));
     row.style.display = match ? '' : 'none';
     if (match) visible++;
-    const cb = row.querySelector('.dop-cb');
-    if (cb) cb.checked = false;
+    // uncheck hidden rows
+    if (!match) {
+      const cb = row.querySelector('.dop-cb');
+      if (cb && cb.checked) { cb.checked = false; _dopSelected.delete(parseInt(cb.dataset.id, 10)); }
+    }
   });
   _dopUpdateInfo(visible);
 }
@@ -908,11 +958,11 @@ function dopSrchInput(type) {
   const sugg = document.getElementById(type === 'pam' ? 'dop-sugg-pam' : 'dop-sugg-nama');
   const val  = inp.value.trim().toLowerCase();
 
-  if (!val) { sugg.style.display = 'none'; dopFilter(); return; }
+  if (!val || !_dopCandidates) { sugg.style.display = 'none'; return; }
 
   const field = type === 'pam' ? 'pam_no' : 'nama';
   const seen  = new Set();
-  const hits  = DOP_DATA.filter(r => {
+  const hits  = _dopCandidates.filter(r => {
     const v = (r[field] || '').toLowerCase();
     if (v.includes(val) && !seen.has(r[field])) { seen.add(r[field]); return true; }
     return false;
@@ -931,13 +981,12 @@ function dopSrchInput(type) {
     : `<div style="padding:7px 10px;font-size:12px;color:#9ca3af">Tidak ada hasil</div>`;
 
   sugg.style.display = '';
-  dopFilter();
 }
 
 function dopPickSugg(type, value) {
   document.getElementById(type === 'pam' ? 'dop-s-pam' : 'dop-s-nama').value = value;
   document.getElementById(type === 'pam' ? 'dop-sugg-pam' : 'dop-sugg-nama').style.display = 'none';
-  dopFilter();
+  _dopFetchCurrent();
 }
 
 function dopSrchBlur(type) {
@@ -951,6 +1000,7 @@ function dopClearSearch() {
   ['dop-s-pam','dop-s-nama'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.querySelectorAll('.dop-filter').forEach(el => el.value = '');
   _dopSelected.clear();
+  _dopLastSearchQs = '';
   const sa = document.getElementById('dop-select-all');
   if (sa) sa.checked = false;
   _dopHide();
@@ -1012,13 +1062,18 @@ async function dopBulkUpdate() {
   if (!res) return;
   const data = await res.json();
   showToast(data.pesan, data.ok ? 'success' : 'error');
-  if (data.ok) setTimeout(() => location.reload(), 800);
+  if (data.ok && _dopLastSearchQs) {
+    // refresh current search results instead of full page reload
+    setTimeout(() => _dopFetch(_dopLastSearchQs), 600);
+  }
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const pamBtn = document.querySelector('[data-tab="tab-pam"]');
   if (pamBtn) pamBtn.addEventListener('click', loadPAM);
+  const dopBtn = document.querySelector('[data-tab="tab-days-of-pam"]');
+  if (dopBtn) dopBtn.addEventListener('click', dopTabOpened);
   // Close cat2 panel on outside click
   document.addEventListener('click', e => {
     if (!e.target.closest('#edit-draft-cat2-display') && !e.target.closest('#edit-draft-cat2-panel')) {
@@ -1032,7 +1087,9 @@ document.addEventListener('DOMContentLoaded', () => {
 let _dmPamId = null;
 let _dmSearchTimer = null;
 let _dmPayments = [];
+let _dmPaymentsDetail = [];
 let _dmLampiranOpen = false;
+let _dmDetailOpen = false;
 
 function collectDmFields() {
   const g = id => document.getElementById(id);
@@ -1100,7 +1157,9 @@ async function dmSelectPAM(pamId, pamNo) {
 
   const p = data.data;
   _dmPayments = p.payments || [];
+  _dmPaymentsDetail = p.payments_detail || [];
   _dmLampiranOpen = false;
+  _dmDetailOpen = false;
 
   document.getElementById('dm-export-btns').style.display = 'flex';
   document.getElementById('dm-form-preview').innerHTML = dmRenderForm(p);
@@ -1111,6 +1170,13 @@ async function dmSelectPAM(pamId, pamNo) {
     document.getElementById('dm-lampiran-body').style.display = 'none';
     document.getElementById('dm-lampiran-toggle').textContent =
       `▶ Lampiran — Jadwal Pembayaran (${_dmPayments.length} siswa)`;
+  }
+  const detWrap = document.getElementById('dm-detail-wrap');
+  if (detWrap) {
+    detWrap.style.display = 'block';
+    document.getElementById('dm-detail-body').style.display = 'none';
+    document.getElementById('dm-detail-toggle').textContent =
+      `▶ Detail PAM (${_dmPaymentsDetail.length} siswa)`;
   }
 }
 
@@ -1292,6 +1358,87 @@ function dmRenderLampiran(payments) {
       </tr>
     </tfoot>
   </table>`;
+}
+
+function toggleDetailPAM() {
+  _dmDetailOpen = !_dmDetailOpen;
+  const body   = document.getElementById('dm-detail-body');
+  const toggle = document.getElementById('dm-detail-toggle');
+  if (_dmDetailOpen) {
+    body.innerHTML = dmRenderDetailPAM(_dmPaymentsDetail);
+    body.style.display = 'block';
+    toggle.textContent = toggle.textContent.replace('▶', '▼');
+  } else {
+    body.style.display = 'none';
+    toggle.textContent = toggle.textContent.replace('▼', '▶');
+  }
+}
+
+function dmRenderDetailPAM(detail) {
+  if (!detail || !detail.length)
+    return '<div style="padding:16px;text-align:center;color:#6b7280;font-size:12px">Tidak ada data Detail PAM.</div>';
+
+  const hdrs = ['No','Nama Siswa','Keterangan','By Pendidikan','By Tunjangan','By Penelitian','Total Pbyran','Bank','No. Rekening','Sisa Pend','Sisa Tunj','Sisa Riset'];
+  const aligns = ['center','left','left','right','right','right','right','left','left','right','right','right'];
+
+  const thRow = hdrs.map((h, i) =>
+    `<th style="padding:6px 7px;background:#1e3a5f;color:#fff;font-size:10px;font-weight:700;text-align:${aligns[i]};white-space:nowrap;border:1px solid rgba(255,255,255,.15)">${h}</th>`
+  ).join('');
+
+  let grandTotal = 0;
+  let rowsHtml = '';
+
+  detail.forEach((siswa, si) => {
+    const siswaRows = siswa.rows || [];
+    const n = siswaRows.length;
+    const bg = si % 2 === 0 ? '#fff' : '#f8fafc';
+    grandTotal += siswa.total_pembayaran || 0;
+
+    siswaRows.forEach((pr, idx) => {
+      const rs = n > 1 ? ` rowspan="${n}"` : '';
+      const bTop = idx === 0 ? 'border-top:1px solid #e2e8f0;' : 'border-top:1px solid #f1f5f9;';
+      const td = (v, align, extra) =>
+        `<td style="padding:5px 7px;font-size:11px;text-align:${align||'left'};${bTop}${extra||''}">${v}</td>`;
+
+      if (idx === 0) {
+        rowsHtml += `<tr style="background:${bg}">
+          <td style="padding:5px 7px;font-size:11px;text-align:center;${bTop}"${rs}>${si+1}</td>
+          <td style="padding:5px 7px;font-size:11px;${bTop}border-right:1px solid #e2e8f0"${rs}>${esc(siswa.nama||siswa.siswa_code||'')}</td>
+          ${td(esc(pr.keterangan||''))}
+          ${td(pr.pendidikan ? fmtRupiah(pr.pendidikan) : '', 'right')}
+          ${td(pr.tunjangan  ? fmtRupiah(pr.tunjangan)  : '', 'right')}
+          ${td(pr.penelitian ? fmtRupiah(pr.penelitian) : '', 'right')}
+          <td style="padding:5px 7px;font-size:11px;text-align:right;${bTop}"${rs}>${fmtRupiah(siswa.total_pembayaran||0)}</td>
+          <td style="padding:5px 7px;font-size:11px;${bTop}"${rs}>${esc(siswa.bank||'')}</td>
+          <td style="padding:5px 7px;font-size:11px;${bTop}"${rs}>${esc(siswa.norek||'')}</td>
+          <td style="padding:5px 7px;font-size:11px;text-align:right;${bTop}"${rs}>${fmtRupiah(siswa.sisa_pendidikan||0)}</td>
+          <td style="padding:5px 7px;font-size:11px;text-align:right;${bTop}"${rs}>${fmtRupiah(siswa.sisa_tunjangan||0)}</td>
+          <td style="padding:5px 7px;font-size:11px;text-align:right;${bTop}"${rs}>${fmtRupiah(siswa.sisa_penelitian||0)}</td>
+        </tr>`;
+      } else {
+        rowsHtml += `<tr style="background:${bg}">
+          ${td(esc(pr.keterangan||''))}
+          ${td(pr.pendidikan ? fmtRupiah(pr.pendidikan) : '', 'right')}
+          ${td(pr.tunjangan  ? fmtRupiah(pr.tunjangan)  : '', 'right')}
+          ${td(pr.penelitian ? fmtRupiah(pr.penelitian) : '', 'right')}
+        </tr>`;
+      }
+    });
+  });
+
+  return `<div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:940px">
+      <thead><tr>${thRow}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot>
+        <tr style="background:#e8f0fe;font-weight:700">
+          <td colspan="6" style="padding:6px 8px;font-size:11px;text-align:right;border-top:1.5px solid #1e3a5f">TOTAL</td>
+          <td style="padding:6px 8px;font-size:11px;text-align:right;border-top:1.5px solid #1e3a5f">${fmtRupiah(grandTotal)}</td>
+          <td colspan="5" style="padding:6px 8px;border-top:1.5px solid #1e3a5f"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`;
 }
 
 document.addEventListener('click', e => {
