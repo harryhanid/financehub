@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+*.db
+*.sqlite3
+
+# Tests
+.pytest_cache/
+
+# Local tool configs
+.claude/
+.superpowers/
+.claude-flow/
+.remember/
+.planning/
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Garbage files from terminal paste accidents
+bytes
+dict
+v)
+python
+location.reload()
+{
+{,
+{,-
+{,+
+({
+({,
+({,-
+({,+
+1)
+0)
+0
+1000,+,+def
+sum
+result.push({
+max_seq
+list
+keluar
