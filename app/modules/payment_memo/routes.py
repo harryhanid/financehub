@@ -284,7 +284,7 @@ def days_of_pam_search_route():
         return jsonify({"ok": True, "rows": []})
     rows = get_days_of_pam(company_id)
     if pam:
-        rows = [r for r in rows if r["pam_no"] == pam]
+        rows = [r for r in rows if pam.lower() in (r["pam_no"] or "").lower()]
     if nama:
         rows = [r for r in rows if nama in (r["nama"] or "").lower()]
     return jsonify({"ok": True, "rows": rows})
