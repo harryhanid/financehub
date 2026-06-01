@@ -273,6 +273,7 @@
           <table>
             <thead><tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th></tr></thead>
             <tbody id="lpr-bgt-tbody"></tbody>
+            <tfoot><tr><th colspan="4" style="text-align:right">Subtotal</th><th class="num-right" id="lpr-bgt-subtotal"></th></tr></tfoot>
           </table>
         </div>
       </div>
@@ -280,8 +281,9 @@
         <div class="card-title">Detail Payment</div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>PAM</th><th>Perusahaan</th><th class="num-right">Amount</th><th>Status</th></tr></thead>
+            <thead><tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>PAM</th><th>Perusahaan</th><th>Pillar</th><th class="num-right">Amount</th><th>Status</th></tr></thead>
             <tbody id="lpr-pay-tbody"></tbody>
+            <tfoot><tr><th colspan="6" style="text-align:right">Subtotal</th><th class="num-right" id="lpr-pay-subtotal"></th><th></th></tr></tfoot>
           </table>
         </div>
       </div>
@@ -2111,20 +2113,25 @@ async function loadLaporan(code) {
   document.getElementById("lpr-total-p").textContent = fmtRupiah(d.total_payment);
   document.getElementById("lpr-total-s").textContent = fmtRupiah(ts);
   document.getElementById("lpr-total-s").style.color = ts < 0 ? "var(--danger)" : "";
-  document.getElementById("lpr-bgt-tbody").innerHTML = (d.budget_rows || []).map(r => `<tr>
+  const bgtRows = d.budget_rows || [];
+  document.getElementById("lpr-bgt-tbody").innerHTML = bgtRows.map(r => `<tr>
     <td>${r.cat1 || ""}</td><td>${r.cat2 || ""}</td>
     <td style="white-space:nowrap">${r.tanggal || ""}</td>
     <td>${r.pillar || ""}</td>
     <td class="num-right">${fmtRupiah(r.amount || 0)}</td>
   </tr>`).join("") || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
-  document.getElementById("lpr-pay-tbody").innerHTML = (d.payment_rows || []).map(r => `<tr>
+  document.getElementById("lpr-bgt-subtotal").textContent = fmtRupiah(bgtRows.reduce((s, r) => s + (r.amount || 0), 0));
+  const payRows = d.payment_rows || [];
+  document.getElementById("lpr-pay-tbody").innerHTML = payRows.map(r => `<tr>
     <td>${r.cat1 || ""}</td><td>${r.cat2 || ""}</td>
     <td style="white-space:nowrap">${r.tanggal || ""}</td>
     <td style="font-size:.8rem">${r.pam || ""}</td>
     <td style="font-size:.8rem">${r.perusahaan || ""}</td>
+    <td style="font-size:.8rem">${r.pillar || ""}</td>
     <td class="num-right">${fmtRupiah(r.amount || 0)}</td>
     <td>${LBADGE[r.status] || r.status || ""}</td>
-  </tr>`).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+  </tr>`).join("") || `<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+  document.getElementById("lpr-pay-subtotal").textContent = fmtRupiah(payRows.reduce((s, r) => s + (r.amount || 0), 0));
 }
 </script>
 {% endblock %}

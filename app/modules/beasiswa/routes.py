@@ -4,12 +4,13 @@ from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required, role_required
 from modules.beasiswa.service import (
     generate_kode_siswa, get_siswa_list, get_siswa_detail,
-    add_siswa, update_siswa, update_siswa_catatan, delete_siswa,
+    add_siswa, update_siswa, update_siswa_catatan, update_siswa_catatan_payment, delete_siswa,
     add_budget_batch, get_budget, delete_budget_row, update_budget_row,
     add_payment_batch, add_payment_multi, get_payment, get_payment_list, delete_payment_row,
     get_sisa_budget, get_rekap, get_budget_list, get_laporan_siswa,
     get_financial_summary,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
+    get_vendors,
 )
 import config
 
@@ -49,6 +50,7 @@ def index():
         cat1_bgt=config.CAT1_BGT,
         cat2_sem=config.CAT2_SEM,
         perusahaan=config.PERUSAHAAN,
+        vendor_list=get_vendors(),
         active_page="beasiswa",
         **_ctx()
     )
@@ -93,6 +95,13 @@ def siswa_catatan_update(code):
     return jsonify(update_siswa_catatan(_cid(), code, data.get("catatan", "")))
 
 
+@bp.route("/siswa/<code>/catatan-payment", methods=["POST"])
+@role_required("requester", "verificator", "releaser")
+def siswa_catatan_payment_update(code):
+    data = request.get_json(force=True) or {}
+    return jsonify(update_siswa_catatan_payment(_cid(), code, data.get("catatan_payment", "")))
+
+
 @bp.route("/siswa/<code>/hapus", methods=["POST"])
 @role_required("requester", "verificator", "releaser")
 def siswa_hapus(code):
@@ -112,7 +121,7 @@ def budget_by_siswa(code):
     result = get_budget(_cid(), code)
     siswa  = get_siswa_detail(_cid(), code)
     return jsonify({"ok": True, "nama": siswa["nama"] if siswa else "",
-                    "catatan": siswa["catatan"] if siswa else "", **result})
+                    "catatan_budget": (siswa["catatan_budget"] or "") if siswa else "", **result})
 
 
 @bp.route("/budget/siswa/<code>/export/<fmt>")
@@ -205,6 +214,13 @@ def budget_tambah():
         return jsonify({"ok": False, "pesan": "Code siswa wajib diisi."})
     return jsonify(add_budget_batch(_cid(), code,
         data.get("tanggal", ""), data.get("pillar", ""), data.get("items", [])))
+
+
+@bp.route("/vendors")
+@role_required("requester", "verificator", "releaser")
+def vendor_list_api():
+    search = request.args.get("search", "").strip()
+    return jsonify({"ok": True, "rows": get_vendors(search)})
 
 
 @bp.route("/summary")
@@ -395,7 +411,7 @@ def payment_hapus(row_id):
 
 
 @bp.route("/payment/tambah", methods=["POST"])
-@role_required("requester")
+@role_required("requester", "verificator", "releaser")
 def payment_tambah():
     data   = request.get_json(force=True) or {}
     code   = (data.get("code") or "").strip()
@@ -407,7 +423,7 @@ def payment_tambah():
 
 
 @bp.route("/payment/tambah-multi", methods=["POST"])
-@role_required("requester")
+@role_required("requester", "verificator", "releaser")
 def payment_tambah_multi():
     data = request.get_json(force=True) or {}
     rows = data.get("rows", [])
@@ -437,7 +453,7 @@ def klaim_list():
 
 
 @bp.route("/klaim/tambah-multi", methods=["POST"])
-@role_required("requester")
+@role_required("requester", "verificator", "releaser")
 def klaim_tambah_multi():
     data = request.get_json(force=True) or {}
     rows = data.get("rows", [])
@@ -500,15 +516,21 @@ def laporan_export(code, fmt):
         w.writerow([])
         w.writerow(["=== DETAIL BUDGET ==="])
         w.writerow(["Kategori 1", "Kategori 2", "Tanggal", "Pillar", "Amount"])
+        bgt_total = 0
         for r in data["budget_rows"]:
+            a = r.get("amount", 0); bgt_total += a
             w.writerow([r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                        r.get("pillar",""), r.get("amount",0)])
+                        r.get("pillar",""), a])
+        w.writerow(["", "", "", "Subtotal", bgt_total])
         w.writerow([])
         w.writerow(["=== DETAIL PAYMENT ==="])
-        w.writerow(["Kategori 1", "Kategori 2", "Tanggal", "PAM", "Perusahaan", "Amount", "Status"])
+        w.writerow(["Kategori 1", "Kategori 2", "Tanggal", "PAM", "Perusahaan", "Pillar", "Amount", "Status"])
+        pay_total = 0
         for r in data["payment_rows"]:
+            a = r.get("amount", 0); pay_total += a
             w.writerow([r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                        r.get("pam",""), r.get("perusahaan",""), r.get("amount",0), r.get("status","")])
+                        r.get("pam",""), r.get("perusahaan",""), r.get("pillar",""), a, r.get("status","")])
+        w.writerow(["", "", "", "", "", "Subtotal", pay_total, ""])
         out.seek(0)
         fname = f"laporan_{code}.csv"
         return Response(out.getvalue(), mimetype="text/csv",
@@ -636,22 +658,23 @@ def laporan_export(code, fmt):
 
         # Payment detail
         elems.append(Paragraph("Detail Payment", styles["Heading2"]))
-        pay_data = [["Kategori 1", "Kategori 2", "Tanggal", "PAM", "Perusahaan", "Amount (Rp)", "Status"]]
+        pay_data = [["Kategori 1", "Kategori 2", "Tanggal", "PAM", "Perusahaan", "Pillar", "Amount (Rp)", "Status"]]
         pay_total = 0
         for r in data["payment_rows"]:
             a = r.get("amount", 0); pay_total += a
             pay_data.append([r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                             r.get("pam",""), r.get("perusahaan",""), f"{a:,.0f}", r.get("status","")])
+                             r.get("pam",""), r.get("perusahaan",""), r.get("pillar",""),
+                             f"{a:,.0f}", r.get("status","")])
         if data["payment_rows"]:
-            pay_data.append(["", "TOTAL", "", "", "", f"{pay_total:,.0f}", ""])
-        pt = Table(pay_data, colWidths=[2.5*cm, 3*cm, 2.2*cm, 2.5*cm, 3*cm, 3*cm, 1.8*cm], repeatRows=1)
+            pay_data.append(["", "TOTAL", "", "", "", "", f"{pay_total:,.0f}", ""])
+        pt = Table(pay_data, colWidths=[2.5*cm, 2.5*cm, 2.0*cm, 2.0*cm, 2.5*cm, 2.0*cm, 2.5*cm, 1.8*cm], repeatRows=1)
         pt.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#065f46")),
             ("TEXTCOLOR", (0,0), (-1,0), colors.white),
             ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
             ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
             ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f3f4f6")),
-            ("ALIGN", (5,0), (-1,-1), "RIGHT"),
+            ("ALIGN", (6,0), (-1,-1), "RIGHT"),
             ("FONTSIZE", (0,0), (-1,-1), 8),
             ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#e5e7eb")),
             ("ROWBACKGROUNDS", (0,1), (-1,-2), [colors.white, colors.HexColor("#f8fafc")]),
