@@ -437,10 +437,10 @@ def get_budget_list(company_id: int, search: str = "", cat1: str = "",
     )
     pay_params = [company_id]
     if search:
-        q2 = f"%{search}%"
         pay_sql += (" AND (pb.siswa_code LIKE ? OR s.nama LIKE ? OR pb.cat1 LIKE ?"
-                    " OR pb.cat2 LIKE ? OR pb.pillar LIKE ? OR s.program LIKE ?)")
-        pay_params += [q2, q2, q2, q2, q2, q2]
+                    " OR pb.cat2 LIKE ? OR pb.pam LIKE ? OR pb.pillar LIKE ?"
+                    " OR pb.perusahaan LIKE ? OR s.program LIKE ?)")
+        pay_params += [q, q, q, q, q, q, q, q]
     if cat1:
         pay_sql += " AND pb.cat1=?"
         pay_params += [cat1]
