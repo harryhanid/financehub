@@ -782,7 +782,8 @@ def delete_klaim_row(company_id: int, row_id: int) -> dict:
 
 
 def get_rekap(company_id: int, program: str = "", pillar: str = "",
-              status: str = "", search: str = "") -> list:
+              status: str = "", search: str = "",
+              jenjang: str = "", angkatan: str = "") -> list:
     sql    = "SELECT * FROM siswa WHERE company_id=?"
     params = [company_id]
     if search:
@@ -795,6 +796,12 @@ def get_rekap(company_id: int, program: str = "", pillar: str = "",
     if status:
         sql    += " AND status=?"
         params += [status]
+    if jenjang:
+        sql    += " AND jenjang=?"
+        params += [jenjang]
+    if angkatan:
+        sql    += " AND angkatan=?"
+        params += [int(angkatan)]
     sql += " ORDER BY nama"
 
     conn  = get_conn()

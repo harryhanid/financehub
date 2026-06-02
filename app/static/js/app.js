@@ -65,9 +65,35 @@ function showToast(msg, type = "success") {
 function openModal(id) { const el = document.getElementById(id); if (el) el.classList.add("open"); }
 function closeModal(id) { const el = document.getElementById(id); if (el) el.classList.remove("open"); }
 
+function staggerRows(tbody) {
+  Array.from(tbody.querySelectorAll("tr")).forEach((row, i) => {
+    row.classList.add("stagger-row");
+    row.style.animationDelay = `${i * 28}ms`;
+    row.style.animationFillMode = "both";
+  });
+}
+
+function animateCounter(el, duration = 700) {
+  const target = parseFloat(el.dataset.count);
+  if (isNaN(target) || target === 0) return;
+  const prefix = el.dataset.prefix || "";
+  const fmt = new Intl.NumberFormat("id-ID");
+  const start = performance.now();
+  const step = (now) => {
+    const p = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = prefix + fmt.format(Math.round(ease * target));
+    if (p < 1) requestAnimationFrame(step);
+    else el.textContent = prefix + fmt.format(target);
+  };
+  requestAnimationFrame(step);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-tabs]").forEach(initTabs);
   document.querySelectorAll(".modal-overlay").forEach(overlay => {
     overlay.addEventListener("click", e => { if (e.target === overlay) overlay.classList.remove("open"); });
   });
+  document.querySelectorAll("tbody").forEach(staggerRows);
+  document.querySelectorAll(".stat-value[data-count]").forEach(el => animateCounter(el));
 });

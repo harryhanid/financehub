@@ -381,3 +381,42 @@ def test_get_payment_list_budget_totals_filtered_by_search():
     assert result["budget_totals"].get("By Pendidikan") == 8000000
     # Rina's 6_000_000 must not be included
     assert result["budget_grand"] == 10000000
+
+
+# ── get_rekap jenjang / angkatan filters ─────────────────────────────────────
+
+def _seed_rekap_siswa():
+    """Two siswa: S1 angkatan 2024, S2 angkatan 2025."""
+    add_siswa(COMPANY_ID, {"code": "1240001", "nama": "Andi", "jenjang": "S1",
+        "angkatan": 2024, "program": "SMART", "fakultas": "", "universitas": "",
+        "bank": "", "norek": "", "namarek": "", "referensi": "",
+        "status": "Aktif", "catatan": ""})
+    add_siswa(COMPANY_ID, {"code": "1250001", "nama": "Budi", "jenjang": "S2",
+        "angkatan": 2025, "program": "AGRI", "fakultas": "", "universitas": "",
+        "bank": "", "norek": "", "namarek": "", "referensi": "",
+        "status": "Aktif", "catatan": ""})
+
+
+def test_get_rekap_filter_jenjang():
+    _seed_rekap_siswa()
+    rows = get_rekap(COMPANY_ID, jenjang="S1")
+    assert len(rows) == 1
+    assert rows[0]["code"] == "1240001"
+
+
+def test_get_rekap_filter_angkatan():
+    _seed_rekap_siswa()
+    rows = get_rekap(COMPANY_ID, angkatan="2025")
+    assert len(rows) == 1
+    assert rows[0]["code"] == "1250001"
+
+
+def test_get_rekap_filter_jenjang_angkatan_combined():
+    _seed_rekap_siswa()
+    # Both match S2 + 2025 → 1 row
+    rows = get_rekap(COMPANY_ID, jenjang="S2", angkatan="2025")
+    assert len(rows) == 1
+    assert rows[0]["code"] == "1250001"
+    # No match S1 + 2025 → empty
+    rows_none = get_rekap(COMPANY_ID, jenjang="S1", angkatan="2025")
+    assert rows_none == []

@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance Hub — PRD v1.2</title>
+<style>
+  :root {
+    --blue:    #1a56db;
+    --blue-lt: #eff6ff;
+    --green:   #065f46;
+    --green-lt:#f0fdf4;
+    --gray:    #6b7280;
+    --gray-lt: #f9fafb;
+    --border:  #e5e7eb;
+    --text:    #111827;
+    --muted:   #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px; line-height: 1.65; color: var(--text);
+    background: #f3f4f6;
+  }
+
+  /* ── Layout ── */
+  .layout { display: flex; min-height: 100vh; }
+
+  /* ── Sidebar TOC ── */
+  .toc {
+    width: 240px; flex-shrink: 0;
+    background: #fff; border-right: 1px solid var(--border);
+    padding: 1.5rem 0; position: sticky; top: 0; height: 100vh;
+    overflow-y: auto;
+  }
+  .toc-brand {
+    padding: 0 1.25rem 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: .75rem;
+  }
+  .toc-brand h2 { font-size: .8rem; font-weight: 700; color: var(--blue); letter-spacing: .04em; text-transform: uppercase; }
+  .toc-brand p  { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+  .toc a {
+    display: block; padding: .35rem 1.25rem;
+    font-size: .78rem; color: var(--muted); text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: all .15s;
+  }
+  .toc a:hover, .toc a.active {
+    color: var(--blue); border-left-color: var(--blue);
+    background: var(--blue-lt);
+  }
+  .toc .toc-section { font-size: .65rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em;
+    padding: .75rem 1.25rem .25rem; }
+
+  /* ── Main content ── */
+  .main { flex: 1; padding: 2rem 2.5rem; max-width: 960px; }
+
+  /* ── Header ── */
+  .doc-header {
+    background: linear-gradient(135deg, #1e3a8a 0%, var(--blue) 100%);
+    color: #fff; border-radius: .75rem; padding: 2rem 2rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .doc-header h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: .5rem; }
+  .doc-header .meta { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; font-size: .8rem; opacity: .85; margin-top: .5rem; }
+  .badge-status {
+    display: inline-block; background: #22c55e;
+    color: #fff; font-size: .7rem; font-weight: 700;
+    padding: 2px 10px; border-radius: 99px; letter-spacing: .04em;
+  }
+  .badge-version {
+    display: inline-block; background: rgba(255,255,255,.2);
+    color: #fff; font-size: .7rem; font-weight: 700;
+    padding: 2px 10px; border-radius: 99px;
+  }
+  .badge-new {
+    display: inline-block; background: #fde68a; color: #92400e;
+    font-size: .65rem; font-weight: 700;
+    padding: 1px 8px; border-radius: 99px; vertical-align: middle;
+    margin-left: 4px;
+  }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 2.5rem; }
+  h2 {
+    font-size: 1.05rem; font-weight: 700; color: var(--blue);
+    border-bottom: 2px solid var(--blue-lt); padding-bottom: .4rem;
+    margin-bottom: 1.25rem;
+  }
+  h3 { font-size: .9rem; font-weight: 700; color: var(--text); margin: 1.25rem 0 .6rem; }
+  h4 { font-size: .82rem; font-weight: 700; color: var(--muted); margin: .75rem 0 .4rem; text-transform: uppercase; letter-spacing: .04em; }
+  p  { margin-bottom: .6rem; color: #374151; }
+
+  /* ── Tables ── */
+  .tbl-wrap { overflow-x: auto; margin: .75rem 0; }
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  th {
+    background: var(--blue); color: #fff; text-align: left;
+    padding: .5rem .75rem; font-weight: 600; white-space: nowrap;
+  }
+  td { padding: .45rem .75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--blue-lt); }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-weight: 500; }
+  .tbl-zebra tr:nth-child(even) td { background: var(--gray-lt); }
+  .tbl-zebra tr:nth-child(even):hover td { background: var(--blue-lt); }
+
+  /* ── Code blocks ── */
+  pre, code {
+    font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+    font-size: .78rem;
+  }
+  pre {
+    background: #1e293b; color: #e2e8f0;
+    border-radius: .5rem; padding: 1rem 1.25rem;
+    overflow-x: auto; margin: .75rem 0; line-height: 1.55;
+  }
+  code {
+    background: #f1f5f9; color: #1e3a8a;
+    padding: 1px 6px; border-radius: 4px;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  /* ── Inline bold markers ── */
+  strong { color: var(--text); }
+
+  /* ── Lists ── */
+  ul, ol { padding-left: 1.4rem; margin: .5rem 0 .75rem; }
+  li { margin-bottom: .3rem; }
+
+  /* ── Status badges ── */
+  .ok    { color: #15803d; font-weight: 700; }
+  .soon  { color: #d97706; font-weight: 700; }
+  .new   { background: #fef9c3; color: #92400e; font-size: .7rem; font-weight: 700;
+           padding: 1px 7px; border-radius: 99px; vertical-align: middle; }
+
+  /* ── Info cards ── */
+  .cards { display: grid; grid-template-columns: repeat(3,1fr); gap: .75rem; margin: .75rem 0; }
+  .card  {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: .5rem; padding: .875rem 1rem;
+  }
+  .card .card-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .06em;
+                      color: var(--muted); font-weight: 700; margin-bottom: .25rem; }
+  .card .card-val   { font-size: .95rem; font-weight: 700; color: var(--blue); }
+  .card.green .card-val { color: var(--green); }
+
+  /* ── Flow boxes ── */
+  .flow {
+    background: #f8fafc; border: 1px solid var(--border);
+    border-left: 4px solid var(--blue); border-radius: .375rem;
+    padding: .875rem 1rem; margin: .75rem 0;
+    font-family: Consolas, monospace; font-size: .78rem;
+    line-height: 1.7; color: #374151; white-space: pre-wrap;
+  }
+
+  /* ── Alert / note ── */
+  .note {
+    background: #fefce8; border: 1px solid #fde68a;
+    border-left: 4px solid #f59e0b; border-radius: .375rem;
+    padding: .75rem 1rem; font-size: .8rem; color: #78350f; margin: .75rem 0;
+  }
+  .note-blue {
+    background: var(--blue-lt); border: 1px solid #bfdbfe;
+    border-left: 4px solid var(--blue); border-radius: .375rem;
+    padding: .75rem 1rem; font-size: .8rem; color: #1e3a8a; margin: .75rem 0;
+  }
+  .note-green {
+    background: #f0fdf4; border: 1px solid #bbf7d0;
+    border-left: 4px solid #22c55e; border-radius: .375rem;
+    padding: .75rem 1rem; font-size: .8rem; color: #166534; margin: .75rem 0;
+  }
+
+  /* ── Changelog table ── */
+  .changelog th { background: #374151; }
+
+  /* ── Comparison table ── */
+  .cmp-old  { background: #fef2f2; }
+  .cmp-new  { background: #f0fdf4; }
+  th.cmp-old-h { background: #dc2626; }
+  th.cmp-new-h { background: #15803d; }
+
+  /* ── Roadmap ── */
+  .roadmap-done   { background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: .375rem; padding: .75rem 1rem; margin-bottom: .5rem; }
+  .roadmap-next   { background: #fff7ed; border-left: 4px solid #f97316; border-radius: .375rem; padding: .75rem 1rem; margin-bottom: .5rem; }
+  .roadmap-future { background: #f8fafc; border-left: 4px solid #94a3b8; border-radius: .375rem; padding: .75rem 1rem; margin-bottom: .5rem; }
+
+  /* ── Print ── */
+  @media print {
+    .toc { display: none; }
+    .main { padding: 1rem; }
+    body  { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── Sidebar TOC ── -->
+  <nav class="toc">
+    <div class="toc-brand">
+      <h2>Finance Hub</h2>
+      <p>PRD v1.2 · 2026-06-01</p>
+    </div>
+    <div class="toc-section">Dokumen</div>
+    <a href="#changelog">Changelog</a>
+    <div class="toc-section">Konten</div>
+    <a href="#s1">1. Executive Summary</a>
+    <a href="#s2">2. Problem Statement</a>
+    <a href="#s2-5">↳ 2.5 Perbandingan Excel vs App</a>
+    <a href="#s3">3. User Profile</a>
+    <a href="#s4">4. User Journey</a>
+    <a href="#s5">5. Arsitektur Sistem</a>
+    <a href="#s6">6. Katalog Modul</a>
+    <a href="#s7">7. Beasiswa Module</a>
+    <a href="#s7-badges">↳ Dynamic Summary Badges</a>
+    <a href="#s8">8. Payment Approval Memo</a>
+    <a href="#s8-dop">↳ Days of PAM</a>
+    <a href="#s9">9. Data Architecture</a>
+    <a href="#s10">10. API Specification</a>
+    <a href="#s11">11. Security</a>
+    <a href="#s12">12. Non-Functional Req.</a>
+    <a href="#s13">13. Roadmap</a>
+  </nav>
+
+  <!-- ── Main content ── -->
+  <main class="main">
+
+    <!-- Header -->
+    <div class="doc-header">
+      <h1>Finance Hub — Product Requirements Document</h1>
+      <div>
+        <span class="badge-version">v1.2</span>
+        <span class="badge-status">Updated</span>
+      </div>
+      <div class="meta">
+        <span>📅 2026-06-01</span>
+        <span>🏢 Eka Tjipta Foundation · Sinar Mas Tjipta</span>
+        <span>🧪 127 / 127 tests passing</span>
+      </div>
+      <div style="margin-top:.75rem;font-size:.8rem;opacity:.9;line-height:1.6">
+        Post Fase 1 full implementation — PAM Records · GL Account · Draft Memo · Days of PAM · Dynamic Summary Badges
+      </div>
+    </div>
+
+    <!-- ── Changelog ── -->
+    <div class="section" id="changelog">
+      <h2>Changelog</h2>
+      <div class="tbl-wrap">
+        <table class="changelog">
+          <thead><tr><th>Versi</th><th>Tanggal</th><th>Perubahan</th></tr></thead>
+          <tbody>
+            <tr><td>1.0</td><td>2026-05-30</td><td>Draft awal</td></tr>
+            <tr><td>1.1</td><td>2026-05-30</td><td>Update post-implementation: Beasiswa tabs, multi-student Input Payment, SLA tracking, Laporan Siswa, data migrasi Excel</td></tr>
+            <tr><td><strong>1.2</strong></td><td><strong>2026-06-01</strong></td><td><strong>Tambah:</strong> PAM Records + GL Account, Draft Memo (inline editing + PDF/Excel custom export), Days of PAM tab (lazy-load AJAX), Dynamic Summary Badges (filter-aware); Perbandingan sistem Excel lama (DbBeasiswa v2.2.xlsm); test coverage 56 → 127</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── 1. Executive Summary ── -->
+    <div class="section" id="s1">
+      <h2>1. Executive Summary / Ringkasan Eksekutif</h2>
+      <p><strong>Finance Hub</strong> adalah sistem manajemen keuangan internal berbasis web untuk <strong>Account Payable, Petty Cash, Beasiswa, dan proses pembayaran</strong> yang dijalankan secara lokal (localhost/LAN). Dirancang sebagai <strong>platform multi-perusahaan</strong> untuk Sinar Mas Tjipta dan Eka Tjipta Foundation.</p>
+      <p>Finance Hub menggantikan sistem lama berbasis file <strong>Microsoft Excel VBA Macro (<code>DbBeasiswa v2.2.xlsm</code>)</strong> yang dioperasikan via shared folder <code>Y:/</code>. Lihat perbandingan lengkap di <a href="#s2-5">§ 2.5</a>.</p>
+
+      <div class="cards">
+        <div class="card"><div class="card-label">Platform</div><div class="card-val">Python Flask</div></div>
+        <div class="card"><div class="card-label">Database</div><div class="card-val">SQLite</div></div>
+        <div class="card"><div class="card-label">Auth</div><div class="card-val">JWT</div></div>
+        <div class="card"><div class="card-label">PDF Export</div><div class="card-val">reportlab</div></div>
+        <div class="card"><div class="card-label">Excel Export</div><div class="card-val">openpyxl</div></div>
+        <div class="card green"><div class="card-label">Test Coverage</div><div class="card-val">127 / 127 ✓</div></div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Item</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>Deployment</td><td>Localhost / LAN — tidak memerlukan internet atau cloud</td></tr>
+            <tr><td>Multi-Company</td><td>Sinar Mas Tjipta, Eka Tjipta Foundation (terisolasi penuh)</td></tr>
+            <tr><td>User Roles</td><td>3 role: Requester, Verificator, Releaser</td></tr>
+            <tr><td>REST API</td><td>JSON endpoints <code>/api/v1/</code> untuk integrasi sistem induk</td></tr>
+            <tr><td>Data Migrasi</td><td>~14,700 record dari DbBeasiswa v2.2.xlsm → SQLite</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── 2. Problem Statement ── -->
+    <div class="section" id="s2">
+      <h2>2. Problem Statement / Latar Belakang &amp; Tujuan</h2>
+
+      <h3>2.1 Masalah Sebelumnya</h3>
+      <p>Sebelum Finance Hub, pengelolaan keuangan beasiswa dilakukan dengan file Excel VBA Macro (<code>DbBeasiswa v2.2.xlsm</code>) via shared folder <code>Y:/</code>:</p>
+      <ul>
+        <li><strong>File lock conflict</strong> — hanya 1 orang bisa edit; yang lain Read-only.</li>
+        <li><strong>Tidak ada autentikasi</strong> — siapapun yang akses <code>Y:/</code> dapat membuka, mengubah, bahkan menghapus data.</li>
+        <li><strong>Tidak ada audit trail</strong> — tidak diketahui siapa yang mengubah data dan kapan.</li>
+        <li>Pembuatan <strong>Payment Approval Memo</strong> dilakukan manual dengan mengisi sheet <code>Detail PAM</code> dan <code>Rangkuman PAM</code>, lalu mencetak.</li>
+        <li><strong>PAM Recon</strong> menggunakan PivotTable Excel yang harus di-refresh manual setiap ada perubahan data.</li>
+        <li><strong>Days of PAM</strong> (4 tanggal SLA) dicatat sebagai kolom Cat3–Cat7 di sheet <code>DbPayment</code>, tanpa validasi format tanggal.</li>
+        <li>Data Medical/Hospital (<code>DbHospital</code>) dikelola dalam sheet terpisah, tidak terintegrasi otomatis dengan rekap kategori.</li>
+        <li>Data SMT dan ETF <strong>tidak terpisah secara sistematis</strong>.</li>
+      </ul>
+
+      <h3>2.2 Solusi</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>#</th><th>Fitur</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Portal terpusat</td><td>Semua transaksi finansial diinput dan dikelola via web app</td></tr>
+            <tr><td>2</td><td>Multi-company support</td><td>Data SMT dan ETF terisolasi penuh di database</td></tr>
+            <tr><td>3</td><td>Auth berbasis JWT</td><td>Hanya user yang login yang dapat mengakses sistem</td></tr>
+            <tr><td>4</td><td>PAM otomatis</td><td>PAM record auto-created saat payment disimpan; memo di-generate dari data</td></tr>
+            <tr><td>5</td><td>Draft Memo inline editing</td><td>Memo dapat diedit langsung di browser sebelum diekspor ke PDF/Excel</td></tr>
+            <tr><td>6</td><td>Days of PAM tracking</td><td>4 kolom SLA terstruktur + bulk-update UI khusus</td></tr>
+            <tr><td>7</td><td>Dynamic summary badges</td><td>Kartu Budget/Payment/Selisih mencerminkan filter aktif, bukan data global</td></tr>
+            <tr><td>8</td><td>REST API</td><td>Semua operasi tersedia via JSON API untuk integrasi sistem induk</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>2.3 Tujuan Sistem</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Tujuan</th><th>Indikator Keberhasilan</th></tr></thead>
+          <tbody>
+            <tr><td>Digitalisasi data keuangan</td><td>100% input via web, tidak ada Excel manual</td></tr>
+            <tr><td>Isolasi data antar perusahaan</td><td>Query apapun selalu difilter per <code>company_id</code></td></tr>
+            <tr><td>Kontrol akses</td><td>Tidak ada halaman yang dapat diakses tanpa login</td></tr>
+            <tr><td>Payment approval terkonsolidasi</td><td>Semua pembayaran dari semua modul masuk ke Payment Approval Memo</td></tr>
+            <tr><td>Integrasi-ready</td><td>Semua operasi tersedia via REST API JSON</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>2.4 Non-Tujuan (Out of Scope v1.x)</h3>
+      <ul>
+        <li>Integrasi ERP eksternal (SAP, Oracle, dll)</li>
+        <li>Notifikasi email/WhatsApp otomatis</li>
+        <li>Multi-level approval workflow</li>
+        <li>Mobile native app</li>
+        <li>Modul Bank, Account Payable, Advance, Petty Cash, Sponsorship (Coming Soon)</li>
+      </ul>
+    </div>
+
+    <!-- ── 2.5 Perbandingan Excel vs Finance Hub ── -->
+    <div class="section" id="s2-5">
+      <h2>2.5 Perbandingan Sistem Excel Lama vs Finance Hub <span class="badge-new">NEW v1.2</span></h2>
+
+      <div class="note">
+        Bagian ini mendokumentasikan cara kerja sistem <strong>DbBeasiswa v2.2.xlsm</strong> (file Excel VBA Macro terakhir yang digunakan) sebagai referensi transisi.
+      </div>
+
+      <h3>2.5.1 Struktur Sistem Lama (DbBeasiswa v2.2.xlsm)</h3>
+      <p>File Excel ini menggunakan <strong>VBA Macro dengan 7 tombol navigasi</strong> di sheet <code>Module</code>:</p>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>No</th><th>Tombol Macro</th><th>Sheet Tujuan</th><th>Fungsi</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Input Baru Penerima Beasiswa</td><td><code>DbSiswa</code></td><td>Form input siswa baru via UserForm VBA</td></tr>
+            <tr><td>2</td><td>Update data Siswa</td><td><code>DbSiswa</code></td><td>Edit data siswa yang sudah ada</td></tr>
+            <tr><td>3</td><td>Input Budget Beasiswa</td><td><code>DbBudget</code></td><td>Input alokasi budget per siswa per kategori</td></tr>
+            <tr><td>4</td><td>Input Pembayaran</td><td><code>DbPayment</code></td><td>Input realisasi pembayaran per siswa</td></tr>
+            <tr><td>5</td><td>Payment Approval Memo</td><td><code>Detail PAM</code></td><td>Generate memo pembayaran untuk dicetak</td></tr>
+            <tr><td>6</td><td>Input Budget Medical</td><td><code>DbBudget</code></td><td>Input alokasi budget klaim Medical</td></tr>
+            <tr><td>7</td><td>Input Claim Medical</td><td><code>DbBudget</code></td><td>Input realisasi klaim Medical</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Daftar Sheet Lengkap</h4>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Sheet</th><th>Fungsi</th></tr></thead>
+          <tbody>
+            <tr><td><code>Module</code></td><td>Halaman utama dengan 7 tombol navigasi macro</td></tr>
+            <tr><td><code>DbSiswa</code></td><td>Database siswa (1,269 baris + header)</td></tr>
+            <tr><td><code>DbBudget</code></td><td>Database alokasi budget beasiswa</td></tr>
+            <tr><td><code>DbPayment</code></td><td>Database realisasi pembayaran; kolom Cat3–Cat7 untuk tanggal SLA (Days of PAM)</td></tr>
+            <tr><td><code>DbHospital</code></td><td>Database klaim Medical/Hospital (sheet terpisah)</td></tr>
+            <tr><td><code>PAM Recon</code></td><td>PivotTable rekonsiliasi PAM — harus di-refresh manual</td></tr>
+            <tr><td><code>Detail PAM</code></td><td>Template memo payment per PAM — isi manual, satu PAM per halaman cetak</td></tr>
+            <tr><td><code>Rangkuman PAM</code></td><td>Rangkuman memo PAM: No, Nama, Bank, No Rekening, Total — cetak untuk approval</td></tr>
+            <tr><td><code>Lookup</code></td><td>Tabel referensi dropdown (program, pillar, kategori, dll)</td></tr>
+            <tr><td><code>Family</code></td><td>Data anggota keluarga siswa</td></tr>
+            <tr><td><code>SETF Rek</code></td><td>Data rekening untuk program SETF</td></tr>
+            <tr><td><code>Coretan</code></td><td>Sheet kerja sementara (scratch pad)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>2.5.2 Keterbatasan Sistem Lama vs Solusi Finance Hub</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="cmp-old-h" style="background:#dc2626">Keterbatasan Sistem Excel</th>
+              <th class="cmp-old-h" style="background:#dc2626">Detail</th>
+              <th class="cmp-new-h" style="background:#15803d">Solusi di Finance Hub</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="cmp-old">File lock</td><td class="cmp-old">Hanya 1 orang bisa edit, yang lain Read-only</td><td class="cmp-new">Multi-user concurrent — semua bisa input bersamaan</td></tr>
+            <tr><td class="cmp-old">Tidak ada auth</td><td class="cmp-old">Siapapun yang akses <code>Y:/</code> bisa ubah data</td><td class="cmp-new">Login JWT wajib; role-based access per aksi</td></tr>
+            <tr><td class="cmp-old">Tidak ada audit trail</td><td class="cmp-old">Tidak diketahui siapa/kapan mengubah data</td><td class="cmp-new"><code>created_at</code> / <code>updated_at</code> di semua tabel</td></tr>
+            <tr><td class="cmp-old">PAM manual</td><td class="cmp-old">Isi sheet <code>Detail PAM</code> manual, cetak lalu scan</td><td class="cmp-new">Draft Memo otomatis dari data payment; export PDF/Excel standar</td></tr>
+            <tr><td class="cmp-old">PAM Recon manual</td><td class="cmp-old">PivotTable harus di-refresh manual</td><td class="cmp-new">Tabel <code>pam_records</code> auto-created saat payment disimpan</td></tr>
+            <tr><td class="cmp-old">Summary tidak real-time</td><td class="cmp-old">Pivot/formula perlu refresh manual setelah tiap input</td><td class="cmp-new">Summary badges update otomatis, filter-aware (v1.2)</td></tr>
+            <tr><td class="cmp-old">Days of PAM ad-hoc</td><td class="cmp-old">Tanggal SLA diisi di kolom Cat3–Cat7 tanpa validasi</td><td class="cmp-new">4 kolom SLA terstruktur + bulk-update UI khusus</td></tr>
+            <tr><td class="cmp-old">Medical terpisah</td><td class="cmp-old"><code>DbHospital</code> sheet terpisah, tidak masuk rekap kategori</td><td class="cmp-new"><code>By Medical</code> masuk kategori standar di <code>payment_beasiswa</code></td></tr>
+            <tr><td class="cmp-old">No export standar</td><td class="cmp-old">Print langsung dari Excel, format berbeda-beda</td><td class="cmp-new">Export PDF (ReportLab) dan Excel (openpyxl) format standar perusahaan</td></tr>
+            <tr><td class="cmp-old">Tidak ada validasi</td><td class="cmp-old">Data bisa diisi bebas, tidak ada type checking</td><td class="cmp-new">Validasi input di service layer, parameterized SQL</td></tr>
+            <tr><td class="cmp-old">Data tidak terisolasi</td><td class="cmp-old">Semua perusahaan campur dalam satu file</td><td class="cmp-new"><code>company_id</code> wajib di semua tabel</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>2.5.3 Fitur Baru yang Tidak Ada di Sistem Lama</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Fitur</th><th>Deskripsi</th></tr></thead>
+          <tbody>
+            <tr><td>Multi-user concurrent</td><td>10–20 user bisa input bersamaan tanpa konflik</td></tr>
+            <tr><td>REST API</td><td>Semua operasi tersedia via JSON API untuk integrasi</td></tr>
+            <tr><td>PAM Records + GL Account</td><td>Setiap PAM otomatis tercatat dengan nomor GL Account dari Chart of Accounts</td></tr>
+            <tr><td>Draft Memo inline editing</td><td>Edit nama, total, catatan memo langsung di browser sebelum export</td></tr>
+            <tr><td>Days of PAM tab</td><td>Tab khusus monitoring 4 tanggal SLA per PAM, bulk-update, search lazy-load</td></tr>
+            <tr><td>Dynamic summary badges</td><td>Kartu Budget/Payment/Selisih mencerminkan data yang sedang ditampilkan (bukan global)</td></tr>
+            <tr><td>Laporan per Siswa</td><td>Rekap lengkap per siswa dengan IPK, detail budget, detail payment, export PDF/CSV</td></tr>
+            <tr><td>Data migrasi</td><td>14,700+ record dari Excel lama berhasil dimigrasikan ke SQLite</td></tr>
+            <tr><td>Automated tests</td><td>127 pytest tests untuk menjamin kebenaran bisnis logic</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── 3. User Profile ── -->
+    <div class="section" id="s3">
+      <h2>3. User Profile / Profil Pengguna</h2>
+
+      <h3>3.1 Role Definitions</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Role</th><th>Siapa</th><th>Akses Utama</th></tr></thead>
+          <tbody>
+            <tr><td>Requester</td><td>Staff keuangan / operator input data</td><td>Input data, lihat laporan</td></tr>
+            <tr><td>Verificator</td><td>Supervisor / checker</td><td>Review, verifikasi, buat memo</td></tr>
+            <tr><td>Releaser</td><td>Finance manager / approver final</td><td>Release pembayaran, manage users</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>3.2 Permission Matrix</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Aksi</th><th>Requester</th><th>Verificator</th><th>Releaser</th></tr></thead>
+          <tbody>
+            <tr><td colspan="4" style="background:#f3f4f6;font-weight:700;font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Beasiswa</td></tr>
+            <tr><td>Input data siswa (tambah/edit)</td><td class="ok">✅</td><td class="ok">✅</td><td>❌</td></tr>
+            <tr><td>Input budget</td><td class="ok">✅</td><td class="ok">✅</td><td>❌</td></tr>
+            <tr><td>Input payment</td><td class="ok">✅</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Lihat rekap &amp; export CSV/PDF</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td></tr>
+            <tr><td colspan="4" style="background:#f3f4f6;font-weight:700;font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Payment Approval Memo</td></tr>
+            <tr><td>Lihat daftar draft payment</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td></tr>
+            <tr><td>Buat memo baru</td><td>❌</td><td class="ok">✅</td><td>❌</td></tr>
+            <tr><td>Verifikasi / approve memo</td><td>❌</td><td class="ok">✅</td><td>❌</td></tr>
+            <tr><td>Release / mark as Paid</td><td>❌</td><td>❌</td><td class="ok">✅</td></tr>
+            <tr><td>Export PDF memo</td><td>❌</td><td class="ok">✅</td><td class="ok">✅</td></tr>
+            <tr><td colspan="4" style="background:#f3f4f6;font-weight:700;font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">Days of PAM <span class="new">NEW</span></td></tr>
+            <tr><td>Lihat tabel Days of PAM</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td></tr>
+            <tr><td>Bulk update tanggal SLA</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td></tr>
+            <tr><td colspan="4" style="background:#f3f4f6;font-weight:700;font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">User Management</td></tr>
+            <tr><td>Tambah/nonaktifkan user</td><td>❌</td><td>❌</td><td class="ok">✅</td></tr>
+            <tr><td>Dashboard</td><td class="ok">✅</td><td class="ok">✅</td><td class="ok">✅</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── 4. User Journey ── -->
+    <div class="section" id="s4">
+      <h2>4. User Journey Flows / Alur Pengguna</h2>
+
+      <h3>4.1 Login &amp; Company Selection</h3>
+      <div class="flow">Buka http://localhost:8080
+    → Redirect ke /login (jika belum punya token)
+    → Input username + password
+    → Verifikasi JWT → redirect ke /select-company
+    → Pilih perusahaan: [Sinar Mas Tjipta] | [Eka Tjipta Foundation]
+    → Masuk ke Dashboard perusahaan yang dipilih</div>
+
+      <h3>4.2 Alur Input Beasiswa (ETF)</h3>
+      <div class="flow">Dashboard ETF → Menu: Beasiswa
+
+Tab: Data Siswa
+  → Cari (nama/kode/jenjang/angkatan/program/univ/fak) + Filter (Program/Pillar/Status)
+  → Tambah Siswa Baru (auto-generate kode, isi IPK)
+  → Lihat kolom Budget / Payment / Sisa per siswa
+
+Tab: Input Budget
+  → Pilih siswa via autocomplete
+  → Isi: Tanggal, Pillar, batch item (Cat1 / Cat2 / Amount)
+  → Simpan
+
+Tab: Data Budget
+  → Filter: Kata Kunci / Kategori 1 / Pillar / Bulan / Tahun / Program
+  → ★ Summary badges mencerminkan filter aktif (bukan total global)
+  → Edit / Hapus baris · Export CSV | Export PDF
+
+Tab: Input Payment
+  → Header: Tanggal, PAM No (auto-format PAM-XXX-ETF-MM-YYYY), Pillar, Perusahaan
+  → "+ Tambah Baris": cari siswa, pilih Kat1/Kat2, isi Amount, isi 4 tanggal SLA
+  → "Simpan" → baris → payment_beasiswa (draft) + PAM record otomatis dibuat
+
+Tab: Data Payment
+  → Filter: Kata Kunci / Kategori 1 / Pillar / Bulan / Tahun / Program / Status
+  → ★ Summary badges mencerminkan filter aktif (bukan total global)
+  → Export CSV | Export PDF
+
+Tab: Report Siswa
+  → Pilih siswa via autocomplete → data lengkap + IPK + rekap + detail
+  → Export CSV | Export PDF</div>
+
+      <h3>4.3 Alur Payment Approval Memo (PAM)</h3>
+      <div class="flow">Menu: Payment Approval Memo
+
+Tab: Daftar PAM
+  → Tabel semua PAM records (auto-created saat Input Payment)
+  → Isi / update GL Account per PAM via dropdown COA
+
+Tab: Draft Memo
+  → Cari PAM No via autocomplete
+  → Preview form memo: No PAM, tanggal, GL Account, Cost Center
+  → Edit inline: nama penerima, rekening, catatan, jumlah
+  → Lampiran: detail per siswa (collapsible)
+  → Export PDF (format standar) | Export Excel (2 sheet: Rangkuman + Detail)
+
+Tab: Days of PAM
+  → Search PAM No atau Nama Siswa (search-first, lazy-load via AJAX)
+  → Filter: Bulan, Tahun, Status SLA
+  → Pilih baris via checkbox → Bulk update 4 tanggal SLA sekaligus</div>
+    </div>
+
+    <!-- ── 5. System Architecture ── -->
+    <div class="section" id="s5">
+      <h2>5. System Architecture / Arsitektur Sistem</h2>
+
+      <h3>5.1 Tech Stack</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Layer</th><th>Teknologi</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>Backend</td><td>Python 3.9+ / Flask</td><td>Framework web</td></tr>
+            <tr><td>Database</td><td>SQLite (built-in Python)</td><td>Zero setup, file-based</td></tr>
+            <tr><td>Auth</td><td>flask-jwt-extended</td><td>JWT access + refresh token</td></tr>
+            <tr><td>Password</td><td>bcrypt</td><td>Hashing aman (cost factor 12)</td></tr>
+            <tr><td>PDF</td><td>reportlab</td><td>Generate laporan PDF A4</td></tr>
+            <tr><td>Excel</td><td>openpyxl</td><td>Generate laporan Excel (.xlsx), 2-sheet memo</td></tr>
+            <tr><td>Frontend</td><td>Jinja2 + vanilla JS</td><td>Server-side rendering, AJAX lazy-load</td></tr>
+            <tr><td>HTTP</td><td>Flask dev server / waitress</td><td>Localhost / LAN</td></tr>
+            <tr><td>Testing</td><td>pytest + flask test client</td><td>127 automated tests</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>5.2 Struktur Folder</h3>
+      <pre>financehub/
+├── run.py                  ← waitress production server entry point
+├── config.py               ← DB_PATH, JWT_SECRET, COA_LIST, constants
+├── database.py             ← init SQLite, CREATE TABLE IF NOT EXISTS, seed COA
+├── app/
+│   ├── __init__.py         ← Flask app factory, register blueprints
+│   └── modules/
+│       ├── beasiswa/
+│       │   ├── routes.py   ← HTML + JSON routes
+│       │   ├── api.py      ← REST API /api/v1/beasiswa/*
+│       │   └── service.py  ← business logic
+│       ├── payment_memo/
+│       │   ├── routes.py   ← PAM records, Draft Memo, Days of PAM
+│       │   ├── api.py      ← REST API /api/v1/payment-memo/*
+│       │   ├── service.py  ← PAM generation, GL account
+│       │   └── exports.py  ← PDF + Excel export (standard + custom)
+│       └── payment_application/
+│           ├── routes.py
+│           └── service.py
+├── templates/
+│   ├── beasiswa/index.html ← 6 tabs: Siswa/InputBgt/DataBgt/InputPay/DataPay/Report
+│   └── payment_memo/index.html ← 3 tabs: Daftar PAM/Draft Memo/Days of PAM
+├── tests/                  ← 127 pytest tests
+└── finance_hub.db          ← SQLite, auto-created saat pertama run</pre>
+    </div>
+
+    <!-- ── 6. Module Catalog ── -->
+    <div class="section" id="s6">
+      <h2>6. Module Catalog / Katalog Modul</h2>
+
+      <h3>6.1 Eka Tjipta Foundation (ETF)</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Modul</th><th>Status</th><th>Deskripsi</th></tr></thead>
+          <tbody>
+            <tr><td>Dashboard</td><td><span class="ok">✅ Implemented</span></td><td>Statistik ringkas ETF</td></tr>
+            <tr><td>Beasiswa</td><td><span class="ok">✅ Implemented</span></td><td>Data Siswa, Budget, Payment, Dynamic Badges, Report</td></tr>
+            <tr><td>Payment Approval Memo</td><td><span class="ok">✅ Implemented</span></td><td>PAM Records, Draft Memo, Days of PAM, GL Account, export PDF/Excel</td></tr>
+            <tr><td>Payment Application</td><td><span class="ok">✅ Implemented</span></td><td>Monitoring status pengajuan &amp; TAT</td></tr>
+            <tr><td>Bank</td><td><span class="soon">🔜 Coming Soon</span></td><td>Manajemen rekening bank</td></tr>
+            <tr><td>Account Payable</td><td><span class="soon">🔜 Coming Soon</span></td><td>Hutang &amp; pembayaran ke vendor</td></tr>
+            <tr><td>Advance</td><td><span class="soon">🔜 Coming Soon</span></td><td>Uang muka</td></tr>
+            <tr><td>Petty Cash</td><td><span class="soon">🔜 Coming Soon</span></td><td>Kas kecil</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>6.2 Sinar Mas Tjipta (SMT)</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Modul</th><th>Status</th><th>Deskripsi</th></tr></thead>
+          <tbody>
+            <tr><td>Dashboard</td><td><span class="ok">✅ Implemented</span></td><td>Statistik ringkas SMT</td></tr>
+            <tr><td>Payment Approval Memo</td><td><span class="ok">✅ Implemented</span></td><td>PAM Records, Draft Memo, Days of PAM, GL Account</td></tr>
+            <tr><td>Payment Application</td><td><span class="ok">✅ Implemented</span></td><td>Monitoring status pengajuan &amp; TAT</td></tr>
+            <tr><td>Bank</td><td><span class="soon">🔜 Coming Soon</span></td><td>Manajemen rekening bank</td></tr>
+            <tr><td>Account Payable</td><td><span class="soon">🔜 Coming Soon</span></td><td>Hutang &amp; pembayaran ke vendor</td></tr>
+            <tr><td>Advance</td><td><span class="soon">🔜 Coming Soon</span></td><td>Uang muka karyawan/proyek</td></tr>
+            <tr><td>Petty Cash</td><td><span class="soon">🔜 Coming Soon</span></td><td>Kas kecil operasional</td></tr>
+            <tr><td>Sponsorship</td><td><span class="soon">🔜 Coming Soon</span></td><td>Pengelolaan sponsorship</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── 7. Beasiswa Module ── -->
+    <div class="section" id="s7">
+      <h2>7. Beasiswa Module — Spesifikasi Detail</h2>
+
+      <h3>7.1 Sub-Halaman / Tab</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Tab</th><th>Fungsi</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Data Siswa</td><td>List semua siswa + rekap Budget/Payment/Sisa, CRUD, search &amp; filter</td><td class="ok">✅</td></tr>
+            <tr><td>Input Budget</td><td>Autocomplete siswa, batch input Cat1/Cat2/Amount, pillar per sesi</td><td class="ok">✅</td></tr>
+            <tr><td>Data Budget</td><td>Filter lengkap, <strong>dynamic summary badges (filter-aware)</strong>, edit/hapus, export CSV/PDF</td><td class="ok">✅</td></tr>
+            <tr><td>Input Payment</td><td>Multi-siswa per submit, PAM auto-format, 4 SLA dates, auto-create PAM record</td><td class="ok">✅</td></tr>
+            <tr><td>Data Payment</td><td>Filter lengkap, <strong>dynamic summary badges (filter-aware)</strong>, export CSV/PDF</td><td class="ok">✅</td></tr>
+            <tr><td>Report Siswa</td><td>Detail per siswa + IPK + rekap + budget/payment detail, export CSV/PDF</td><td class="ok">✅</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>7.2 Payment — Field Lengkap</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Field</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>Code Siswa</td><td>FK ke tabel siswa</td></tr>
+            <tr><td>Kategori 1</td><td>By Pendidikan / By Tunjangan / By Penelitian / By Medical</td></tr>
+            <tr><td>Kategori 2</td><td>Dropdown searchable 32+ opsi (semester, tahap, dll)</td></tr>
+            <tr><td>Tanggal</td><td>Tanggal pembayaran</td></tr>
+            <tr><td>Amount</td><td>Nominal dibayarkan</td></tr>
+            <tr><td>PAM</td><td>Auto-format <code>PAM-{seq}-{COMPANY}-{MM}-{YYYY}</code></td></tr>
+            <tr><td>Pillar</td><td>7 pillar perusahaan</td></tr>
+            <tr><td>Perusahaan</td><td>47+ perusahaan dalam grup Sinar Mas</td></tr>
+            <tr><td>Tgl Pengajuan</td><td><em>SLA Date 1</em> — tanggal pengajuan ke finance</td></tr>
+            <tr><td>Tgl Receive</td><td><em>SLA Date 2</em> — tanggal finance menerima berkas</td></tr>
+            <tr><td>Tgl PA</td><td><em>SLA Date 3</em> — tanggal Payment Application terbit</td></tr>
+            <tr><td>Tgl Final</td><td><em>SLA Date 4</em> — tanggal realisasi pembayaran</td></tr>
+            <tr><td>Status</td><td>draft → approved</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="s7-badges">
+        <h3>7.3 Dynamic Summary Badges <span class="badge-new">NEW v1.2</span></h3>
+        <p>Tab <strong>Data Budget</strong> dan <strong>Data Payment</strong> menampilkan kartu ringkasan per kategori (Pendidikan, Tunjangan, Penelitian, Medical, Total) dengan 3 nilai: <strong>Budget</strong>, <strong>Payment</strong>, <strong>Selisih</strong>.</p>
+
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th></th><th>Cara Kerja Lama (≤ v1.1)</th><th>Cara Kerja Baru (v1.2+)</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Sumber data badges</strong></td><td>Endpoint <code>/beasiswa/summary</code> — total global seluruh database</td><td>Cross-tab aggregation di dalam response <code>/beasiswa/budget/list</code> dan <code>/payment/list</code></td></tr>
+              <tr><td><strong>Filter-aware?</strong></td><td>❌ Tidak — badges selalu tampilkan total global walau filter aktif</td><td>✅ Ya — badges mencerminkan scope filter yang sama dengan tabel</td></tr>
+              <tr><td><strong>HTTP request tambahan?</strong></td><td>Ya — 1 request tambahan ke <code>/beasiswa/summary</code></td><td>Tidak — data sudah ada di response list</td></tr>
+              <tr><td><strong>Implementasi</strong></td><td>—</td><td><code>get_budget_list()</code> returns <code>payment_totals</code>; <code>get_payment_list()</code> returns <code>budget_totals</code>; JS: <code>_renderTabSummary(prefix, bgtTotals, payTotals)</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3>7.4 Data Migrated (dari DbBeasiswa v2.2.xlsm)</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Sumber (Sheet Excel)</th><th>Tabel SQLite</th><th>Jumlah Record</th></tr></thead>
+          <tbody>
+            <tr><td><code>DbSiswa</code></td><td><code>siswa</code></td><td>1,269 siswa</td></tr>
+            <tr><td><code>DbBudget</code></td><td><code>budget_beasiswa</code></td><td>3,859 baris</td></tr>
+            <tr><td><code>DbPayment</code></td><td><code>payment_beasiswa</code></td><td>9,567 baris</td></tr>
+            <tr><td><strong>Total</strong></td><td></td><td><strong>~14,700 record</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── 8. Payment Approval Memo ── -->
+    <div class="section" id="s8">
+      <h2>8. Payment Approval Memo — Spesifikasi Detail</h2>
+
+      <p>PAM adalah <strong>hub agregasi pembayaran</strong>. Di sistem lama, proses ini dilakukan manual via sheet Excel <code>Detail PAM</code> dan <code>Rangkuman PAM</code>. Di Finance Hub, seluruh proses otomatis dari input payment hingga export memo.</p>
+
+      <h3>8.1 Tab Payment Memo Page</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Tab</th><th>Fungsi</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Daftar PAM</strong></td><td>Tabel semua PAM records; isi/update GL Account via dropdown COA</td><td class="ok">✅</td></tr>
+            <tr><td><strong>Draft Memo</strong></td><td>Cari PAM No, preview + inline edit memo, export PDF / Excel standar</td><td class="ok">✅</td></tr>
+            <tr><td><strong>Days of PAM</strong></td><td>Monitoring 4 tanggal SLA, bulk-update, search lazy-load AJAX</td><td class="ok">✅</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>8.2 Alur PAM End-to-End</h3>
+      <div class="flow">1. User input payment di Beasiswa → klik "Simpan"
+2. Service layer (atomic transaction):
+   a. Simpan baris ke payment_beasiswa (status: draft)
+   b. Auto-create PAM record di pam_records
+      (nomor PAM dari field input, company_id, total amount, tanggal)
+3. Tab "Daftar PAM":
+   - PAM muncul di tabel: PAM No, Tanggal, Total, GL Account
+   - User pilih GL Account dari dropdown COA
+4. Tab "Draft Memo":
+   - Cari PAM No → form preview otomatis terisi
+   - Edit inline nama, catatan, jumlah
+   - Lampiran detail siswa (collapsible)
+   - Export PDF atau Export Excel
+5. Tab "Days of PAM":
+   - Search PAM No / Nama Siswa (lazy-load)
+   - Centang baris → Bulk update 4 tanggal SLA</div>
+
+      <h3>8.3 PAM Records + Chart of Accounts (COA)</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Field</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td><code>pam_no</code></td><td>Format: <code>PAM-{seq}-{COMPANY}-{MM}-{YYYY}</code></td></tr>
+            <tr><td><code>company_id</code></td><td>FK ke companies</td></tr>
+            <tr><td><code>tanggal</code></td><td>Tanggal PAM</td></tr>
+            <tr><td><code>total_amount</code></td><td>Total nominal pembayaran</td></tr>
+            <tr><td><code>gl_account</code></td><td>Kode GL Account dari tabel <code>coa</code> (contoh: <code>70110230</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="s8-dop">
+        <h3>8.4 Days of PAM (DOP) — Monitoring SLA <span class="badge-new">NEW v1.2</span></h3>
+        <p>Menggantikan pengelolaan tanggal SLA ad-hoc di kolom Cat3–Cat7 pada sheet <code>DbPayment</code> Excel lama.</p>
+        <div class="tbl-wrap">
+          <table class="tbl-zebra">
+            <thead><tr><th>Fitur</th><th>Detail</th></tr></thead>
+            <tbody>
+              <tr><td>Search-first</td><td>Tabel tidak ditampilkan sampai user memasukkan kata kunci — mencegah load ratusan baris sekaligus</td></tr>
+              <tr><td>Lazy-load AJAX</td><td>Data dimuat via <code>GET /payment-memo/dop/candidates?search=</code> — tidak ada data saat page load</td></tr>
+              <tr><td>Inline filter</td><td>Filter Bulan, Tahun, Status SLA di subheader row</td></tr>
+              <tr><td>Checkbox + Bulk update</td><td>Pilih baris → "Update Tanggal" → dialog isi 4 tanggal SLA sekaligus</td></tr>
+              <tr><td>Status visual</td><td>Tanggal terlambat ditandai merah / warna sesuai status</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3>8.5 Export Memo — Format Standar</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Format</th><th>Sheet / Halaman</th><th>Konten</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="2"><strong>PDF</strong> (reportlab)</td><td>Halaman 1: Rangkuman</td><td>Header (No PAM, tanggal, GL, Cost Center), tabel penerima, total, kolom tanda tangan</td></tr>
+            <tr><td>Halaman 2: Detail</td><td>Rincian per baris payment: Nama, Kategori, Amount, SLA dates</td></tr>
+            <tr><td rowspan="2"><strong>Excel</strong> (openpyxl)</td><td>Sheet 1: Rangkuman PAM</td><td>Identik format <code>Rangkuman PAM</code> di file Excel lama</td></tr>
+            <tr><td>Sheet 2: Detail PAM</td><td>Identik format <code>Detail PAM</code> di file Excel lama — rincian per siswa</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note-blue">
+        Draft Memo juga mendukung <strong>custom export</strong> (POST <code>/payment-memo/export/pdf-custom</code> dan <code>/export/excel-custom</code>) — user menyuplai data yang sudah diedit inline, ephemeral, tidak disimpan ke database.
+      </div>
+    </div>
+
+    <!-- ── 9. Data Architecture ── -->
+    <div class="section" id="s9">
+      <h2>9. Data Architecture / Model Data</h2>
+
+      <h3>9.1 ERD Ringkas</h3>
+      <pre>companies (1) ──< siswa (N)
+companies (1) ──< budget_beasiswa (N)
+companies (1) ──< payment_beasiswa (N)
+companies (1) ──< payment_memo (N)
+companies (1) ──< pam_records (N)         ← NEW v1.2
+payment_memo (1) ──< payment_memo_items (N)
+payment_memo (1) ──< payment_application (N)
+payment_beasiswa (N) >── payment_memo (1)
+coa (N) ──< pam_records (N)  [via gl_account]  ← NEW v1.2</pre>
+
+      <h3>9.2 Tabel Baru di v1.2</h3>
+      <pre>-- PAM Records (auto-created saat add_payment_multi)
+CREATE TABLE IF NOT EXISTS pam_records (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id   INTEGER NOT NULL REFERENCES companies(id),
+    pam_no       TEXT NOT NULL,
+    tanggal      TEXT,
+    total_amount REAL DEFAULT 0,
+    gl_account   TEXT,
+    created_at   TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(company_id, pam_no)
+);
+
+-- Chart of Accounts (di-seed dari COA_LIST di config.py)
+CREATE TABLE IF NOT EXISTS coa (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER NOT NULL REFERENCES companies(id),
+    code       TEXT NOT NULL,
+    name       TEXT,
+    UNIQUE(company_id, code)
+);</pre>
+
+      <h3>9.3 DDL Lengkap — Tabel Utama</h3>
+      <pre>CREATE TABLE IF NOT EXISTS siswa (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id  INTEGER NOT NULL REFERENCES companies(id),
+    code        TEXT NOT NULL,
+    nama        TEXT NOT NULL,
+    jenjang     TEXT, angkatan INTEGER, program TEXT,
+    fakultas TEXT, universitas TEXT, bank TEXT,
+    norek TEXT, namarek TEXT, referensi TEXT,
+    ipk_sem1..ipk_sem10 REAL DEFAULT 0,
+    ipk_pen1..ipk_pen3  REAL DEFAULT 0,
+    status TEXT DEFAULT 'Aktif', catatan TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT,
+    UNIQUE(company_id, code)
+);
+
+CREATE TABLE IF NOT EXISTS payment_beasiswa (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id     INTEGER NOT NULL REFERENCES companies(id),
+    siswa_code     TEXT NOT NULL,
+    cat1 TEXT, cat2 TEXT, tanggal TEXT, amount REAL DEFAULT 0,
+    pillar TEXT, pam TEXT, perusahaan TEXT, cat3 TEXT, cat4 TEXT,
+    tgl_pengajuan  TEXT,   -- SLA Date 1
+    tgl_receive    TEXT,   -- SLA Date 2
+    tgl_pa         TEXT,   -- SLA Date 3
+    tgl_final      TEXT,   -- SLA Date 4
+    memo_id        INTEGER REFERENCES payment_memo(id),
+    status         TEXT DEFAULT 'draft',
+    created_at     TEXT DEFAULT CURRENT_TIMESTAMP
+);</pre>
+    </div>
+
+    <!-- ── 10. API Specification ── -->
+    <div class="section" id="s10">
+      <h2>10. API Specification / Spesifikasi API</h2>
+      <p>Semua endpoint <code>/api/v1/*</code> memerlukan header: <code>Authorization: Bearer &lt;access_token&gt;</code></p>
+
+      <h3>10.1 Beasiswa Endpoints</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Method</th><th>Path</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/beasiswa/budget/list</code></td><td>List budget + <code>payment_totals</code> + <code>payment_grand</code> <span class="new">UPDATED</span></td></tr>
+            <tr><td>GET</td><td><code>/beasiswa/payment/list</code></td><td>List payment + <code>budget_totals</code> + <code>budget_grand</code> <span class="new">UPDATED</span></td></tr>
+            <tr><td>POST</td><td><code>/beasiswa/payment/tambah-multi</code></td><td>Multi-siswa + SLA dates + auto-create PAM record</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/siswa</code></td><td>List siswa</td></tr>
+            <tr><td>POST/PUT</td><td><code>/api/v1/siswa[/&lt;code&gt;]</code></td><td>Tambah / update siswa</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/rekap</code></td><td>Summary per siswa</td></tr>
+            <tr><td>GET</td><td><code>/api/v1/rekap/export/csv|pdf</code></td><td>Download rekap</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>10.2 Payment Memo / PAM Endpoints</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Method</th><th>Path</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/payment-memo/pam</code></td><td>List semua PAM records per company <span class="new">NEW</span></td></tr>
+            <tr><td>PATCH</td><td><code>/payment-memo/pam/&lt;id&gt;/gl-account</code></td><td>Update GL Account <span class="new">NEW</span></td></tr>
+            <tr><td>GET</td><td><code>/payment-memo/coa</code></td><td>List Chart of Accounts <span class="new">NEW</span></td></tr>
+            <tr><td>GET</td><td><code>/payment-memo/pam/&lt;pam_no&gt;/detail</code></td><td>Detail PAM + daftar payments <span class="new">NEW</span></td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/export/pdf</code></td><td>Export PDF memo standar <span class="new">NEW</span></td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/export/excel</code></td><td>Export Excel memo standar (2 sheet) <span class="new">NEW</span></td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/export/pdf-custom</code></td><td>Export PDF dari data inline edit <span class="new">NEW</span></td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/export/excel-custom</code></td><td>Export Excel dari data inline edit <span class="new">NEW</span></td></tr>
+            <tr><td>GET</td><td><code>/payment-memo/dop/candidates</code></td><td>Search kandidat Days of PAM (lazy-load) <span class="new">NEW</span></td></tr>
+            <tr><td>GET</td><td><code>/payment-memo/dop/search</code></td><td>Filter Days of PAM rows <span class="new">NEW</span></td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/dop/bulk-update</code></td><td>Bulk update 4 tanggal SLA <span class="new">NEW</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>10.3 Standard Response Format</h3>
+      <pre>{
+  "ok": true,
+  "data": { ... },
+  "pesan": "Keterangan sukses atau error"
+}</pre>
+    </div>
+
+    <!-- ── 11. Security ── -->
+    <div class="section" id="s11">
+      <h2>11. Security &amp; Access Control</h2>
+
+      <h3>11.1 Authentication Flow</h3>
+      <div class="flow">1. POST /api/auth/login → verifikasi password bcrypt
+2. Generate access_token (JWT, 1 jam) + refresh_token (JWT, 7 hari)
+3. Setiap request → middleware decode access_token
+4. Token expire → gunakan refresh_token
+5. Logout → revoke refresh_token di database</div>
+
+      <h3>11.2 Security Controls</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Kontrol</th><th>Implementasi</th></tr></thead>
+          <tbody>
+            <tr><td>Password hashing</td><td>bcrypt cost factor 12; wajib ganti default password saat first login</td></tr>
+            <tr><td>Company data isolation</td><td><code>company_id</code> wajib di semua tabel; company aktif dari JWT payload (tidak bisa dimanipulasi)</td></tr>
+            <tr><td>IDOR guards</td><td>Setiap resource divalidasi kepemilikan <code>company_id</code> sebelum dikembalikan</td></tr>
+            <tr><td>SQL injection prevention</td><td>100% parameterized queries — tidak ada string concatenation di SQL</td></tr>
+            <tr><td>CORS</td><td>Hanya origin localhost / IP LAN yang diizinkan</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── 12. Non-Functional Requirements ── -->
+    <div class="section" id="s12">
+      <h2>12. Non-Functional Requirements</h2>
+
+      <h3>12.1 Performance</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Metrik</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>Waktu load halaman</td><td>&lt; 2 detik pada LAN</td></tr>
+            <tr><td>Response API</td><td>&lt; 500ms untuk query normal</td></tr>
+            <tr><td>Days of PAM search</td><td>Lazy-load AJAX — tidak ada data dikirim saat page load</td></tr>
+            <tr><td>Concurrent users</td><td>10–20 user (SQLite write lock per transaksi)</td></tr>
+            <tr><td>Ukuran database</td><td>Estimasi &lt; 100MB untuk 5 tahun data</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>12.2 Deployment Model</h3>
+      <div class="flow">[Laptop Server — selalu nyala saat jam kerja]
+  └── python run.py  (Flask + waitress)
+  └── finance_hub.db (SQLite, lokal di laptop server)
+
+[User lain] ──browser──→ http://[IP-laptop]:8080</div>
+      <div class="note">
+        <strong>Backup:</strong> copy file <code>finance_hub.db</code> ke <code>Y:/</code> shared folder secara berkala.
+        <code>Y:/</code> digunakan sebagai backup destination, <strong>bukan</strong> sebagai lokasi database aktif.
+      </div>
+
+      <h3>12.3 Risiko &amp; Mitigasi</h3>
+      <div class="tbl-wrap">
+        <table class="tbl-zebra">
+          <thead><tr><th>Risiko</th><th>Dampak</th><th>Mitigasi</th></tr></thead>
+          <tbody>
+            <tr><td>File <code>finance_hub.db</code> terhapus / corrupt</td><td>Kehilangan semua data</td><td>Backup harian otomatis ke folder lain</td></tr>
+            <tr><td>SQLite write lock concurrent write tinggi</td><td>Operasi simpan lambat</td><td>Acceptable untuk 10–20 user; scale ke PostgreSQL jika perlu</td></tr>
+            <tr><td>JWT secret bocor</td><td>Semua token bisa dipalsukan</td><td>Simpan JWT secret di environment variable</td></tr>
+            <tr><td>Windows machine mati</td><td>Sistem tidak accessible</td><td>Jalankan di mesin yang selalu on; pertimbangkan UPS</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── 13. Roadmap ── -->
+    <div class="section" id="s13">
+      <h2>13. Roadmap &amp; Phasing / Peta Jalan</h2>
+
+      <div class="roadmap-done">
+        <strong>Fase 1 — Foundation + PAM Full Feature (v1.x) — ✅ COMPLETE</strong>
+        <span style="float:right;font-size:.8rem;color:#15803d">127 / 127 tests pass</span>
+      </div>
+
+      <div class="tbl-wrap" style="margin-top:.75rem">
+        <table class="tbl-zebra">
+          <thead><tr><th>Deliverable</th><th>Status</th><th>Catatan</th></tr></thead>
+          <tbody>
+            <tr><td>Flask app structure, auth JWT, company selector, dashboard</td><td class="ok">✅</td><td>Blueprint-based; first-login gate</td></tr>
+            <tr><td>Beasiswa — Data Siswa</td><td class="ok">✅</td><td>CRUD + search + IPK sem 1–10 + IPK penelitian</td></tr>
+            <tr><td>Beasiswa — Input &amp; Data Budget</td><td class="ok">✅</td><td>Batch input, filter lengkap, export CSV/PDF</td></tr>
+            <tr><td>Beasiswa — Input Payment (multi-siswa)</td><td class="ok">✅</td><td>PAM auto-format, 4 SLA dates, auto-create PAM record</td></tr>
+            <tr><td>Beasiswa — Data Payment</td><td class="ok">✅</td><td>Filter lengkap, export CSV/PDF</td></tr>
+            <tr><td>Beasiswa — Report Siswa</td><td class="ok">✅</td><td>Detail per siswa + IPK + rekap, export CSV/PDF</td></tr>
+            <tr><td>Dynamic Summary Badges</td><td class="ok">✅ <span class="new">v1.2</span></td><td>Filter-aware badges; cross-tab aggregation di service layer</td></tr>
+            <tr><td>Data Migration Excel → SQLite</td><td class="ok">✅</td><td>1,269 siswa + 3,859 budget + 9,567 payment (~14,700 record)</td></tr>
+            <tr><td>PAM Records + GL Account / COA</td><td class="ok">✅ <span class="new">v1.2</span></td><td>Auto-create; update GL Account via dropdown</td></tr>
+            <tr><td>Draft Memo + inline editing</td><td class="ok">✅ <span class="new">v1.2</span></td><td>Preview, edit, collapsible Lampiran, custom export</td></tr>
+            <tr><td>PAM Custom Export (PDF + Excel)</td><td class="ok">✅ <span class="new">v1.2</span></td><td>POST ephemeral — tidak disimpan ke DB</td></tr>
+            <tr><td>Days of PAM tab</td><td class="ok">✅ <span class="new">v1.2</span></td><td>Search-first lazy-load AJAX, bulk-update 4 SLA dates</td></tr>
+            <tr><td>Payment Approval Memo &amp; Payment Application</td><td class="ok">✅</td><td>List, buat memo, update status, export PDF, TAT tracking</td></tr>
+            <tr><td>REST API (/api/v1/)</td><td class="ok">✅</td><td>Semua operasi Beasiswa + PAM via JSON API</td></tr>
+            <tr><td>Production server (waitress)</td><td class="ok">✅</td><td>LAN IP display, startup validation</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="roadmap-next" style="margin-top:1rem">
+        <strong>Fase 2 — Modul Tambahan (v2.x)</strong>
+      </div>
+      <ol style="margin:.5rem 0 0 1.25rem;font-size:.85rem">
+        <li>Account Payable (SMT + ETF)</li>
+        <li>Advance (SMT + ETF)</li>
+        <li>Petty Cash (SMT + ETF)</li>
+        <li>Sponsorship (SMT only)</li>
+        <li>Bank (SMT + ETF)</li>
+      </ol>
+
+      <div class="roadmap-future" style="margin-top:1rem">
+        <strong>Fase 3 — Enhancement (v3.x)</strong>
+      </div>
+      <ul style="margin:.5rem 0 0 1.25rem;font-size:.85rem">
+        <li>Notifikasi in-app saat memo baru dibuat</li>
+        <li>Dashboard charts (Chart.js) — tren pembayaran per bulan</li>
+        <li>Audit log — siapa mengubah apa dan kapan</li>
+        <li>Multi-level approval untuk PAM</li>
+        <li>Migrasi ke PostgreSQL jika concurrent user meningkat signifikan</li>
+      </ul>
+    </div>
+
+    <div style="text-align:center;color:var(--muted);font-size:.75rem;padding:2rem 0 1rem;border-top:1px solid var(--border);margin-top:1rem">
+      Finance Hub PRD v1.2 · Updated 2026-06-01
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Highlight active TOC link on scroll
+  const sections = document.querySelectorAll('[id]');
+  const links = document.querySelectorAll('.toc a');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.toc a[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

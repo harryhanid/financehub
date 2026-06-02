@@ -489,7 +489,13 @@ def get_days_of_pam(company_id: int) -> list:
                   pb.cat1, pb.cat2, pb.perusahaan, pb.pillar,
                   pb.amount,    pb.tanggal,
                   pb.tgl_pengajuan, pb.tgl_receive,
-                  pb.tgl_pa,    pb.tgl_final
+                  pb.tgl_pa,    pb.tgl_final,
+                  pb.tgl_retur, pb.tgl_final6, pb.tgl_proses,
+                  pb.tgl_HT_AGRI, pb.tgl_Yurike_AGRI, pb.tgl_Aditya_AGRI,
+                  pb.tgl_Pedy_AGRI, pb.tgl_C2_AGRI, pb.tgl_MSIG_AGRI,
+                  pb.tgl_Paid_AGRI,
+                  pb."tgl_A-GS_APP", pb."tgl_A-HJK_APP",
+                  pb.tgl_ASPIRO_APP, pb.tgl_Paid_APP
            FROM payment_beasiswa pb
            LEFT JOIN siswa s
                   ON s.company_id = pb.company_id AND s.code = pb.siswa_code
@@ -523,13 +529,20 @@ def get_days_of_pam_candidates(company_id: int) -> list:
 
 
 def bulk_update_dates(ids: list, dates: dict, company_id: int) -> dict:
-    _ALLOWED = {"tanggal", "tgl_pengajuan", "tgl_receive", "tgl_pa", "tgl_final"}
+    _ALLOWED = {
+        "tanggal", "tgl_pengajuan", "tgl_receive", "tgl_pa", "tgl_final",
+        "tgl_retur", "tgl_final6", "tgl_proses",
+        "tgl_HT_AGRI", "tgl_Yurike_AGRI", "tgl_Aditya_AGRI",
+        "tgl_Pedy_AGRI", "tgl_C2_AGRI", "tgl_MSIG_AGRI", "tgl_Paid_AGRI",
+        "tgl_A-GS_APP", "tgl_A-HJK_APP", "tgl_ASPIRO_APP", "tgl_Paid_APP",
+    }
     fields = [(k, v) for k, v in dates.items() if k in _ALLOWED and v]
     if not fields:
         return {"ok": False, "pesan": "Tidak ada tanggal yang diisi."}
     if not ids:
         return {"ok": False, "pesan": "Tidak ada baris yang dipilih."}
-    set_clause   = ", ".join(f"{k}=?" for k, _ in fields)
+    # Quote column names to handle names containing hyphens (e.g. tgl_A-GS_APP)
+    set_clause   = ", ".join(f'"{k}"=?' for k, _ in fields)
     vals         = [v for _, v in fields]
     placeholders = ",".join("?" * len(ids))
     conn = get_conn()

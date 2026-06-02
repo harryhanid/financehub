@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance Hub — PRD v1.0</title>
+<style>
+  :root {
+    --primary: #1a56db;
+    --primary-dark: #1e40af;
+    --accent: #0ea5e9;
+    --success: #16a34a;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-800);
+    line-height: 1.6;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1a56db 100%);
+    color: white;
+    padding: 40px 48px;
+  }
+  .header-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .header h1 { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
+  .header p { font-size: 16px; opacity: 0.85; }
+  .meta-row {
+    display: flex; gap: 32px; margin-top: 24px; flex-wrap: wrap;
+  }
+  .meta-item { font-size: 13px; opacity: 0.8; }
+  .meta-item strong { display: block; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.7; margin-bottom: 2px; }
+
+  /* ── LAYOUT ── */
+  .container { display: flex; min-height: calc(100vh - 160px); }
+
+  /* ── SIDEBAR (TOC) ── */
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: white;
+    border-right: 1px solid var(--gray-200);
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar-title {
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--gray-600);
+    padding: 0 20px 12px;
+    border-bottom: 1px solid var(--gray-200);
+    margin-bottom: 8px;
+  }
+  .toc-link {
+    display: block;
+    padding: 7px 20px;
+    font-size: 13px;
+    color: var(--gray-700);
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .toc-link:hover {
+    background: var(--gray-50);
+    color: var(--primary);
+    border-left-color: var(--primary);
+  }
+  .toc-num { color: var(--gray-300); margin-right: 6px; font-size: 11px; }
+
+  /* ── MAIN CONTENT ── */
+  .main {
+    flex: 1;
+    padding: 40px 48px;
+    max-width: 900px;
+  }
+
+  section { margin-bottom: 56px; }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--gray-900);
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--gray-200);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-num {
+    background: var(--primary);
+    color: white;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin: 24px 0 12px;
+  }
+
+  h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin: 16px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  p { margin-bottom: 12px; color: var(--gray-700); }
+
+  /* ── KEY FACTS CARD ── */
+  .key-facts {
+    background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .key-facts-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--primary);
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .key-facts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .key-fact-item { }
+  .key-fact-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray-600);
+    margin-bottom: 2px;
+  }
+  .key-fact-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-800);
+  }
+
+  /* ── TABLES ── */
+  .table-wrap { overflow-x: auto; margin: 16px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    background: var(--gray-800);
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--gray-200);
+    color: var(--gray-700);
+  }
+  tr:nth-child(even) td { background: var(--gray-50); }
+  tr:hover td { background: #eff6ff; }
+
+  /* ── CODE BLOCKS ── */
+  pre {
+    background: var(--gray-900);
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.7;
+    margin: 16px 0;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+  }
+  code {
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 12px;
+    background: var(--gray-100);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #be185d;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  /* ── BADGES ── */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-gray { background: var(--gray-100); color: var(--gray-600); }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+
+  /* ── MODULE CARDS ── */
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .module-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .module-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .module-icon-green { background: #dcfce7; }
+  .module-icon-gray { background: var(--gray-100); }
+  .module-card-title { font-weight: 600; font-size: 13px; color: var(--gray-800); }
+  .module-card-desc { font-size: 12px; color: var(--gray-600); margin-top: 2px; }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow {
+    background: var(--gray-900);
+    border-radius: 10px;
+    padding: 20px 24px;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    font-size: 12px;
+    color: #94a3b8;
+    margin: 16px 0;
+    line-height: 1.9;
+  }
+  .flow .arrow { color: #38bdf8; }
+  .flow .action { color: #86efac; }
+  .flow .note { color: #fbbf24; }
+
+  /* ── CALLOUT ── */
+  .callout {
+    border-left: 4px solid;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 16px;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .callout-info { border-color: var(--accent); background: #f0f9ff; color: #0c4a6e; }
+  .callout-warning { border-color: var(--warning); background: #fffbeb; color: #78350f; }
+  .callout-success { border-color: var(--success); background: #f0fdf4; color: #14532d; }
+
+  /* ── PHASE CARDS ── */
+  .phase {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin: 12px 0;
+  }
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .phase-tag {
+    background: var(--primary);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+  .phase-tag-gray {
+    background: var(--gray-200);
+    color: var(--gray-600);
+  }
+  .phase-title { font-weight: 700; font-size: 15px; }
+
+  ul { padding-left: 20px; margin: 8px 0; }
+  li { margin-bottom: 4px; font-size: 13px; color: var(--gray-700); }
+
+  .footer {
+    background: var(--gray-800);
+    color: var(--gray-400);
+    text-align: center;
+    padding: 20px;
+    font-size: 12px;
+  }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { padding: 24px 20px; }
+    .header { padding: 24px 20px; }
+    .header h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-badge">PRD v1.0</div>
+  <h1>Finance Hub</h1>
+  <p>Product Requirements Document — Sistem Manajemen Keuangan Internal Multi-Perusahaan</p>
+  <div class="meta-row">
+    <div class="meta-item"><strong>Tanggal</strong>2026-05-30</div>
+    <div class="meta-item"><strong>Status</strong>Draft for Review</div>
+    <div class="meta-item"><strong>Versi</strong>1.0</div>
+    <div class="meta-item"><strong>Platform</strong>Python Flask + SQLite</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- SIDEBAR TOC -->
+  <nav class="sidebar">
+    <div class="sidebar-title">Daftar Isi</div>
+    <a href="#s1" class="toc-link"><span class="toc-num">01</span>Executive Summary</a>
+    <a href="#s2" class="toc-link"><span class="toc-num">02</span>Problem Statement</a>
+    <a href="#s3" class="toc-link"><span class="toc-num">03</span>User Profile</a>
+    <a href="#s4" class="toc-link"><span class="toc-num">04</span>User Journey Flows</a>
+    <a href="#s5" class="toc-link"><span class="toc-num">05</span>System Architecture</a>
+    <a href="#s6" class="toc-link"><span class="toc-num">06</span>Module Catalog</a>
+    <a href="#s7" class="toc-link"><span class="toc-num">07</span>Beasiswa Module</a>
+    <a href="#s8" class="toc-link"><span class="toc-num">08</span>Payment Approval Memo</a>
+    <a href="#s9" class="toc-link"><span class="toc-num">09</span>Data Architecture</a>
+    <a href="#s10" class="toc-link"><span class="toc-num">10</span>API Specification</a>
+    <a href="#s11" class="toc-link"><span class="toc-num">11</span>Security</a>
+    <a href="#s12" class="toc-link"><span class="toc-num">12</span>Non-Functional Req.</a>
+    <a href="#s13" class="toc-link"><span class="toc-num">13</span>Roadmap & Phasing</a>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- 1. EXECUTIVE SUMMARY -->
+    <section id="s1">
+      <h2><span class="section-num">1</span>Executive Summary / Ringkasan Eksekutif</h2>
+      <p><strong>Finance Hub</strong> adalah sistem manajemen keuangan internal berbasis web untuk <strong>Account Payable, Petty Cash, Beasiswa, dan proses pembayaran</strong> yang dijalankan secara lokal (localhost/LAN). Sistem ini dirancang sebagai <strong>platform multi-perusahaan</strong> untuk dua entitas: <strong>Sinar Mas Tjipta</strong> dan <strong>Eka Tjipta Foundation</strong>.</p>
+
+      <div class="key-facts">
+        <div class="key-facts-title">Key Facts</div>
+        <div class="key-facts-grid">
+          <div class="key-fact-item">
+            <div class="key-fact-label">Platform</div>
+            <div class="key-fact-value">Python Flask Web App</div>
+          </div>
+          <div class="key-fact-item">
+            <div class="key-fact-label">Database</div>
+            <div class="key-fact-value">SQLite (zero setup)</div>
+          </div>
+          <div class="key-fact-item">
+            <div class="key-fact-label">Auth</div>
+            <div class="key-fact-value">JWT (flask-jwt-extended)</div>
+          </div>
+          <div class="key-fact-item">
+            <div class="key-fact-label">Frontend</div>
+            <div class="key-fact-value">Jinja2 HTML Templates</div>
+          </div>
+          <div class="key-fact-item">
+            <div class="key-fact-label">PDF Export</div>
+            <div class="key-fact-value">reportlab</div>
+          </div>
+          <div class="key-fact-item">
+            <div class="key-fact-label">REST API</div>
+            <div class="key-fact-value">/api/v1/ JSON endpoints</div>
+          </div>
+          <div class="key-fact-item">
+            <div class="key-fact-label">Companies</div>
+            <div class="key-fact-value">Sinar Mas Tjipta, ETF</div>
+          </div>
+          <div class="key-fact-item">
+            <div class="key-fact-label">Deployment</div>
+            <div class="key-fact-value">Localhost / LAN (no cloud)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. PROBLEM STATEMENT -->
+    <section id="s2">
+      <h2><span class="section-num">2</span>Problem Statement / Latar Belakang & Tujuan</h2>
+
+      <h3>2.1 Masalah Sebelumnya</h3>
+      <ul>
+        <li>File Excel terpisah per modul, tersimpan di shared folder lokal (<code>Y:/</code>) tanpa kontrol akses.</li>
+        <li>Tidak ada audit trail — tidak diketahui siapa yang mengubah data dan kapan.</li>
+        <li>File lock conflict ketika Excel dibuka oleh lebih dari satu orang bersamaan.</li>
+        <li>Payment Approval Memo dilakukan manual — tidak ada rekap otomatis lintas modul.</li>
+        <li>Data Sinar Mas Tjipta dan Eka Tjipta Foundation tidak terpisah secara sistematis.</li>
+      </ul>
+
+      <h3>2.2 Solusi</h3>
+      <ul>
+        <li><strong>Portal terpusat</strong> — semua transaksi finansial diinput via web app.</li>
+        <li><strong>Multi-company support</strong> — data SMT dan ETF terisolasi penuh di database.</li>
+        <li><strong>Auth berbasis JWT</strong> — hanya user yang login yang dapat mengakses sistem.</li>
+        <li><strong>Payment Approval Memo otomatis</strong> — rekap dari semua sub-modul dikumpulkan dalam satu tempat.</li>
+        <li><strong>REST API</strong> — siap diintegrasikan ke platform induk via JSON API.</li>
+        <li><strong>Export PDF & CSV</strong> — laporan dapat diunduh untuk keperluan approval dan arsip.</li>
+      </ul>
+
+      <h3>2.3 Tujuan Sistem</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tujuan</th><th>Indikator Keberhasilan</th></tr></thead>
+          <tbody>
+            <tr><td>Digitalisasi data keuangan</td><td>100% input via web, tidak ada Excel manual</td></tr>
+            <tr><td>Isolasi data antar perusahaan</td><td>Query selalu difilter per <code>company_id</code></td></tr>
+            <tr><td>Kontrol akses</td><td>Tidak ada halaman yang dapat diakses tanpa login</td></tr>
+            <tr><td>Payment approval terkonsolidasi</td><td>Semua pembayaran dari semua modul masuk ke PAM</td></tr>
+            <tr><td>Integrasi-ready</td><td>Semua operasi tersedia via REST API JSON</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>2.4 Non-Tujuan (Out of Scope v1.0)</h3>
+      <ul>
+        <li>Integrasi ERP eksternal (SAP, Oracle, dll)</li>
+        <li>Notifikasi email/WhatsApp otomatis</li>
+        <li>Multi-level approval workflow</li>
+        <li>Mobile native app</li>
+        <li>Modul Bank, Account Payable, Advance, Petty Cash, Sponsorship</li>
+      </ul>
+    </section>
+
+    <!-- 3. USER PROFILE -->
+    <section id="s3">
+      <h2><span class="section-num">3</span>User Profile / Profil Pengguna</h2>
+      <p>Finance Hub v1.0 memiliki <strong>3 role user</strong> dengan permission berbeda.</p>
+
+      <h3>3.1 Role Definitions</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Role</th><th>Siapa</th><th>Akses Utama</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-blue">Requester</span></td><td>Staff keuangan / operator input data</td><td>Input data, lihat laporan</td></tr>
+            <tr><td><span class="badge badge-amber">Verificator</span></td><td>Supervisor / checker</td><td>Review, verifikasi, buat memo</td></tr>
+            <tr><td><span class="badge badge-green">Releaser</span></td><td>Finance manager / approver final</td><td>Release pembayaran, manage users</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>3.2 Permission Matrix</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aksi</th><th>Requester</th><th>Verificator</th><th>Releaser</th></tr></thead>
+          <tbody>
+            <tr><td colspan="4" style="background:#f3f4f6;font-weight:600;font-size:12px;letter-spacing:0.5px;color:#6b7280">BEASISWA</td></tr>
+            <tr><td>Input data siswa (tambah/edit)</td><td>✅</td><td>✅</td><td>❌</td></tr>
+            <tr><td>Input budget</td><td>✅</td><td>✅</td><td>❌</td></tr>
+            <tr><td>Input payment</td><td>✅</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Lihat rekap & export CSV/PDF</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td colspan="4" style="background:#f3f4f6;font-weight:600;font-size:12px;letter-spacing:0.5px;color:#6b7280">PAYMENT APPROVAL MEMO</td></tr>
+            <tr><td>Lihat daftar draft payment</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Buat memo baru</td><td>❌</td><td>✅</td><td>❌</td></tr>
+            <tr><td>Verifikasi / approve memo</td><td>❌</td><td>✅</td><td>❌</td></tr>
+            <tr><td>Release / mark as Paid</td><td>❌</td><td>❌</td><td>✅</td></tr>
+            <tr><td>Export PDF memo</td><td>❌</td><td>✅</td><td>✅</td></tr>
+            <tr><td colspan="4" style="background:#f3f4f6;font-weight:600;font-size:12px;letter-spacing:0.5px;color:#6b7280">PAYMENT APPLICATION</td></tr>
+            <tr><td>Lihat monitoring status</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Update actual payment date</td><td>❌</td><td>❌</td><td>✅</td></tr>
+            <tr><td colspan="4" style="background:#f3f4f6;font-weight:600;font-size:12px;letter-spacing:0.5px;color:#6b7280">USER MANAGEMENT</td></tr>
+            <tr><td>Tambah / nonaktifkan user</td><td>❌</td><td>❌</td><td>✅</td></tr>
+            <tr><td>Dashboard</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>3.3 User Management</h3>
+      <ul>
+        <li><strong>Bootstrap:</strong> Saat pertama kali dijalankan, sistem otomatis buat akun <code>admin</code> dengan role <span class="badge badge-green">Releaser</span> dan password default.</li>
+        <li><strong>First login:</strong> Wajib ganti password default sebelum dapat mengakses modul manapun.</li>
+        <li><strong>Tambah user:</strong> Hanya user dengan role Releaser yang dapat menambah user baru dan assign role-nya.</li>
+        <li><strong>Nonaktif user:</strong> User dapat di-nonaktifkan tanpa dihapus — data audit tetap terjaga.</li>
+      </ul>
+    </section>
+
+    <!-- 4. USER JOURNEY -->
+    <section id="s4">
+      <h2><span class="section-num">4</span>User Journey Flows / Alur Pengguna</h2>
+
+      <h3>4.1 Login & Company Selection</h3>
+      <div class="flow">
+        <span class="action">Buka http://localhost:8080</span><br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Redirect ke /login (jika belum punya token)<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Input username + password<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Verifikasi JWT <span class="arrow">→</span> redirect ke /select-company<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Pilih perusahaan: [<span class="note">Sinar Mas Tjipta</span>] | [<span class="note">Eka Tjipta Foundation</span>]<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Masuk ke Dashboard perusahaan yang dipilih
+      </div>
+
+      <h3>4.2 Input Beasiswa (ETF)</h3>
+      <div class="flow">
+        <span class="action">Dashboard ETF → Menu: Beasiswa</span><br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Tab: <span class="note">Data Siswa</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">→</span> Tambah Siswa Baru → Isi form → Submit<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">→</span> Cari Siswa → Edit → Update<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Tab: <span class="note">Budget</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">→</span> Pilih Siswa → Isi Kategori/Semester/Amount → Submit<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Tab: <span class="note">Payment</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">→</span> Pilih Siswa → Isi data pembayaran → Submit<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">→</span> <span class="note">Sistem otomatis buat draft entry di Payment Approval Memo</span><br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Tab: <span class="note">Rekap</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">→</span> Filter → Export CSV | Export PDF
+      </div>
+
+      <h3>4.3 Payment Approval Memo</h3>
+      <div class="flow">
+        <span class="action">Dashboard → Menu: Payment Approval Memo</span><br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Lihat daftar payment draft dari semua modul<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Pilih payment → tambahkan ke Memo baru<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Generate Memo Number: <span class="note">PAM/ETF/2026/001</span><br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Print / Export PDF memo untuk approval<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Update status: <span class="note">Draft → Submitted → Approved → Paid</span>
+      </div>
+    </section>
+
+    <!-- 5. SYSTEM ARCHITECTURE -->
+    <section id="s5">
+      <h2><span class="section-num">5</span>System Architecture / Arsitektur Sistem</h2>
+
+      <h3>5.1 Struktur Folder</h3>
+      <pre>finance_hub/
+├── app.py                      ← Flask entry point, register blueprints
+├── config.py                   ← DB_PATH, JWT_SECRET, company list
+├── database.py                 ← init SQLite, CREATE TABLE IF NOT EXISTS
+├── auth/
+│   ├── routes.py               ← /auth/login, /auth/refresh, /auth/logout
+│   └── middleware.py           ← @jwt_required decorator
+├── modules/
+│   ├── beasiswa/
+│   │   ├── routes.py           ← HTML routes
+│   │   ├── api.py              ← REST API /api/v1/beasiswa/*
+│   │   └── service.py          ← business logic (query SQLite)
+│   ├── payment_memo/
+│   │   ├── routes.py
+│   │   ├── api.py
+│   │   └── service.py          ← agregasi dari semua modul
+│   ├── payment_application/
+│   │   ├── routes.py
+│   │   └── service.py
+│   └── [coming_soon]/          ← bank, account_payable, advance, pettycash
+├── templates/
+│   ├── base.html               ← layout (navbar, company switcher, footer)
+│   ├── login.html
+│   ├── company_select.html
+│   ├── dashboard.html
+│   ├── beasiswa/
+│   ├── payment_memo/
+│   └── payment_application/
+├── static/                     ← css, js
+├── finance_hub.db              ← SQLite, auto-created saat pertama run
+└── requirements.txt</pre>
+
+      <h3>5.2 Tech Stack</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Teknologi</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>Backend</td><td>Python 3.9+ / Flask</td><td>Framework web</td></tr>
+            <tr><td>Database</td><td>SQLite (built-in Python)</td><td>Zero setup, file-based, gratis</td></tr>
+            <tr><td>Auth</td><td>flask-jwt-extended</td><td>JWT access + refresh token</td></tr>
+            <tr><td>Password</td><td>bcrypt</td><td>Hashing aman (cost factor 12)</td></tr>
+            <tr><td>PDF</td><td>reportlab</td><td>Generate laporan PDF</td></tr>
+            <tr><td>Frontend</td><td>Jinja2 + vanilla JS</td><td>Server-side rendering</td></tr>
+            <tr><td>WSGI</td><td>waitress</td><td>Production server untuk Windows LAN</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>5.3 Dependencies (requirements.txt)</h3>
+      <pre>flask>=3.0
+flask-jwt-extended>=4.6
+bcrypt>=4.0
+reportlab>=4.0
+flask-cors>=4.0
+waitress>=3.0</pre>
+    </section>
+
+    <!-- 6. MODULE CATALOG -->
+    <section id="s6">
+      <h2><span class="section-num">6</span>Module Catalog / Katalog Modul</h2>
+
+      <h3>Sinar Mas Tjipta</h3>
+      <div class="module-grid">
+        <div class="module-card">
+          <div class="module-icon module-icon-green">📊</div>
+          <div><div class="module-card-title">Dashboard <span class="badge badge-green">v1.0</span></div><div class="module-card-desc">Statistik ringkas SMT</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-gray">🏦</div>
+          <div><div class="module-card-title">Bank <span class="badge badge-gray">Coming Soon</span></div><div class="module-card-desc">Manajemen rekening bank</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-gray">📑</div>
+          <div><div class="module-card-title">Account Payable <span class="badge badge-gray">Coming Soon</span></div><div class="module-card-desc">Hutang & pembayaran vendor</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-gray">💵</div>
+          <div><div class="module-card-title">Advance <span class="badge badge-gray">Coming Soon</span></div><div class="module-card-desc">Uang muka karyawan/proyek</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-gray">💰</div>
+          <div><div class="module-card-title">Petty Cash <span class="badge badge-gray">Coming Soon</span></div><div class="module-card-desc">Kas kecil operasional</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-gray">🤝</div>
+          <div><div class="module-card-title">Sponsorship <span class="badge badge-gray">Coming Soon</span></div><div class="module-card-desc">Pengelolaan sponsorship</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-green">📋</div>
+          <div><div class="module-card-title">Payment Approval Memo <span class="badge badge-green">v1.0</span></div><div class="module-card-desc">Agregat pembayaran, print memo</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-green">📡</div>
+          <div><div class="module-card-title">Payment Application <span class="badge badge-green">v1.0</span></div><div class="module-card-desc">Monitoring status & TAT</div></div>
+        </div>
+      </div>
+
+      <h3>Eka Tjipta Foundation</h3>
+      <div class="module-grid">
+        <div class="module-card">
+          <div class="module-icon module-icon-green">📊</div>
+          <div><div class="module-card-title">Dashboard <span class="badge badge-green">v1.0</span></div><div class="module-card-desc">Statistik ringkas ETF</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-gray">🏦</div>
+          <div><div class="module-card-title">Bank <span class="badge badge-gray">Coming Soon</span></div><div class="module-card-desc">Manajemen rekening bank</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-gray">📑</div>
+          <div><div class="module-card-title">Account Payable <span class="badge badge-gray">Coming Soon</span></div><div class="module-card-desc">Hutang & pembayaran vendor</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-gray">💵</div>
+          <div><div class="module-card-title">Advance <span class="badge badge-gray">Coming Soon</span></div><div class="module-card-desc">Uang muka</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-gray">💰</div>
+          <div><div class="module-card-title">Petty Cash <span class="badge badge-gray">Coming Soon</span></div><div class="module-card-desc">Kas kecil</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-green">🎓</div>
+          <div><div class="module-card-title">Beasiswa <span class="badge badge-green">v1.0</span></div><div class="module-card-desc">Manajemen penerima beasiswa, budget, payment, rekap</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-green">📋</div>
+          <div><div class="module-card-title">Payment Approval Memo <span class="badge badge-green">v1.0</span></div><div class="module-card-desc">Agregat dari Beasiswa + modul lain</div></div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon module-icon-green">📡</div>
+          <div><div class="module-card-title">Payment Application <span class="badge badge-green">v1.0</span></div><div class="module-card-desc">Monitoring status & TAT</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. BEASISWA MODULE -->
+    <section id="s7">
+      <h2><span class="section-num">7</span>Beasiswa Module — Spesifikasi Detail</h2>
+
+      <h3>7.1 Tab / Sub-Halaman</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tab</th><th>Fungsi</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Data Siswa</strong></td><td>List semua siswa, tambah siswa baru, edit/update data</td></tr>
+            <tr><td><strong>Budget</strong></td><td>Input alokasi anggaran per siswa per kategori/semester</td></tr>
+            <tr><td><strong>Payment</strong></td><td>Input realisasi pembayaran per siswa</td></tr>
+            <tr><td><strong>Rekap</strong></td><td>Laporan Budget vs Payment vs Sisa, export CSV/PDF</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>7.2 Field Data Siswa</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Tipe</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>Code</td><td>TEXT (unique)</td><td>Kode unik siswa per perusahaan</td></tr>
+            <tr><td>Nama</td><td>TEXT</td><td>Nama lengkap</td></tr>
+            <tr><td>Jenjang</td><td>ENUM</td><td>SD/SMA, S1, S2, S3, SETF</td></tr>
+            <tr><td>Angkatan</td><td>INTEGER</td><td>Tahun angkatan</td></tr>
+            <tr><td>Program</td><td>ENUM</td><td>15 program (Kejaksaan, Polri, Tjipta Siswa Mandiri, dll)</td></tr>
+            <tr><td>Fakultas</td><td>TEXT</td><td>Nama fakultas</td></tr>
+            <tr><td>Universitas</td><td>TEXT</td><td>Nama universitas</td></tr>
+            <tr><td>Bank / No. Rek / Nama Rek</td><td>TEXT</td><td>Data rekening untuk transfer</td></tr>
+            <tr><td>IPK Sem 1–10</td><td>REAL</td><td>IPK per semester</td></tr>
+            <tr><td>IPK Penelitian 1–3</td><td>REAL</td><td>IPK penelitian (S2/S3)</td></tr>
+            <tr><td>Status</td><td>ENUM</td><td>Aktif, lulus, gugur, undur diri</td></tr>
+            <tr><td>Catatan</td><td>TEXT</td><td>Catatan bebas</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>7.3 Filter & Export Rekap</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Filter</th><th>Nilai</th></tr></thead>
+          <tbody>
+            <tr><td>Program</td><td>Dropdown 15 program</td></tr>
+            <tr><td>Pillar</td><td>AGRI, APP, Finance, Mining, Property, ENERGY & FINANCE</td></tr>
+            <tr><td>Status Siswa</td><td>Aktif / lulus / gugur / undur diri</td></tr>
+            <tr><td>Periode</td><td>Tahun / Semester</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout-success">
+        <strong>Export:</strong> CSV (Excel-compatible) dan PDF (via reportlab) — berisi tabel rekap lengkap dengan total budget, total payment, dan sisa per siswa.
+      </div>
+    </section>
+
+    <!-- 8. PAYMENT APPROVAL MEMO -->
+    <section id="s8">
+      <h2><span class="section-num">8</span>Payment Approval Memo — Spesifikasi Detail</h2>
+
+      <p>Payment Approval Memo (PAM) adalah <strong>hub agregasi pembayaran</strong> yang mengumpulkan data payment dari semua sub-modul aktif dan mengkonsolidasikannya menjadi satu dokumen memo pengajuan pembayaran.</p>
+
+      <h3>8.1 Alur PAM</h3>
+      <div class="flow">
+        <span class="action">Payment diinput di sub-modul (Beasiswa / AP / Advance / dll)</span><br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Entry otomatis masuk sebagai <span class="note">"draft"</span> di PAM<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Operator review daftar draft payment<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Operator buat Memo baru → pilih item yang akan diajukan<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Sistem generate Memo Number: <span class="note">PAM/{COMPANY}/{YYYY}/{SEQ}</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Contoh: PAM/ETF/2026/001, PAM/SMT/2026/015<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Print / Export PDF memo untuk approval atasan<br>
+        &nbsp;&nbsp;<span class="arrow">→</span> Update status: <span class="note">Draft → Submitted → Approved → Paid</span>
+      </div>
+
+      <h3>8.2 Status Payment Item</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Status</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-gray">draft</span></td><td>Payment baru diinput di sub-modul, belum dimasukkan ke memo</td></tr>
+            <tr><td><span class="badge badge-blue">in_memo</span></td><td>Sudah dimasukkan ke memo, menunggu approval</td></tr>
+            <tr><td><span class="badge badge-green">approved</span></td><td>Memo telah disetujui atasan</td></tr>
+            <tr><td><span class="badge badge-green">paid</span></td><td>Pembayaran telah dilakukan/dicairkan</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>8.3 Konten Memo PDF</h3>
+      <ul>
+        <li>Header: nama perusahaan, nomor memo, tanggal</li>
+        <li>Tabel item: No, Nama Penerima, Bank/Rekening, Keterangan, Amount</li>
+        <li>Sub-total per modul sumber</li>
+        <li>Total keseluruhan</li>
+        <li>Kolom tanda tangan: Dibuat oleh / Disetujui oleh / Tanggal</li>
+      </ul>
+    </section>
+
+    <!-- 9. DATA ARCHITECTURE -->
+    <section id="s9">
+      <h2><span class="section-num">9</span>Data Architecture / Model Data</h2>
+
+      <h3>9.1 ERD Ringkas</h3>
+      <pre>companies (1) ──< siswa (N)
+companies (1) ──< budget_beasiswa (N)
+companies (1) ──< payment_beasiswa (N)
+companies (1) ──< payment_memo (N)
+payment_memo (1) ──< payment_memo_items (N)
+payment_memo (1) ──< payment_application (N)
+payment_beasiswa (N) >── payment_memo (1)</pre>
+
+      <h3>9.2 Tabel Utama</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tabel</th><th>Kolom Kunci</th><th>Fungsi</th></tr></thead>
+          <tbody>
+            <tr><td><code>companies</code></td><td>id, code, name</td><td>Master data perusahaan (SMT, ETF)</td></tr>
+            <tr><td><code>users</code></td><td>id, username, password_hash, is_active, must_change_pw</td><td>Auth & user management</td></tr>
+            <tr><td><code>refresh_tokens</code></td><td>user_id, token_hash, expires_at, revoked</td><td>JWT refresh token blacklist</td></tr>
+            <tr><td><code>siswa</code></td><td>company_id, code (unique per company), nama, jenjang, program, status, ipk_sem1..10</td><td>Data penerima beasiswa</td></tr>
+            <tr><td><code>budget_beasiswa</code></td><td>company_id, siswa_code, cat1, cat2, tanggal, amount, pillar</td><td>Alokasi anggaran per siswa</td></tr>
+            <tr><td><code>payment_beasiswa</code></td><td>company_id, siswa_code, amount, status, memo_id</td><td>Realisasi pembayaran beasiswa</td></tr>
+            <tr><td><code>payment_memo</code></td><td>company_id, memo_number, status, total_amount</td><td>Memo pembayaran terkonsolidasi</td></tr>
+            <tr><td><code>payment_memo_items</code></td><td>memo_id, source_module, source_id, amount, vendor</td><td>Item per memo (dari berbagai modul)</td></tr>
+            <tr><td><code>payment_application</code></td><td>memo_id, status, target_payment_date, tat_days</td><td>Monitoring pengajuan & TAT</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-info">
+        <strong>Company Isolation:</strong> Semua tabel data bisnis memiliki kolom <code>company_id</code>. Setiap query wajib menyertakan <code>WHERE company_id = ?</code> dari session aktif. Data SMT dan ETF tidak pernah tercampur.
+      </div>
+    </section>
+
+    <!-- 10. API SPECIFICATION -->
+    <section id="s10">
+      <h2><span class="section-num">10</span>API Specification / Spesifikasi API</h2>
+
+      <div class="callout callout-warning">
+        Semua endpoint <code>/api/v1/*</code> memerlukan header: <code>Authorization: Bearer &lt;access_token&gt;</code>
+      </div>
+
+      <h3>10.1 Auth Endpoints (Public)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Body</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/auth/login</code></td><td>{username, password}</td><td>{access_token, refresh_token}</td></tr>
+            <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/auth/refresh</code></td><td>{refresh_token}</td><td>{access_token}</td></tr>
+            <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/auth/logout</code></td><td>{refresh_token}</td><td>{ok: true}</td></tr>
+            <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/auth/change-password</code></td><td>{old_password, new_password}</td><td>{ok: true}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>10.2 Beasiswa Endpoints</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Query Params</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/v1/siswa</code></td><td>search, status, program, company</td><td>List siswa</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/v1/siswa/&lt;code&gt;</code></td><td>—</td><td>Detail 1 siswa</td></tr>
+            <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/v1/siswa</code></td><td>—</td><td>Tambah siswa</td></tr>
+            <tr><td><span class="badge badge-amber">PUT</span></td><td><code>/api/v1/siswa/&lt;code&gt;</code></td><td>—</td><td>Update siswa</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/v1/budget</code></td><td>code, pillar, company</td><td>List budget</td></tr>
+            <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/v1/budget</code></td><td>—</td><td>Tambah budget</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/v1/payment</code></td><td>code, pillar, status, company</td><td>List payment</td></tr>
+            <tr><td><span class="badge badge-green">POST</span></td><td><code>/api/v1/payment</code></td><td>—</td><td>Tambah payment (auto buat draft di PAM)</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/v1/rekap</code></td><td>company, program, pillar, status</td><td>Summary per siswa</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/v1/rekap/export/csv</code></td><td>same</td><td>Download CSV</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/v1/rekap/export/pdf</code></td><td>same</td><td>Download PDF</td></tr>
+            <tr><td><span class="badge badge-blue">GET</span></td><td><code>/api/v1/dashboard</code></td><td>company</td><td>Angka agregat</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>10.3 Standard Response Format</h3>
+      <pre>{
+  "ok": true,
+  "data": { ... },
+  "pesan": "Keterangan sukses atau error"
+}</pre>
+    </section>
+
+    <!-- 11. SECURITY -->
+    <section id="s11">
+      <h2><span class="section-num">11</span>Security & Access Control / Keamanan</h2>
+
+      <h3>11.1 Authentication Flow</h3>
+      <div class="flow">
+        1. User POST /api/auth/login → verifikasi password dengan <span class="note">bcrypt</span><br>
+        2. Jika valid → generate:<br>
+        &nbsp;&nbsp;&nbsp;<span class="arrow">→</span> <span class="note">access_token</span>: JWT, expire <span class="note">1 jam</span><br>
+        &nbsp;&nbsp;&nbsp;<span class="arrow">→</span> <span class="note">refresh_token</span>: JWT, expire <span class="note">7 hari</span>, hash disimpan di refresh_tokens<br>
+        3. Setiap request API → middleware decode access_token<br>
+        4. Token expire → gunakan refresh_token untuk dapat access_token baru<br>
+        5. Logout → <span class="action">revoke refresh_token</span> di database
+      </div>
+
+      <h3>11.2 Keamanan Data</h3>
+      <ul>
+        <li>Password di-hash dengan <strong>bcrypt</strong> (cost factor 12) — tidak ada plain text password di database.</li>
+        <li>JWT secret disimpan di <strong>environment variable</strong>, bukan di kode.</li>
+        <li>Semua query SQLite menggunakan <strong>parameterized query</strong> (<code>?</code>) — tidak ada SQL injection.</li>
+        <li>CORS dikonfigurasi hanya untuk origin localhost / IP LAN yang diizinkan.</li>
+        <li>First login: user wajib ganti password default sebelum akses modul.</li>
+      </ul>
+    </section>
+
+    <!-- 12. NON-FUNCTIONAL -->
+    <section id="s12">
+      <h2><span class="section-num">12</span>Non-Functional Requirements / Batasan & Risiko</h2>
+
+      <h3>12.1 Performance Target</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Metrik</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>Waktu load halaman</td><td>&lt; 2 detik pada LAN</td></tr>
+            <tr><td>Response API</td><td>&lt; 500ms untuk query normal</td></tr>
+            <tr><td>Concurrent users</td><td>10–20 user (SQLite write lock per transaksi)</td></tr>
+            <tr><td>Ukuran database</td><td>Estimasi &lt; 100MB untuk 5 tahun data</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>12.2 Deployment — Laptop sebagai Server LAN</h3>
+      <pre>  [Laptop Server — nyala saat jam kerja]
+    └── python app.py  (Flask + waitress, port 8080)
+    └── finance_hub.db (SQLite, lokal di laptop)
+
+  [Kolega A] ──browser──→ http://[IP-laptop]:8080
+  [Kolega B] ──browser──→ http://[IP-laptop]:8080
+  [Kolega C] ──browser──→ http://[IP-laptop]:8080
+
+  Backup harian → copy finance_hub.db ke Y:/ shared folder</pre>
+      <ul style="margin-top:12px">
+        <li>Laptop server harus <strong>tidak sleep/hibernate</strong> saat jam kerja (layar boleh mati).</li>
+        <li>Cari IP laptop: <code>ipconfig</code> → IPv4 Address di adapter WiFi/Ethernet.</li>
+        <li>Rekomendasikan IT set <strong>static IP</strong> agar kolega tidak perlu update alamat setiap hari.</li>
+        <li>Y:/ digunakan sebagai <strong>backup destination saja</strong> — bukan lokasi database aktif.</li>
+      </ul>
+
+      <h3>12.3 Risiko & Mitigasi</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Risiko</th><th>Dampak</th><th>Mitigasi</th></tr></thead>
+          <tbody>
+            <tr><td>File <code>finance_hub.db</code> terhapus / corrupt</td><td>Kehilangan semua data</td><td>Backup harian copy ke Y:/ via Windows Task Scheduler</td></tr>
+            <tr><td>Laptop server sleep / mati</td><td>Semua user tidak bisa akses</td><td>Set power plan ke "High Performance", matikan sleep saat plugged in</td></tr>
+            <tr><td>IP laptop berubah (DHCP)</td><td>Kolega tidak bisa connect</td><td>Set static IP di network adapter, atau catat IP aktif setiap hari</td></tr>
+            <tr><td>SQLite write lock jika concurrent write tinggi</td><td>Operasi simpan lambat</td><td>Acceptable untuk 10–20 user; upgrade ke PostgreSQL jika perlu scale</td></tr>
+            <tr><td>JWT secret bocor</td><td>Semua token bisa dipalsukan</td><td>Simpan JWT secret di file <code>.env</code>, tidak di-commit ke git</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 13. ROADMAP -->
+    <section id="s13">
+      <h2><span class="section-num">13</span>Roadmap & Phasing / Peta Jalan</h2>
+
+      <div class="phase">
+        <div class="phase-header">
+          <span class="phase-tag">Fase 1 — v1.0</span>
+          <span class="phase-title">Foundation + Beasiswa + Payment Hub</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Deliverable</th><th>Keterangan</th></tr></thead>
+            <tbody>
+              <tr><td>Flask app structure</td><td>Blueprint-based, semua modul terdaftar</td></tr>
+              <tr><td>SQLite init</td><td>Auto-create semua tabel saat pertama run</td></tr>
+              <tr><td>Auth (JWT)</td><td>Login, logout, refresh, ganti password, first-login gate</td></tr>
+              <tr><td>Company Selector</td><td>Landing page pilih SMT / ETF</td></tr>
+              <tr><td>Dashboard</td><td>Statistik per perusahaan (total siswa, budget, payment)</td></tr>
+              <tr><td>Modul Beasiswa (ETF)</td><td>Siswa CRUD, Budget, Payment, Rekap + filter + export CSV/PDF</td></tr>
+              <tr><td>Payment Approval Memo</td><td>List draft, buat memo, update status, export PDF</td></tr>
+              <tr><td>Payment Application</td><td>Monitoring status, TAT</td></tr>
+              <tr><td>REST API</td><td>Semua operasi tersedia via /api/v1/ JSON</td></tr>
+              <tr><td>Coming Soon pages</td><td>Placeholder UI untuk modul yang belum ada</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-header">
+          <span class="phase-tag phase-tag-gray">Fase 2 — v1.x</span>
+          <span class="phase-title">Modul Tambahan (Prioritas)</span>
+        </div>
+        <ul>
+          <li><strong>Account Payable</strong> (SMT + ETF) — modul paling kritikal setelah Beasiswa</li>
+          <li><strong>Advance</strong> (SMT + ETF)</li>
+          <li><strong>Petty Cash</strong> (SMT + ETF)</li>
+          <li><strong>Sponsorship</strong> (SMT only)</li>
+          <li><strong>Bank</strong> (SMT + ETF)</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <div class="phase-header">
+          <span class="phase-tag phase-tag-gray">Fase 3 — v2.0</span>
+          <span class="phase-title">Enhancement</span>
+        </div>
+        <ul>
+          <li>Notifikasi in-app (bell icon) saat memo baru dibuat</li>
+          <li>Dashboard charts — tren pembayaran per bulan (Chart.js)</li>
+          <li>Audit log — siapa mengubah apa dan kapan</li>
+          <li>Multi-level approval untuk PAM (jika diperlukan)</li>
+          <li>Migrasi ke PostgreSQL jika concurrent user meningkat signifikan</li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="footer">
+  Finance Hub PRD v1.0 — Generated 2026-05-30
+</div>
+
+</body>
+</html>

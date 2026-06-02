@@ -37,6 +37,19 @@
           {% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
         </select>
       </div>
+      <div class="form-group" style="margin:0;min-width:130px">
+        <label>Jenjang</label>
+        <select id="rekap-jenjang" onchange="loadRekap()">
+          <option value="">Semua Jenjang</option>
+          {% for j in jenjang %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;min-width:110px">
+        <label>Angkatan</label>
+        <select id="rekap-angkatan" onchange="loadRekap()">
+          <option value="">Semua Angkatan</option>
+        </select>
+      </div>
       <div class="form-group" style="margin:0;min-width:120px">
         <label>Status</label>
         <select id="rekap-status" onchange="loadRekap()">
@@ -330,6 +343,7 @@
             <th style="min-width:170px">Kategori 1</th>
             <th style="min-width:170px">Kategori 2</th>
             <th style="min-width:150px">Amount</th>
+            <th style="min-width:140px">Sisa Budget</th>
             <th style="min-width:130px">Tgl Pengajuan</th>
             <th style="min-width:130px">Tgl Receive</th>
             <th style="min-width:130px">Tgl PA</th>
@@ -339,13 +353,14 @@
         </thead>
         <tbody id="ipay-tbody">
           <tr id="ipay-empty-row">
-            <td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td>
+            <td colspan="10" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td>
           </tr>
         </tbody>
         <tfoot>
           <tr>
             <td colspan="3" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem;color:#374151">Total Amount:</td>
             <td id="ipay-total-amt" class="num-right" style="font-weight:700;color:#1a56db;white-space:nowrap">Rp 0</td>
+            <td></td>
             <td colspan="5"></td>
           </tr>
         </tfoot>
@@ -843,6 +858,19 @@ async function openBudgetSiswa(code, nama) {
 }
 
 const SISWA_LIST = {{ siswa_list | tojson }};
+
+// Populate angkatan dropdown from SISWA_LIST
+(function() {
+  const sel = document.getElementById("rekap-angkatan");
+  if (!sel) return;
+  const years = [...new Set(SISWA_LIST.map(s => s.angkatan).filter(Boolean))].sort((a, b) => a - b);
+  years.forEach(y => {
+    const o = document.createElement("option");
+    o.value = y; o.textContent = y;
+    sel.appendChild(o);
+  });
+})();
+
 let _bgtCode = "";
 
 function bgtSearchInput() {
@@ -1468,10 +1496,12 @@ function exportPayment(fmt) {
 
 async function loadRekap() {
   const params = new URLSearchParams({
-    search:  (document.getElementById("rekap-search")?.value || "").trim(),
-    program: document.getElementById("rekap-program")?.value || "",
-    pillar:  document.getElementById("rekap-pillar")?.value || "",
-    status:  document.getElementById("rekap-status")?.value || "",
+    search:   (document.getElementById("rekap-search")?.value || "").trim(),
+    program:  document.getElementById("rekap-program")?.value || "",
+    pillar:   document.getElementById("rekap-pillar")?.value || "",
+    jenjang:  document.getElementById("rekap-jenjang")?.value || "",
+    angkatan: document.getElementById("rekap-angkatan")?.value || "",
+    status:   document.getElementById("rekap-status")?.value || "",
   });
   const tbody = document.getElementById("rekap-tbody");
   tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
@@ -1502,10 +1532,12 @@ async function loadRekap() {
 
 function exportRekap(fmt) {
   const p = new URLSearchParams({
-    search:  (document.getElementById("rekap-search")?.value || "").trim(),
-    program: document.getElementById("rekap-program")?.value || "",
-    pillar:  document.getElementById("rekap-pillar")?.value || "",
-    status:  document.getElementById("rekap-status")?.value || "",
+    search:   (document.getElementById("rekap-search")?.value || "").trim(),
+    program:  document.getElementById("rekap-program")?.value || "",
+    pillar:   document.getElementById("rekap-pillar")?.value || "",
+    jenjang:  document.getElementById("rekap-jenjang")?.value || "",
+    angkatan: document.getElementById("rekap-angkatan")?.value || "",
+    status:   document.getElementById("rekap-status")?.value || "",
   });
   window.location.href = `/beasiswa/rekap/export/${fmt}?${p}`;
 }
@@ -1593,7 +1625,7 @@ function ipayReset() {
   document.getElementById("ipay-pillar").value = "";
   document.getElementById("ipay-vendor-sugg").style.display = "none";
   document.getElementById("ipay-tbody").innerHTML =
-    `<tr id="ipay-empty-row"><td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
+    `<tr id="ipay-empty-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
   const totalEl = document.getElementById("ipay-total-amt");
   if (totalEl) totalEl.textContent = fmtRupiah(0);
   _ipayRowId = 0;
@@ -1606,6 +1638,24 @@ function ipayUpdateTotal() {
   });
   const el = document.getElementById("ipay-total-amt");
   if (el) el.textContent = fmtRupiah(total);
+}
+
+function _ipayUpdateSisaCell(tr) {
+  const cat1 = tr._cat1Select?.value;
+  const amt  = parseFloat(tr._amtInp?.value) || 0;
+  if (!cat1 || !tr.dataset.siswaCode || !tr._sisaBudget || Object.keys(tr._sisaBudget).length === 0) {
+    tr._sisaCell.textContent = "—";
+    tr._sisaCell.style.color = "#6b7280";
+    return;
+  }
+  const sisa = tr._sisaBudget[cat1];
+  if (sisa === undefined) {
+    tr._sisaCell.textContent = "Tdk ada budget";
+    tr._sisaCell.style.color = "#d97706";
+    return;
+  }
+  tr._sisaCell.textContent = fmtRupiah(sisa);
+  tr._sisaCell.style.color = amt > sisa ? "var(--danger)" : "#15803d";
 }
 
 function ipayUpdatePAM() {
@@ -1631,6 +1681,11 @@ function ipayAddRow() {
   const tr = document.createElement("tr");
   tr.dataset.rid = rid;
   tr.dataset.siswaCode = "";
+  tr._sisaBudget = {};
+  const tdSisa = document.createElement("td");
+  tdSisa.style.cssText = "white-space:nowrap;font-size:.8rem;color:#6b7280;min-width:140px";
+  tdSisa.textContent = "—";
+  tr._sisaCell = tdSisa;
 
   function tdInput(type, cls, placeholder, extra) {
     const td = document.createElement("td");
@@ -1682,6 +1737,13 @@ function ipayAddRow() {
         siswaInp.value = `${s.code} — ${s.nama}`;
         tr.dataset.siswaCode = s.code;
         sugg.style.display = "none";
+        tr._sisaBudget = {};
+        tr._sisaCell.textContent = "Memuat...";
+        tr._sisaCell.style.color = "#6b7280";
+        apiFetch(`/beasiswa/siswa/${s.code}/sisa-budget`).then(r => r.json()).then(data => {
+          tr._sisaBudget = data.sisa || {};
+          _ipayUpdateSisaCell(tr);
+        });
       });
       d.addEventListener("mouseover",  () => { d.style.background = "#eff6ff"; });
       d.addEventListener("mouseout",   () => { d.style.background = ""; });
@@ -1699,6 +1761,7 @@ function ipayAddRow() {
   const sCat1 = document.createElement("select");
   sCat1.style.width = "100%";
   sCat1.innerHTML = `<option value="">— Kat 1 —</option>` + CAT1.map(c => `<option value="${c}">${c}</option>`).join("");
+  sCat1.addEventListener("change", () => _ipayUpdateSisaCell(tr));
   tdCat1.appendChild(sCat1);
 
   // Cat2 dropdown (reuse _mkDrop)
@@ -1709,7 +1772,7 @@ function ipayAddRow() {
 
   // Amount
   const { td: tdAmt, inp: amtInp } = tdInput("number", "", "0", { min: "0" });
-  amtInp.addEventListener("input", ipayUpdateTotal);
+  amtInp.addEventListener("input", () => { ipayUpdateTotal(); _ipayUpdateSisaCell(tr); });
 
   // 4 SLA date inputs
   const { td: tdTglPengajuan, inp: inpTglPengajuan } = tdInput("date", "");
@@ -1730,7 +1793,7 @@ function ipayAddRow() {
     ipayUpdateTotal();
     if (!document.getElementById("ipay-tbody").querySelector("tr[data-rid]")) {
       document.getElementById("ipay-tbody").innerHTML =
-        `<tr id="ipay-empty-row"><td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
+        `<tr id="ipay-empty-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
     }
   });
   tdDel.appendChild(btnDel);
@@ -1739,7 +1802,7 @@ function ipayAddRow() {
   tr._amtInp   = amtInp;
   tr._tgls     = [inpTglPengajuan, inpTglReceive, inpTglPa, inpTglFinal];
 
-  [tdSiswa, tdCat1, tdCat2, tdAmt, tdTglPengajuan, tdTglReceive, tdTglPa, tdTglFinal, tdDel]
+  [tdSiswa, tdCat1, tdCat2, tdAmt, tdSisa, tdTglPengajuan, tdTglReceive, tdTglPa, tdTglFinal, tdDel]
     .forEach(td => tr.appendChild(td));
   tr._cat1Select = sCat1;
   document.getElementById("ipay-tbody").appendChild(tr);
@@ -1753,7 +1816,20 @@ async function ipaySave() {
   if (!tanggal || !pillar || !perusahaan) {
     showToast("Tanggal, Pillar, dan Perusahaan wajib diisi.", "error"); return;
   }
-  const rows = [...document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]")].map(tr => ({
+  const allTrs = [...document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]")];
+  const overBudget = allTrs.filter(tr => {
+    const amt = parseFloat(tr._amtInp?.value) || 0;
+    if (amt <= 0) return false;
+    const cat1 = tr._cat1Select?.value;
+    if (!cat1 || !tr._sisaBudget || Object.keys(tr._sisaBudget).length === 0) return false;
+    const sisa = tr._sisaBudget[cat1];
+    return sisa !== undefined && amt > sisa;
+  });
+  if (overBudget.length) {
+    showToast(`${overBudget.length} baris melebihi sisa budget. Periksa kolom Sisa Budget.`, "error");
+    return;
+  }
+  const rows = allTrs.map(tr => ({
     siswa_code:    tr.dataset.siswaCode || "",
     cat1:          tr._cat1Select.value,
     cat2:          tr._cat2Drop._hid.value,

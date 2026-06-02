@@ -696,7 +696,9 @@ def rekap_data():
         program=request.args.get("program", ""),
         pillar=request.args.get("pillar", ""),
         status=request.args.get("status", ""),
-        search=request.args.get("search", ""))
+        search=request.args.get("search", ""),
+        jenjang=request.args.get("jenjang", ""),
+        angkatan=request.args.get("angkatan", ""))
     return jsonify({"ok": True, "rows": rows})
 
 
@@ -708,7 +710,9 @@ def rekap_export_csv():
         program=request.args.get("program", ""),
         pillar=request.args.get("pillar", ""),
         status=request.args.get("status", ""),
-        search=request.args.get("search", ""))
+        search=request.args.get("search", ""),
+        jenjang=request.args.get("jenjang", ""),
+        angkatan=request.args.get("angkatan", ""))
     out   = io.StringIO()
     w     = csv.writer(out)
     w.writerow(["Code","Nama","Jenjang","Angkatan","Program","Status",
@@ -736,7 +740,9 @@ def rekap_export_pdf():
         program=request.args.get("program", ""),
         pillar=request.args.get("pillar", ""),
         status=request.args.get("status", ""),
-        search=request.args.get("search", ""))
+        search=request.args.get("search", ""),
+        jenjang=request.args.get("jenjang", ""),
+        angkatan=request.args.get("angkatan", ""))
     buffer = io.BytesIO()
     doc    = SimpleDocTemplate(buffer, pagesize=landscape(A4),
                                leftMargin=1.5*cm, rightMargin=1.5*cm,

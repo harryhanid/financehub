@@ -2,28 +2,25 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pilih Perusahaan — Finance Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <style>
-    .select-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
-    .company-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
-    .company-card { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 2rem 1.5rem; text-align: center; cursor: pointer; transition: border-color .2s, box-shadow .2s; color: var(--text); }
-    .company-card:hover { border-color: var(--primary); box-shadow: 0 4px 16px rgba(26,86,219,.15); }
-    .company-icon { font-size: 2.5rem; margin-bottom: .75rem; }
-    .company-name { font-size: 1rem; font-weight: 600; }
-    .company-code { font-size: .8rem; color: var(--text-muted); margin-top: .25rem; }
-  </style>
 </head>
 <body>
 <div class="select-wrap">
   <div style="width:min(520px, 95vw)">
-    <div class="login-logo">&#9889; Finance Hub</div>
-    <div class="login-sub" style="margin-bottom:1.5rem">Pilih perusahaan yang akan dikelola</div>
+    <div class="login-logo">Finance Hub</div>
+    <div class="login-sub">Pilih perusahaan yang akan dikelola</div>
     <form method="POST" action="/select-company">
       <div class="company-grid">
         {% for c in companies %}
         <button type="submit" name="company_id" value="{{ c.id }}" class="company-card">
-          <div class="company-icon">&#127970;</div>
+          <div class="company-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12,2 20,7 4,7"/></svg>
+          </div>
           <div class="company-name">{{ c.name }}</div>
           <div class="company-code">{{ c.code }}</div>
         </button>

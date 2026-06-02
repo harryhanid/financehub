@@ -4,33 +4,234 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Login — Finance Hub</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700&family=DM+Mono:wght@400&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #F5F4F1;
+      --surface: #FFFFFF;
+      --ink:     #0C0C0B;
+      --ink-2:   #5C5B57;
+      --ink-3:   #9C9B97;
+      --rule:    #E2E1DC;
+      --accent:  #1A2744;
+      --accent-h:#243459;
+      --danger:  #C0392B;
+      --radius:  3px;
+      --font:    'Onest', system-ui, sans-serif;
+      --mono:    'DM Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      font-family: var(--font);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout ── */
+    .login-root {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 2rem 1.5rem;
+    }
+
+    .login-shell {
+      width: min(400px, 100%);
+      animation: rise .45s cubic-bezier(.22,.61,.36,1) both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Brand ── */
+    .brand {
+      margin-bottom: 2.75rem;
+    }
+
+    .brand-name {
+      font-size: .6875rem;
+      font-weight: 600;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      font-family: var(--mono);
+      margin-bottom: .5rem;
+    }
+
+    .brand-title {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -.04em;
+      line-height: 1;
+      color: var(--ink);
+    }
+
+    .brand-title span {
+      color: var(--accent);
+    }
+
+    .brand-divider {
+      width: 28px;
+      height: 2px;
+      background: var(--accent);
+      margin-top: 1.125rem;
+    }
+
+    /* ── Card ── */
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      padding: 2.25rem 2rem;
+    }
+
+    .card-heading {
+      font-size: .8125rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 1.625rem;
+      font-family: var(--mono);
+    }
+
+    /* ── Form ── */
+    .field {
+      margin-bottom: 1.25rem;
+    }
+
+    .field label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--ink-2);
+      margin-bottom: .5rem;
+    }
+
+    .field input {
+      width: 100%;
+      height: 42px;
+      padding: 0 .875rem;
+      font-family: var(--font);
+      font-size: .9375rem;
+      color: var(--ink);
+      background: var(--bg);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      outline: none;
+      transition: border-color .15s, background .15s;
+    }
+
+    .field input::placeholder { color: var(--ink-3); }
+
+    .field input:focus {
+      border-color: var(--accent);
+      background: #fff;
+    }
+
+    /* ── Button ── */
+    .btn-login {
+      width: 100%;
+      height: 42px;
+      margin-top: .5rem;
+      font-family: var(--font);
+      font-size: .875rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .btn-login:hover  { background: var(--accent-h); }
+    .btn-login:active { opacity: .85; }
+
+    /* ── Error ── */
+    .login-error {
+      display: none;
+      font-size: .8125rem;
+      color: var(--danger);
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: var(--radius);
+      padding: .625rem .875rem;
+      margin-bottom: 1rem;
+      line-height: 1.45;
+    }
+
+    /* ── Footer ── */
+    .login-footer {
+      margin-top: 1.5rem;
+      font-size: .6875rem;
+      font-family: var(--mono);
+      color: var(--ink-3);
+      text-align: center;
+      letter-spacing: .04em;
+    }
+  </style>
 </head>
 <body>
-<div class="login-wrap">
-  <div class="login-card">
-    <div class="login-logo">⚡ Finance Hub</div>
-    <div class="login-sub">Internal Financial Management</div>
-    <div id="login-error" class="alert alert-danger" style="display:none"></div>
-    <div class="form-group">
-      <label for="username">Username</label>
-      <input type="text" id="username" placeholder="Username" autocomplete="username">
+<div class="login-root">
+  <div class="login-shell">
+
+    <div class="brand">
+      <div class="brand-name">Internal System</div>
+      <div class="brand-title">Finance<span>Hub</span></div>
+      <div class="brand-divider"></div>
     </div>
-    <div class="form-group">
-      <label for="password">Password</label>
-      <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+
+    <div class="login-card">
+      <div class="card-heading">Sign in to continue</div>
+
+      <div id="login-error" class="login-error"></div>
+
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Masukkan username" autocomplete="username">
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Masukkan password" autocomplete="current-password">
+      </div>
+
+      <button class="btn-login" onclick="doLogin()">Masuk</button>
     </div>
-    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Masuk</button>
+
+    <div class="login-footer">Finance Hub &nbsp;·&nbsp; Internal Use Only</div>
+
   </div>
 </div>
+
 <script>
 async function doLogin() {
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value;
   const errEl    = document.getElementById("login-error");
   errEl.style.display = "none";
-  if (!username || !password) { errEl.textContent = "Username dan password wajib diisi."; errEl.style.display = "block"; return; }
-  const resp = await fetch("/auth/login", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
+  if (!username || !password) {
+    errEl.textContent = "Username dan password wajib diisi.";
+    errEl.style.display = "block";
+    return;
+  }
+  const resp = await fetch("/auth/login", {
+    method: "POST", credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
   const data = await resp.json();
   if (!data.ok) { errEl.textContent = data.pesan; errEl.style.display = "block"; return; }
   window.location.href = data.must_change_pw ? "/auth/change-password" : "/select-company";

@@ -74,11 +74,11 @@ def test_export_pam_excel_returns_bytes():
     assert zipfile.is_zipfile(io.BytesIO(result))
 
 
-def test_export_pam_excel_has_two_sheets():
+def test_export_pam_excel_has_three_sheets():
     import openpyxl
     result = export_pam_excel(1, COMPANY_ID, "Hong Tjhin", "Tenti Kidjo")
     wb = openpyxl.load_workbook(io.BytesIO(result))
-    assert wb.sheetnames == ["PAM NEW", "Rangkuman PAM"]
+    assert wb.sheetnames == ["PAM NEW", "Rangkuman PAM", "Detail PAM"]
 
 
 def test_export_pam_excel_pam_no_in_sheet():
@@ -164,7 +164,7 @@ def test_export_pam_excel_custom_has_two_sheets():
     import openpyxl, io as _io
     result = export_pam_excel_custom(_CUSTOM_DATA, _PAYMENTS)
     wb = openpyxl.load_workbook(_io.BytesIO(result))
-    assert wb.sheetnames == ["PAM NEW", "Lampiran"]
+    assert wb.sheetnames == ["PAM NEW", "Rangkuman PAM"]
 
 def test_export_pam_excel_custom_pam_no_in_sheet():
     import openpyxl, io as _io
@@ -181,3 +181,91 @@ def test_export_pam_excel_custom_approved_by_in_sheet():
     ws = wb["PAM NEW"]
     values = [ws.cell(r, c).value for r in range(36, 50) for c in range(1, 12)]
     assert "Hong Tjhin" in values
+
+
+# ── Detail PAM (Sheet 3) tests ───────────────────────────────────────────────
+
+from modules.payment_memo.service import get_pam_payments_detail
+
+PAM_NO = "PAM-001-ETF-05-2026"
+
+
+def _seed_detail():
+    conn = get_conn()
+    conn.execute(
+        "INSERT OR IGNORE INTO siswa (company_id, code, nama, bank, norek, namarek, "
+        "jenjang, angkatan, program, universitas, fakultas, status) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        (COMPANY_ID, "S002", "Budi Santoso", "BNI", "9876543210",
+         "Budi Santoso", "S3", 2024, "Kejaksaan", "Univ. Gadjah Mada",
+         "Ilmu Hukum", "Aktif")
+    )
+    for cat1, cat2, amt in [
+        ("By Pendidikan", "Semester 1", 15000000),
+        ("By Tunjangan",  "Semester 1", 5000000),
+        ("By Pendidikan", "Semester 2", 15000000),
+    ]:
+        conn.execute(
+            "INSERT INTO payment_beasiswa "
+            "(company_id, siswa_code, cat1, cat2, tanggal, amount, pam, status) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (COMPANY_ID, "S002", cat1, cat2, "2026-05-26", amt, PAM_NO, "draft")
+        )
+    conn.execute(
+        "INSERT INTO budget_beasiswa "
+        "(company_id, siswa_code, cat1, amount) VALUES (?,?,?,?)",
+        (COMPANY_ID, "S002", "By Pendidikan", 100000000)
+    )
+    conn.execute(
+        "INSERT INTO budget_beasiswa "
+        "(company_id, siswa_code, cat1, amount) VALUES (?,?,?,?)",
+        (COMPANY_ID, "S002", "By Tunjangan", 20000000)
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_get_pam_payments_detail_groups_by_siswa():
+    _seed_detail()
+    rows = get_pam_payments_detail(PAM_NO, COMPANY_ID)
+    codes = [r["siswa_code"] for r in rows]
+    assert "S002" in codes
+    budi = next(r for r in rows if r["siswa_code"] == "S002")
+    assert len(budi["rows"]) == 2  # Semester 1, Semester 2
+
+
+def test_get_pam_payments_detail_pivot_cat1():
+    _seed_detail()
+    rows = get_pam_payments_detail(PAM_NO, COMPANY_ID)
+    budi = next(r for r in rows if r["siswa_code"] == "S002")
+    sem1 = next(r for r in budi["rows"] if r["keterangan"] == "Semester 1")
+    assert sem1["pendidikan"] == 15000000
+    assert sem1["tunjangan"]  == 5000000
+    assert sem1["penelitian"] == 0
+
+
+def test_get_pam_payments_detail_sisa_saldo():
+    _seed_detail()
+    rows = get_pam_payments_detail(PAM_NO, COMPANY_ID)
+    budi = next(r for r in rows if r["siswa_code"] == "S002")
+    # budget 100000000 - paid 30000000 (both semesters pendidikan)
+    assert budi["sisa_pendidikan"] == 100000000 - 30000000
+    # budget 20000000 - paid 5000000 (tunjangan sem1)
+    assert budi["sisa_tunjangan"] == 20000000 - 5000000
+    assert budi["sisa_penelitian"] == 0
+
+
+def test_export_pam_excel_detail_sheet_headers():
+    import openpyxl
+    _seed_detail()
+    result = export_pam_excel(1, COMPANY_ID, "", "")
+    wb     = openpyxl.load_workbook(io.BytesIO(result))
+    assert "Detail PAM" in wb.sheetnames
+    ws     = wb["Detail PAM"]
+    all_vals = {ws.cell(r, c).value
+                for r in range(1, 8) for c in range(1, 22)}
+    assert "NO" in all_vals
+    assert "NAMA SISWA" in all_vals
+    assert "KETERANGAN" in all_vals
+    assert "SISA SALDO" in all_vals
+    assert PAM_NO in all_vals

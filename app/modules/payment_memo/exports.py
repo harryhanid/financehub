@@ -3,18 +3,18 @@ import io
 import config
 from datetime import datetime
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import (
-    SimpleDocTemplate, Table, TableStyle,
-    Paragraph, Spacer, PageBreak,
+    SimpleDocTemplate, BaseDocTemplate, PageTemplate, Frame, NextPageTemplate,
+    Table, TableStyle, Paragraph, Spacer, PageBreak,
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
-from modules.payment_memo.service import get_pam_detail, get_pam_payments
+from modules.payment_memo.service import get_pam_detail, get_pam_payments, get_pam_payments_detail
 
 _BLUE   = colors.HexColor("#1e3a5f")
 _GOLD   = colors.HexColor("#f59e0b")
@@ -252,17 +252,103 @@ def _build_pam_table_custom(data: dict) -> Table:
     return Table(data_rows, colWidths=_CW, style=TableStyle(style_cmds))
 
 
+def _build_detail_pdf_table(detail: list) -> Table:
+    _s7h = _style("d7h", fontName="Helvetica-Bold", fontSize=7,
+                  textColor=_WHITE, alignment=TA_CENTER)
+    _s7  = _style("d7",  fontSize=7, textColor=colors.HexColor("#1e293b"))
+    _s7r = _style("d7r", fontSize=7, alignment=2,
+                  textColor=colors.HexColor("#1e293b"))
+    _s7c = _style("d7c", fontSize=7, alignment=1,
+                  textColor=colors.HexColor("#1e293b"))
+
+    col_w = [0.6*cm, 3.8*cm, 3.2*cm, 2.4*cm, 2.4*cm, 2.4*cm,
+             2.5*cm, 3.0*cm, 1.8*cm, 1.8*cm, 1.8*cm]
+
+    hdrs = [_p(h, _s7h) for h in [
+        "No", "Nama Siswa", "Keterangan",
+        "By\nPend", "By\nTunj", "By\nRiset",
+        "Total\nPbyran", "No. Rekening",
+        "Sisa\nPend", "Sisa\nTunj", "Sisa\nRiset",
+    ]]
+    rows = [hdrs]
+    grand_total = 0.0
+
+    for siswa in detail:
+        sis_rows = siswa.get("rows", [])
+        grand_total += float(siswa.get("total_pembayaran") or 0)
+        for idx, pr in enumerate(sis_rows):
+            first = (idx == 0)
+            rows.append([
+                _p(str(siswa["no"]) if first else "", _s7c),
+                _p((siswa.get("nama") or siswa.get("siswa_code") or "") if first else "", _s7),
+                _p(pr.get("keterangan") or "", _s7),
+                _p(f"{pr['pendidikan']:,.0f}" if pr.get("pendidikan") else "", _s7r),
+                _p(f"{pr['tunjangan']:,.0f}"  if pr.get("tunjangan")  else "", _s7r),
+                _p(f"{pr['penelitian']:,.0f}" if pr.get("penelitian") else "", _s7r),
+                _p(f"{siswa['total_pembayaran']:,.0f}" if first else "", _s7r),
+                _p((siswa.get("norek") or "") if first else "", _s7),
+                _p(f"{siswa['sisa_pendidikan']:,.0f}" if first else "", _s7r),
+                _p(f"{siswa['sisa_tunjangan']:,.0f}"  if first else "", _s7r),
+                _p(f"{siswa['sisa_penelitian']:,.0f}" if first else "", _s7r),
+            ])
+
+    rows.append([_p("", _s7)] * 6 + [
+        _p(f"{grand_total:,.0f}",
+           _style("gtv7", fontName="Helvetica-Bold", fontSize=7, alignment=2,
+                  textColor=colors.HexColor("#1e293b"))),
+    ] + [_p("", _s7)] * 4)
+
+    return Table(rows, colWidths=col_w, repeatRows=1, style=TableStyle([
+        ("BACKGROUND",    (0, 0), (-1, 0),  _BLUE),
+        ("FONTSIZE",      (0, 0), (-1, -1), 7),
+        ("GRID",          (0, 0), (-1, -1), 0.3, colors.HexColor("#d1d5db")),
+        ("ROWBACKGROUNDS",(0, 1), (-1, -2), [_WHITE, _LGRAY]),
+        ("BACKGROUND",    (0, -1),(-1, -1), colors.HexColor("#e8f0fe")),
+        ("FONTNAME",      (0, -1),(-1, -1), "Helvetica-Bold"),
+        ("LINEABOVE",     (0, -1),(-1, -1), 1.2, _BLUE),
+        ("ALIGN",         (0, 0), (0, -1),  "CENTER"),
+        ("ALIGN",         (3, 0), (6, -1),  "RIGHT"),
+        ("ALIGN",         (8, 0), (10, -1), "RIGHT"),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 3),
+    ]))
+
+
+def _group_payments_by_siswa(payments: list) -> list:
+    """Aggregate individual payment rows into one entry per siswa, summing amounts."""
+    from collections import OrderedDict
+    grouped: dict = OrderedDict()
+    for pb in payments:
+        key = pb.get("siswa_code") or pb.get("nama") or ""
+        if key not in grouped:
+            grouped[key] = {
+                "nama":   pb.get("nama") or pb.get("siswa_code", ""),
+                "bank":   pb.get("bank") or "",
+                "norek":  pb.get("norek") or "",
+                "amount": 0.0,
+            }
+        grouped[key]["amount"] += float(pb.get("amount") or 0)
+    return list(grouped.values())
+
+
 def export_pam_pdf_custom(data: dict, payments: list) -> bytes:
     approved_by_1 = data.get("approved_by_1") or config.PAM_APPROVED_BY_1
     approved_by_2 = data.get("approved_by_2") or config.PAM_APPROVED_BY_2
     pam_no        = data.get("pam_no", "")
 
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buf, pagesize=A4,
-        leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=1.5*cm, bottomMargin=1.5*cm,
-    )
+    _lm, _rm, _tm, _bm = 2*cm, 2*cm, 1.5*cm, 1.5*cm
+    _A4L = landscape(A4)
+    _port_frame = Frame(_lm, _bm, A4[0]-_lm-_rm, A4[1]-_tm-_bm, id='pf')
+    _land_frame = Frame(_lm, _bm, _A4L[0]-_lm-_rm, _A4L[1]-_tm-_bm, id='lf')
+    doc = BaseDocTemplate(buf,
+        pageTemplates=[
+            PageTemplate(id='portrait',  frames=[_port_frame],  pagesize=A4),
+            PageTemplate(id='landscape', frames=[_land_frame],  pagesize=_A4L),
+        ],
+        leftMargin=_lm, rightMargin=_rm, topMargin=_tm, bottomMargin=_bm)
     elems = []
 
     title_tbl = Table([[_p("PAYMENT APPROVAL MEMO", _S_TITLE)]], colWidths=[17*cm])
@@ -282,7 +368,7 @@ def export_pam_pdf_custom(data: dict, payments: list) -> bytes:
 
     elems.append(PageBreak())
     att_hdr = Table(
-        [[_p("Lampiran — Jadwal Pembayaran Beasiswa", _S_ATCH_H)],
+        [[_p("Rangkuman PAM — Jadwal Pembayaran Beasiswa", _S_ATCH_H)],
          [_p(f"{pam_no}  \xb7  {data.get('pt','')}  \xb7  {_fmt_date(data.get('pam_date',''))}",
              _style("atsub", fontSize=7.5, textColor=colors.HexColor("#cbd5e1")))]],
         colWidths=[17*cm]
@@ -297,30 +383,24 @@ def export_pam_pdf_custom(data: dict, payments: list) -> bytes:
     elems.append(att_hdr)
     elems.append(Spacer(1, 0.3*cm))
 
-    hdrs = ["No", "Nama Siswa", "Bank", "No. Rekening",
-            "Atas Nama", "Kategori", "Kode", "Amount (Rp)"]
+    hdrs = ["No", "Nama Siswa", "Bank", "No. Rekening", "Amount (Rp)"]
     rows = [[_p(h, _S_TH) for h in hdrs]]
     total = 0.0
-    for i, pb in enumerate(payments, 1):
-        cat = f"{pb.get('cat1','')}/{pb.get('cat2','')}"
+    for i, pb in enumerate(_group_payments_by_siswa(payments), 1):
         rows.append([
             _p(str(i), _style("n", alignment=1, fontSize=8)),
-            _p(pb.get("nama") or pb.get("siswa_code", ""), _S_TD),
-            _p(pb.get("bank") or "", _S_TD),
-            _p(pb.get("norek") or "", _S_TD),
-            _p(pb.get("namarek") or "", _S_TD),
-            _p(cat, _S_TD),
-            _p(pb.get("siswa_code", ""), _S_TD),
-            _p(f"{float(pb.get('amount', 0)):,.0f}", _S_TD_R),
+            _p(pb["nama"], _S_TD),
+            _p(pb["bank"], _S_TD),
+            _p(pb["norek"], _S_TD),
+            _p(f"{pb['amount']:,.0f}", _S_TD_R),
         ])
-        total += float(pb.get("amount", 0))
+        total += pb["amount"]
     rows.append([
-        _p("", _S_TD), _p("", _S_TD), _p("", _S_TD), _p("", _S_TD),
-        _p("", _S_TD), _p("", _S_TD),
+        _p("", _S_TD), _p("", _S_TD), _p("", _S_TD),
         _p("TOTAL", _style("tot", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
         _p(f"{total:,.0f}", _style("totv", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
     ])
-    col_w = [0.6*cm, 3.5*cm, 1.8*cm, 2.8*cm, 2.8*cm, 2.3*cm, 1.4*cm, 1.8*cm]
+    col_w = [0.6*cm, 5.0*cm, 2.8*cm, 4.6*cm, 4.0*cm]
     att_tbl = Table(rows, colWidths=col_w, repeatRows=1)
     att_tbl.setStyle(TableStyle([
         ("BACKGROUND",     (0, 0), (-1, 0),  _BLUE),
@@ -332,13 +412,39 @@ def export_pam_pdf_custom(data: dict, payments: list) -> bytes:
         ("FONTNAME",       (0, -1), (-1, -1), "Helvetica-Bold"),
         ("LINEABOVE",      (0, -1), (-1, -1), 1.5, _BLUE),
         ("ALIGN",          (0, 0), (0, -1), "CENTER"),
-        ("ALIGN",          (7, 0), (7, -1), "RIGHT"),
+        ("ALIGN",          (4, 0), (4, -1), "RIGHT"),
         ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING",     (0, 0), (-1, -1), 3),
         ("BOTTOMPADDING",  (0, 0), (-1, -1), 3),
         ("LEFTPADDING",    (0, 0), (-1, -1), 4),
     ]))
     elems.append(att_tbl)
+
+    # Page 3: Detail PAM
+    _pam_no_det = data.get("pam_no", "")
+    _cid_det    = int(data.get("company_id") or 0)
+    if _pam_no_det and _cid_det:
+        _detail = get_pam_payments_detail(_pam_no_det, _cid_det)
+        if _detail:
+            _land_w = _A4L[0] - _lm - _rm
+            elems.append(NextPageTemplate('landscape'))
+            elems.append(PageBreak())
+            _det_hdr = Table(
+                [[_p("Detail PAM", _S_ATCH_H)],
+                 [_p(f"{_pam_no_det}  \xb7  {data.get('pt','')}  \xb7  {_fmt_date(data.get('pam_date',''))}",
+                     _style("dtsub", fontSize=7.5, textColor=colors.HexColor("#cbd5e1")))]],
+                colWidths=[_land_w]
+            )
+            _det_hdr.setStyle(TableStyle([
+                ("BACKGROUND",    (0, 0), (-1, -1), _BLUE),
+                ("LINEBELOW",     (0, -1), (-1, -1), 3, _GOLD),
+                ("TOPPADDING",    (0, 0), (0, 0), 7),
+                ("BOTTOMPADDING", (0, -1), (-1, -1), 6),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+            ]))
+            elems.append(_det_hdr)
+            elems.append(Spacer(1, 0.3*cm))
+            elems.append(_build_detail_pdf_table(_detail))
 
     doc.build(elems)
     buf.seek(0)
@@ -385,7 +491,7 @@ def export_pam_pdf(pam_id: int, company_id: int,
     elems.append(PageBreak())
 
     att_hdr_tbl = Table(
-        [[_p(f"Lampiran — Jadwal Pembayaran Beasiswa", _S_ATCH_H)],
+        [[_p(f"Rangkuman PAM — Jadwal Pembayaran Beasiswa", _S_ATCH_H)],
          [_p(f"{pam_no}  ·  {pam.get('pt','')}  ·  {_fmt_date(pam.get('pam_date',''))}",
              _style("atsub", fontSize=7.5, textColor=colors.HexColor("#cbd5e1")))]],
         colWidths=[17*cm]
@@ -400,31 +506,25 @@ def export_pam_pdf(pam_id: int, company_id: int,
     elems.append(att_hdr_tbl)
     elems.append(Spacer(1, 0.3*cm))
 
-    headers = ["No", "Nama Siswa", "Bank", "No. Rekening",
-               "Atas Nama", "Kategori", "Kode", "Amount (Rp)"]
+    headers = ["No", "Nama Siswa", "Bank", "No. Rekening", "Amount (Rp)"]
     rows = [[_p(h, _S_TH) for h in headers]]
     total = 0.0
-    for i, pb in enumerate(payments, 1):
-        cat = f"{pb.get('cat1','')}/{pb.get('cat2','')}"
+    for i, pb in enumerate(_group_payments_by_siswa(payments), 1):
         rows.append([
             _p(str(i), _style("n", alignment=1, fontSize=8)),
-            _p(pb.get("nama") or pb.get("siswa_code", ""), _S_TD),
-            _p(pb.get("bank") or "", _S_TD),
-            _p(pb.get("norek") or "", _S_TD),
-            _p(pb.get("namarek") or "", _S_TD),
-            _p(cat, _S_TD),
-            _p(pb.get("siswa_code", ""), _S_TD),
-            _p(f"{float(pb.get('amount', 0)):,.0f}", _S_TD_R),
+            _p(pb["nama"], _S_TD),
+            _p(pb["bank"], _S_TD),
+            _p(pb["norek"], _S_TD),
+            _p(f"{pb['amount']:,.0f}", _S_TD_R),
         ])
-        total += float(pb.get("amount", 0))
+        total += pb["amount"]
     rows.append([
-        _p("", _S_TD), _p("", _S_TD), _p("", _S_TD), _p("", _S_TD),
-        _p("", _S_TD), _p("", _S_TD),
+        _p("", _S_TD), _p("", _S_TD), _p("", _S_TD),
         _p("TOTAL", _style("tot", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
         _p(f"{total:,.0f}", _style("totv", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
     ])
 
-    col_w = [0.6*cm, 3.5*cm, 1.8*cm, 2.8*cm, 2.8*cm, 2.3*cm, 1.4*cm, 1.8*cm]
+    col_w = [0.6*cm, 5.0*cm, 2.8*cm, 4.6*cm, 4.0*cm]
     att_tbl = Table(rows, colWidths=col_w, repeatRows=1)
     att_tbl.setStyle(TableStyle([
         ("BACKGROUND",     (0, 0), (-1, 0),  _BLUE),
@@ -436,7 +536,7 @@ def export_pam_pdf(pam_id: int, company_id: int,
         ("FONTNAME",       (0, -1), (-1, -1), "Helvetica-Bold"),
         ("LINEABOVE",      (0, -1), (-1, -1), 1.5, _BLUE),
         ("ALIGN",          (0, 0), (0, -1), "CENTER"),
-        ("ALIGN",          (7, 0), (7, -1), "RIGHT"),
+        ("ALIGN",          (4, 0), (4, -1), "RIGHT"),
         ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING",     (0, 0), (-1, -1), 3),
         ("BOTTOMPADDING",  (0, 0), (-1, -1), 3),
@@ -450,13 +550,237 @@ def export_pam_pdf(pam_id: int, company_id: int,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Excel export — Book9.xlsx Detail PAM (Sheet 3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_detail_sheet(ws, pam: dict, detail: list) -> None:
+    from openpyxl.utils import range_boundaries
+    from datetime import datetime as _dt
+
+    _thin = Side(style="thin")
+    _bdr  = Border(left=_thin, right=_thin, top=_thin, bottom=_thin)
+    _hf   = PatternFill("solid", fgColor="D9D9D9")
+    _nfmt = '#,##0'
+
+    def _s(r, c, val=None, bold=False, sz=10, ha="general", va="center",
+           fill=None, bdr=None, fmt=None):
+        cell = ws.cell(r, c)
+        if val is not None:
+            cell.value = val
+        cell.font      = Font(bold=bold, size=sz)
+        cell.alignment = Alignment(horizontal=ha, vertical=va)
+        if fill: cell.fill   = fill
+        if bdr:  cell.border = bdr
+        if fmt:  cell.number_format = fmt
+        return cell
+
+    def _outer_border(merge_str):
+        min_col, min_row, max_col, max_row = range_boundaries(merge_str)
+        for row in range(min_row, max_row + 1):
+            for col in range(min_col, max_col + 1):
+                prev = ws.cell(row, col).border
+                ws.cell(row, col).border = Border(
+                    left   = _thin if col == min_col else prev.left,
+                    right  = _thin if col == max_col else prev.right,
+                    top    = _thin if row == min_row else prev.top,
+                    bottom = _thin if row == max_row else prev.bottom,
+                )
+
+    def _hdr(r, c, val):
+        cell = ws.cell(r, c, val)
+        cell.font      = Font(bold=True, size=10)
+        cell.fill      = _hf
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border    = _bdr
+        return cell
+
+    def _merge_hdr(merge_str, val):
+        ws.merge_cells(merge_str)
+        min_col, min_row, max_col, max_row = range_boundaries(merge_str)
+        for row in range(min_row, max_row + 1):
+            for col in range(min_col, max_col + 1):
+                ws.cell(row, col).fill = _hf
+        c = ws.cell(min_row, min_col, val)
+        c.font      = Font(bold=True, size=10)
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        _outer_border(merge_str)
+
+    def _data(r, c, val, ha="left", fmt=None, bold=False):
+        cell = ws.cell(r, c, val)
+        cell.font      = Font(size=10, bold=bold)
+        cell.alignment = Alignment(horizontal=ha, vertical="center")
+        cell.border    = _bdr
+        if fmt:
+            cell.number_format = fmt
+        return cell
+
+    def _vert_merge(r_start, r_end, col_letter, col_num):
+        if r_start == r_end:
+            return
+        ws.merge_cells(f"{col_letter}{r_start}:{col_letter}{r_end}")
+        for r in range(r_start, r_end + 1):
+            ws.cell(r, col_num).border = Border(
+                left   = _thin,
+                right  = _thin,
+                top    = _thin if r == r_start else None,
+                bottom = _thin if r == r_end   else None,
+            )
+
+    # ── Header block (rows 2-3) ──────────────────────────────────────────────
+    ws.row_dimensions[2].height = 15.9
+    ws.row_dimensions[3].height = 15.9
+
+    _s(2, 2, "NO.",    bold=True, sz=12, ha="left", va="top")
+    _s(2, 4, ":",      bold=True, sz=12)
+    _s(2, 5, pam.get("pam_no", ""), sz=12, ha="left", va="top")
+    _s(2, 9, "COST CENTER",  bold=True, sz=12, ha="left")
+    _s(2, 10, ":",     bold=True, sz=12)
+    _s(2, 11, pam.get("cost_center", ""), bold=True, sz=12, ha="left")
+
+    _s(3, 2, "TANGGAL", bold=True, sz=12, ha="left")
+    _s(3, 4, ":",        bold=True, sz=12)
+    try:
+        dv = _dt.strptime(pam.get("pam_date", "")[:10], "%Y-%m-%d")
+        c3 = _s(3, 5, dv, bold=True, sz=12, ha="left")
+        c3.number_format = '[$-421]dd\\ mmmm\\ yyyy;@'
+    except Exception:
+        _s(3, 5, pam.get("pam_date", ""), bold=True, sz=12, ha="left")
+    _s(3, 9, "GL ACCOUNT",  bold=True, sz=12, ha="left")
+    _s(3, 10, ":",           bold=True, sz=12)
+    _s(3, 11, pam.get("gl_account", ""), bold=True, sz=12, ha="left")
+
+    # ── 2-row column headers (rows 5-6) ──────────────────────────────────────
+    ws.row_dimensions[5].height = 15
+    ws.row_dimensions[6].height = 15
+
+    for merge_str, val in [
+        ("B5:B6", "NO"), ("C5:D6", "NAMA SISWA"), ("E5:E6", "ANGKATAN"),
+        ("J5:J6", "KETERANGAN"), ("K5:M5", "PEMBAYARAN"),
+        ("P5:P6", "BANK"), ("R5:T5", "SISA SALDO"),
+    ]:
+        _merge_hdr(merge_str, val)
+
+    for r, c, val in [
+        (5, 6, "JENJANG"),   (6, 6, "STUDI"),
+        (5, 7, "PROGRAM"),   (6, 7, "ETF"),
+        (5, 8, "PERGURUAN"), (6, 8, "TINGGI"),
+        (5, 9, "PROGRAM"),   (6, 9, "STUDI"),
+        (6, 11, "PENDIDIKAN"), (6, 12, "TUNJANGAN"), (6, 13, "PENELITIAN"),
+        (5, 14, "TOTAL"),    (6, 14, "PEMBAYARAN"),
+        (5, 15, "NAMA"),     (6, 15, "REKENING"),
+        (5, 17, "NO"),       (6, 17, "REKENING"),
+        (6, 18, "BY PENDIDIKAN"), (6, 19, "BY TUNJANGAN"), (6, 20, "BY PENELITIAN"),
+    ]:
+        _hdr(r, c, val)
+
+    # ── Data rows ────────────────────────────────────────────────────────────
+    r0          = 7
+    grand_total = 0.0
+
+    for siswa in detail:
+        rows   = siswa["rows"]
+        n      = len(rows)
+        r_last = r0 + n - 1
+
+        for r in range(r0, r_last + 1):
+            ws.row_dimensions[r].height = 18
+
+        # Personal-info columns (vertically merged per siswa)
+        _data(r0, 2, siswa["no"], ha="center")
+        _vert_merge(r0, r_last, "B", 2)
+
+        # NAMA SISWA: merge C:D across all rows for this siswa
+        ws.merge_cells(f"C{r0}:D{r_last}")
+        cell = ws.cell(r0, 3, siswa["nama"] or "")
+        cell.font      = Font(size=10)
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        for r in range(r0, r_last + 1):
+            ws.cell(r, 3).border = Border(
+                left   = _thin,
+                top    = _thin if r == r0    else None,
+                bottom = _thin if r == r_last else None,
+            )
+            ws.cell(r, 4).border = Border(
+                right  = _thin,
+                top    = _thin if r == r0    else None,
+                bottom = _thin if r == r_last else None,
+            )
+
+        _data(r0, 5, siswa["angkatan"] or "", ha="center")
+        _vert_merge(r0, r_last, "E", 5)
+
+        _data(r0, 6, siswa["jenjang"] or "", ha="center")
+        _vert_merge(r0, r_last, "F", 6)
+
+        _data(r0, 7, siswa["program"] or "")
+        _vert_merge(r0, r_last, "G", 7)
+
+        _data(r0, 8, siswa["universitas"] or "")
+        _vert_merge(r0, r_last, "H", 8)
+
+        _data(r0, 9, siswa["fakultas"] or "")
+        _vert_merge(r0, r_last, "I", 9)
+
+        # Payment rows (keterangan + amounts) — col J now follows directly after I
+        for idx, row_data in enumerate(rows):
+            r = r0 + idx
+            _data(r, 10, row_data["keterangan"])
+            _data(r, 11, row_data["pendidikan"], ha="right", fmt=_nfmt)
+            _data(r, 12, row_data["tunjangan"],  ha="right", fmt=_nfmt)
+            _data(r, 13, row_data["penelitian"], ha="right", fmt=_nfmt)
+
+        # Total + bank + saldo (vertically merged)
+        _data(r0, 14, siswa["total_pembayaran"], ha="right", fmt=_nfmt)
+        _vert_merge(r0, r_last, "N", 14)
+
+        _data(r0, 15, siswa["namarek"] or "")
+        _vert_merge(r0, r_last, "O", 15)
+
+        _data(r0, 16, siswa["bank"] or "")
+        _vert_merge(r0, r_last, "P", 16)
+
+        _data(r0, 17, siswa["norek"] or "")
+        _vert_merge(r0, r_last, "Q", 17)
+
+        _data(r0, 18, siswa["sisa_pendidikan"], ha="right", fmt=_nfmt)
+        _vert_merge(r0, r_last, "R", 18)
+
+        _data(r0, 19, siswa["sisa_tunjangan"],  ha="right", fmt=_nfmt)
+        _vert_merge(r0, r_last, "S", 19)
+
+        _data(r0, 20, siswa["sisa_penelitian"], ha="right", fmt=_nfmt)
+        _vert_merge(r0, r_last, "T", 20)
+
+        grand_total += siswa["total_pembayaran"]
+        r0 = r_last + 1
+
+    # ── Grand total row ──────────────────────────────────────────────────────
+    ws.merge_cells(f"B{r0}:M{r0}")
+    _outer_border(f"B{r0}:M{r0}")
+    c = ws.cell(r0, 14, grand_total)
+    c.font         = Font(bold=True, size=10)
+    c.alignment    = Alignment(horizontal="right", vertical="center")
+    c.border       = _bdr
+    c.number_format = _nfmt
+    for col in range(15, 21):
+        ws.cell(r0, col).border = _bdr
+    ws.row_dimensions[r0].height = 15
+
+    # ── Column widths ────────────────────────────────────────────────────────
+    for col, w in [
+        ("A",2),("B",5),("C",15),("D",4),("E",8),("F",8),("G",10),
+        ("H",22),("I",13),("J",14),("K",14),("L",12),("M",12),
+        ("N",14),("O",18),("P",22),("Q",14),("R",14),("S",12),("T",12),
+    ]:
+        ws.column_dimensions[col].width = w
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Excel export — Book6.xlsx standard format
 # ─────────────────────────────────────────────────────────────────────────────
 
 def export_pam_excel(pam_id: int, company_id: int,
                      approved_by_1: str, approved_by_2: str) -> bytes:
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from datetime import datetime as _dt
 
     pam = get_pam_detail(pam_id, company_id)
@@ -895,6 +1219,10 @@ def export_pam_excel(pam_id: int, company_id: int,
         ws2.cell(_cur2, 8).border = Border(left=_t2, right=_t2, top=_t2, bottom=_t2)
         ws2.cell(_cur2, 8).number_format = '#,##0'
 
+    # ── Sheet 3: Detail PAM (Book9 format) ──────────────────────────────────
+    ws3 = wb.create_sheet("Detail PAM")
+    _build_detail_sheet(ws3, pam, get_pam_payments_detail(pam_no, company_id))
+
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -903,8 +1231,6 @@ def export_pam_excel(pam_id: int, company_id: int,
 
 def export_pam_excel_custom(data: dict, payments: list) -> bytes:
     """Generate PAM Excel (Book6 format) from a user-supplied data dict."""
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from datetime import datetime as _dt
 
     approved_by_1 = data.get("approved_by_1") or config.PAM_APPROVED_BY_1
@@ -1097,78 +1423,208 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
     _set("B43", "Checked by (QA)",                     font=_bold())
     _draw_box(44, 2, 48, 6)
 
-    # ── Sheet 2: Lampiran ──────────────────────────────────────────────────
-    ws2 = wb.create_sheet("Lampiran")
+    # ── Sheet 2: Rangkuman PAM (Book8 format) ─────────────────────────────────
+    ws2 = wb.create_sheet("Rangkuman PAM")
 
-    blue_fill  = PatternFill("solid", fgColor="1E3A5F")
-    lgray_fill = PatternFill("solid", fgColor="F8FAFC")
-    white_fill = PatternFill("solid", fgColor="FFFFFF")
-    thin2      = Side(style="thin", color="D1D5DB")
-    _bdr2      = Border(left=thin2, right=thin2, top=thin2, bottom=thin2)
-    _fw2       = lambda sz=9: Font(bold=True, color="FFFFFF", size=sz, name="Arial")
-    _fb2       = lambda sz=9: Font(bold=True, size=sz, name="Arial")
-    _fn2       = lambda sz=9: Font(bold=False, size=sz, name="Arial")
+    # Column widths matching Book8
+    for _c2, _w2 in [("A", 2.77), ("B", 10.30), ("C", 1.15), ("D", 37.84),
+                     ("E", 37.0),  ("F", 23.15), ("G", 1.0),  ("H", 18.46), ("I", 2.84)]:
+        ws2.column_dimensions[_c2].width = _w2
 
-    ws2.merge_cells("A1:H1")
-    c = ws2["A1"]
-    c.value = "Lampiran — Jadwal Pembayaran Beasiswa"
-    c.font = _fw2(11); c.fill = blue_fill
-    c.alignment = Alignment(horizontal="left", vertical="center")
-    ws2.row_dimensions[1].height = 18
+    _hf2 = PatternFill("solid", fgColor="D9D9D9")
+    _t2  = Side(style="thin")
+    _k2  = Side(style="thick")
 
-    ws2.merge_cells("A2:H2")
-    c = ws2["A2"]
-    c.value = f"{pam_no}  \xb7  {data.get('pt','')}  \xb7  {_fmt_date(data.get('pam_date',''))}"
-    c.font = Font(size=8, color="CBD5E1", name="Arial"); c.fill = blue_fill
-    c.alignment = Alignment(horizontal="left", vertical="center")
+    def _b2(l=False, r=False, t=False, b=False):
+        return Border(left=_t2 if l else None, right=_t2 if r else None,
+                      top=_t2 if t else None,  bottom=_t2 if b else None)
 
-    hdr = ["No","Nama Siswa","Bank","No. Rekening","Atas Nama","Kategori","Kode","Amount (Rp)"]
-    for ci, h in enumerate(hdr, 1):
-        cell = ws2.cell(3, ci, h)
-        cell.font = _fw2(9); cell.fill = blue_fill
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        cell.border = _bdr2
+    def _s2(row, col, val=None, bold=False, sz=11,
+            ha=None, va=None, fill=None, bdr=None, fmt=None):
+        c2 = ws2.cell(row, col)
+        if val is not None:
+            c2.value = val
+        c2.font = Font(bold=bold, size=sz)
+        if ha or va:
+            c2.alignment = Alignment(horizontal=ha or "general",
+                                     vertical=va or "bottom")
+        if fill:  c2.fill   = fill
+        if bdr:   c2.border = bdr
+        if fmt:   c2.number_format = fmt
+        return c2
 
-    total = 0.0
-    for i, pb in enumerate(payments, 1):
-        r   = 3 + i
-        cat = f"{pb.get('cat1','')}/{pb.get('cat2','')}"
-        row_data = [i, pb.get("nama") or pb.get("siswa_code",""),
-                    pb.get("bank") or "", pb.get("norek") or "",
-                    pb.get("namarek") or "", cat,
-                    pb.get("siswa_code",""), float(pb.get("amount",0))]
-        fill = white_fill if i % 2 else lgray_fill
-        for ci, v in enumerate(row_data, 1):
-            cell = ws2.cell(r, ci, v)
-            cell.font = _fn2(9); cell.fill = fill
-            cell.alignment = Alignment(
-                horizontal="center" if ci in (1,3) else ("right" if ci==8 else "left"),
-                vertical="center")
-            cell.border = _bdr2
-            if ci == 8:
-                cell.number_format = '#,##0'
-        total += float(pb.get("amount", 0))
+    # Row heights for info rows
+    for _ri2 in (2, 3, 4, 5):
+        ws2.row_dimensions[_ri2].height = 15.9
 
-    tr  = 3 + len(payments) + 1
-    total_fill = PatternFill("solid", fgColor="E8F0FE")
-    for _tc in range(1, 7):
-        cell = ws2.cell(tr, _tc)
-        cell.fill = total_fill
-        cell.border = _bdr2
-    tc7 = ws2.cell(tr, 7, "TOTAL")
-    tc7.font = _fb2(9)
-    tc7.fill = PatternFill("solid", fgColor="E8F0FE")
-    tc7.alignment = Alignment(horizontal="right", vertical="center")
-    tc7.border = _bdr2
-    tc8 = ws2.cell(tr, 8, total)
-    tc8.font = _fb2(9)
-    tc8.fill = PatternFill("solid", fgColor="E8F0FE")
-    tc8.alignment = Alignment(horizontal="right", vertical="center")
-    tc8.number_format = '#,##0'
-    tc8.border = _bdr2
+    # Rows 2-3: PAM info header
+    _s2(2, 2, "NO. ",          bold=True, sz=12, va="top")
+    _s2(2, 3, ":",              bold=True, sz=12)
+    _s2(2, 4, pam_no,           sz=12,    va="top")
+    _s2(2, 6, "COST CENTER ",  bold=True, sz=12)
+    _s2(2, 7, ":",              bold=True, sz=12)
+    _s2(2, 8, data.get("cost_center", ""), bold=True, sz=12)
 
-    for col, w in zip("ABCDEFGH", [5,22,12,16,18,18,10,14]):
-        ws2.column_dimensions[col].width = w
+    _s2(3, 2, "TANGGAL",       bold=True, sz=12)
+    _s2(3, 3, ":",              bold=True, sz=12)
+    try:
+        _d3v = _dt.strptime(data.get("pam_date", "")[:10], "%Y-%m-%d")
+        _s2(3, 4, _d3v, bold=True, sz=12, ha="left",
+            fmt='[$-421]dd\\ mmmm\\ yyyy;@')
+    except Exception:
+        _s2(3, 4, data.get("pam_date", ""), bold=True, sz=12, ha="left")
+    _s2(3, 6, "GL ACCOUNT     ", bold=True, sz=12)
+    _s2(3, 7, ":",               bold=True, sz=12)
+    _s2(3, 8, data.get("gl_account", ""), bold=True, sz=12, ha="left")
+
+    # Split payments: universities (Section 2) vs individuals (Section 1)
+    _UNI_KW = ("universitas", "institut ", "akademi", "politeknik",
+               "sekolah tinggi", "stie", "stmik", "kelolaan")
+    grouped_pay = _group_payments_by_siswa(payments)
+    _sec1, _sec2 = [], []
+    for _pb2 in grouped_pay:
+        if any(_kw2 in _pb2["nama"].lower() for _kw2 in _UNI_KW):
+            _sec2.append(_pb2)
+        else:
+            _sec1.append(_pb2)
+
+    def _write_hdr2(r0, sz=11):
+        ws2.merge_cells(f"B{r0}:B{r0+1}")
+        ch = ws2.cell(r0, 2, "NO")
+        ch.font = Font(bold=True, size=sz)
+        ch.fill = _hf2
+        ch.alignment = Alignment(horizontal="center", vertical="center")
+        ch.border = Border(left=_t2, right=_t2, top=_t2, bottom=_t2)
+        ws2.cell(r0+1, 2).border = Border(left=_t2, right=_t2, bottom=_t2)
+        # C spacer
+        ws2.cell(r0,   3).fill = _hf2;  ws2.cell(r0,   3).border = _b2(l=True, t=True)
+        ws2.cell(r0+1, 3).fill = _hf2;  ws2.cell(r0+1, 3).border = _b2(l=True, b=True)
+        # D: "NAMA " / "REKENING"
+        for _rh, _th in [(r0, "NAMA "), (r0+1, "REKENING")]:
+            ch = ws2.cell(_rh, 4, _th)
+            ch.font = Font(bold=True, size=sz); ch.fill = _hf2
+            ch.alignment = Alignment(horizontal="center", vertical="center")
+            ch.border = Border(right=_t2,
+                               top=(_t2 if _rh == r0   else None),
+                               bottom=(_t2 if _rh == r0+1 else None))
+        # E: "BANK"
+        for _rh, _th in [(r0, "BANK"), (r0+1, None)]:
+            ch = ws2.cell(_rh, 5, _th)
+            ch.font = Font(bold=True, size=sz); ch.fill = _hf2
+            ch.alignment = Alignment(horizontal="center")
+            ch.border = Border(left=_t2, right=_t2,
+                               top=(_t2 if _rh == r0   else None),
+                               bottom=(_t2 if _rh == r0+1 else None))
+        # F: "NO" / "REKENING"
+        for _rh, _th in [(r0, "NO"), (r0+1, "REKENING")]:
+            ch = ws2.cell(_rh, 6, _th)
+            ch.font = Font(bold=True, size=sz); ch.fill = _hf2
+            ch.alignment = Alignment(horizontal="center")
+            ch.border = Border(left=_t2,
+                               top=(_t2 if _rh == r0   else None),
+                               bottom=(_t2 if _rh == r0+1 else None))
+        # G spacer
+        ws2.cell(r0,   7).fill = _hf2;  ws2.cell(r0,   7).border = _b2(r=True, t=True)
+        ws2.cell(r0+1, 7).fill = _hf2;  ws2.cell(r0+1, 7).border = _b2(r=True, b=True)
+        # H: "TOTAL" / "PEMBAYARAN"
+        for _rh, _th in [(r0, "TOTAL"), (r0+1, "PEMBAYARAN")]:
+            ch = ws2.cell(_rh, 8, _th)
+            ch.font = Font(bold=True, size=sz); ch.fill = _hf2
+            ch.alignment = Alignment(horizontal="center")
+            ch.border = Border(left=_t2, right=_t2,
+                               top=(_t2 if _rh == r0   else None),
+                               bottom=(_t2 if _rh == r0+1 else None))
+
+    def _write_data2(row, seq, nama, bank, norek, amt, sz=12):
+        ws2.row_dimensions[row].height = 29.25
+        fn2 = Font(size=sz)
+        ws2.cell(row, 2, str(seq)).font = fn2
+        ws2.cell(row, 2).alignment = Alignment(horizontal="center", vertical="center")
+        ws2.cell(row, 2).border    = Border(left=_t2, right=_t2, top=_t2, bottom=_t2)
+        ws2.cell(row, 3).border    = _b2(l=True, t=True, b=True)
+        ws2.cell(row, 4, nama).font      = fn2
+        ws2.cell(row, 4).alignment = Alignment(horizontal="left", vertical="center")
+        ws2.cell(row, 4).border    = Border(right=_t2, top=_t2, bottom=_t2)
+        ws2.cell(row, 5, bank).font      = fn2
+        ws2.cell(row, 5).alignment = Alignment(horizontal="left", vertical="center")
+        ws2.cell(row, 5).border    = Border(left=_t2, right=_t2, top=_t2, bottom=_t2)
+        ws2.cell(row, 6, norek).font     = fn2
+        ws2.cell(row, 6).alignment = Alignment(horizontal="center", vertical="center")
+        ws2.cell(row, 6).border    = _b2(l=True, t=True, b=True)
+        ws2.cell(row, 7).border    = _b2(r=True, t=True, b=True)
+        ws2.cell(row, 8, amt).font       = fn2
+        ws2.cell(row, 8).alignment = Alignment(horizontal="center", vertical="center")
+        ws2.cell(row, 8).border    = Border(left=_t2, right=_t2, top=_t2, bottom=_t2)
+        ws2.cell(row, 8).number_format = '#,##0'
+
+    def _write_tot2(row, total_val, label="Total", sz=12, thick_top=False):
+        ws2.merge_cells(f"B{row}:F{row}")
+        fn2 = Font(bold=True, size=sz)
+        ws2.cell(row, 2, label).font      = fn2
+        ws2.cell(row, 2).alignment = Alignment(horizontal="center", vertical="center")
+        ws2.cell(row, 2).border    = Border(left=_t2, top=_t2, bottom=_t2)
+        for _col2 in range(3, 7):
+            ws2.cell(row, _col2).border = Border(top=_t2, bottom=_t2)
+        ws2.cell(row, 7).border = Border(right=_t2, bottom=_t2,
+                                          top=(_k2 if thick_top else None))
+        ws2.cell(row, 8, total_val).font      = fn2
+        ws2.cell(row, 8).alignment = Alignment(horizontal="center", vertical="center")
+        ws2.cell(row, 8).border    = Border(left=_t2, right=_t2, bottom=_t2,
+                                             top=(_k2 if thick_top else _t2))
+        ws2.cell(row, 8).number_format = '#,##0'
+
+    # ── Section 1: individual / student payments ──────────────────────────────
+    _cur2 = 6
+    _write_hdr2(_cur2, sz=11)
+    _cur2 += 2
+    _tot1 = 0.0
+    for _i2, _pb2 in enumerate(_sec1, 1):
+        _write_data2(_cur2, _i2, _pb2["nama"], _pb2["bank"], _pb2["norek"],
+                     _pb2["amount"], sz=12)
+        _tot1 += _pb2["amount"]
+        _cur2 += 1
+    _write_tot2(_cur2, _tot1, "Total", sz=12, thick_top=True)
+    _cur2 += 1
+
+    _grand2 = _tot1
+
+    # ── Section 2: university payments (if any) ───────────────────────────────
+    if _sec2:
+        _cur2 += 1
+        ws2.cell(_cur2, 2, "Dibayarkan ke Universitas").font = Font(bold=True, size=11)
+        _cur2 += 1
+        _write_hdr2(_cur2, sz=10)
+        _cur2 += 2
+        _tot2 = 0.0
+        for _i2, _pb2 in enumerate(_sec2, 1):
+            _write_data2(_cur2, _i2, _pb2["nama"], _pb2["bank"], _pb2["norek"],
+                         _pb2["amount"], sz=10)
+            _tot2 += _pb2["amount"]
+            _cur2 += 1
+        _write_tot2(_cur2, _tot2, "Total", sz=10, thick_top=False)
+        _cur2 += 1
+        _grand2 += _tot2
+
+        # Grand Total row
+        _cur2 += 1
+        ws2.merge_cells(f"B{_cur2}:F{_cur2}")
+        _fg = Font(bold=True, size=10)
+        ws2.cell(_cur2, 2, "Grand Total").font      = _fg
+        ws2.cell(_cur2, 2).alignment = Alignment(horizontal="center", vertical="center")
+        ws2.cell(_cur2, 2).border    = Border(left=_t2, top=_t2, bottom=_t2)
+        for _col2 in range(3, 7):
+            ws2.cell(_cur2, _col2).border = Border(top=_t2, bottom=_t2)
+        ws2.cell(_cur2, 7).border = _b2(r=True, t=True, b=True)
+        ws2.cell(_cur2, 8, _grand2).font      = _fg
+        ws2.cell(_cur2, 8).alignment = Alignment(horizontal="center", vertical="center")
+        ws2.cell(_cur2, 8).border    = Border(left=_t2, right=_t2, top=_t2, bottom=_t2)
+        ws2.cell(_cur2, 8).number_format = '#,##0'
+
+    # ── Sheet 3: Detail PAM (Book9 format) ──────────────────────────────────
+    company_id = int(data.get("company_id") or 0)
+    if pam_no and company_id:
+        ws3 = wb.create_sheet("Detail PAM")
+        _build_detail_sheet(ws3, data, get_pam_payments_detail(pam_no, company_id))
 
     buf = io.BytesIO()
     wb.save(buf)
