@@ -3,7 +3,8 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.etf_payment_application.service import (
-    get_pa_list, create_pa, update_pa, get_pa_lines, get_siswa_autocomplete,
+    get_pa_list, get_pa_flat, get_pa_header,
+    create_pa, update_pa, get_pa_lines, get_siswa_autocomplete,
 )
 import config
 
@@ -30,10 +31,10 @@ def index():
     if not session.get("company_id"):
         return redirect(url_for("dashboard.select_company"))
     company_id = session["company_id"]
-    pa_list = get_pa_list(company_id)
+    pa_rows = get_pa_flat(company_id)
     return render_template(
         "etf_payment_application/index.html",
-        pa_list=pa_list,
+        pa_rows=pa_rows,
         cat1=config.CAT1_BGT,
         cat2_sem=config.CAT2_SEM,
         active_page="etf_payment_app",
@@ -76,3 +77,13 @@ def update(pa_id):
 def lines(pa_id):
     company_id = session.get("company_id")
     return jsonify(get_pa_lines(pa_id, company_id))
+
+
+@bp.route("/<int:pa_id>/header")
+@jwt_html_required
+def header(pa_id):
+    company_id = session.get("company_id")
+    data = get_pa_header(pa_id, company_id)
+    if not data:
+        return jsonify({"ok": False}), 404
+    return jsonify(data)

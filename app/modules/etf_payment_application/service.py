@@ -77,6 +77,63 @@ def get_pa_list(company_id: int) -> list:
     return [dict(r) for r in rows]
 
 
+def get_pa_flat(company_id: int) -> list:
+    """Return flat rows: satu baris per line, header fields diulang per baris."""
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT
+                  s.code             AS student_code,
+                  p.id               AS pa_id,
+                  s.nama,
+                  s.status           AS status_pb,
+                  s.universitas      AS instansi_pendidikan,
+                  s.angkatan         AS angkatan_etf,
+                  s.angkatan_kuliah,
+                  s.jenjang          AS jenjang_pendidikan,
+                  s.program          AS program_beasiswa,
+                  s.fakultas,
+                  s.prodi            AS program_studi,
+                  p.tgl_payment_application,
+                  p.tgl_surat_pengajuan,
+                  l.jenis_pembayaran,
+                  l.semester,
+                  l.tahun_ajaran,
+                  l.ipk_sem_sebelumnya,
+                  l.jumlah_pembayaran,
+                  p.doc_received_by_educ,
+                  p.received_pa_from_educ,
+                  p.checked_by_fincon,
+                  p.approved_by_htj_1,
+                  p.send_pa_back_to_educ,
+                  p.pa_received_by_po_fin,
+                  p.approval_by_htj_2,
+                  p.nomor_pam,
+                  p.tanggal_bayar,
+                  p.keterangan,
+                  p.status,
+                  p.pa_number,
+                  l.id               AS line_id
+           FROM etf_pa p
+           JOIN etf_pa_lines l ON l.pa_id = p.id
+           JOIN siswa s ON s.id = l.student_id
+           WHERE p.company_id=?
+           ORDER BY p.created_at DESC, l.id ASC""",
+        (company_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_pa_header(pa_id: int, company_id: int) -> dict | None:
+    """Return single PA header record for edit modal."""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT * FROM etf_pa WHERE id=? AND company_id=?", (pa_id, company_id)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 def get_pa_lines(pa_id: int, company_id: int) -> list:
     """Return semua lines untuk satu PA, dengan data siswa di-JOIN."""
     conn = get_conn()

@@ -257,7 +257,7 @@ def migrate_db():
             conn.commit()
         except Exception:
             pass
-    for col in ["catatan_budget", "catatan_payment"]:
+    for col in ["catatan_budget", "catatan_payment", "angkatan_kuliah", "prodi"]:
         try:
             conn.execute(f"ALTER TABLE siswa ADD COLUMN {col} TEXT DEFAULT ''")
             conn.commit()
