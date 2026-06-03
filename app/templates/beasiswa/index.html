@@ -1731,10 +1731,17 @@ function ipayAddRow() {
       return;
     }
     apiFetch(`/etf-payment-application/draft-siswa?q=${encodeURIComponent(q)}`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r || r.status === 401) {
+          sugg.innerHTML = `<div style="padding:10px 12px;font-size:.875rem;color:#dc2626">Sesi habis. Silakan refresh halaman.</div>`;
+          _positionSugg(); sugg.style.display = "block"; return Promise.reject();
+        }
+        return r.json();
+      })
       .then(hits => {
+        if (!hits) return;
         if (!hits.length) {
-          sugg.innerHTML = `<div style="padding:10px 12px;font-size:.875rem;color:#6b7280">Tidak ada siswa dengan PA draft.</div>`;
+          sugg.innerHTML = `<div style="padding:10px 12px;font-size:.875rem;color:#6b7280">Tidak ditemukan. Pastikan PA sudah dibuat di menu Payment Application dengan status Draft.</div>`;
           _positionSugg(); sugg.style.display = "block"; return;
         }
         sugg.innerHTML = "";

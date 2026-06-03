@@ -1,7 +1,7 @@
 # modules/etf_payment_application/routes.py
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, Response
 from flask_jwt_extended import get_jwt
-from auth.middleware import jwt_html_required
+from auth.middleware import jwt_html_required, role_required
 from modules.etf_payment_application.service import (
     get_pa_list, get_pa_flat, get_pa_header, bulk_update_pa, export_pa_excel,
     create_pa, update_pa, get_pa_lines, get_siswa_autocomplete,
@@ -52,7 +52,7 @@ def siswa_search():
 
 
 @bp.route("/draft-siswa")
-@jwt_html_required
+@role_required("requester", "verificator", "releaser")
 def draft_siswa():
     q          = request.args.get("q", "")
     company_id = session.get("company_id")
@@ -60,7 +60,7 @@ def draft_siswa():
 
 
 @bp.route("/draft-lines")
-@jwt_html_required
+@role_required("requester", "verificator", "releaser")
 def draft_lines():
     siswa_id   = request.args.get("siswa_id", type=int)
     company_id = session.get("company_id")
