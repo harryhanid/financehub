@@ -24,13 +24,14 @@ def test_list_memo_empty(client):
     assert isinstance(r.get_json()["data"], list)
 
 
-def test_create_memo_requires_verificator(client):
-    # admin is 'releaser' — only verificator can create memo
+def test_create_memo_no_items_returns_400(client):
+    # Role system removed — any authenticated user can attempt to create memo;
+    # empty item_ids returns 400 (business validation), not 403.
     token = _login(client)
     r = client.post("/api/v1/payment-memo",
                     json={"company": "ETF", "tanggal": "2026-05-30", "notes": "", "item_ids": []},
                     headers={"Authorization": f"Bearer {token}"})
-    assert r.status_code == 403
+    assert r.status_code == 400
 
 
 def test_payment_draft_invalid_company(client):
@@ -394,13 +395,15 @@ def test_dop_search_no_match(client):
 
 
 def test_dop_candidates_requires_auth(client):
+    # jwt_html_required redirects unauthenticated browser requests to login (302)
     rv = client.get("/payment-memo/days-of-pam/candidates")
-    assert rv.status_code == 401
+    assert rv.status_code == 302
 
 
 def test_dop_search_requires_auth(client):
+    # jwt_html_required redirects unauthenticated browser requests to login (302)
     rv = client.get("/payment-memo/days-of-pam/search?pam=PAM-001-ETF-05-2026")
-    assert rv.status_code == 401
+    assert rv.status_code == 302
 
 
 def test_dop_candidates_no_session(client):

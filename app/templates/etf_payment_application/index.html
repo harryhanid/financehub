@@ -1,19 +1,235 @@
 {% extends "base.html" %}
 {% block title %}ETF Payment Application{% endblock %}
 
+{% block head %}
+<style>
+/* ── Frozen columns via position:sticky ─────────────────────────── */
+/* border-collapse:separate is required — collapse breaks sticky on td/th */
+#pa-table { border-collapse: separate; border-spacing: 0; }
+
+/* Base sticky rule for all frozen cells */
+#pa-table th.s0, #pa-table td.s0,
+#pa-table th.s1, #pa-table td.s1,
+#pa-table th.s2, #pa-table td.s2,
+#pa-table th.s3, #pa-table td.s3 {
+  position: sticky;
+  z-index: 3;
+  background: #fff;
+}
+
+/* thead frozen cells: header bg, higher z-index so they sit above body sticky cells */
+#pa-table thead th.s0,
+#pa-table thead th.s1,
+#pa-table thead th.s2,
+#pa-table thead th.s3 {
+  background: var(--bg-muted, #f1f3f5);
+  z-index: 4;
+}
+
+/* left offsets = cumulative widths of preceding frozen cols */
+#pa-table th.s0, #pa-table td.s0 { left: 0;     min-width: 36px;  max-width: 36px; }
+#pa-table th.s1, #pa-table td.s1 { left: 36px;  min-width: 130px; }
+#pa-table th.s2, #pa-table td.s2 { left: 166px; min-width: 72px;  }
+#pa-table th.s3, #pa-table td.s3 { left: 238px; min-width: 150px; box-shadow: 3px 0 5px -2px rgba(0,0,0,.12); }
+
+/* Override global tbody tr:hover td { background } for frozen cols — keep them opaque */
+#pa-table tbody tr:hover td.s0,
+#pa-table tbody tr:hover td.s1,
+#pa-table tbody tr:hover td.s2,
+#pa-table tbody tr:hover td.s3 { background: #f0f4ff; }
+
+/* row-op: on_process yellow bg for frozen cols */
+#pa-table tr.row-op td.s0,
+#pa-table tr.row-op td.s1,
+#pa-table tr.row-op td.s2,
+#pa-table tr.row-op td.s3 { background: #fffbeb; }
+
+/* row-op hover */
+#pa-table tr.row-op:hover td.s0,
+#pa-table tr.row-op:hover td.s1,
+#pa-table tr.row-op:hover td.s2,
+#pa-table tr.row-op:hover td.s3 { background: #fef3c7; }
+
+/* row-sel (checked): must use !important to override global rule, but apply to frozen cols too */
+#pa-table tr.row-sel td { background: #dbeafe !important; }
+/* sticky cells under row-sel keep their opaque blue */
+#pa-table tr.row-sel td.s0,
+#pa-table tr.row-sel td.s1,
+#pa-table tr.row-sel td.s2,
+#pa-table tr.row-sel td.s3 { background: #dbeafe !important; }
+
+/* ── Sticky table header — top:0 inside the scroll container ──────── */
+/* pa-scroll-wrap has overflow:auto + JS-computed height, so both X   */
+/* and Y sticky work inside it. top:0 = stick at the container top.   */
+#pa-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-muted, #f1f3f5);
+}
+/* corner cells: both top:0 and left:Npx — freeze in both axes */
+#pa-table thead th.s0 { top: 0; left: 0;     z-index: 5; }
+#pa-table thead th.s1 { top: 0; left: 36px;  z-index: 5; }
+#pa-table thead th.s2 { top: 0; left: 166px; z-index: 5; }
+#pa-table thead th.s3 { top: 0; left: 238px; z-index: 5; }
+
+/* ── Sticky page header (filter bar) ────────────────────────────── */
+/* Stays at top of viewport while the scroll container handles the    */
+/* table. Acts as fallback if JS height calculation fails.            */
+#pa-page-header {
+  position: sticky;
+  top: var(--navbar-h, 56px);
+  z-index: 20;
+  background: var(--bg, #f8fafc);
+  padding-bottom: .5rem;
+  margin-bottom: 0;
+}
+
+/* ── Focus / fullscreen mode ────────────────────────────────────── */
+/* Applied by adding .pa-focus class to <body> */
+body.pa-focus .navbar {
+  height: 0; overflow: hidden; padding: 0; min-height: 0;
+  border-bottom: none;
+  transition: height .22s ease, padding .22s ease;
+}
+body:not(.pa-focus) .navbar {
+  transition: height .22s ease, padding .22s ease;
+}
+body.pa-focus #pa-page-header { display: none !important; }
+#pa-focus-exit {
+  display: none;
+  position: fixed; top: .6rem; right: 1rem; z-index: 9999;
+  align-items: center; gap: .4rem;
+  background: rgba(30,41,59,.82); color: #e2e8f0;
+  border: none; border-radius: 20px;
+  padding: .35rem .85rem; font-size: .75rem; font-weight: 600;
+  cursor: pointer; backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+#pa-focus-exit:hover { background: rgba(30,41,59,.95); }
+body.pa-focus #pa-focus-exit { display: flex; }
+
+/* checkbox size */
+.row-chk, #chk-all { width:18px; height:18px; cursor:pointer; accent-color:#3b82f6; }
+
+/* date header controls */
+.th-date-wrap { display:flex; flex-direction:column; gap:3px; }
+.th-date-ctrl { display:flex; flex-wrap:wrap; gap:2px; align-items:center; }
+.th-date-ctrl input[type=date] { font-size:.6rem; padding:1px 3px; width:96px; border:1px solid #bae6fd; border-radius:3px; }
+.btn-fill-date { font-size:.6rem; padding:1px 5px; line-height:1.4; white-space:nowrap; border-radius:3px; cursor:pointer; border:1px solid; }
+.btn-isi  { background:#e0f2fe; color:#0369a1; border-color:#bae6fd; }
+.btn-isi:hover  { background:#bae6fd; }
+.btn-hn   { background:#dcfce7; color:#15803d; border-color:#bbf7d0; }
+.btn-hn:hover   { background:#bbf7d0; }
+
+/* aksi header bulk */
+.th-aksi-wrap { display:flex; flex-direction:column; gap:3px; align-items:flex-start; }
+.th-aksi-wrap select { font-size:.68rem; padding:1px 3px; }
+.th-aksi-wrap button { font-size:.65rem; padding:1px 5px; white-space:nowrap; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
-  <h1 style="font-size:1.25rem; font-weight:700">ETF Payment Application — {{ company_name }}</h1>
-  <button class="btn btn-primary" onclick="openCreateModal()">+ Buat PA Baru</button>
+{# ── Focus mode exit button (fixed, visible only in focus mode) ─────────── #}
+<button id="pa-focus-exit" onclick="exitFocusMode()" title="Keluar Focus Mode (Esc)">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
+  Tampilkan Filter
+</button>
+
+{# ── Header ─────────────────────────────────────────────────────────────── #}
+<div id="pa-page-header">
+<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:.5rem; margin-bottom:1rem">
+  <div>
+    <h1 style="font-size:1.25rem; font-weight:700; margin-bottom:.6rem">ETF Payment Application — {{ company_name }}</h1>
+    <button class="btn btn-primary" onclick="openCreateModal()">+ Buat PA Baru</button>
+  </div>
+  <div style="display:flex; gap:.5rem; align-self:flex-end">
+    <button id="pa-focus-btn" class="btn btn-secondary" onclick="enterFocusMode()" title="Sembunyikan filter & navbar (geser tabel untuk otomatis)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      Full Screen
+    </button>
+    <a href="/etf-payment-application/export-excel" class="btn btn-secondary">↓ Export Excel</a>
+  </div>
 </div>
 
-<div class="table-wrap" style="overflow-x:auto">
-  <table style="min-width:2400px; font-size:.78rem">
+{# ── Filter bar ──────────────────────────────────────────────────────────── #}
+<div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; margin-bottom:.75rem; padding:.65rem .75rem; background:var(--bg-muted,#f8f9fa); border-radius:6px; border:1px solid var(--border)">
+  <div class="form-group" style="margin:0; width:160px">
+    <label style="font-size:.72rem; font-weight:600">Cari Nama PB</label>
+    <input type="text" id="f-nama" placeholder="Ketik nama..." oninput="applyFiltersDebounced()" style="font-size:.82rem">
+  </div>
+  <div class="form-group" style="margin:0; width:120px">
+    <label style="font-size:.72rem; font-weight:600">Status</label>
+    <select id="f-status" onchange="applyFilters()" style="font-size:.82rem">
+      <option value="">Semua</option>
+      <option value="draft">Draft</option>
+      <option value="on_process">On Process</option>
+      <option value="complete">Complete</option>
+    </select>
+  </div>
+  <div class="form-group" style="margin:0; width:110px">
+    <label style="font-size:.72rem; font-weight:600">Jenjang</label>
+    <select id="f-jenjang" onchange="applyFilters()" style="font-size:.82rem">
+      <option value="">Semua</option>
+      {% set jenjang_list = pa_rows | map(attribute='jenjang_pendidikan') | select | unique | list | sort %}
+      {% for j in jenjang_list %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="form-group" style="margin:0; width:130px">
+    <label style="font-size:.72rem; font-weight:600">Program</label>
+    <select id="f-program" onchange="applyFilters()" style="font-size:.82rem">
+      <option value="">Semua</option>
+      {% set prog_list = pa_rows | map(attribute='program_beasiswa') | select | unique | list | sort %}
+      {% for p in prog_list %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="form-group" style="margin:0; width:100px">
+    <label style="font-size:.72rem; font-weight:600">Angkatan ETF</label>
+    <select id="f-angkatan" onchange="applyFilters()" style="font-size:.82rem">
+      <option value="">Semua</option>
+      {% set ang_list = pa_rows | map(attribute='angkatan_etf') | select | unique | list | sort %}
+      {% for a in ang_list %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="form-group" style="margin:0; width:115px">
+    <label style="font-size:.72rem; font-weight:600">Jenis Bayar</label>
+    <select id="f-jenis" onchange="applyFilters()" style="font-size:.82rem">
+      <option value="">Semua</option>
+      {% set jenis_list = pa_rows | map(attribute='jenis_pembayaran') | select | unique | list | sort %}
+      {% for j in jenis_list %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="form-group" style="margin:0; width:110px">
+    <label style="font-size:.72rem; font-weight:600">Nomor PAM</label>
+    <input type="text" id="f-pam" placeholder="cari PAM..." oninput="applyFiltersDebounced()" style="font-size:.82rem">
+  </div>
+  <div style="display:flex; align-items:flex-end; gap:.4rem">
+    <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Reset</button>
+    <span id="f-count" style="font-size:.72rem; color:var(--text-muted); white-space:nowrap; padding-bottom:.2rem"></span>
+  </div>
+</div>
+
+{# ── Bulk action toolbar — hanya counter + batalkan ──────────────────────── #}
+<div id="bulk-bar" style="display:none; align-items:center; gap:.75rem; margin-bottom:.5rem; padding:.45rem .75rem; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; font-size:.82rem">
+  <span id="bulk-count" style="font-weight:600; color:#1d4ed8"></span>
+  <button class="btn btn-secondary btn-sm" onclick="clearSelection()">✕ Batalkan Pilihan</button>
+</div>
+
+</div>{# end pa-page-header #}
+
+{# ── Table ───────────────────────────────────────────────────────────────── #}
+{# overflow:auto on both axes — single scroll container for X and Y.                           #}
+{# thead top:0 + column left:Npx both work inside this container.                             #}
+{# JS sets the height to fill the remaining viewport so the table is full-screen.             #}
+{# Explicit width prevents .main (flex:1, min-width:auto) from expanding to 2700px.           #}
+<div id="pa-scroll-wrap" style="position:relative; overflow:auto; width:calc(100vw - var(--sidebar-w,228px) - 3.5rem); border:1px solid var(--sl-200,#e2e8f0); border-radius:10px; box-shadow:var(--sh-xs,0 1px 3px rgba(0,0,0,.08))">
+  <table id="pa-table" style="min-width:2700px; font-size:.78rem">
     <thead>
       <tr>
-        <th>No. PA</th>
-        <th>ID Siswa</th>
-        <th>Nama PB</th>
+        <th class="s0"><input type="checkbox" id="chk-all" onchange="toggleAll(this)" title="Pilih semua"></th>
+        <th class="s1">No. PA</th>
+        <th class="s2">ID Siswa</th>
+        <th class="s3">Nama PB</th>
         <th>Status PB</th>
         <th>Instansi</th>
         <th>Angkatan ETF</th>
@@ -22,33 +238,52 @@
         <th>Program</th>
         <th>Fakultas</th>
         <th>Program Studi</th>
-        <th>Tgl PA</th>
-        <th>Tgl Surat</th>
+        <th><div class="th-date-wrap"><span>Tgl PA</span><div class="th-date-ctrl"><input type="date" class="col-date-inp"><button class="btn-fill-date btn-isi" onclick="fillColDate('tgl_payment_application',this)">Isi</button><button class="btn-fill-date btn-hn" onclick="fillColToday('tgl_payment_application')">Hari Ini</button></div></div></th>
+        <th><div class="th-date-wrap"><span>Tgl Surat</span><div class="th-date-ctrl"><input type="date" class="col-date-inp"><button class="btn-fill-date btn-isi" onclick="fillColDate('tgl_surat_pengajuan',this)">Isi</button><button class="btn-fill-date btn-hn" onclick="fillColToday('tgl_surat_pengajuan')">Hari Ini</button></div></div></th>
         <th>Jenis Bayar</th>
         <th>Semester</th>
         <th>Tahun Ajaran</th>
         <th>IPK Sblmnya</th>
         <th class="num-right">Jumlah (Rp)</th>
-        <th>Doc Recv Educ</th>
-        <th>Recv PA Educ</th>
-        <th>Checked Fincon</th>
-        <th>Approved HTj</th>
-        <th>Send Back Educ</th>
-        <th>PA Recv PO Fin</th>
-        <th>Approval HTj</th>
+        <th><div class="th-date-wrap"><span>Doc Recv Educ</span><div class="th-date-ctrl"><input type="date" class="col-date-inp"><button class="btn-fill-date btn-isi" onclick="fillColDate('doc_received_by_educ',this)">Isi</button><button class="btn-fill-date btn-hn" onclick="fillColToday('doc_received_by_educ')">Hari Ini</button></div></div></th>
+        <th><div class="th-date-wrap"><span>Recv PA Educ</span><div class="th-date-ctrl"><input type="date" class="col-date-inp"><button class="btn-fill-date btn-isi" onclick="fillColDate('received_pa_from_educ',this)">Isi</button><button class="btn-fill-date btn-hn" onclick="fillColToday('received_pa_from_educ')">Hari Ini</button></div></div></th>
+        <th><div class="th-date-wrap"><span>Checked Fincon</span><div class="th-date-ctrl"><input type="date" class="col-date-inp"><button class="btn-fill-date btn-isi" onclick="fillColDate('checked_by_fincon',this)">Isi</button><button class="btn-fill-date btn-hn" onclick="fillColToday('checked_by_fincon')">Hari Ini</button></div></div></th>
+        <th><div class="th-date-wrap"><span>Approved HTj</span><div class="th-date-ctrl"><input type="date" class="col-date-inp"><button class="btn-fill-date btn-isi" onclick="fillColDate('approved_by_htj_1',this)">Isi</button><button class="btn-fill-date btn-hn" onclick="fillColToday('approved_by_htj_1')">Hari Ini</button></div></div></th>
+        <th><div class="th-date-wrap"><span>Send Back Educ</span><div class="th-date-ctrl"><input type="date" class="col-date-inp"><button class="btn-fill-date btn-isi" onclick="fillColDate('send_pa_back_to_educ',this)">Isi</button><button class="btn-fill-date btn-hn" onclick="fillColToday('send_pa_back_to_educ')">Hari Ini</button></div></div></th>
+        <th><div class="th-date-wrap"><span>PA Recv PO Fin</span><div class="th-date-ctrl"><input type="date" class="col-date-inp"><button class="btn-fill-date btn-isi" onclick="fillColDate('pa_received_by_po_fin',this)">Isi</button><button class="btn-fill-date btn-hn" onclick="fillColToday('pa_received_by_po_fin')">Hari Ini</button></div></div></th>
+        <th><div class="th-date-wrap"><span>Approval HTj</span><div class="th-date-ctrl"><input type="date" class="col-date-inp"><button class="btn-fill-date btn-isi" onclick="fillColDate('approval_by_htj_2',this)">Isi</button><button class="btn-fill-date btn-hn" onclick="fillColToday('approval_by_htj_2')">Hari Ini</button></div></div></th>
         <th>Nomor PAM</th>
-        <th>Tgl Bayar</th>
-        <th>Keterangan</th>
+        <th><div class="th-date-wrap"><span>Tgl Bayar</span><div class="th-date-ctrl"><input type="date" class="col-date-inp"><button class="btn-fill-date btn-isi" onclick="fillColDate('tanggal_bayar',this)">Isi</button><button class="btn-fill-date btn-hn" onclick="fillColToday('tanggal_bayar')">Hari Ini</button></div></div></th>
+        <th style="min-width:260px">Keterangan</th>
         <th>Status</th>
-        <th>Aksi</th>
+        <th>
+          <div class="th-aksi-wrap">
+            <span>Aksi</span>
+            <select id="hdr-bulk-status">
+              <option value="on_process">On Process</option>
+              <option value="draft">Draft</option>
+              <option value="complete">Complete</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="bulkSetStatusHeader()">Ubah Status</button>
+          </div>
+        </th>
       </tr>
     </thead>
     <tbody>
       {% for r in pa_rows %}
-      <tr>
-        <td><code style="white-space:nowrap">{{ r.pa_number }}</code></td>
-        <td>{{ r.student_code }}</td>
-        <td style="white-space:nowrap">{{ r.nama }}</td>
+      <tr data-pa-id="{{ r.pa_id }}"
+          data-nama="{{ r.nama | lower }}"
+          data-status="{{ r.status or '' }}"
+          data-jenjang="{{ r.jenjang_pendidikan or '' }}"
+          data-program="{{ r.program_beasiswa or '' }}"
+          data-angkatan="{{ r.angkatan_etf or '' }}"
+          data-jenis="{{ r.jenis_pembayaran or '' }}"
+          data-pam="{{ r.nomor_pam or '' | lower }}"
+          class="{% if r.status == 'on_process' %}row-op{% endif %}">
+        <td class="s0"><input type="checkbox" class="row-chk" onchange="onRowCheck()" value="{{ r.pa_id }}"></td>
+        <td class="s1"><code style="white-space:nowrap">{{ r.pa_number }}</code></td>
+        <td class="s2">{{ r.student_code }}</td>
+        <td class="s3" style="white-space:nowrap">{{ r.nama }}</td>
         <td>{{ r.status_pb or '--' }}</td>
         <td style="white-space:nowrap">{{ r.instansi_pendidikan or '--' }}</td>
         <td>{{ r.angkatan_etf or '--' }}</td>
@@ -73,22 +308,16 @@
         <td>{{ r.approval_by_htj_2 or '--' }}</td>
         <td>{{ r.nomor_pam or '--' }}</td>
         <td>{{ r.tanggal_bayar or '--' }}</td>
-        <td style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="{{ r.keterangan or '' }}">
-          {{ r.keterangan or '--' }}
-        </td>
+        <td style="min-width:260px; white-space:pre-wrap; word-break:break-word; line-height:1.4">{{ r.keterangan or '--' }}</td>
         <td>
           <span class="badge {% if r.status == 'complete' %}badge-green{% elif r.status == 'on_process' %}badge-yellow{% else %}badge-gray{% endif %}">
             {{ r.status | replace('_', ' ') | title }}
           </span>
         </td>
-        <td>
-          <button class="btn btn-primary btn-sm" onclick="openEditById({{ r.pa_id }})">Edit</button>
-        </td>
+        <td><button class="btn btn-primary btn-sm" onclick="openEditById({{ r.pa_id }})">Edit</button></td>
       </tr>
       {% else %}
-      <tr><td colspan="30" style="text-align:center; color:var(--text-muted); padding:2rem">
-        Belum ada payment application ETF.
-      </td></tr>
+      <tr><td colspan="32" style="text-align:center; color:var(--text-muted); padding:2rem">Belum ada payment application ETF.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -102,19 +331,10 @@
       <button class="modal-close" onclick="closeModal('modal-buat-pa')">x</button>
     </div>
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem">
-      <div class="form-group">
-        <label>Tgl Payment Application *</label>
-        <input type="date" id="pa-tgl-app">
-      </div>
-      <div class="form-group">
-        <label>Tgl Surat Pengajuan</label>
-        <input type="date" id="pa-tgl-surat">
-      </div>
+      <div class="form-group"><label>Tgl Payment Application *</label><input type="date" id="pa-tgl-app"></div>
+      <div class="form-group"><label>Tgl Surat Pengajuan</label><input type="date" id="pa-tgl-surat"></div>
     </div>
-    <div class="form-group">
-      <label>Keterangan</label>
-      <input type="text" id="pa-keterangan" placeholder="Opsional">
-    </div>
+    <div class="form-group"><label>Keterangan</label><input type="text" id="pa-keterangan" placeholder="Opsional"></div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin:.75rem 0 .5rem">
       <strong style="font-size:.875rem">Daftar Siswa</strong>
       <button class="btn btn-secondary btn-sm" onclick="addLine()">+ Tambah Baris</button>
@@ -146,12 +366,8 @@
       <div class="form-group"><label>PA Recv by PO Fin</label><input type="date" id="edit-recv-po"></div>
       <div class="form-group"><label>Approval by HTj (final)</label><input type="date" id="edit-approval2"></div>
       <div class="form-group"><label>Tanggal Bayar</label><input type="date" id="edit-tgl-bayar"></div>
-      <div class="form-group">
-        <label>Nomor PAM</label>
-        <input type="text" id="edit-nomor-pam" placeholder="Auto-generate saat On Process">
-      </div>
-      <div class="form-group">
-        <label>Status</label>
+      <div class="form-group"><label>Nomor PAM</label><input type="text" id="edit-nomor-pam" placeholder="Auto-generate saat On Process"></div>
+      <div class="form-group"><label>Status</label>
         <select id="edit-status">
           <option value="draft">Draft</option>
           <option value="on_process">On Process</option>
@@ -159,10 +375,7 @@
         </select>
       </div>
     </div>
-    <div class="form-group">
-      <label>Keterangan</label>
-      <input type="text" id="edit-keterangan">
-    </div>
+    <div class="form-group"><label>Keterangan</label><textarea id="edit-keterangan" rows="3" style="width:100%; resize:vertical"></textarea></div>
     <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:1rem">
       <button class="btn btn-secondary" onclick="closeModal('modal-edit-pa')">Batal</button>
       <button class="btn btn-primary" onclick="saveEdit()">Simpan</button>
@@ -181,34 +394,17 @@
         <input type="hidden" class="siswa-id-input">
         <div class="siswa-suggestions" style="display:none; position:absolute; background:#fff; border:1px solid var(--border); border-radius:4px; z-index:100; max-height:200px; overflow-y:auto; width:280px; top:100%"></div>
       </div>
-      <div class="form-group" style="margin:0">
-        <label>Jenis Bayar</label>
-        <select class="jenis-bayar-input">
-          <option value="">-- Pilih --</option>
-          {% for c in cat1 %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
-        </select>
+      <div class="form-group" style="margin:0"><label>Jenis Bayar</label>
+        <select class="jenis-bayar-input"><option value="">-- Pilih --</option>{% for c in cat1 %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
       </div>
-      <div class="form-group" style="margin:0">
-        <label>Semester</label>
-        <select class="semester-input">
-          <option value="">-- Pilih --</option>
-          {% for c in cat2_sem %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
-        </select>
+      <div class="form-group" style="margin:0"><label>Semester</label>
+        <select class="semester-input"><option value="">-- Pilih --</option>{% for c in cat2_sem %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
       </div>
     </div>
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:.5rem">
-      <div class="form-group" style="margin:0">
-        <label>Tahun Ajaran</label>
-        <input type="text" class="tahun-ajaran-input" placeholder="2024/2025">
-      </div>
-      <div class="form-group" style="margin:0">
-        <label>IPK Sem Sblmnya</label>
-        <input type="number" class="ipk-input" step="0.01" min="0" max="4" readonly style="background:var(--bg-muted)">
-      </div>
-      <div class="form-group" style="margin:0">
-        <label>Jumlah (Rp)</label>
-        <input type="number" class="jumlah-input" placeholder="0" min="0">
-      </div>
+      <div class="form-group" style="margin:0"><label>Tahun Ajaran</label><input type="text" class="tahun-ajaran-input" placeholder="2024/2025"></div>
+      <div class="form-group" style="margin:0"><label>IPK Sem Sblmnya</label><input type="number" class="ipk-input" step="0.01" min="0" max="4" readonly style="background:var(--bg-muted)"></div>
+      <div class="form-group" style="margin:0"><label>Jumlah (Rp)</label><input type="number" class="jumlah-input" placeholder="0" min="0"></div>
     </div>
     <div class="siswa-info" style="font-size:.75rem; color:var(--text-muted); margin-top:.4rem"></div>
   </div>
@@ -217,6 +413,175 @@
 
 {% block scripts %}
 <script>
+const TODAY = new Date().toISOString().slice(0,10);
+
+// ─── Focus / fullscreen mode ──────────────────────────────────────────────────
+function enterFocusMode() {
+  document.body.classList.add('pa-focus');
+  setTimeout(sizeWrap, 240); // wait for navbar collapse transition
+}
+function exitFocusMode() {
+  document.body.classList.remove('pa-focus');
+  setTimeout(sizeWrap, 240);
+}
+
+// Auto-enter focus when table is scrolled right; auto-exit when back at left edge
+document.addEventListener('DOMContentLoaded', () => {
+  const wrap = document.getElementById('pa-scroll-wrap');
+  if (!wrap) return;
+  let focusTimer = 0;
+  wrap.addEventListener('scroll', () => {
+    clearTimeout(focusTimer);
+    focusTimer = setTimeout(() => {
+      const inFocus = document.body.classList.contains('pa-focus');
+      if (wrap.scrollLeft > 40 && !inFocus) enterFocusMode();
+      else if (wrap.scrollLeft === 0 && inFocus) exitFocusMode();
+    }, 80);
+  }, { passive: true });
+});
+
+// Escape key exits focus mode
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('pa-focus')) exitFocusMode();
+});
+
+// ─── Size pa-scroll-wrap to fill the entire remaining viewport ───────────────
+// pa-scroll-wrap has overflow:auto — both X and Y scroll happen inside it.
+// thead top:0 + column left:Npx freeze work inside this single container.
+// Height = viewport height − wrap's top offset − .main padding-bottom (28px).
+// Fires on load (not just DOMContentLoaded) so font layout is final.
+// ResizeObserver on pa-page-header handles bulk-bar show/hide height changes.
+(function() {
+  function sizeWrap() {
+    const wrap = document.getElementById('pa-scroll-wrap');
+    if (!wrap) return;
+    requestAnimationFrame(() => {
+      const mainPadBottom = 28; // .main { padding: 1.75rem } → 1.75×16 = 28px
+      wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top - mainPadBottom) + 'px';
+    });
+  }
+  window.addEventListener('load',   sizeWrap);
+  window.addEventListener('resize', sizeWrap);
+  document.addEventListener('DOMContentLoaded', sizeWrap);
+  // Recompute when filter bar height changes (e.g. bulk-action bar appears)
+  document.addEventListener('DOMContentLoaded', () => {
+    const ph = document.getElementById('pa-page-header');
+    if (ph && window.ResizeObserver) new ResizeObserver(sizeWrap).observe(ph);
+  });
+})();
+
+
+// ─── Filter ───────────────────────────────────────────────────────────────────
+let _filterTimer = 0;
+function applyFiltersDebounced() {
+  clearTimeout(_filterTimer);
+  _filterTimer = setTimeout(applyFilters, 150);
+}
+
+function applyFilters() {
+  const nama     = document.getElementById("f-nama").value.toLowerCase().trim();
+  const status   = document.getElementById("f-status").value;
+  const jenjang  = document.getElementById("f-jenjang").value;
+  const program  = document.getElementById("f-program").value;
+  const angkatan = document.getElementById("f-angkatan").value;
+  const jenis    = document.getElementById("f-jenis").value;
+  const pam      = document.getElementById("f-pam").value.toLowerCase().trim();
+  const rows     = document.querySelectorAll("#pa-table tbody tr[data-pa-id]");
+  // collect changes first, apply in one RAF to avoid per-row reflow
+  const show = [], hide = [];
+  let visible = 0;
+  rows.forEach(tr => {
+    const match =
+      (!nama     || tr.dataset.nama.includes(nama)) &&
+      (!status   || tr.dataset.status === status) &&
+      (!jenjang  || tr.dataset.jenjang === jenjang) &&
+      (!program  || tr.dataset.program === program) &&
+      (!angkatan || tr.dataset.angkatan == angkatan) &&
+      (!jenis    || tr.dataset.jenis === jenis) &&
+      (!pam      || tr.dataset.pam.includes(pam));
+    if (match) { show.push(tr); visible++; } else { hide.push(tr); }
+  });
+  requestAnimationFrame(() => {
+    show.forEach(tr => { if (tr.style.display === "none") tr.style.display = ""; });
+    hide.forEach(tr => { if (tr.style.display !== "none") tr.style.display = "none"; });
+    document.getElementById("f-count").textContent = `${visible} / ${rows.length} baris`;
+  });
+}
+function resetFilters() {
+  ["f-nama","f-pam"].forEach(id => document.getElementById(id).value = "");
+  ["f-status","f-jenjang","f-program","f-angkatan","f-jenis"].forEach(id => document.getElementById(id).value = "");
+  applyFilters();
+}
+window.addEventListener("DOMContentLoaded", applyFilters);
+
+// ─── Checkbox & selection ─────────────────────────────────────────────────────
+function toggleAll(chk) {
+  document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none']) .row-chk")
+    .forEach(c => { c.checked = chk.checked; c.closest("tr").classList.toggle("row-sel", chk.checked); });
+  updateBulkBar();
+}
+function onRowCheck() {
+  const tr = event.target.closest("tr");
+  tr.classList.toggle("row-sel", event.target.checked);
+  const all  = document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none']) .row-chk");
+  const checked = [...all].filter(c => c.checked);
+  document.getElementById("chk-all").checked = checked.length === all.length && all.length > 0;
+  updateBulkBar();
+}
+function clearSelection() {
+  document.querySelectorAll(".row-chk").forEach(c => { c.checked = false; c.closest("tr").classList.remove("row-sel"); });
+  document.getElementById("chk-all").checked = false;
+  updateBulkBar();
+}
+function updateBulkBar() {
+  const sel = document.querySelectorAll(".row-chk:checked");
+  const bar = document.getElementById("bulk-bar");
+  bar.style.display = sel.length ? "flex" : "none";
+  document.getElementById("bulk-count").textContent = `${sel.length} baris dipilih`;
+}
+function selectedPaIds() {
+  return [...document.querySelectorAll(".row-chk:checked")].map(c => parseInt(c.value));
+}
+function visiblePaIds() {
+  return [...document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none'])")].map(tr => parseInt(tr.dataset.paId));
+}
+
+// ─── Bulk update helpers ──────────────────────────────────────────────────────
+async function doBulkUpdate(field, value) {
+  const ids = selectedPaIds();
+  if (!ids.length) { showToast("Pilih baris terlebih dahulu.", "error"); return; }
+  const resp = await apiFetch("/etf-payment-application/bulk-update", {
+    method: "POST", body: JSON.stringify({ pa_ids: ids, field, value })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) setTimeout(() => location.reload(), 700);
+}
+
+// Isi field tanggal dengan nilai dari date input di header kolom
+async function fillColDate(field, btn) {
+  const inp = btn.closest(".th-date-ctrl").querySelector(".col-date-inp");
+  const val = inp.value;
+  if (!val) { showToast("Pilih tanggal terlebih dahulu.", "error"); return; }
+  const ids = selectedPaIds();
+  if (!ids.length) { showToast("Centang baris yang ingin diisi.", "error"); return; }
+  await doBulkUpdate(field, val);
+}
+
+// Isi field tanggal dengan hari ini untuk baris yang dipilih (atau semua visible)
+async function fillColToday(field) {
+  const ids = selectedPaIds();
+  if (!ids.length) { showToast("Centang baris yang ingin diisi.", "error"); return; }
+  await doBulkUpdate(field, TODAY);
+}
+
+async function bulkSetStatusHeader() {
+  const status = document.getElementById("hdr-bulk-status").value;
+  const ids = selectedPaIds();
+  if (!ids.length) { showToast("Centang baris yang ingin diubah statusnya.", "error"); return; }
+  await doBulkUpdate("status", status);
+}
+
 // ─── Autocomplete ─────────────────────────────────────────────────────────────
 function setupAutocomplete(row) {
   const searchInput = row.querySelector(".siswa-search-input");
@@ -252,8 +617,6 @@ function setupAutocomplete(row) {
   });
   searchInput.addEventListener("blur", () => setTimeout(() => { suggestions.style.display = "none"; }, 200));
 }
-
-// ─── Lines ────────────────────────────────────────────────────────────────────
 function addLine() {
   const tpl = document.getElementById("line-template").content.cloneNode(true);
   const container = document.getElementById("pa-lines-container");
@@ -261,18 +624,16 @@ function addLine() {
   setupAutocomplete(container.lastElementChild);
 }
 function removeLine(btn) { btn.closest(".pa-line-row").remove(); }
-
-// ─── Open create modal ────────────────────────────────────────────────────────
 function openCreateModal() {
   document.getElementById("pa-lines-container").innerHTML = "";
-  document.getElementById("pa-tgl-app").value    = "";
+  document.getElementById("pa-tgl-app").value    = new Date().toISOString().slice(0, 10);
   document.getElementById("pa-tgl-surat").value  = "";
   document.getElementById("pa-keterangan").value = "";
   addLine();
   openModal("modal-buat-pa");
 }
 
-// ─── Submit create ────────────────────────────────────────────────────────────
+// ─── Create ───────────────────────────────────────────────────────────────────
 async function submitPA() {
   const tglApp = document.getElementById("pa-tgl-app").value;
   if (!tglApp) { showToast("Tgl Payment Application wajib diisi.", "error"); return; }
@@ -293,42 +654,35 @@ async function submitPA() {
   }
   const resp = await apiFetch("/etf-payment-application/create", {
     method: "POST",
-    body: JSON.stringify({
-      tgl_payment_application: tglApp,
-      tgl_surat_pengajuan:     document.getElementById("pa-tgl-surat").value,
-      keterangan:              document.getElementById("pa-keterangan").value,
-      lines,
-    })
+    body: JSON.stringify({ tgl_payment_application: tglApp, tgl_surat_pengajuan: document.getElementById("pa-tgl-surat").value, keterangan: document.getElementById("pa-keterangan").value, lines })
   });
   const data = await resp.json();
   showToast(data.pesan, data.ok ? "success" : "error");
   if (data.ok) { closeModal("modal-buat-pa"); setTimeout(() => location.reload(), 800); }
 }
 
-// ─── Open edit via AJAX (avoids onclick JSON escaping bug) ────────────────────
+// ─── Edit ─────────────────────────────────────────────────────────────────────
 async function openEditById(paId) {
   const resp = await apiFetch(`/etf-payment-application/${paId}/header`);
   if (!resp.ok) { showToast("Gagal memuat data PA.", "error"); return; }
   const pa = await resp.json();
-  document.getElementById("edit-pa-id").value      = pa.id;
+  document.getElementById("edit-pa-id").value       = pa.id;
   document.getElementById("edit-pa-title").textContent = `Edit PA: ${pa.pa_number}`;
-  document.getElementById("edit-tgl-app").value    = pa.tgl_payment_application || "";
-  document.getElementById("edit-tgl-surat").value  = pa.tgl_surat_pengajuan || "";
-  document.getElementById("edit-doc-recv").value   = pa.doc_received_by_educ || "";
-  document.getElementById("edit-recv-pa").value    = pa.received_pa_from_educ || "";
-  document.getElementById("edit-checked").value    = pa.checked_by_fincon || "";
-  document.getElementById("edit-approved1").value  = pa.approved_by_htj_1 || "";
-  document.getElementById("edit-send-back").value  = pa.send_pa_back_to_educ || "";
-  document.getElementById("edit-recv-po").value    = pa.pa_received_by_po_fin || "";
-  document.getElementById("edit-approval2").value  = pa.approval_by_htj_2 || "";
-  document.getElementById("edit-nomor-pam").value  = pa.nomor_pam || "";
-  document.getElementById("edit-tgl-bayar").value  = pa.tanggal_bayar || "";
-  document.getElementById("edit-keterangan").value = pa.keterangan || "";
-  document.getElementById("edit-status").value     = pa.status || "draft";
+  document.getElementById("edit-tgl-app").value     = pa.tgl_payment_application || "";
+  document.getElementById("edit-tgl-surat").value   = pa.tgl_surat_pengajuan || "";
+  document.getElementById("edit-doc-recv").value    = pa.doc_received_by_educ || "";
+  document.getElementById("edit-recv-pa").value     = pa.received_pa_from_educ || "";
+  document.getElementById("edit-checked").value     = pa.checked_by_fincon || "";
+  document.getElementById("edit-approved1").value   = pa.approved_by_htj_1 || "";
+  document.getElementById("edit-send-back").value   = pa.send_pa_back_to_educ || "";
+  document.getElementById("edit-recv-po").value     = pa.pa_received_by_po_fin || "";
+  document.getElementById("edit-approval2").value   = pa.approval_by_htj_2 || "";
+  document.getElementById("edit-nomor-pam").value   = pa.nomor_pam || "";
+  document.getElementById("edit-tgl-bayar").value   = pa.tanggal_bayar || "";
+  document.getElementById("edit-keterangan").value  = pa.keterangan || "";
+  document.getElementById("edit-status").value      = pa.status || "draft";
   openModal("modal-edit-pa");
 }
-
-// ─── Save edit ────────────────────────────────────────────────────────────────
 async function saveEdit() {
   const paId = document.getElementById("edit-pa-id").value;
   const payload = {
@@ -346,9 +700,7 @@ async function saveEdit() {
     keterangan:              document.getElementById("edit-keterangan").value,
     status:                  document.getElementById("edit-status").value,
   };
-  const resp = await apiFetch(`/etf-payment-application/${paId}/update`, {
-    method: "POST", body: JSON.stringify(payload)
-  });
+  const resp = await apiFetch(`/etf-payment-application/${paId}/update`, { method: "POST", body: JSON.stringify(payload) });
   const data = await resp.json();
   showToast(data.pesan, data.ok ? "success" : "error");
   if (data.ok) { closeModal("modal-edit-pa"); setTimeout(() => location.reload(), 800); }

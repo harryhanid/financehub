@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, send_file
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
+from modules.beasiswa.service import get_siswa_list, get_vendors
 from modules.payment_memo.service import (
     get_draft_payments, create_memo, get_memo_list, get_memo_detail,
     update_memo_status, export_memo_pdf,
@@ -50,9 +51,13 @@ def index():
         drafts=drafts,
         cat1_list=config.CAT1_BGT,
         cat2_list=config.CAT2_SEM,
+        cat1_bgt=config.CAT1_BGT,
+        cat2_sem=config.CAT2_SEM,
         active_page="payment_memo",
         pam_approved_by_1=config.PAM_APPROVED_BY_1,
         pam_approved_by_2=config.PAM_APPROVED_BY_2,
+        siswa_list=get_siswa_list(company_id),
+        vendor_list=get_vendors(),
         **_ctx()
     )
 

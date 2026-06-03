@@ -6,23 +6,24 @@
   <title>Login — Finance Hub</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700&family=DM+Mono:wght@400&display=swap">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:      #F5F4F1;
-      --surface: #FFFFFF;
-      --ink:     #0C0C0B;
-      --ink-2:   #5C5B57;
-      --ink-3:   #9C9B97;
-      --rule:    #E2E1DC;
-      --accent:  #1A2744;
-      --accent-h:#243459;
-      --danger:  #C0392B;
-      --radius:  3px;
-      --font:    'Onest', system-ui, sans-serif;
-      --mono:    'DM Mono', monospace;
+      --bg:        #06080F;
+      --surface:   #0F1220;
+      --surface-2: #161927;
+      --ink:       #F0EEF8;
+      --ink-2:     #9896B0;
+      --ink-3:     #4E4D63;
+      --rule:      rgba(255,255,255,0.07);
+      --accent:    #4F6AFF;
+      --accent-glow: rgba(79,106,255,0.2);
+      --accent-2:  #7B8FFF;
+      --danger:    #FF5757;
+      --font:      'Plus Jakarta Sans', system-ui, sans-serif;
+      --mono:      'DM Mono', monospace;
     }
 
     html, body {
@@ -33,188 +34,345 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Layout ── */
-    .login-root {
+    /* ── Noise ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+      opacity: 0.5;
+    }
+
+    /* ── Glow orbs ── */
+    .orb {
+      position: fixed; pointer-events: none;
+      border-radius: 9999px; filter: blur(120px); z-index: 0;
+    }
+    .orb-1 {
+      width: 700px; height: 500px;
+      top: -200px; left: 50%; transform: translateX(-50%);
+      background: radial-gradient(ellipse, rgba(79,106,255,0.11) 0%, transparent 65%);
+    }
+    .orb-2 {
+      width: 400px; height: 400px;
+      bottom: -100px; right: 10%;
+      background: radial-gradient(ellipse, rgba(123,143,255,0.07) 0%, transparent 65%);
+    }
+
+    /* ── Root ── */
+    .root {
+      position: relative; z-index: 1;
       min-height: 100dvh;
-      display: grid;
-      place-items: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       padding: 2rem 1.5rem;
     }
 
-    .login-shell {
-      width: min(400px, 100%);
-      animation: rise .45s cubic-bezier(.22,.61,.36,1) both;
+    /* ── Top wordmark ── */
+    .wordmark {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 2.5rem;
+      animation: rise .5s cubic-bezier(.22,.72,0,1) both;
+    }
+
+    .wordmark-icon {
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 24px var(--accent-glow), inset 0 1px 1px rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+
+    .wordmark-icon svg {
+      width: 16px; height: 16px;
+      stroke: #fff; fill: none;
+      stroke-width: 2; stroke-linecap: round;
+    }
+
+    .wordmark-text {
+      font-size: .875rem;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      color: var(--ink);
+    }
+
+    .wordmark-pill {
+      padding: .2rem .55rem;
+      border-radius: 9999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: .55rem;
+      font-family: var(--mono);
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+
+    /* ── Card (double-bezel) ── */
+    .card-shell {
+      width: min(420px, 100%);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 24px;
+      padding: 5px;
+      animation: rise .6s cubic-bezier(.22,.72,0,1) .08s both;
+    }
+
+    .card-core {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 2.25rem 2rem 2rem;
+      box-shadow: inset 0 1px 1px rgba(255,255,255,0.06);
     }
 
     @keyframes rise {
-      from { opacity: 0; transform: translateY(14px); }
+      from { opacity: 0; transform: translateY(18px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ── Brand ── */
-    .brand {
-      margin-bottom: 2.75rem;
+    /* ── Card header ── */
+    .card-header {
+      margin-bottom: 1.875rem;
     }
 
-    .brand-name {
-      font-size: .6875rem;
-      font-weight: 600;
+    .card-eyebrow {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .25rem .6rem;
+      border-radius: 9999px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.03);
+      font-size: .6rem;
+      font-family: var(--mono);
       letter-spacing: .18em;
       text-transform: uppercase;
       color: var(--ink-3);
-      font-family: var(--mono);
-      margin-bottom: .5rem;
+      margin-bottom: .875rem;
     }
 
-    .brand-title {
-      font-size: 2rem;
-      font-weight: 700;
-      letter-spacing: -.04em;
-      line-height: 1;
-      color: var(--ink);
-    }
-
-    .brand-title span {
-      color: var(--accent);
-    }
-
-    .brand-divider {
-      width: 28px;
-      height: 2px;
+    .eyebrow-dot {
+      width: 5px; height: 5px;
+      border-radius: 9999px;
       background: var(--accent);
-      margin-top: 1.125rem;
+      box-shadow: 0 0 5px var(--accent);
     }
 
-    /* ── Card ── */
-    .login-card {
-      background: var(--surface);
-      border: 1px solid var(--rule);
-      border-radius: var(--radius);
-      padding: 2.25rem 2rem;
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -.04em;
+      color: var(--ink);
+      line-height: 1.1;
+      margin-bottom: .3rem;
     }
 
-    .card-heading {
+    .card-sub {
       font-size: .8125rem;
-      font-weight: 600;
-      letter-spacing: .1em;
-      text-transform: uppercase;
       color: var(--ink-3);
-      margin-bottom: 1.625rem;
-      font-family: var(--mono);
+      line-height: 1.5;
     }
 
-    /* ── Form ── */
-    .field {
-      margin-bottom: 1.25rem;
-    }
+    /* ── Fields ── */
+    .field { margin-bottom: 1rem; }
 
     .field label {
       display: block;
-      font-size: .75rem;
+      font-size: .6rem;
       font-weight: 600;
-      letter-spacing: .06em;
+      letter-spacing: .14em;
       text-transform: uppercase;
-      color: var(--ink-2);
-      margin-bottom: .5rem;
+      color: var(--ink-3);
+      font-family: var(--mono);
+      margin-bottom: .45rem;
     }
 
-    .field input {
-      width: 100%;
-      height: 42px;
-      padding: 0 .875rem;
-      font-family: var(--font);
-      font-size: .9375rem;
+    /* field double-bezel */
+    .field-shell {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 3px;
+      transition: border-color .25s cubic-bezier(.32,.72,0,1),
+                  box-shadow .25s cubic-bezier(.32,.72,0,1);
+    }
+
+    .field-shell:focus-within {
+      border-color: rgba(79,106,255,0.5);
+      box-shadow: 0 0 0 3px rgba(79,106,255,0.12);
+    }
+
+    .field-shell input {
+      display: block; width: 100%;
+      height: 42px; padding: 0 .875rem;
+      font-family: var(--font); font-size: .9375rem;
       color: var(--ink);
-      background: var(--bg);
-      border: 1px solid var(--rule);
-      border-radius: var(--radius);
-      outline: none;
-      transition: border-color .15s, background .15s;
+      background: var(--surface-2);
+      border: none; border-radius: 9px; outline: none;
+      box-shadow: inset 0 1px 1px rgba(255,255,255,0.04);
     }
 
-    .field input::placeholder { color: var(--ink-3); }
-
-    .field input:focus {
-      border-color: var(--accent);
-      background: #fff;
-    }
-
-    /* ── Button ── */
-    .btn-login {
-      width: 100%;
-      height: 42px;
-      margin-top: .5rem;
-      font-family: var(--font);
-      font-size: .875rem;
-      font-weight: 600;
-      letter-spacing: .04em;
-      color: #fff;
-      background: var(--accent);
-      border: none;
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: background .15s;
-    }
-
-    .btn-login:hover  { background: var(--accent-h); }
-    .btn-login:active { opacity: .85; }
+    .field-shell input::placeholder { color: var(--ink-3); }
 
     /* ── Error ── */
     .login-error {
       display: none;
-      font-size: .8125rem;
+      font-size: .8rem;
       color: var(--danger);
-      background: #FEF2F2;
-      border: 1px solid #FECACA;
-      border-radius: var(--radius);
-      padding: .625rem .875rem;
+      background: rgba(255,87,87,0.08);
+      border: 1px solid rgba(255,87,87,0.18);
+      border-radius: 9px;
+      padding: .6rem .875rem;
       margin-bottom: 1rem;
       line-height: 1.45;
     }
 
-    /* ── Footer ── */
-    .login-footer {
-      margin-top: 1.5rem;
+    /* ── Button ── */
+    .btn-login {
+      width: 100%; height: 46px;
+      margin-top: .625rem;
+      display: flex; align-items: center;
+      justify-content: center; gap: .625rem;
+      font-family: var(--font); font-size: .875rem;
+      font-weight: 700; color: #fff;
+      background: var(--accent);
+      border: none; border-radius: 10px;
+      cursor: pointer; position: relative; overflow: hidden;
+      transition: all .3s cubic-bezier(.32,.72,0,1);
+      box-shadow: 0 4px 20px rgba(79,106,255,0.25),
+                  inset 0 1px 1px rgba(255,255,255,0.15);
+    }
+
+    .btn-login::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.09) 0%, transparent 55%);
+    }
+
+    .btn-login:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 28px rgba(79,106,255,0.32),
+                  inset 0 1px 1px rgba(255,255,255,0.2);
+    }
+
+    .btn-login:active { transform: scale(.98); }
+
+    .btn-arrow {
+      width: 24px; height: 24px;
+      border-radius: 9999px;
+      background: rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: transform .3s cubic-bezier(.32,.72,0,1);
+    }
+
+    .btn-login:hover .btn-arrow { transform: translate(2px, -1px); }
+
+    .btn-arrow svg {
+      width: 11px; height: 11px;
+      stroke: #fff; fill: none;
+      stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ── Footer note ── */
+    .card-footer {
+      margin-top: 1.375rem;
+      display: flex; align-items: center;
+      justify-content: center; gap: .4rem;
+      font-size: .6rem;
+      font-family: var(--mono);
+      letter-spacing: .06em;
+      color: var(--ink-3);
+    }
+
+    .card-footer svg {
+      width: 10px; height: 10px;
+      stroke: var(--ink-3); fill: none; stroke-width: 2;
+    }
+
+    /* ── Bottom tagline ── */
+    .tagline {
+      margin-top: 2rem;
       font-size: .6875rem;
       font-family: var(--mono);
       color: var(--ink-3);
+      letter-spacing: .08em;
       text-align: center;
-      letter-spacing: .04em;
+      animation: rise .7s cubic-bezier(.22,.72,0,1) .15s both;
     }
   </style>
 </head>
 <body>
-<div class="login-root">
-  <div class="login-shell">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
 
-    <div class="brand">
-      <div class="brand-name">Internal System</div>
-      <div class="brand-title">Finance<span>Hub</span></div>
-      <div class="brand-divider"></div>
+  <div class="root">
+    <!-- Wordmark -->
+    <div class="wordmark">
+      <div class="wordmark-icon">
+        <svg viewBox="0 0 16 16">
+          <rect x="1" y="9" width="3.5" height="5.5" rx=".75"/>
+          <rect x="6.25" y="5" width="3.5" height="9.5" rx=".75"/>
+          <rect x="11.5" y="1.5" width="3.5" height="13" rx=".75"/>
+        </svg>
+      </div>
+      <span class="wordmark-text">Finance Hub</span>
+      <span class="wordmark-pill">Internal</span>
     </div>
 
-    <div class="login-card">
-      <div class="card-heading">Sign in to continue</div>
+    <!-- Double-bezel card -->
+    <div class="card-shell">
+      <div class="card-core">
 
-      <div id="login-error" class="login-error"></div>
+        <div class="card-header">
+          <div class="card-eyebrow">
+            <span class="eyebrow-dot"></span>
+            Sign in
+          </div>
+          <div class="card-title">Selamat Datang</div>
+          <div class="card-sub">Masuk ke akun Finance Hub Anda</div>
+        </div>
 
-      <div class="field">
-        <label for="username">Username</label>
-        <input type="text" id="username" placeholder="Masukkan username" autocomplete="username">
+        <div id="login-error" class="login-error"></div>
+
+        <div class="field">
+          <label for="username">Username</label>
+          <div class="field-shell">
+            <input type="text" id="username" placeholder="Masukkan username" autocomplete="username">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="field-shell">
+            <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+          </div>
+        </div>
+
+        <button class="btn-login" onclick="doLogin()">
+          Masuk
+          <div class="btn-arrow">
+            <svg viewBox="0 0 11 11">
+              <line x1="2" y1="9" x2="9" y2="2"/>
+              <polyline points="3.5,2 9,2 9,7.5"/>
+            </svg>
+          </div>
+        </button>
+
+        <div class="card-footer">
+          <svg viewBox="0 0 10 10">
+            <path d="M5 1L1.5 2.5v3c0 1.8 1.5 3.2 3.5 3.5 2-.3 3.5-1.7 3.5-3.5v-3L5 1Z"/>
+          </svg>
+          Koneksi terenkripsi · SSL secured
+        </div>
+
       </div>
-
-      <div class="field">
-        <label for="password">Password</label>
-        <input type="password" id="password" placeholder="Masukkan password" autocomplete="current-password">
-      </div>
-
-      <button class="btn-login" onclick="doLogin()">Masuk</button>
     </div>
 
-    <div class="login-footer">Finance Hub &nbsp;·&nbsp; Internal Use Only</div>
-
+    <div class="tagline">© 2026 Finance Hub &nbsp;·&nbsp; Internal Use Only</div>
   </div>
-</div>
 
 <script>
 async function doLogin() {
@@ -222,21 +380,39 @@ async function doLogin() {
   const password = document.getElementById("password").value;
   const errEl    = document.getElementById("login-error");
   errEl.style.display = "none";
+
   if (!username || !password) {
     errEl.textContent = "Username dan password wajib diisi.";
     errEl.style.display = "block";
     return;
   }
-  const resp = await fetch("/auth/login", {
-    method: "POST", credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
-  });
-  const data = await resp.json();
-  if (!data.ok) { errEl.textContent = data.pesan; errEl.style.display = "block"; return; }
-  window.location.href = data.must_change_pw ? "/auth/change-password" : "/select-company";
+
+  const btn = document.querySelector(".btn-login");
+  btn.style.opacity = ".65";
+  btn.style.pointerEvents = "none";
+
+  try {
+    const resp = await fetch("/auth/login", {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await resp.json();
+    if (!data.ok) {
+      errEl.textContent = data.pesan;
+      errEl.style.display = "block";
+    } else {
+      window.location.href = data.must_change_pw ? "/auth/change-password" : "/select-company";
+    }
+  } finally {
+    btn.style.opacity = "";
+    btn.style.pointerEvents = "";
+  }
 }
-document.getElementById("password").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+document.getElementById("password").addEventListener("keydown", e => {
+  if (e.key === "Enter") doLogin();
+});
 </script>
 </body>
 </html>

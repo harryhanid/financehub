@@ -84,15 +84,16 @@ def test_get_memo_list():
     memos = get_memo_list(COMPANY_ID)
     assert len(memos) == 1
 
-def test_update_memo_status_approved():
+def test_update_memo_status_on_process():
+    # "approved" status removed — new lifecycle: draft → on_process → complete
     pay_id = _add_draft_payment()
     result = create_memo(COMPANY_ID, COMPANY_CODE, "2025-06-10", "", "admin",
                          [{"source_id": pay_id, "source_module": "beasiswa",
                            "description": "", "amount": 5000000, "vendor": "", "bank_account": ""}])
     memo_id = result["memo_id"]
-    upd = update_memo_status(memo_id, "approved", "manager", company_id=COMPANY_ID)
+    upd = update_memo_status(memo_id, "on_process", "manager", company_id=COMPANY_ID)
     assert upd["ok"] is True
     conn = get_conn()
     row  = conn.execute("SELECT status FROM payment_memo WHERE id=?", (memo_id,)).fetchone()
     conn.close()
-    assert row["status"] == "approved"
+    assert row["status"] == "on_process"

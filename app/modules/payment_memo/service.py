@@ -140,6 +140,12 @@ def update_memo_status(memo_id: int, new_status: str, by_user: str, company_id: 
             "UPDATE payment_beasiswa SET status='paid' WHERE memo_id=?",
             (memo_id,)
         )
+    elif new_status in ("draft", "on_process"):
+        # Revert payment_beasiswa ke draft saat memo diturunkan statusnya
+        conn.execute(
+            "UPDATE payment_beasiswa SET status='draft' WHERE memo_id=? AND status='paid'",
+            (memo_id,)
+        )
 
     conn.commit()
     conn.close()
@@ -348,7 +354,7 @@ def update_pam_record(pam_id: int, data: dict, company_id: int) -> dict:
     if not row:
         conn.close()
         return {"ok": False, "pesan": "PAM record tidak ditemukan."}
-    allowed_fields = ("keterangan", "requestors_name", "total_amount", "due_date", "pam_date")
+    allowed_fields = ("keterangan", "requestors_name", "total_amount", "due_date", "pam_date", "tanggal_bayar")
     fields, params = [], []
     for key in allowed_fields:
         if key in data and data[key] is not None:
@@ -394,8 +400,38 @@ def cancel_pam_record(pam_id: int, company_id: int) -> dict:
         conn.close()
         return {"ok": False, "pesan": "PAM record tidak ditemukan."}
     pam_no = pam["pam_no"]
+
+    # Kumpulkan etf_pa_line_ids sebelum dihapus untuk revert status PA
+    lines = conn.execute(
+        "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa WHERE pam=? AND company_id=? AND etf_pa_line_id IS NOT NULL",
+        (pam_no, company_id)
+    ).fetchall()
+    line_ids = [r[0] for r in lines]
+
     conn.execute("DELETE FROM payment_beasiswa WHERE pam=? AND company_id=?", (pam_no, company_id))
     conn.execute("DELETE FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id))
+
+    # Revert etf_pa ke draft jika tidak ada payment aktif lagi
+    if line_ids:
+        now = _ts()
+        ph = ",".join("?" * len(line_ids))
+        pa_ids = conn.execute(
+            f"SELECT DISTINCT pa_id FROM etf_pa_lines WHERE id IN ({ph})", line_ids
+        ).fetchall()
+        for row in pa_ids:
+            pa_id = row[0]
+            remaining = conn.execute(
+                """SELECT COUNT(*) FROM payment_beasiswa pb
+                   JOIN etf_pa_lines el ON el.id = pb.etf_pa_line_id
+                   WHERE el.pa_id=? AND pb.company_id=?""",
+                (pa_id, company_id)
+            ).fetchone()[0]
+            if remaining == 0:
+                conn.execute(
+                    "UPDATE etf_pa SET status='draft', updated_at=? WHERE id=? AND company_id=?",
+                    (now, pa_id, company_id)
+                )
+
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": f"PAM {pam_no} dan payment terkait berhasil dihapus."}
