@@ -58,9 +58,7 @@
         </select>
       </div>
       <div style="align-self:flex-end;display:flex;gap:.375rem">
-        {% if current_role in ['requester','verificator','releaser'] %}
         <button class="btn btn-primary btn-sm" onclick="openModal('modal-siswa-tambah')">+ Tambah Siswa</button>
-        {% endif %}
         <button class="btn btn-secondary btn-sm" onclick="exportRekap('csv')">📥 CSV</button>
         <button class="btn btn-secondary btn-sm" onclick="exportRekap('pdf')">📄 PDF</button>
       </div>
@@ -101,9 +99,7 @@
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
         <div id="ibgt-title" style="font-weight:600;color:#1a56db;font-size:.95rem"></div>
         <div style="display:flex;gap:.375rem">
-          {% if current_role in ['requester','verificator','releaser'] %}
           <button class="btn btn-primary btn-sm" onclick="ibgtOpenAdd()">+ Tambah Budget</button>
-          {% endif %}
           <button class="btn btn-secondary btn-sm" onclick="exportInputBudget('csv')">📥 CSV</button>
           <button class="btn btn-secondary btn-sm" onclick="exportInputBudget('pdf')">📄 PDF</button>
         </div>
@@ -115,9 +111,7 @@
             <div style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.2rem">Catatan Budget</div>
             <div id="ibgt-catatan-text" style="font-size:.875rem;color:#78350f;white-space:pre-wrap"></div>
           </div>
-          {% if current_role in ['requester','verificator','releaser'] %}
           <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="ibgtEditCatatan()">Edit</button>
-          {% endif %}
         </div>
       </div>
       <div id="ibgt-catatan-form" style="display:none;margin-bottom:.75rem">
@@ -426,9 +420,7 @@
 
     <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
       <button class="btn btn-secondary btn-sm" onclick="iklaimAddRow()">+ Tambah Baris</button>
-      {% if current_role == 'requester' %}
       <button class="btn btn-primary" style="background:#db2777;border-color:#db2777" onclick="iklaimSave()">💾 Simpan Klaim</button>
-      {% endif %}
     </div>
   </div>
 
@@ -467,7 +459,6 @@
       </div>
     </div>
 
-    {% if current_role == 'requester' %}
     <div class="card">
       <div class="card-title">Input Payment</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem">
@@ -501,9 +492,7 @@
             <div style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.2rem">Catatan Payment</div>
             <div id="pay-catpay-text" style="font-size:.875rem;color:#78350f;white-space:pre-wrap"></div>
           </div>
-          {% if current_role in ['requester','verificator','releaser'] %}
           <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="payEditCatpay()">Edit</button>
-          {% endif %}
         </div>
       </div>
       <div id="pay-catpay-form" style="display:none;margin-bottom:.75rem">
@@ -522,7 +511,6 @@
         <button class="btn btn-primary" onclick="savePayment()">💾 Simpan Payment</button>
       </div>
     </div>
-    {% endif %}
     <div class="card">
       <div class="card-title">Daftar Payment</div>
       <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:flex-end">

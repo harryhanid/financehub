@@ -14,9 +14,7 @@
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
   <h1 style="font-size:1.25rem; font-weight:700">Payment Approval Memo -- {{ company_name }}</h1>
-  {% if current_role == 'verificator' %}
   <button class="btn btn-primary" onclick="openModal('modal-buat-memo')">+ Buat Memo Baru</button>
-  {% endif %}
 </div>
 
 <div data-tabs>
@@ -44,29 +42,19 @@
             <td>{{ m.tanggal }}</td>
             <td class="num-right">Rp {{ "{:,.0f}".format(m.total_amount) }}</td>
             <td>
-              <span class="badge
-                {% if m.status == 'draft' %}badge-gray
-                {% elif m.status == 'submitted' %}badge-yellow
-                {% elif m.status == 'approved' %}badge-blue
-                {% elif m.status == 'paid' %}badge-green
-                {% endif %}">
-                {{ m.status }}
+              <span class="badge {% if m.status == 'complete' %}badge-green{% elif m.status == 'on_process' %}badge-yellow{% else %}badge-gray{% endif %}">
+                {{ m.status | replace('_', ' ') | title }}
               </span>
             </td>
             <td>{{ m.created_by }}</td>
             <td style="display:flex; gap:.4rem; flex-wrap:wrap">
               <button class="btn btn-secondary btn-sm" onclick="showMemoDetail({{ m.id }})">Detail</button>
-              {% if current_role in ['verificator', 'releaser'] %}
               <a href="/payment-memo/{{ m.id }}/export/pdf" class="btn btn-secondary btn-sm">PDF</a>
+              {% if m.status == 'draft' %}
+              <button class="btn btn-primary btn-sm" onclick="submitMemoStatus({{ m.id }})">Submit / Proses</button>
               {% endif %}
-              {% if current_role == 'verificator' and m.status == 'draft' %}
-              <button class="btn btn-primary btn-sm" onclick="changeStatus({{ m.id }}, 'submitted')">Submit</button>
-              {% endif %}
-              {% if current_role == 'verificator' and m.status == 'submitted' %}
-              <button class="btn btn-success btn-sm" onclick="changeStatus({{ m.id }}, 'approved')">Approve</button>
-              {% endif %}
-              {% if current_role == 'releaser' and m.status == 'approved' %}
-              <button class="btn btn-success btn-sm" onclick="changeStatus({{ m.id }}, 'paid')">Mark Paid</button>
+              {% if m.status == 'on_process' %}
+              <button class="btn btn-success btn-sm" onclick="openTanggalBayar({{ m.id }}, '{{ m.memo_number }}')">Simpan Tgl Bayar</button>
               {% endif %}
             </td>
           </tr>
@@ -81,32 +69,28 @@
   </div>
 
   <div class="tab-panel" id="tab-draft-pay">
-    {% if current_role == 'verificator' %}
     <div style="margin-bottom:1rem; display:flex; align-items:center; gap:1rem">
       <span style="font-size:.875rem; color:var(--text-muted)">Pilih payment untuk dimasukkan ke memo baru.</span>
       <button class="btn btn-primary btn-sm" onclick="openBuatMemoFromSelected()">Buat Memo dari Pilihan</button>
     </div>
-    {% endif %}
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            {% if current_role == 'verificator' %}<th><input type="checkbox" id="select-all-drafts" onchange="toggleAllDrafts(this)"></th>{% endif %}
+            <th><input type="checkbox" id="select-all-drafts" onchange="toggleAllDrafts(this)"></th>
             <th>Code</th><th>Nama Siswa</th><th>Kategori</th><th>Tanggal</th>
             <th>PAM No</th><th>Perusahaan</th><th class="num-right">Amount</th><th>Status</th>
-            {% if current_role in ['verificator', 'releaser'] %}<th>Aksi</th>{% endif %}
+            <th>Aksi</th>
           </tr>
         </thead>
         <tbody>
           {% for d in drafts %}
           <tr>
-            {% if current_role == 'verificator' %}
             <td><input type="checkbox" class="draft-check" data-id="{{ d.id }}"
                 data-desc="{{ d.cat1 }} / {{ d.cat2 }} -- {{ d.siswa_code }}"
                 data-amount="{{ d.amount }}"
                 data-vendor="{{ d.namarek or d.nama or '' }}"
                 data-bank="{{ (d.bank or '') + ' ' + (d.norek or '') }}"></td>
-            {% endif %}
             <td><code>{{ d.siswa_code }}</code></td>
             <td>{{ d.nama or '--' }}</td>
             <td>{{ d.cat1 }} / {{ d.cat2 }}</td>
@@ -115,15 +99,13 @@
             <td>{{ d.perusahaan }}</td>
             <td class="num-right">Rp {{ "{:,.0f}".format(d.amount) }}</td>
             <td><span class="badge badge-gray">{{ d.status }}</span></td>
-            {% if current_role in ['verificator', 'releaser'] %}
             <td style="white-space:nowrap">
               <button class="btn btn-secondary btn-sm" onclick="openEditDraft({{ d.id }})">Edit</button>
-              <button class="btn btn-sm" style="background:#dc2626;color:#fff;border:none;cursor:pointer;padding:.25rem .6rem;border-radius:.25rem;font-size:.75rem" onclick="deleteDraft({{ d.id }})">Hapus</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteDraft({{ d.id }})">Hapus</button>
             </td>
-            {% endif %}
           </tr>
           {% else %}
-          <tr><td colspan="{% if current_role == 'verificator' %}10{% elif current_role == 'releaser' %}9{% else %}8{% endif %}"
+          <tr><td colspan="10"
               style="text-align:center; color:var(--text-muted); padding:2rem">
             Tidak ada payment draft.
           </td></tr>
@@ -132,12 +114,12 @@
         {% if drafts %}
         <tfoot>
           <tr style="background:#f1f5f9; font-weight:700;">
-            <td colspan="{% if current_role == 'verificator' %}7{% else %}6{% endif %}"
+            <td colspan="7"
                 style="text-align:right; padding:.5rem .75rem;">Total Draft Payment</td>
             <td class="num-right" style="padding:.5rem .75rem;">
               Rp {{ "{:,.0f}".format(drafts | sum(attribute='amount')) }}
             </td>
-            <td colspan="{% if current_role in ['verificator', 'releaser'] %}2{% else %}1{% endif %}"></td>
+            <td colspan="2"></td>
           </tr>
         </tfoot>
         {% endif %}
@@ -154,8 +136,8 @@
     </div>
     <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="background:#1e40af;color:#fff;">
+        <thead class="thead-primary">
+          <tr>
             <th style="padding:8px 10px;text-align:left;">PAM No</th>
             <th style="padding:8px 10px;text-align:left;">PAM Date</th>
             <th style="padding:8px 10px;text-align:left;">PT</th>
@@ -181,17 +163,17 @@
   <!-- Days of PAM Tab -->
   <div class="tab-panel" id="tab-days-of-pam">
     <!-- Search section: PAM No + Nama autocomplete -->
-    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:10px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
-      <div style="position:relative;flex:1;min-width:180px;max-width:260px">
-        <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:3px">PAM No</label>
+    <div class="filter-bar">
+      <div class="filter-field">
+        <label>PAM No</label>
         <input id="dop-s-pam" type="text" placeholder="Cari PAM No..." autocomplete="off"
                style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"
                oninput="dopSrchInput('pam')" onblur="dopSrchBlur('pam')">
         <div id="dop-sugg-pam"
              style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:210px;overflow-y:auto;z-index:900"></div>
       </div>
-      <div style="position:relative;flex:1;min-width:180px;max-width:260px">
-        <label style="font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:3px">Nama Siswa</label>
+      <div class="filter-field">
+        <label>Nama Siswa</label>
         <input id="dop-s-nama" type="text" placeholder="Cari Nama Siswa..." autocomplete="off"
                style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"
                oninput="dopSrchInput('nama')" onblur="dopSrchBlur('nama')">
@@ -199,27 +181,18 @@
              style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:210px;overflow-y:auto;z-index:900"></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding-bottom:1px">
-        <button onclick="_dopFetchCurrent()"
-                style="padding:6px 14px;background:#0f766e;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:600">
-          🔍 Cari
-        </button>
-        <button onclick="dopClearSearch()"
-                style="padding:6px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;cursor:pointer">
-          Bersihkan
-        </button>
-        <button id="dop-update-btn" onclick="dopBulkUpdate()" disabled
-                style="padding:6px 14px;background:#1d4ed8;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:600;opacity:0.5">
-          Update Terpilih (0)
-        </button>
-        <span id="dop-info" style="font-size:12px;color:#6b7280"></span>
+        <button class="btn btn-success btn-sm" onclick="_dopFetchCurrent()">🔍 Cari</button>
+        <button class="btn btn-secondary btn-sm" onclick="dopClearSearch()">Bersihkan</button>
+        <button id="dop-update-btn" class="btn btn-primary btn-sm" onclick="dopBulkUpdate()" disabled style="opacity:.5">Update Terpilih (0)</button>
+        <span id="dop-info" style="font-size:12px;color:var(--sl-500)"></span>
       </div>
     </div>
 
     <!-- Table — secondary filters + date inputs in subheader -->
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr style="background:#1e40af;color:#fff">
+        <thead class="thead-primary">
+          <tr>
             <th style="padding:7px 6px;text-align:center;width:32px">
               <input type="checkbox" id="dop-select-all" onchange="dopToggleSelectAll(this)" title="Pilih semua terfilter">
             </th>
@@ -251,7 +224,7 @@
             <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_ASPIRO_APP</th>
             <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Paid_APP</th>
           </tr>
-          <tr style="background:#dbeafe">
+          <tr class="thead-subfilter">
             <td style="padding:3px 4px"></td>
             <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-code" type="text" placeholder="cari..."
                 style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
@@ -330,23 +303,19 @@
         </div>
       </div>
       <div id="dm-export-btns" style="display:none;margin-left:auto;gap:6px">
-        <button onclick="dmExportPDF()"
-                style="background:#dc2626;color:#fff;border:none;border-radius:5px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">&#x2193; PDF</button>
-        <button onclick="dmExportExcel()"
-                style="background:#16a34a;color:#fff;border:none;border-radius:5px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">&#x2193; Excel</button>
+        <button class="btn btn-danger btn-sm" onclick="dmExportPDF()">&#x2193; PDF</button>
+        <button class="btn btn-success btn-sm" onclick="dmExportExcel()">&#x2193; Excel</button>
       </div>
     </div>
     <div id="dm-form-preview"></div>
     <div id="dm-lampiran-wrap" style="display:none;margin-top:12px;max-width:860px">
-      <button id="dm-lampiran-toggle" onclick="toggleLampiran()"
-        style="background:#1e3a5f;color:#fff;border:none;border-radius:5px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;width:100%;text-align:left;letter-spacing:.3px">
+      <button id="dm-lampiran-toggle" onclick="toggleLampiran()" class="section-toggle">
         &#x25b6; Rangkuman PAM
       </button>
       <div id="dm-lampiran-body" style="display:none;margin-top:4px;border:1px solid #e2e8f0;border-radius:4px;overflow:hidden"></div>
     </div>
     <div id="dm-detail-wrap" style="display:none;margin-top:8px;max-width:100%">
-      <button id="dm-detail-toggle" onclick="toggleDetailPAM()"
-        style="background:#1e3a5f;color:#fff;border:none;border-radius:5px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;width:100%;text-align:left;letter-spacing:.3px">
+      <button id="dm-detail-toggle" onclick="toggleDetailPAM()" class="section-toggle">
         &#x25b6; Detail PAM
       </button>
       <div id="dm-detail-body" style="display:none;margin-top:4px;border:1px solid #e2e8f0;border-radius:4px;overflow:auto"></div>
@@ -457,6 +426,24 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-tanggal-bayar">
+  <div class="modal" style="width:min(420px,95vw)">
+    <div class="modal-header">
+      <span class="modal-title" id="tgl-bayar-modal-title">Simpan Tanggal Bayar</span>
+      <button class="modal-close" onclick="closeModal('modal-tanggal-bayar')">x</button>
+    </div>
+    <input type="hidden" id="tgl-bayar-memo-id">
+    <div class="form-group">
+      <label>Tanggal Bayar</label>
+      <input type="date" id="input-tgl-bayar" style="max-width:200px">
+    </div>
+    <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:.75rem">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tanggal-bayar')">Batal</button>
+      <button class="btn btn-success" onclick="saveTanggalBayar()">Simpan Tanggal Bayar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-edit-draft">
   <div class="modal" style="width:min(520px,95vw)">
     <div class="modal-header">
@@ -509,7 +496,6 @@
 
 {% block scripts %}
 <script>
-const CURRENT_ROLE = {{ current_role | tojson }};
 const CAT1 = {{ cat1_list | tojson }};
 const CAT2 = {{ cat2_list | tojson }};
 const PAM_APPROVED_BY_1 = {{ pam_approved_by_1 | tojson }};
@@ -564,14 +550,43 @@ async function submitMemo() {
 }
 
 async function changeStatus(memoId, newStatus) {
-  const label = { submitted: "Submit", approved: "Approve", paid: "Mark as Paid" }[newStatus] || newStatus;
+  const label = { submitted: "Submit", approved: "Approve", paid: "Mark as Paid", on_process: "Submit / Proses" }[newStatus] || newStatus;
   if (!confirm(`${label} memo ini?`)) return;
-  const resp = await apiFetch(`/payment-memo/${memoId}/status`, {
+  const resp = await apiFetch(`/payment-memo/${memoId}/update-status`, {
     method: "POST", body: JSON.stringify({ status: newStatus })
   });
   const data = await resp.json();
   showToast(data.pesan, data.ok ? "success" : "error");
   if (data.ok) setTimeout(() => location.reload(), 800);
+}
+
+async function submitMemoStatus(memoId) {
+  if (!confirm("Submit memo ini ke status on_process?")) return;
+  const resp = await apiFetch(`/payment-memo/${memoId}/update-status`, {
+    method: "POST", body: JSON.stringify({ status: "on_process" })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) setTimeout(() => location.reload(), 800);
+}
+
+function openTanggalBayar(memoId, memoNumber) {
+  document.getElementById("tgl-bayar-memo-id").value = memoId;
+  document.getElementById("tgl-bayar-modal-title").textContent = "Simpan Tanggal Bayar — " + memoNumber;
+  document.getElementById("input-tgl-bayar").value = "";
+  openModal("modal-tanggal-bayar");
+}
+
+async function saveTanggalBayar() {
+  const memoId = document.getElementById("tgl-bayar-memo-id").value;
+  const tgl    = document.getElementById("input-tgl-bayar").value;
+  if (!tgl) { showToast("Pilih tanggal bayar dulu.", "error"); return; }
+  const resp = await apiFetch(`/payment-memo/${memoId}/tanggal-bayar`, {
+    method: "POST", body: JSON.stringify({ tanggal_bayar: tgl })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) { closeModal("modal-tanggal-bayar"); setTimeout(() => location.reload(), 800); }
 }
 
 async function showMemoDetail(memoId) {
@@ -583,7 +598,7 @@ async function showMemoDetail(memoId) {
   document.getElementById("memo-detail-body").innerHTML = `
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-bottom:1rem; font-size:.875rem">
       <div><strong>Tanggal:</strong> ${esc(m.tanggal) || '--'}</div>
-      <div><strong>Status:</strong> <span class="badge badge-${m.status==='paid'?'green':m.status==='approved'?'blue':m.status==='submitted'?'yellow':'gray'}">${m.status}</span></div>
+      <div><strong>Status:</strong> <span class="badge badge-${m.status==='complete'?'green':m.status==='on_process'?'yellow':'gray'}">${(m.status||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span></div>
       <div><strong>Dibuat oleh:</strong> ${esc(m.created_by) || '--'}</div>
       <div><strong>Disetujui oleh:</strong> ${esc(m.approved_by) || '--'}</div>
       <div><strong>Catatan:</strong> ${esc(m.notes) || '--'}</div>
@@ -653,23 +668,21 @@ async function updateGL(pamId, glAccount) {
 }
 
 function _statusBadge(status) {
-  const colors = { draft: '#fef3c7', approved: '#d1fae5', paid: '#e0e7ff' };
-  const bg = colors[status] || '#f3f4f6';
-  return `<span style="background:${bg};padding:2px 8px;border-radius:9999px;font-size:11px;">${esc(status)}</span>`;
+  const cls = { draft: 'badge-gray', approved: 'badge-green', paid: 'badge-blue' }[status] || 'badge-gray';
+  return `<span class="badge ${cls}">${esc(status)}</span>`;
 }
 
 function _aksiCell(r) {
-  if (CURRENT_ROLE !== 'verificator' && CURRENT_ROLE !== 'releaser') return '';
-  const _btn = (label, bg, fn) =>
-    `<button style="font-size:11px;padding:3px 8px;background:${bg};color:#fff;border:none;border-radius:4px;cursor:pointer;" onclick="${fn}">${label}</button>`;
+  const _btn = (label, cls, fn) =>
+    `<button class="btn btn-sm ${cls}" onclick="${fn}">${label}</button>`;
   let btns = '';
   if (r.status === 'draft')
-    btns += _btn('Approve', '#16a34a', `updatePAMStatus(${r.id},'approved')`);
+    btns += _btn('Approve', 'btn-success', `updatePAMStatus(${r.id},'approved')`);
   else if (r.status === 'approved')
-    btns += _btn('Revert', '#64748b', `updatePAMStatus(${r.id},'draft')`);
-  btns += _btn('Edit', '#1d4ed8', `openEditPAM(${r.id})`);
-  btns += `<a href="/payment-memo/pam/${r.id}/export/excel" style="font-size:11px;padding:3px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;text-decoration:none;">Excel</a>`;
-  btns += _btn('Cancel', '#dc2626', `cancelPAM(${r.id})`);
+    btns += _btn('Revert', 'btn-ghost', `updatePAMStatus(${r.id},'draft')`);
+  btns += _btn('Edit', 'btn-primary', `openEditPAM(${r.id})`);
+  btns += `<a href="/payment-memo/pam/${r.id}/export/excel" class="btn btn-sm btn-success">Excel</a>`;
+  btns += _btn('Cancel', 'btn-danger', `cancelPAM(${r.id})`);
   return `<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${btns}</div>`;
 }
 

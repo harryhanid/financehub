@@ -4,7 +4,7 @@
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
   <h1 style="font-size:1.25rem; font-weight:700">Payment Application -- {{ company_name }}</h1>
-  {% if current_role == 'releaser' and approved_memos %}
+  {% if approved_memos %}
   <button class="btn btn-primary" onclick="openModal('modal-buat-app')">+ Buat Application</button>
   {% endif %}
 </div>
@@ -41,7 +41,7 @@
           </span>
         </td>
         <td>
-          {% if current_role == 'releaser' and not a.actual_payment_date %}
+          {% if not a.actual_payment_date %}
           <button class="btn btn-primary btn-sm" onclick="openUpdatePayment({{ a.id }}, '{{ a.application_number }}')">
             Update Tanggal
           </button>
