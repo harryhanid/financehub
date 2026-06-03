@@ -88,21 +88,26 @@ CREATE TABLE IF NOT EXISTS budget_beasiswa (
 );
 
 CREATE TABLE IF NOT EXISTS payment_beasiswa (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    company_id INTEGER NOT NULL REFERENCES companies(id),
-    siswa_code TEXT NOT NULL,
-    cat1       TEXT,
-    cat2       TEXT,
-    tanggal    TEXT,
-    amount     REAL DEFAULT 0,
-    pillar     TEXT,
-    pam        TEXT,
-    perusahaan TEXT,
-    cat3       TEXT,
-    cat4       TEXT,
-    memo_id    INTEGER REFERENCES payment_memo(id),
-    status     TEXT DEFAULT 'draft',
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id      INTEGER NOT NULL REFERENCES companies(id),
+    siswa_code      TEXT NOT NULL,
+    cat1            TEXT,
+    cat2            TEXT,
+    tanggal         TEXT,
+    amount          REAL DEFAULT 0,
+    pillar          TEXT,
+    pam             TEXT,
+    perusahaan      TEXT,
+    cat3            TEXT,
+    cat4            TEXT,
+    memo_id         INTEGER REFERENCES payment_memo(id),
+    tgl_pengajuan   TEXT,
+    tgl_receive     TEXT,
+    tgl_pa          TEXT,
+    tgl_final       TEXT,
+    etf_pa_line_id  INTEGER REFERENCES etf_pa_lines(id),
+    status          TEXT DEFAULT 'draft',
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS payment_memo_items (
@@ -209,6 +214,10 @@ CREATE TABLE IF NOT EXISTS etf_pa_lines (
     ipk_sem_sebelumnya   REAL,
     jumlah_pembayaran    INTEGER DEFAULT 0
 );
+
+CREATE INDEX IF NOT EXISTS idx_etf_pa_company    ON etf_pa(company_id);
+CREATE INDEX IF NOT EXISTS idx_etf_pa_lines_pa   ON etf_pa_lines(pa_id);
+CREATE INDEX IF NOT EXISTS idx_etf_pa_lines_sid  ON etf_pa_lines(student_id);
 """
 
 VENDOR_SEED = [
@@ -257,6 +266,11 @@ def migrate_db():
             conn.commit()
         except Exception:
             pass
+    try:
+        conn.execute("ALTER TABLE payment_beasiswa ADD COLUMN etf_pa_line_id INTEGER REFERENCES etf_pa_lines(id)")
+        conn.commit()
+    except Exception:
+        pass
     for col in ["catatan_budget", "catatan_payment", "angkatan_kuliah", "prodi"]:
         try:
             conn.execute(f"ALTER TABLE siswa ADD COLUMN {col} TEXT DEFAULT ''")
@@ -386,6 +400,18 @@ def migrate_db():
         conn.commit()
     except Exception:
         pass
+
+    # indexes for etf_pa queries
+    for idx_sql in [
+        "CREATE INDEX IF NOT EXISTS idx_etf_pa_company   ON etf_pa(company_id)",
+        "CREATE INDEX IF NOT EXISTS idx_etf_pa_lines_pa  ON etf_pa_lines(pa_id)",
+        "CREATE INDEX IF NOT EXISTS idx_etf_pa_lines_sid ON etf_pa_lines(student_id)",
+    ]:
+        try:
+            conn.execute(idx_sql)
+        except Exception:
+            pass
+    conn.commit()
 
     conn.close()
 
