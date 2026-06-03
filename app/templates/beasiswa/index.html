@@ -1719,7 +1719,17 @@ function ipayAddRow() {
   siswaInp.addEventListener("input", () => {
     const q = siswaInp.value.trim();
     sugg.innerHTML = "";
-    if (!q) { sugg.style.display = "none"; return; }
+    if (!q) {
+      sugg.style.display = "none";
+      tr.dataset.siswaCode = "";
+      tr.dataset.etfSiswaId = "";
+      tr._hidEtfLineId.value = "";
+      sCat1.innerHTML = `<option value="">— Pilih siswa dulu —</option>`;
+      sCat1.disabled = true;
+      tr._sisaBudget = {};
+      tr._sisaCell.textContent = "—";
+      return;
+    }
     apiFetch(`/etf-payment-application/draft-siswa?q=${encodeURIComponent(q)}`)
       .then(r => r.json())
       .then(hits => {
@@ -1745,17 +1755,27 @@ function ipayAddRow() {
               .then(r => r.json())
               .then(lines => {
                 sCat1.innerHTML = `<option value="">— Pilih Kategori 1 —</option>` +
-                  lines.map(l => `<option value="${l.jenis_pembayaran}" data-line='${JSON.stringify(l)}'>${l.jenis_pembayaran} (${l.pa_number})</option>`).join("");
+                  lines.map(l => `<option value="${l.jenis_pembayaran}" data-line="${JSON.stringify(l).replace(/"/g, '&quot;')}">${l.jenis_pembayaran} (${l.pa_number})</option>`).join("");
+                sCat1.disabled = false;
+              })
+              .catch(() => {
+                sCat1.innerHTML = `<option value="">Gagal memuat. Coba lagi.</option>`;
                 sCat1.disabled = false;
               });
             // Load sisa budget
             tr._sisaBudget = {};
             tr._sisaCell.textContent = "Memuat...";
             tr._sisaCell.style.color = "#6b7280";
-            apiFetch(`/beasiswa/siswa/${s.code}/sisa-budget`).then(r => r.json()).then(data => {
-              tr._sisaBudget = data.sisa || {};
-              _ipayUpdateSisaCell(tr);
-            });
+            apiFetch(`/beasiswa/siswa/${s.code}/sisa-budget`)
+              .then(r => r.json())
+              .then(data => {
+                tr._sisaBudget = data.sisa || {};
+                _ipayUpdateSisaCell(tr);
+              })
+              .catch(() => {
+                tr._sisaCell.textContent = "—";
+                tr._sisaCell.style.color = "#6b7280";
+              });
           });
           d.addEventListener("mouseover",  () => { d.style.background = "#eff6ff"; });
           d.addEventListener("mouseout",   () => { d.style.background = ""; });
