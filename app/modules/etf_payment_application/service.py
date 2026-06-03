@@ -124,6 +124,143 @@ def get_pa_flat(company_id: int) -> list:
     return [dict(r) for r in rows]
 
 
+def bulk_update_pa(pa_ids: list, field: str, value: str, company_id: int) -> dict:
+    """Bulk update satu field (tanggal atau status) untuk banyak PA sekaligus."""
+    ALLOWED_FIELDS = {
+        "tgl_payment_application", "tgl_surat_pengajuan",
+        "doc_received_by_educ", "received_pa_from_educ", "checked_by_fincon",
+        "approved_by_htj_1", "send_pa_back_to_educ", "pa_received_by_po_fin",
+        "approval_by_htj_2", "tanggal_bayar", "nomor_pam", "status",
+    }
+    if field not in ALLOWED_FIELDS:
+        return {"ok": False, "pesan": f"Field '{field}' tidak diizinkan."}
+    if not pa_ids:
+        return {"ok": False, "pesan": "Tidak ada PA yang dipilih."}
+
+    conn = get_conn()
+    placeholders = ",".join("?" * len(pa_ids))
+    conn.execute(
+        f"UPDATE etf_pa SET {field}=?, updated_at=? WHERE id IN ({placeholders}) AND company_id=?",
+        [value, _ts()] + list(pa_ids) + [company_id]
+    )
+    count = conn.execute(
+        f"SELECT COUNT(*) FROM etf_pa WHERE id IN ({placeholders}) AND company_id=?",
+        list(pa_ids) + [company_id]
+    ).fetchone()[0]
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"{count} PA berhasil diupdate ({field} = '{value}')."}
+
+
+def get_draft_siswa(company_id: int, q: str) -> list:
+    """Return siswa yang punya minimal 1 PA line di mana PA status='draft'."""
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT DISTINCT s.id, s.code, s.nama, s.jenjang, s.universitas
+           FROM siswa s
+           JOIN etf_pa_lines l ON l.student_id = s.id
+           JOIN etf_pa p ON p.id = l.pa_id
+           WHERE p.company_id = ? AND p.status = 'draft'
+             AND (s.nama LIKE ? OR s.code LIKE ?)
+           ORDER BY s.nama
+           LIMIT 20""",
+        (company_id, f"%{q}%", f"%{q}%")
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_draft_lines_for_siswa(company_id: int, siswa_id: int) -> list:
+    """Return semua PA lines milik siswa dengan PA status='draft'."""
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT l.id AS line_id, l.pa_id, p.pa_number,
+                  l.jenis_pembayaran, l.jumlah_pembayaran,
+                  p.tgl_surat_pengajuan,
+                  p.doc_received_by_educ,
+                  p.tgl_payment_application
+           FROM etf_pa_lines l
+           JOIN etf_pa p ON p.id = l.pa_id
+           WHERE p.company_id = ? AND p.status = 'draft'
+             AND l.student_id = ?
+           ORDER BY p.created_at DESC""",
+        (company_id, siswa_id)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def export_pa_excel(company_id: int) -> bytes:
+    """Generate Excel workbook dari seluruh data PA flat, return bytes."""
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    rows = get_pa_flat(company_id)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "ETF Payment Application"
+
+    headers = [
+        "No. PA", "ID Siswa", "Nama PB", "Status PB", "Instansi", "Angkatan ETF",
+        "Angkatan Kuliah", "Jenjang", "Program", "Fakultas", "Program Studi",
+        "Tgl PA", "Tgl Surat Pengajuan", "Jenis Bayar", "Semester", "Tahun Ajaran",
+        "IPK Sblmnya", "Jumlah (Rp)", "Doc Recv Educ", "Recv PA Educ",
+        "Checked Fincon", "Approved HTj", "Send Back Educ", "PA Recv PO Fin",
+        "Approval HTj", "Nomor PAM", "Tgl Bayar", "Keterangan", "Status",
+    ]
+    fields = [
+        "pa_number", "student_code", "nama", "status_pb", "instansi_pendidikan",
+        "angkatan_etf", "angkatan_kuliah", "jenjang_pendidikan", "program_beasiswa",
+        "fakultas", "program_studi", "tgl_payment_application", "tgl_surat_pengajuan",
+        "jenis_pembayaran", "semester", "tahun_ajaran", "ipk_sem_sebelumnya",
+        "jumlah_pembayaran", "doc_received_by_educ", "received_pa_from_educ",
+        "checked_by_fincon", "approved_by_htj_1", "send_pa_back_to_educ",
+        "pa_received_by_po_fin", "approval_by_htj_2", "nomor_pam", "tanggal_bayar",
+        "keterangan", "status",
+    ]
+
+    hdr_fill = PatternFill("solid", fgColor="1E3A5F")
+    hdr_font = Font(bold=True, color="FFFFFF", size=10)
+    op_fill  = PatternFill("solid", fgColor="FFFBEB")
+    thin     = Side(style="thin", color="D1D5DB")
+    border   = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = hdr_font
+        cell.fill = hdr_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = border
+    ws.row_dimensions[1].height = 32
+
+    for ri, r in enumerate(rows, 2):
+        is_op = r.get("status") == "on_process"
+        for ci, f in enumerate(fields, 1):
+            val = r.get(f, "")
+            if val is None: val = ""
+            cell = ws.cell(row=ri, column=ci, value=val)
+            cell.font = Font(size=9)
+            cell.border = border
+            cell.alignment = Alignment(vertical="top", wrap_text=(f == "keterangan"))
+            if is_op:
+                cell.fill = op_fill
+
+    # column widths
+    col_widths = [16, 12, 22, 9, 22, 11, 12, 9, 12, 18, 20,
+                  12, 14, 14, 12, 12, 10, 14, 12, 12, 12, 12, 12, 12, 12, 16, 12, 40, 10]
+    for ci, w in enumerate(col_widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(ci)].width = w
+
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def get_pa_header(pa_id: int, company_id: int) -> dict | None:
     """Return single PA header record for edit modal."""
     conn = get_conn()
@@ -166,15 +303,17 @@ def create_pa(company_id: int, header: dict, lines: list) -> dict:
         return {"ok": False, "pesan": "Minimal 1 siswa harus diisi."}
 
     conn = get_conn()
-    # validate all student_id belong to company
-    for line in lines:
-        sid = line.get("student_id")
-        row = conn.execute(
-            "SELECT id FROM siswa WHERE id=? AND company_id=?", (sid, company_id)
-        ).fetchone()
-        if not row:
-            conn.close()
-            return {"ok": False, "pesan": f"Siswa ID {sid} tidak ditemukan."}
+    # validate all student_ids belong to company — single query instead of N queries
+    sids = [line.get("student_id") for line in lines]
+    ph = ",".join("?" * len(sids))
+    found = {r[0] for r in conn.execute(
+        f"SELECT id FROM siswa WHERE id IN ({ph}) AND company_id=?",
+        sids + [company_id]
+    ).fetchall()}
+    missing = [sid for sid in sids if sid not in found]
+    if missing:
+        conn.close()
+        return {"ok": False, "pesan": f"Siswa ID {missing[0]} tidak ditemukan."}
 
     pa_number = _gen_pa_number(company_id, conn)
     ts = _ts()
@@ -226,7 +365,9 @@ def update_pa(pa_id: int, company_id: int, data: dict) -> dict:
         conn.close()
         return {"ok": False, "pesan": "PA tidak ditemukan."}
 
-    new_status  = data.get("status", row["status"])
+    new_status = data.get("status", row["status"])
+    if data.get("tanggal_bayar"):
+        new_status = "complete"
     nomor_pam   = data.get("nomor_pam") or row["nomor_pam"]
 
     # auto-generate PAM number when transitioning to on_process
