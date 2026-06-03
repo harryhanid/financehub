@@ -154,6 +154,19 @@ CREATE TABLE IF NOT EXISTS klaim_medical (
     created_at   TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS rekam_medis (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id   INTEGER NOT NULL,
+    payment_id   INTEGER NOT NULL REFERENCES payment_beasiswa(id),
+    siswa_code   TEXT NOT NULL,
+    kelas        TEXT NOT NULL,
+    rumah_sakit  TEXT NOT NULL,
+    diagnosa     TEXT NOT NULL,
+    spesialisasi TEXT NOT NULL,
+    catatan      TEXT,
+    created_at   TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS pam_records (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id      INTEGER NOT NULL REFERENCES companies(id),
@@ -424,6 +437,25 @@ def migrate_db():
         except Exception:
             pass
     conn.commit()
+
+    # rekam_medis table (new — safe to run on existing DBs)
+    try:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS rekam_medis (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id INTEGER NOT NULL,
+                payment_id INTEGER NOT NULL,
+                siswa_code TEXT NOT NULL,
+                kelas TEXT NOT NULL,
+                rumah_sakit TEXT NOT NULL,
+                diagnosa TEXT NOT NULL,
+                spesialisasi TEXT NOT NULL,
+                catatan TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP)"""
+        )
+        conn.commit()
+    except Exception:
+        pass
 
     conn.close()
 
