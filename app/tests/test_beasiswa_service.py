@@ -308,6 +308,104 @@ def test_add_payment_multi_zero_rows_no_pam():
     assert count == 0   # No PAM created when no valid rows
 
 
+# ── Rekam Medis dalam add_payment_multi ──────────────────────────────────────
+
+def _add_siswa_b():
+    add_siswa(COMPANY_ID, {"code": "1250001", "nama": "Siti", "jenjang": "S1",
+        "angkatan": 2025, "program": "SMART", "fakultas": "", "universitas": "",
+        "bank": "", "norek": "", "namarek": "", "referensi": "",
+        "status": "Aktif", "catatan": ""})
+
+def test_add_payment_multi_saves_rekam_medis():
+    """Row By Medical dengan rekam_medis → tersimpan ke tabel rekam_medis."""
+    _add_siswa_b()
+    rows = [{
+        "siswa_code": "1250001",
+        "cat1": "By Medical",
+        "cat2": "Rawat Inap",
+        "amount": 3200000,
+        "tgl_pengajuan": "", "tgl_receive": "", "tgl_pa": "", "tgl_final": "",
+        "etf_pa_line_id": None,
+        "rekam_medis": {
+            "kelas": "Standard/Kelas 2",
+            "rumah_sakit": "RS Siloam Jakarta",
+            "diagnosa": "Demam Berdarah",
+            "spesialisasi": "Internal Medicine",
+            "catatan": "catatan test",
+        },
+    }]
+    result = add_payment_multi(COMPANY_ID, "ETF", "2026-06-03", "AGRI", "PT ABC", rows)
+    assert result["ok"] is True
+    assert result["saved"] == 1
+    conn = get_conn()
+    pb = conn.execute("SELECT * FROM payment_beasiswa WHERE company_id=?", (COMPANY_ID,)).fetchone()
+    assert pb is not None
+    rm = conn.execute("SELECT * FROM rekam_medis WHERE payment_id=?", (pb["id"],)).fetchone()
+    assert rm is not None
+    assert rm["kelas"] == "Standard/Kelas 2"
+    assert rm["rumah_sakit"] == "RS Siloam Jakarta"
+    assert rm["diagnosa"] == "Demam Berdarah"
+    assert rm["spesialisasi"] == "Internal Medicine"
+    assert rm["catatan"] == "catatan test"
+    assert rm["siswa_code"] == "1250001"
+    assert rm["company_id"] == COMPANY_ID
+    conn.close()
+
+def test_add_payment_multi_medical_missing_rekam_medis_returns_error():
+    """Row By Medical tanpa rekam_medis → ditolak."""
+    _add_siswa_b()
+    rows = [{
+        "siswa_code": "1250001",
+        "cat1": "By Medical",
+        "cat2": "Rawat Inap",
+        "amount": 3200000,
+        "tgl_pengajuan": "", "tgl_receive": "", "tgl_pa": "", "tgl_final": "",
+        "etf_pa_line_id": None,
+    }]
+    result = add_payment_multi(COMPANY_ID, "ETF", "2026-06-03", "AGRI", "PT ABC", rows)
+    assert result["ok"] is False
+    assert "medis" in result["pesan"].lower() or "rekam" in result["pesan"].lower()
+
+def test_add_payment_multi_medical_incomplete_rekam_medis_returns_error():
+    """Row By Medical dengan rekam_medis tapi field wajib kosong → ditolak."""
+    _add_siswa_b()
+    rows = [{
+        "siswa_code": "1250001",
+        "cat1": "By Medical",
+        "cat2": "Rawat Inap",
+        "amount": 3200000,
+        "tgl_pengajuan": "", "tgl_receive": "", "tgl_pa": "", "tgl_final": "",
+        "etf_pa_line_id": None,
+        "rekam_medis": {
+            "kelas": "VIP",
+            "rumah_sakit": "",
+            "diagnosa": "",
+            "spesialisasi": "",
+            "catatan": "",
+        },
+    }]
+    result = add_payment_multi(COMPANY_ID, "ETF", "2026-06-03", "AGRI", "PT ABC", rows)
+    assert result["ok"] is False
+
+def test_add_payment_multi_non_medical_no_rekam_medis_ok():
+    """Row non-medical tanpa rekam_medis → tetap berhasil."""
+    _add_siswa_b()
+    rows = [{
+        "siswa_code": "1250001",
+        "cat1": "By Pendidikan",
+        "cat2": "Biaya Kuliah",
+        "amount": 5000000,
+        "tgl_pengajuan": "", "tgl_receive": "", "tgl_pa": "", "tgl_final": "",
+        "etf_pa_line_id": None,
+    }]
+    result = add_payment_multi(COMPANY_ID, "ETF", "2026-06-03", "AGRI", "PT ABC", rows)
+    assert result["ok"] is True
+    conn = get_conn()
+    rm_count = conn.execute("SELECT COUNT(*) FROM rekam_medis WHERE company_id=?", (COMPANY_ID,)).fetchone()[0]
+    assert rm_count == 0
+    conn.close()
+
+
 # ── get_budget_list cross-tab payment_totals ───────────────────────────────────
 
 def _seed_budi():

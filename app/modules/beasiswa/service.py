@@ -9,6 +9,9 @@ def _ts():
     return datetime.now().isoformat(timespec="seconds")
 
 
+_CAT2_MEDICAL = {"Rawat Jalan", "Rawat Inap"}
+
+
 def get_vendors(search: str = "") -> list:
     conn = get_conn()
     if search:
@@ -102,8 +105,8 @@ def add_siswa(company_id: int, data: dict) -> dict:
             ipk_sem1,ipk_sem2,ipk_sem3,ipk_sem4,ipk_sem5,
             ipk_sem6,ipk_sem7,ipk_sem8,ipk_sem9,ipk_sem10,
             ipk_pen1,ipk_pen2,ipk_pen3,
-            status, catatan, catatan_budget, catatan_payment, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            status, catatan, catatan_budget, catatan_payment, prodi, angkatan_kuliah, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (company_id, code, nama,
          data.get("jenjang", ""), data.get("angkatan") or None,
          data.get("program", ""), data.get("fakultas", ""), data.get("universitas", ""),
@@ -111,7 +114,8 @@ def add_siswa(company_id: int, data: dict) -> dict:
          data.get("referensi", ""),
          *ipk_sem, *ipk_pen,
          data.get("status", "Aktif"), data.get("catatan", ""),
-         data.get("catatan_budget", ""), data.get("catatan_payment", ""), _ts())
+         data.get("catatan_budget", ""), data.get("catatan_payment", ""),
+         data.get("prodi", ""), data.get("angkatan_kuliah", ""), _ts())
     )
     conn.commit()
     conn.close()
@@ -137,7 +141,7 @@ def update_siswa(company_id: int, code: str, data: dict) -> dict:
            ipk_sem1=?,ipk_sem2=?,ipk_sem3=?,ipk_sem4=?,ipk_sem5=?,
            ipk_sem6=?,ipk_sem7=?,ipk_sem8=?,ipk_sem9=?,ipk_sem10=?,
            ipk_pen1=?,ipk_pen2=?,ipk_pen3=?,
-           status=?,catatan=?,catatan_budget=?,catatan_payment=?,updated_at=?
+           status=?,catatan=?,catatan_budget=?,catatan_payment=?,prodi=?,angkatan_kuliah=?,updated_at=?
            WHERE company_id=? AND code=?""",
         (data.get("nama",""), data.get("jenjang",""), data.get("angkatan") or None,
          data.get("program",""), data.get("fakultas",""), data.get("universitas",""),
@@ -145,7 +149,8 @@ def update_siswa(company_id: int, code: str, data: dict) -> dict:
          data.get("referensi",""),
          *ipk_sem, *ipk_pen,
          data.get("status","Aktif"), data.get("catatan",""),
-         data.get("catatan_budget",""), data.get("catatan_payment",""), _ts(),
+         data.get("catatan_budget",""), data.get("catatan_payment",""),
+         data.get("prodi",""), data.get("angkatan_kuliah",""), _ts(),
          company_id, code)
     )
     conn.commit()
@@ -334,6 +339,17 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
                 amount = 0
             if amount <= 0:
                 continue
+
+            # Validate rekam_medis required for By Medical
+            if row.get("cat1") == "By Medical" and row.get("cat2") in _CAT2_MEDICAL:
+                rm = row.get("rekam_medis") or {}
+                if not rm.get("kelas") or not rm.get("rumah_sakit") or \
+                   not rm.get("diagnosa") or not rm.get("spesialisasi"):
+                    conn.close()
+                    return {"ok": False,
+                            "pesan": "Data rekam medis wajib diisi (kelas, rumah sakit, diagnosa, spesialisasi).",
+                            "saved": 0}
+
             siswa_code = (row.get("siswa_code") or "").strip()
             etf_pa_line_id = row.get("etf_pa_line_id") or None
             cur = conn.execute(
@@ -352,6 +368,20 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
             payment_ids.append(cur.lastrowid)
             total += amount
             saved += 1
+
+            # Insert rekam_medis for By Medical rows
+            if row.get("cat1") == "By Medical" and row.get("cat2") in _CAT2_MEDICAL:
+                rm = row.get("rekam_medis", {})
+                conn.execute(
+                    """INSERT INTO rekam_medis
+                       (company_id, payment_id, siswa_code, kelas, rumah_sakit,
+                        diagnosa, spesialisasi, catatan)
+                       VALUES (?,?,?,?,?,?,?,?)""",
+                    (company_id, cur.lastrowid, siswa_code,
+                     rm.get("kelas", ""),    rm.get("rumah_sakit", ""),
+                     rm.get("diagnosa", ""), rm.get("spesialisasi", ""),
+                     rm.get("catatan", "") or None)
+                )
 
         if saved == 0:
             conn.close()
@@ -595,14 +625,54 @@ def get_financial_summary(company_id: int) -> dict:
 
 def delete_payment_row(company_id: int, row_id: int) -> dict:
     conn = get_conn()
-    row  = conn.execute("SELECT id, status FROM payment_beasiswa WHERE id=? AND company_id=?", (row_id, company_id)).fetchone()
+    row = conn.execute(
+        "SELECT id, status, pam, etf_pa_line_id FROM payment_beasiswa WHERE id=? AND company_id=?",
+        (row_id, company_id)
+    ).fetchone()
     if not row:
         conn.close()
         return {"ok": False, "pesan": "Baris payment tidak ditemukan."}
     if row["status"] == "approved":
         conn.close()
         return {"ok": False, "pesan": "Payment yang sudah approved tidak bisa dihapus."}
+
+    pam_no = row["pam"]
+    line_id = row["etf_pa_line_id"]
+
     conn.execute("DELETE FROM payment_beasiswa WHERE id=? AND company_id=?", (row_id, company_id))
+
+    # Hapus pam_records jika tidak ada payment lain yang memakai PAM ini
+    if pam_no:
+        remaining = conn.execute(
+            "SELECT COUNT(*) FROM payment_beasiswa WHERE pam=? AND company_id=?",
+            (pam_no, company_id)
+        ).fetchone()[0]
+        if remaining == 0:
+            conn.execute(
+                "DELETE FROM pam_records WHERE pam_no=? AND company_id=?",
+                (pam_no, company_id)
+            )
+
+    # Revert etf_pa ke draft jika tidak ada payment aktif lagi untuk PA ini
+    if line_id:
+        pa_row = conn.execute(
+            "SELECT pa_id FROM etf_pa_lines WHERE id=?", (line_id,)
+        ).fetchone()
+        if pa_row:
+            pa_id = pa_row[0]
+            remaining_pa = conn.execute(
+                """SELECT COUNT(*) FROM payment_beasiswa pb
+                   JOIN etf_pa_lines el ON el.id = pb.etf_pa_line_id
+                   WHERE el.pa_id=? AND pb.company_id=?""",
+                (pa_id, company_id)
+            ).fetchone()[0]
+            if remaining_pa == 0:
+                from datetime import datetime as _dt
+                conn.execute(
+                    "UPDATE etf_pa SET status='draft', updated_at=? WHERE id=? AND company_id=?",
+                    (_dt.now().isoformat(timespec="seconds"), pa_id, company_id)
+                )
+
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": "Baris payment dihapus."}
