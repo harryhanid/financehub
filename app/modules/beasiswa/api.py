@@ -9,7 +9,7 @@ from modules.beasiswa.service import (
     get_payment, add_payment_batch,
     get_budget, add_budget_batch,
 )
-from auth.middleware import api_role_required
+from auth.middleware import jwt_html_required
 
 beasiswa_api = Blueprint("beasiswa_api", __name__, url_prefix="/api/v1")
 
@@ -57,7 +57,7 @@ def api_get_siswa(code):
 
 @beasiswa_api.post("/siswa")
 @jwt_required(locations=["headers"])
-@api_role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def api_add_siswa():
     body = request.get_json(force=True) or {}
     company = body.get("company", "")
@@ -80,7 +80,7 @@ def api_add_siswa():
 
 @beasiswa_api.put("/siswa/<code>")
 @jwt_required(locations=["headers"])
-@api_role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def api_update_siswa(code):
     body = request.get_json(force=True) or {}
     company = body.get("company", "")
@@ -122,7 +122,7 @@ def api_list_payment():
 
 @beasiswa_api.post("/payment")
 @jwt_required(locations=["headers"])
-@api_role_required("requester")
+@jwt_html_required
 def api_add_payment():
     body = request.get_json(force=True) or {}
     company = body.get("company", "")
@@ -157,7 +157,7 @@ def api_get_budget():
 
 @beasiswa_api.post("/budget")
 @jwt_required(locations=["headers"])
-@api_role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def api_add_budget():
     body = request.get_json(force=True) or {}
     company = body.get("company", "")

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session
 from flask_jwt_extended import get_jwt
-from auth.middleware import jwt_html_required, html_role_required, role_required
+from auth.middleware import jwt_html_required
 from modules.users.service import get_users, add_user, toggle_user_active, change_user_role
 
 bp = Blueprint("users", __name__, url_prefix="/users")
@@ -21,14 +21,14 @@ def _ctx():
 
 
 @bp.route("/")
-@html_role_required("releaser")
+@jwt_html_required
 def index():
     return render_template("users/index.html", users=get_users(),
                            active_page="users", **_ctx())
 
 
 @bp.route("/add", methods=["POST"])
-@role_required("releaser")
+@jwt_html_required
 def add():
     data   = request.get_json(force=True)
     result = add_user(data.get("username", ""), data.get("password", ""), data.get("role", ""))
@@ -36,7 +36,7 @@ def add():
 
 
 @bp.route("/<username>/toggle", methods=["POST"])
-@role_required("releaser")
+@jwt_html_required
 def toggle(username):
     data = request.get_json(force=True)
     if data is None:
@@ -50,7 +50,7 @@ def toggle(username):
 
 
 @bp.route("/<username>/role", methods=["POST"])
-@role_required("releaser")
+@jwt_html_required
 def change_role(username):
     data   = request.get_json(force=True)
     result = change_user_role(username, data.get("role", ""))

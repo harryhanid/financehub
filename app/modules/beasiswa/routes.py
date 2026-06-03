@@ -1,7 +1,7 @@
 # modules/beasiswa/routes.py
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, Response
 from flask_jwt_extended import get_jwt
-from auth.middleware import jwt_html_required, role_required
+from auth.middleware import jwt_html_required
 from modules.beasiswa.service import (
     generate_kode_siswa, get_siswa_list, get_siswa_detail,
     add_siswa, update_siswa, update_siswa_catatan, update_siswa_catatan_payment, delete_siswa,
@@ -57,7 +57,7 @@ def index():
 
 
 @bp.route("/siswa/generate-kode")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def siswa_generate_kode():
     jenjang  = request.args.get("jenjang", "").strip()
     angkatan = request.args.get("angkatan", "").strip()
@@ -68,13 +68,13 @@ def siswa_generate_kode():
 
 
 @bp.route("/siswa/tambah", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def siswa_tambah():
     return jsonify(add_siswa(_cid(), request.get_json(force=True) or {}))
 
 
 @bp.route("/siswa/<code>")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def siswa_detail(code):
     row = get_siswa_detail(_cid(), code)
     if not row:
@@ -83,40 +83,40 @@ def siswa_detail(code):
 
 
 @bp.route("/siswa/<code>/update", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def siswa_update(code):
     return jsonify(update_siswa(_cid(), code, request.get_json(force=True) or {}))
 
 
 @bp.route("/siswa/<code>/catatan", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def siswa_catatan_update(code):
     data = request.get_json(force=True) or {}
     return jsonify(update_siswa_catatan(_cid(), code, data.get("catatan", "")))
 
 
 @bp.route("/siswa/<code>/catatan-payment", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def siswa_catatan_payment_update(code):
     data = request.get_json(force=True) or {}
     return jsonify(update_siswa_catatan_payment(_cid(), code, data.get("catatan_payment", "")))
 
 
 @bp.route("/siswa/<code>/hapus", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def siswa_hapus(code):
     return jsonify(delete_siswa(_cid(), code))
 
 
 @bp.route("/siswa/<code>/sisa-budget")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def siswa_sisa_budget(code):
     sisa = get_sisa_budget(_cid(), code)
     return jsonify({"ok": True, **sisa})
 
 
 @bp.route("/budget/siswa/<code>")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def budget_by_siswa(code):
     result = get_budget(_cid(), code)
     siswa  = get_siswa_detail(_cid(), code)
@@ -125,7 +125,7 @@ def budget_by_siswa(code):
 
 
 @bp.route("/budget/siswa/<code>/export/<fmt>")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def budget_siswa_export(code, fmt):
     result = get_budget(_cid(), code)
     siswa  = get_siswa_detail(_cid(), code)
@@ -194,19 +194,19 @@ def budget_siswa_export(code, fmt):
 
 
 @bp.route("/budget/<int:row_id>/hapus", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def budget_hapus(row_id):
     return jsonify(delete_budget_row(_cid(), row_id))
 
 
 @bp.route("/budget/<int:row_id>/update", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def budget_update_row(row_id):
     return jsonify(update_budget_row(_cid(), row_id, request.get_json(force=True) or {}))
 
 
 @bp.route("/budget/tambah", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def budget_tambah():
     data   = request.get_json(force=True) or {}
     code   = (data.get("code") or "").strip()
@@ -217,20 +217,20 @@ def budget_tambah():
 
 
 @bp.route("/vendors")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def vendor_list_api():
     search = request.args.get("search", "").strip()
     return jsonify({"ok": True, "rows": get_vendors(search)})
 
 
 @bp.route("/summary")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def financial_summary():
     return jsonify({"ok": True, **get_financial_summary(_cid())})
 
 
 @bp.route("/budget/list")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def budget_list():
     data = get_budget_list(
         _cid(),
@@ -245,7 +245,7 @@ def budget_list():
 
 
 @bp.route("/budget/export/csv")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def budget_export_csv():
     import csv, io
     rows = get_budget_list(_cid(),
@@ -266,7 +266,7 @@ def budget_export_csv():
 
 
 @bp.route("/budget/export/pdf")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def budget_export_pdf():
     import io
     from flask import send_file
@@ -316,7 +316,7 @@ def budget_export_pdf():
 
 
 @bp.route("/payment/list")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def payment_list():
     data = get_payment_list(
         _cid(),
@@ -332,7 +332,7 @@ def payment_list():
 
 
 @bp.route("/payment/export/csv")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def payment_export_csv():
     import csv, io
     rows = get_payment_list(_cid(),
@@ -354,7 +354,7 @@ def payment_export_csv():
 
 
 @bp.route("/payment/export/pdf")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def payment_export_pdf():
     import io
     from flask import send_file
@@ -405,13 +405,13 @@ def payment_export_pdf():
 
 
 @bp.route("/payment/<int:row_id>/hapus", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def payment_hapus(row_id):
     return jsonify(delete_payment_row(_cid(), row_id))
 
 
 @bp.route("/payment/tambah", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def payment_tambah():
     data   = request.get_json(force=True) or {}
     code   = (data.get("code") or "").strip()
@@ -423,7 +423,7 @@ def payment_tambah():
 
 
 @bp.route("/payment/tambah-multi", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def payment_tambah_multi():
     data = request.get_json(force=True) or {}
     rows = data.get("rows", [])
@@ -440,7 +440,7 @@ def payment_tambah_multi():
 
 
 @bp.route("/klaim/list")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def klaim_list():
     data = get_klaim_list(
         _cid(),
@@ -453,7 +453,7 @@ def klaim_list():
 
 
 @bp.route("/klaim/tambah-multi", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def klaim_tambah_multi():
     data = request.get_json(force=True) or {}
     rows = data.get("rows", [])
@@ -469,13 +469,13 @@ def klaim_tambah_multi():
 
 
 @bp.route("/klaim/<int:row_id>/hapus", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def klaim_hapus(row_id):
     return jsonify(delete_klaim_row(_cid(), row_id))
 
 
 @bp.route("/laporan/siswa/<code>")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def laporan_siswa(code):
     data = get_laporan_siswa(_cid(), code)
     if not data:
@@ -484,7 +484,7 @@ def laporan_siswa(code):
 
 
 @bp.route("/laporan/siswa/<code>/export/<fmt>")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def laporan_export(code, fmt):
     data = get_laporan_siswa(_cid(), code)
     if not data:
@@ -690,7 +690,7 @@ def laporan_export(code, fmt):
 
 
 @bp.route("/rekap/data")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def rekap_data():
     rows = get_rekap(_cid(),
         program=request.args.get("program", ""),
@@ -703,7 +703,7 @@ def rekap_data():
 
 
 @bp.route("/rekap/export/csv")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def rekap_export_csv():
     import csv, io
     rows  = get_rekap(_cid(),
@@ -726,7 +726,7 @@ def rekap_export_csv():
 
 
 @bp.route("/rekap/export/pdf")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def rekap_export_pdf():
     import io
     from flask import send_file
