@@ -162,7 +162,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
     <label style="font-size:.72rem; font-weight:600">Status</label>
     <select id="f-status" onchange="applyFilters()" style="font-size:.82rem">
       <option value="">Semua</option>
-      <option value="draft">Draft</option>
+      <option value="open">Open</option>
       <option value="on_process">On Process</option>
       <option value="complete">Complete</option>
     </select>
@@ -261,7 +261,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
             <span>Aksi</span>
             <select id="hdr-bulk-status">
               <option value="on_process">On Process</option>
-              <option value="draft">Draft</option>
+              <option value="open">Open</option>
               <option value="complete">Complete</option>
             </select>
             <button class="btn btn-primary btn-sm" onclick="bulkSetStatusHeader()">Ubah Status</button>
@@ -310,7 +310,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
         <td>{{ r.tanggal_bayar or '--' }}</td>
         <td style="min-width:260px; white-space:pre-wrap; word-break:break-word; line-height:1.4">{{ r.keterangan or '--' }}</td>
         <td>
-          <span class="badge {% if r.status == 'complete' %}badge-green{% elif r.status == 'on_process' %}badge-yellow{% else %}badge-gray{% endif %}">
+          <span class="badge {% if r.status == 'complete' %}badge-green{% elif r.status == 'on_process' %}badge-yellow{% elif r.status == 'open' %}badge-blue{% else %}badge-gray{% endif %}">
             {{ r.status | replace('_', ' ') | title }}
           </span>
         </td>
@@ -369,7 +369,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
       <div class="form-group"><label>Nomor PAM</label><input type="text" id="edit-nomor-pam" placeholder="Auto-generate saat On Process"></div>
       <div class="form-group"><label>Status</label>
         <select id="edit-status">
-          <option value="draft">Draft</option>
+          <option value="open">Open</option>
           <option value="on_process">On Process</option>
           <option value="complete">Complete</option>
         </select>
@@ -680,7 +680,7 @@ async function openEditById(paId) {
   document.getElementById("edit-nomor-pam").value   = pa.nomor_pam || "";
   document.getElementById("edit-tgl-bayar").value   = pa.tanggal_bayar || "";
   document.getElementById("edit-keterangan").value  = pa.keterangan || "";
-  document.getElementById("edit-status").value      = pa.status || "draft";
+  document.getElementById("edit-status").value      = pa.status || "open";
   openModal("modal-edit-pa");
 }
 async function saveEdit() {

@@ -399,7 +399,7 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
                 f"""UPDATE etf_pa SET status = 'on_process', updated_at = ?
                     WHERE id IN (
                         SELECT DISTINCT pa_id FROM etf_pa_lines WHERE id IN ({ph})
-                    ) AND company_id = ? AND status = 'draft'""",
+                    ) AND company_id = ? AND status = 'open'""",
                 [_ts()] + pa_line_ids + [company_id]
             )
 
@@ -670,7 +670,7 @@ def delete_payment_row(company_id: int, row_id: int) -> dict:
             if remaining_pa == 0:
                 from datetime import datetime as _dt
                 conn.execute(
-                    "UPDATE etf_pa SET status='draft', updated_at=? WHERE id=? AND company_id=?",
+                    "UPDATE etf_pa SET status='open', updated_at=? WHERE id=? AND company_id=?",
                     (_dt.now().isoformat(timespec="seconds"), pa_id, company_id)
                 )
 
@@ -732,7 +732,7 @@ def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
             if remaining_pa == 0:
                 from datetime import datetime as _dt
                 conn.execute(
-                    "UPDATE etf_pa SET status='draft', updated_at=? WHERE id=? AND company_id=?",
+                    "UPDATE etf_pa SET status='open', updated_at=? WHERE id=? AND company_id=?",
                     (_dt.now().isoformat(timespec="seconds"), pa_id, company_id)
                 )
 

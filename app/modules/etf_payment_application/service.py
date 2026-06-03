@@ -154,14 +154,14 @@ def bulk_update_pa(pa_ids: list, field: str, value: str, company_id: int) -> dic
 
 
 def get_draft_siswa(company_id: int, q: str) -> list:
-    """Return siswa yang punya minimal 1 PA line di mana PA status='draft'."""
+    """Return siswa yang punya minimal 1 PA line di mana PA status='open'."""
     conn = get_conn()
     rows = conn.execute(
         """SELECT DISTINCT s.id, s.code, s.nama, s.jenjang, s.universitas
            FROM siswa s
            JOIN etf_pa_lines l ON l.student_id = s.id
            JOIN etf_pa p ON p.id = l.pa_id
-           WHERE p.company_id = ? AND p.status = 'draft'
+           WHERE p.company_id = ? AND p.status = 'open'
              AND (s.nama LIKE ? OR s.code LIKE ?)
            ORDER BY s.nama
            LIMIT 20""",
@@ -172,7 +172,7 @@ def get_draft_siswa(company_id: int, q: str) -> list:
 
 
 def get_draft_lines_for_siswa(company_id: int, siswa_id: int) -> list:
-    """Return semua PA lines milik siswa dengan PA status='draft'."""
+    """Return semua PA lines milik siswa dengan PA status='open'."""
     conn = get_conn()
     rows = conn.execute(
         """SELECT l.id AS line_id, l.pa_id, p.pa_number,
@@ -182,7 +182,7 @@ def get_draft_lines_for_siswa(company_id: int, siswa_id: int) -> list:
                   p.tgl_payment_application
            FROM etf_pa_lines l
            JOIN etf_pa p ON p.id = l.pa_id
-           WHERE p.company_id = ? AND p.status = 'draft'
+           WHERE p.company_id = ? AND p.status = 'open'
              AND l.student_id = ?
            ORDER BY p.created_at DESC""",
         (company_id, siswa_id)
@@ -322,7 +322,7 @@ def create_pa(company_id: int, header: dict, lines: list) -> dict:
         """INSERT INTO etf_pa
            (company_id, pa_number, tgl_payment_application, tgl_surat_pengajuan,
             keterangan, status, created_at)
-           VALUES (?,?,?,?,?,'draft',?)""",
+           VALUES (?,?,?,?,?,'open',?)""",
         (company_id, pa_number,
          header.get("tgl_payment_application", ""),
          header.get("tgl_surat_pengajuan", ""),
