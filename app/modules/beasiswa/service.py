@@ -639,6 +639,7 @@ def delete_payment_row(company_id: int, row_id: int) -> dict:
     pam_no = row["pam"]
     line_id = row["etf_pa_line_id"]
 
+    conn.execute("DELETE FROM rekam_medis WHERE payment_id=? AND company_id=?", (row_id, company_id))
     conn.execute("DELETE FROM payment_beasiswa WHERE id=? AND company_id=?", (row_id, company_id))
 
     # Hapus pam_records jika tidak ada payment lain yang memakai PAM ini
