@@ -1681,6 +1681,7 @@ function ipayAddRow() {
   const tr = document.createElement("tr");
   tr.dataset.rid = rid;
   tr.dataset.siswaCode = "";
+  tr.dataset.etfSiswaId = "";
   tr._sisaBudget = {};
   const tdSisa = document.createElement("td");
   tdSisa.style.cssText = "white-space:nowrap;font-size:.8rem;color:#6b7280;min-width:140px";
@@ -1716,52 +1717,101 @@ function ipayAddRow() {
   }
 
   siswaInp.addEventListener("input", () => {
-    const q = siswaInp.value.toLowerCase().trim();
-    if (!q) { sugg.style.display = "none"; return; }
-    const hits = SISWA_LIST.filter(s =>
-      (s.nama && s.nama.toLowerCase().includes(q)) ||
-      (s.code && String(s.code).toLowerCase().includes(q))
-    ).slice(0, 10);
-    if (!hits.length) {
-      sugg.innerHTML = SISWA_LIST.length
-        ? `<div style="padding:10px 12px;font-size:.875rem;color:#6b7280">Tidak ditemukan.</div>`
-        : `<div style="padding:10px 12px;font-size:.875rem;color:#6b7280">Belum ada data siswa. Tambahkan di tab Data Siswa.</div>`;
-      _positionSugg(); sugg.style.display = "block"; return;
-    }
+    const q = siswaInp.value.trim();
     sugg.innerHTML = "";
-    hits.forEach(s => {
-      const d = document.createElement("div");
-      d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:.5rem";
-      d.innerHTML = `<span style="font-weight:600;color:#1a56db;min-width:72px">${s.code}</span><span style="color:#374151">${s.nama}</span>`;
-      d.addEventListener("mousedown", () => {
-        siswaInp.value = `${s.code} — ${s.nama}`;
-        tr.dataset.siswaCode = s.code;
-        sugg.style.display = "none";
-        tr._sisaBudget = {};
-        tr._sisaCell.textContent = "Memuat...";
-        tr._sisaCell.style.color = "#6b7280";
-        apiFetch(`/beasiswa/siswa/${s.code}/sisa-budget`).then(r => r.json()).then(data => {
-          tr._sisaBudget = data.sisa || {};
-          _ipayUpdateSisaCell(tr);
+    if (!q) { sugg.style.display = "none"; return; }
+    apiFetch(`/etf-payment-application/draft-siswa?q=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(hits => {
+        if (!hits.length) {
+          sugg.innerHTML = `<div style="padding:10px 12px;font-size:.875rem;color:#6b7280">Tidak ada siswa dengan PA draft.</div>`;
+          _positionSugg(); sugg.style.display = "block"; return;
+        }
+        sugg.innerHTML = "";
+        hits.forEach(s => {
+          const d = document.createElement("div");
+          d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:.5rem";
+          d.innerHTML = `<span style="font-weight:600;color:#1a56db;min-width:72px">${s.code}</span><span style="color:#374151">${s.nama}</span>`;
+          d.addEventListener("mousedown", () => {
+            siswaInp.value = `${s.code} — ${s.nama}`;
+            tr.dataset.siswaCode  = s.code;
+            tr.dataset.etfSiswaId = s.id;
+            sugg.style.display = "none";
+            tr._hidEtfLineId.value = "";
+            // Reset cat1 dropdown dan load lines
+            sCat1.innerHTML = `<option value="">Memuat...</option>`;
+            sCat1.disabled = true;
+            apiFetch(`/etf-payment-application/draft-lines?siswa_id=${s.id}`)
+              .then(r => r.json())
+              .then(lines => {
+                sCat1.innerHTML = `<option value="">— Pilih Kategori 1 —</option>` +
+                  lines.map(l => `<option value="${l.jenis_pembayaran}" data-line='${JSON.stringify(l)}'>${l.jenis_pembayaran} (${l.pa_number})</option>`).join("");
+                sCat1.disabled = false;
+              });
+            // Load sisa budget
+            tr._sisaBudget = {};
+            tr._sisaCell.textContent = "Memuat...";
+            tr._sisaCell.style.color = "#6b7280";
+            apiFetch(`/beasiswa/siswa/${s.code}/sisa-budget`).then(r => r.json()).then(data => {
+              tr._sisaBudget = data.sisa || {};
+              _ipayUpdateSisaCell(tr);
+            });
+          });
+          d.addEventListener("mouseover",  () => { d.style.background = "#eff6ff"; });
+          d.addEventListener("mouseout",   () => { d.style.background = ""; });
+          sugg.appendChild(d);
         });
+        _positionSugg();
+        sugg.style.display = "block";
       });
-      d.addEventListener("mouseover",  () => { d.style.background = "#eff6ff"; });
-      d.addEventListener("mouseout",   () => { d.style.background = ""; });
-      sugg.appendChild(d);
-    });
-    _positionSugg();
-    sugg.style.display = "block";
   });
   siswaInp.addEventListener("focus", () => { if (sugg.children.length) _positionSugg(); });
   siswaInp.addEventListener("blur",  () => setTimeout(() => { sugg.style.display = "none"; }, 200));
   tdSiswa.appendChild(siswaInp);
 
+  // Hidden ETF PA line id
+  const hidEtfLineId = document.createElement("input");
+  hidEtfLineId.type = "hidden";
+  hidEtfLineId.value = "";
+  tr._hidEtfLineId = hidEtfLineId;
+  tdSiswa.appendChild(hidEtfLineId);
+
   // Cat1 select
   const tdCat1 = document.createElement("td");
   const sCat1 = document.createElement("select");
   sCat1.style.width = "100%";
-  sCat1.innerHTML = `<option value="">— Kat 1 —</option>` + CAT1.map(c => `<option value="${c}">${c}</option>`).join("");
-  sCat1.addEventListener("change", () => _ipayUpdateSisaCell(tr));
+  sCat1.innerHTML = `<option value="">— Pilih Kategori 1 —</option>`;
+  sCat1.disabled = true;
+  sCat1.title = "Pilih siswa dulu";
+  sCat1.addEventListener("change", () => {
+    _ipayUpdateSisaCell(tr);
+    const opt = sCat1.options[sCat1.selectedIndex];
+    if (!opt || !opt.dataset.line) {
+      tr._hidEtfLineId.value = "";
+      tr._amtInp.value = "";
+      tr._amtInp.readOnly = false;
+      tr._tgls[0].value = "";
+      tr._tgls[1].value = "";
+      tr._tgls[2].value = "";
+      tr._tgls[0].readOnly = false;
+      tr._tgls[1].readOnly = false;
+      tr._tgls[2].readOnly = false;
+      ipayUpdateTotal();
+      return;
+    }
+    const line = JSON.parse(opt.dataset.line);
+    tr._hidEtfLineId.value  = line.line_id;
+    tr._amtInp.value        = line.jumlah_pembayaran || "";
+    tr._amtInp.readOnly     = true;
+    tr._tgls[0].value       = line.tgl_surat_pengajuan     || "";
+    tr._tgls[1].value       = line.doc_received_by_educ    || "";
+    tr._tgls[2].value       = line.tgl_payment_application || "";
+    tr._tgls[0].readOnly    = true;
+    tr._tgls[1].readOnly    = true;
+    tr._tgls[2].readOnly    = true;
+    ipayUpdateTotal();
+    _ipayUpdateSisaCell(tr);
+  });
   tdCat1.appendChild(sCat1);
 
   // Cat2 dropdown (reuse _mkDrop)
@@ -1830,14 +1880,15 @@ async function ipaySave() {
     return;
   }
   const rows = allTrs.map(tr => ({
-    siswa_code:    tr.dataset.siswaCode || "",
-    cat1:          tr._cat1Select.value,
-    cat2:          tr._cat2Drop._hid.value,
-    amount:        parseFloat(tr._amtInp.value) || 0,
-    tgl_pengajuan: tr._tgls[0].value,
-    tgl_receive:   tr._tgls[1].value,
-    tgl_pa:        tr._tgls[2].value,
-    tgl_final:     tr._tgls[3].value,
+    siswa_code:      tr.dataset.siswaCode || "",
+    cat1:            tr._cat1Select.value,
+    cat2:            tr._cat2Drop._hid.value,
+    amount:          parseFloat(tr._amtInp.value) || 0,
+    tgl_pengajuan:   tr._tgls[0].value,
+    tgl_receive:     tr._tgls[1].value,
+    tgl_pa:          tr._tgls[2].value,
+    tgl_final:       tr._tgls[3].value,
+    etf_pa_line_id:  tr._hidEtfLineId?.value ? parseInt(tr._hidEtfLineId.value) : null,
   })).filter(r => r.amount > 0);
   if (!rows.length) { showToast("Minimal 1 baris dengan amount > 0.", "error"); return; }
   const missing = rows.filter(r => !r.siswa_code);
