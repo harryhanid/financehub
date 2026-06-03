@@ -51,12 +51,10 @@ function showToast(msg, type = "success") {
   if (!toast) {
     toast = document.createElement("div");
     toast.id = "fh-toast";
-    toast.style.cssText = "position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;padding:.75rem 1.25rem;border-radius:8px;font-size:.875rem;box-shadow:0 4px 12px rgba(0,0,0,.15);transition:opacity .3s;max-width:360px;";
     document.body.appendChild(toast);
   }
   toast.textContent = msg;
-  toast.style.background = type === "success" ? "#065f46" : "#991b1b";
-  toast.style.color = "#fff";
+  toast.className = type === "success" ? "toast-success" : type === "info" ? "toast-info" : "toast-error";
   toast.style.opacity = "1";
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => { toast.style.opacity = "0"; }, 3000);
