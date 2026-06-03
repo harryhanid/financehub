@@ -1,10 +1,11 @@
 # modules/etf_payment_application/routes.py
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, Response
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.etf_payment_application.service import (
-    get_pa_list, get_pa_flat, get_pa_header,
+    get_pa_list, get_pa_flat, get_pa_header, bulk_update_pa, export_pa_excel,
     create_pa, update_pa, get_pa_lines, get_siswa_autocomplete,
+    get_draft_siswa, get_draft_lines_for_siswa,
 )
 import config
 
@@ -50,6 +51,24 @@ def siswa_search():
     return jsonify(get_siswa_autocomplete(company_id, q))
 
 
+@bp.route("/draft-siswa")
+@jwt_html_required
+def draft_siswa():
+    q          = request.args.get("q", "")
+    company_id = session.get("company_id")
+    return jsonify(get_draft_siswa(company_id, q))
+
+
+@bp.route("/draft-lines")
+@jwt_html_required
+def draft_lines():
+    siswa_id   = request.args.get("siswa_id", type=int)
+    company_id = session.get("company_id")
+    if not siswa_id:
+        return jsonify([])
+    return jsonify(get_draft_lines_for_siswa(company_id, siswa_id))
+
+
 @bp.route("/create", methods=["POST"])
 @jwt_html_required
 def create():
@@ -77,6 +96,33 @@ def update(pa_id):
 def lines(pa_id):
     company_id = session.get("company_id")
     return jsonify(get_pa_lines(pa_id, company_id))
+
+
+@bp.route("/export-excel")
+@jwt_html_required
+def export_excel():
+    company_id = session.get("company_id")
+    data = export_pa_excel(company_id)
+    from datetime import datetime
+    fname = f"ETF_PA_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return Response(
+        data,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={fname}"}
+    )
+
+
+@bp.route("/bulk-update", methods=["POST"])
+@jwt_html_required
+def bulk_update():
+    company_id = session.get("company_id")
+    data       = request.get_json(force=True)
+    return jsonify(bulk_update_pa(
+        data.get("pa_ids", []),
+        data.get("field", ""),
+        data.get("value", ""),
+        company_id,
+    ))
 
 
 @bp.route("/<int:pa_id>/header")
