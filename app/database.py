@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS payment_memo (
     memo_number  TEXT UNIQUE,
     tanggal      TEXT,
     total_amount REAL DEFAULT 0,
+    tanggal_bayar TEXT,
     status       TEXT DEFAULT 'draft',
     notes        TEXT,
     created_by   TEXT,
@@ -256,6 +257,11 @@ def get_conn():
 
 def migrate_db():
     conn = get_conn()
+    try:
+        conn.execute("ALTER TABLE payment_memo ADD COLUMN tanggal_bayar TEXT")
+        conn.commit()
+    except Exception:
+        pass
     for col in ["tgl_pengajuan", "tgl_receive", "tgl_pa", "tgl_final",
                 "tgl_retur", "tgl_final6", "tgl_proses",
                 "tgl_HT_AGRI", "tgl_Yurike_AGRI", "tgl_Aditya_AGRI",
