@@ -335,17 +335,19 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
             if amount <= 0:
                 continue
             siswa_code = (row.get("siswa_code") or "").strip()
+            etf_pa_line_id = row.get("etf_pa_line_id") or None
             cur = conn.execute(
                 """INSERT INTO payment_beasiswa
                    (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,
-                    tgl_pengajuan,tgl_receive,tgl_pa,tgl_final,cat3,cat4,status)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'draft')""",
+                    tgl_pengajuan,tgl_receive,tgl_pa,tgl_final,cat3,cat4,etf_pa_line_id,status)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'draft')""",
                 (company_id, siswa_code,
                  row.get("cat1", ""), row.get("cat2", ""),
                  tanggal, amount, pillar, perusahaan,
                  row.get("tgl_pengajuan", ""), row.get("tgl_receive", ""),
                  row.get("tgl_pa", ""),   row.get("tgl_final", ""),
-                 row.get("cat3", ""),     row.get("cat4", ""))
+                 row.get("cat3", ""),     row.get("cat4", ""),
+                 etf_pa_line_id)
             )
             payment_ids.append(cur.lastrowid)
             total += amount
@@ -354,6 +356,22 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
         if saved == 0:
             conn.close()
             return {"ok": False, "pesan": "Tidak ada item dengan amount > 0.", "saved": 0}
+
+        # Update etf_pa status → on_process untuk PA yang di-referensi
+        pa_line_ids = [
+            row.get("etf_pa_line_id")
+            for row in rows
+            if row.get("etf_pa_line_id") and float(str(row.get("amount", 0)).replace(",", "") or 0) > 0
+        ]
+        if pa_line_ids:
+            ph = ",".join("?" * len(pa_line_ids))
+            conn.execute(
+                f"""UPDATE etf_pa SET status = 'on_process', updated_at = ?
+                    WHERE id IN (
+                        SELECT DISTINCT pa_id FROM etf_pa_lines WHERE id IN ({ph})
+                    ) AND company_id = ? AND status = 'draft'""",
+                [_ts()] + pa_line_ids + [company_id]
+            )
 
         # Collect student names for keterangan
         unique_codes = list({
