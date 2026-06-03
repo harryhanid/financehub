@@ -18,17 +18,16 @@
 
 <div data-tabs>
   <div class="tabs">
-    <button class="tab-btn" data-tab="tab-draft-pay">Draft Payment ({{ drafts|length }})</button>
-    <button class="tab-btn" data-tab="tab-input-payment" onclick="ipayReset()">Input Payment</button>
-    <button class="tab-btn" data-tab="tab-input-klaim" onclick="iklaimReset()">Input Klaim</button>
-    <button class="tab-btn" data-tab="tab-pam" onclick="loadPAM()">PAM Records</button>
+    <button class="tab-btn" data-tab="tab-draft-pay">Open PAM ({{ drafts|length }})</button>
+    <button class="tab-btn" data-tab="tab-input-payment" onclick="ipayReset()">Input PAM</button>
+    <button class="tab-btn" data-tab="tab-pam" onclick="loadPAM()">Rekap PAM</button>
     <button class="tab-btn" data-tab="tab-days-of-pam" onclick="dopTabOpened()">Days of PAM</button>
-    <button class="tab-btn" data-tab="tab-draft-memo">Format Memo</button>
+    <button class="tab-btn" data-tab="tab-draft-memo">Print Memo</button>
   </div>
 
   <div class="tab-panel" id="tab-draft-pay">
     <div style="margin-bottom:1rem">
-      <span style="font-size:.875rem; color:var(--text-muted)">Daftar payment draft yang belum diproses.</span>
+      <span style="font-size:.875rem; color:var(--text-muted)">Daftar payment yang belum diproses (status Open).</span>
     </div>
     <div class="table-wrap">
       <table>
@@ -148,61 +147,6 @@
     <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
       <button class="btn btn-secondary btn-sm" onclick="ipayAddRow()">+ Tambah Baris</button>
       <button class="btn btn-primary" onclick="ipaySave()">💾 Simpan Payment</button>
-    </div>
-  </div>
-
-  <!-- TAB INPUT KLAIM -->
-  <div class="tab-panel" id="tab-input-klaim">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem;max-width:600px">
-      <div class="form-group">
-        <label>PAM</label>
-        <div style="display:flex;gap:.375rem;align-items:center">
-          <span style="font-size:.875rem;color:#6b7280;white-space:nowrap">PAM-</span>
-          <input type="text" id="iklaim-pam-seq" placeholder="001" style="width:56px;text-align:center" oninput="iklaimUpdatePAM()" maxlength="10">
-          <span id="iklaim-pam-preview" style="font-size:.75rem;color:#6b7280;white-space:nowrap"></span>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Perusahaan</label>
-        <div style="position:relative">
-          <input type="text" id="iklaim-perusahaan-search" placeholder="Cari vendor..." autocomplete="off"
-                 oninput="iklaimVendorSearch()" onblur="setTimeout(()=>document.getElementById('iklaim-vendor-sugg').style.display='none',200)">
-          <input type="hidden" id="iklaim-perusahaan">
-          <div id="iklaim-vendor-sugg" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #f9a8d4;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Pillar</label>
-        <input type="text" id="iklaim-pillar" readonly placeholder="Auto dari vendor"
-               style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
-      </div>
-    </div>
-    <input type="hidden" id="iklaim-pam-full">
-    <div class="table-wrap">
-      <table id="iklaim-table" style="min-width:1200px">
-        <thead>
-          <tr>
-            <th style="min-width:200px">Siswa</th>
-            <th style="min-width:110px">Tanggal</th>
-            <th style="min-width:110px">Amount</th>
-            <th style="min-width:130px">Perawatan</th>
-            <th style="min-width:100px">Kelas</th>
-            <th style="min-width:140px">Rumah Sakit</th>
-            <th style="min-width:130px">Diagnosa</th>
-            <th style="min-width:130px">Spesialisasi</th>
-            <th style="width:32px"></th>
-          </tr>
-        </thead>
-        <tbody id="iklaim-tbody">
-          <tr id="iklaim-empty-row">
-            <td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input klaim.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
-      <button class="btn btn-secondary btn-sm" onclick="iklaimAddRow()">+ Tambah Baris</button>
-      <button class="btn btn-primary" style="background:#db2777;border-color:#db2777" onclick="iklaimSave()">💾 Simpan Klaim</button>
     </div>
   </div>
 
