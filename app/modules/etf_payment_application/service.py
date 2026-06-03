@@ -139,8 +139,9 @@ def bulk_update_pa(pa_ids: list, field: str, value: str, company_id: int) -> dic
 
     conn = get_conn()
     placeholders = ",".join("?" * len(pa_ids))
+    extra_set = ", status='complete'" if field == "tanggal_bayar" and value else ""
     conn.execute(
-        f"UPDATE etf_pa SET {field}=?, updated_at=? WHERE id IN ({placeholders}) AND company_id=?",
+        f"UPDATE etf_pa SET {field}=?{extra_set}, updated_at=? WHERE id IN ({placeholders}) AND company_id=?",
         [value, _ts()] + list(pa_ids) + [company_id]
     )
     count = conn.execute(
