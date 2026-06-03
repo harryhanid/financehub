@@ -678,6 +678,68 @@ def delete_payment_row(company_id: int, row_id: int) -> dict:
     return {"ok": True, "pesan": "Baris payment dihapus."}
 
 
+def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
+    """Hapus payment_beasiswa beserta rekam_medis terkait (cascade)."""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id, status, pam, etf_pa_line_id FROM payment_beasiswa WHERE id=? AND company_id=?",
+        (payment_id, company_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Baris payment tidak ditemukan."}
+    if row["status"] == "approved":
+        conn.close()
+        return {"ok": False, "pesan": "Payment yang sudah approved tidak bisa dihapus."}
+
+    pam_no = row["pam"]
+    line_id = row["etf_pa_line_id"]
+
+    # Cascade delete rekam_medis
+    conn.execute(
+        "DELETE FROM rekam_medis WHERE payment_id=? AND company_id=?",
+        (payment_id, company_id)
+    )
+
+    conn.execute("DELETE FROM payment_beasiswa WHERE id=? AND company_id=?", (payment_id, company_id))
+
+    # Hapus pam_records jika tidak ada payment lain yang memakai PAM ini
+    if pam_no:
+        remaining = conn.execute(
+            "SELECT COUNT(*) FROM payment_beasiswa WHERE pam=? AND company_id=?",
+            (pam_no, company_id)
+        ).fetchone()[0]
+        if remaining == 0:
+            conn.execute(
+                "DELETE FROM pam_records WHERE pam_no=? AND company_id=?",
+                (pam_no, company_id)
+            )
+
+    # Revert etf_pa ke draft jika tidak ada payment aktif lagi untuk PA ini
+    if line_id:
+        pa_row = conn.execute(
+            "SELECT pa_id FROM etf_pa_lines WHERE id=?", (line_id,)
+        ).fetchone()
+        if pa_row:
+            pa_id = pa_row[0]
+            remaining_pa = conn.execute(
+                """SELECT COUNT(*) FROM payment_beasiswa pb
+                   JOIN etf_pa_lines el ON el.id = pb.etf_pa_line_id
+                   WHERE el.pa_id=? AND pb.company_id=?""",
+                (pa_id, company_id)
+            ).fetchone()[0]
+            if remaining_pa == 0:
+                from datetime import datetime as _dt
+                conn.execute(
+                    "UPDATE etf_pa SET status='draft', updated_at=? WHERE id=? AND company_id=?",
+                    (_dt.now().isoformat(timespec="seconds"), pa_id, company_id)
+                )
+
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Baris payment dihapus."}
+
+
 def get_payment(company_id: int, siswa_code: str = "", status: str = "") -> list:
     sql    = ("SELECT pb.*, s.nama FROM payment_beasiswa pb "
               "LEFT JOIN siswa s ON s.company_id=pb.company_id AND s.code=pb.siswa_code "

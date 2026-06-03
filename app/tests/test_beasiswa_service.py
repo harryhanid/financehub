@@ -10,6 +10,7 @@ from modules.beasiswa.service import (
     add_budget_batch, add_payment_batch, get_rekap, get_sisa_budget,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
     add_payment_multi, get_budget_list, get_payment_list,
+    delete_payment_beasiswa,
 )
 
 COMPANY_ID = 2  # ETF
@@ -518,3 +519,32 @@ def test_get_rekap_filter_jenjang_angkatan_combined():
     # No match S1 + 2025 → empty
     rows_none = get_rekap(COMPANY_ID, jenjang="S1", angkatan="2025")
     assert rows_none == []
+
+
+def test_delete_payment_juga_hapus_rekam_medis():
+    """Hapus payment_beasiswa By Medical → rekam_medis ikut terhapus."""
+    _add_siswa_b()
+    rows = [{
+        "siswa_code": "1250001", "cat1": "By Medical", "cat2": "Rawat Inap",
+        "amount": 3200000, "tgl_pengajuan": "", "tgl_receive": "", "tgl_pa": "", "tgl_final": "",
+        "etf_pa_line_id": None,
+        "rekam_medis": {
+            "kelas": "VIP", "rumah_sakit": "RS ABC",
+            "diagnosa": "Flu", "spesialisasi": "General Practionist", "catatan": "",
+        },
+    }]
+    add_payment_multi(COMPANY_ID, "ETF", "2026-06-03", "AGRI", "PT ABC", rows)
+    conn = get_conn()
+    pb = conn.execute("SELECT id FROM payment_beasiswa WHERE company_id=?", (COMPANY_ID,)).fetchone()
+    pay_id = pb["id"]
+    rm_before = conn.execute("SELECT id FROM rekam_medis WHERE payment_id=?", (pay_id,)).fetchone()
+    assert rm_before is not None
+    conn.close()
+
+    result = delete_payment_beasiswa(pay_id, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    rm_after = conn.execute("SELECT id FROM rekam_medis WHERE payment_id=?", (pay_id,)).fetchone()
+    assert rm_after is None
+    conn.close()
