@@ -1993,7 +1993,42 @@ async function ipaySave() {
   const allTrs=[...document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]")];
   const over=allTrs.filter(tr=>{const amt=parseFloat(tr._amtInp?.value)||0;if(amt<=0)return false;const cat1=tr._cat1Select?.value;if(!cat1||!tr._sisaBudget||!Object.keys(tr._sisaBudget).length)return false;const sisa=tr._sisaBudget[cat1];return sisa!==undefined&&amt>sisa;});
   if (over.length) { showToast(`${over.length} baris melebihi sisa budget.`,"error"); return; }
-  const rows=allTrs.map(tr=>({siswa_code:tr.dataset.siswaCode||"",cat1:tr._cat1Select.value,cat2:tr._cat2Drop._hid.value,amount:parseFloat(tr._amtInp.value)||0,tgl_pengajuan:tr._tgls[0].value,tgl_receive:tr._tgls[1].value,tgl_pa:tr._tgls[2].value,tgl_final:tr._tgls[3].value,etf_pa_line_id:tr._hidEtfLineId?.value?parseInt(tr._hidEtfLineId.value):null})).filter(r=>r.amount>0);
+  const incompleteMedis = allTrs.filter(tr => {
+    const cat1 = tr._cat1Select?.value;
+    const cat2 = tr._cat2Drop?._hid?.value;
+    const amt  = parseFloat(tr._amtInp?.value) || 0;
+    return amt > 0 && _isMedical(cat1, cat2) && !tr._medisComplete();
+  });
+  if (incompleteMedis.length) {
+    incompleteMedis.forEach(tr => {
+      if (tr._medisRow) {
+        tr._medisRow.style.display = "";
+        tr._medisBtnToggle.textContent = "▲";
+      }
+      if (tr._medisWarn) tr._medisWarn.style.display = "block";
+    });
+    showToast(`${incompleteMedis.length} row By Medical belum mengisi Data Medis.`, "error");
+    return;
+  }
+  const rows=allTrs.map(tr => {
+    const cat1 = tr._cat1Select.value;
+    const cat2 = tr._cat2Drop._hid.value;
+    const row = {
+      siswa_code:     tr.dataset.siswaCode||"",
+      cat1,
+      cat2,
+      amount:         parseFloat(tr._amtInp.value)||0,
+      tgl_pengajuan:  tr._tgls[0].value,
+      tgl_receive:    tr._tgls[1].value,
+      tgl_pa:         tr._tgls[2].value,
+      tgl_final:      tr._tgls[3].value,
+      etf_pa_line_id: tr._hidEtfLineId?.value?parseInt(tr._hidEtfLineId.value):null,
+    };
+    if (_isMedical(cat1, cat2)) {
+      row.rekam_medis = tr._getMedisData();
+    }
+    return row;
+  }).filter(r=>r.amount>0);
   if (!rows.length) { showToast("Minimal 1 baris dengan amount > 0.","error"); return; }
   if (rows.some(r=>!r.siswa_code)) { showToast("Semua baris harus memilih siswa.","error"); return; }
   const d=await(await apiFetch("/beasiswa/payment/tambah-multi",{method:"POST",body:JSON.stringify({tanggal,pillar,perusahaan,pam,rows})})).json();
