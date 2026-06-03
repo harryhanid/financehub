@@ -363,7 +363,7 @@ def migrate_db():
     )
     conn.commit()
 
-    # etf_pa + etf_pa_lines tables
+    # etf_pa table
     try:
         conn.execute(
             """CREATE TABLE IF NOT EXISTS etf_pa (
@@ -386,6 +386,12 @@ def migrate_db():
                 created_at               TEXT NOT NULL,
                 updated_at               TEXT)"""
         )
+        conn.commit()
+    except Exception:
+        pass
+
+    # etf_pa_lines table
+    try:
         conn.execute(
             """CREATE TABLE IF NOT EXISTS etf_pa_lines (
                 id                   INTEGER PRIMARY KEY AUTOINCREMENT,
