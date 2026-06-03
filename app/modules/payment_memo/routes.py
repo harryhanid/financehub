@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, send_file
 from flask_jwt_extended import get_jwt
-from auth.middleware import jwt_html_required, role_required
+from auth.middleware import jwt_html_required
 from modules.payment_memo.service import (
     get_draft_payments, create_memo, get_memo_list, get_memo_detail,
     update_memo_status, export_memo_pdf,
@@ -11,6 +11,7 @@ from modules.payment_memo.service import (
     get_draft_payment_detail, update_draft_and_linked,
     delete_payment_beasiswa, cancel_pam_record,
     get_days_of_pam, get_days_of_pam_candidates, bulk_update_dates,
+    set_memo_tanggal_bayar,
 )
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
@@ -57,14 +58,14 @@ def index():
 
 
 @bp.route("/drafts")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def list_drafts():
     rows = get_draft_payments(session.get("company_id"))
     return jsonify({"ok": True, "rows": rows})
 
 
 @bp.route("/create", methods=["POST"])
-@role_required("verificator")
+@jwt_html_required
 def create():
     data         = request.get_json(force=True)
     company_id   = session.get("company_id")
@@ -87,7 +88,7 @@ def create():
 
 
 @bp.route("/<int:memo_id>")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def memo_detail_api(memo_id):
     memo = get_memo_detail(memo_id, session.get("company_id"))
     if not memo:
@@ -96,7 +97,7 @@ def memo_detail_api(memo_id):
 
 
 @bp.route("/<int:memo_id>/status", methods=["POST"])
-@role_required("verificator", "releaser")
+@jwt_html_required
 def update_status(memo_id):
     data       = request.get_json(force=True)
     new_status = data.get("status", "")
@@ -109,7 +110,7 @@ def update_status(memo_id):
 
 
 @bp.route("/<int:memo_id>/export/pdf")
-@role_required("verificator", "releaser")
+@jwt_html_required
 def export_pdf(memo_id):
     company_id   = session.get("company_id")
     company_name = session.get("company_name", "")
@@ -126,14 +127,14 @@ def export_pdf(memo_id):
 
 
 @bp.route("/coa")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def list_coa():
     # COA is a global lookup — same chart of accounts across all companies
     return jsonify({"ok": True, "coa": get_coa_list()})
 
 
 @bp.route("/pam")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def list_pam():
     company_id = session.get("company_id")
     if not company_id:
@@ -148,7 +149,7 @@ def list_pam():
 
 
 @bp.route("/pam/<int:pam_id>/status", methods=["POST"])
-@role_required("verificator", "releaser")
+@jwt_html_required
 def update_pam_status_route(pam_id):
     data       = request.get_json(force=True) or {}
     new_status = (data.get("status") or "").strip()
@@ -159,7 +160,7 @@ def update_pam_status_route(pam_id):
 
 
 @bp.route("/pam/<int:pam_id>/detail")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def get_pam_detail_route(pam_id):
     company_id = session.get("company_id", 0)
     detail = get_pam_detail(pam_id, company_id)
@@ -171,7 +172,7 @@ def get_pam_detail_route(pam_id):
 
 
 @bp.route("/pam/<int:pam_id>/edit", methods=["POST"])
-@role_required("verificator", "releaser")
+@jwt_html_required
 def update_pam_record_route(pam_id):
     data     = request.get_json(force=True) or {}
     pam_data = data.get("pam", {})
@@ -181,7 +182,7 @@ def update_pam_record_route(pam_id):
 
 
 @bp.route("/drafts/<int:payment_id>")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def get_draft_detail_route(payment_id):
     detail = get_draft_payment_detail(payment_id, session.get("company_id", 0))
     if not detail:
@@ -190,7 +191,7 @@ def get_draft_detail_route(payment_id):
 
 
 @bp.route("/drafts/<int:payment_id>/edit", methods=["POST"])
-@role_required("verificator", "releaser")
+@jwt_html_required
 def update_draft_route(payment_id):
     data     = request.get_json(force=True) or {}
     pb_data  = data.get("payment", {})
@@ -202,14 +203,14 @@ def update_draft_route(payment_id):
 
 
 @bp.route("/drafts/<int:payment_id>/delete", methods=["POST"])
-@role_required("verificator", "releaser")
+@jwt_html_required
 def delete_draft_route(payment_id):
     result = delete_payment_beasiswa(payment_id, session.get("company_id", 0))
     return jsonify(result)
 
 
 @bp.route("/pam/<int:pam_id>/export/pdf")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def export_pam_pdf_route(pam_id):
     company_id    = session.get("company_id")
     approved_by_1 = request.args.get("approved_by_1", "").strip()
@@ -229,7 +230,7 @@ def export_pam_pdf_route(pam_id):
 
 
 @bp.route("/pam/<int:pam_id>/export/excel")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def export_pam_excel_route(pam_id):
     company_id    = session.get("company_id")
     approved_by_1 = request.args.get("approved_by_1", "").strip()
@@ -249,7 +250,7 @@ def export_pam_excel_route(pam_id):
 
 
 @bp.route("/days-of-pam/bulk-update", methods=["POST"])
-@role_required("verificator", "releaser")
+@jwt_html_required
 def days_of_pam_bulk_update():
     company_id = session.get("company_id")
     if not company_id:
@@ -264,7 +265,7 @@ def days_of_pam_bulk_update():
 
 
 @bp.route("/days-of-pam/candidates")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def days_of_pam_candidates_route():
     company_id = session.get("company_id")
     if not company_id:
@@ -273,7 +274,7 @@ def days_of_pam_candidates_route():
 
 
 @bp.route("/days-of-pam/search")
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def days_of_pam_search_route():
     company_id = session.get("company_id")
     if not company_id:
@@ -291,14 +292,14 @@ def days_of_pam_search_route():
 
 
 @bp.route("/pam/<int:pam_id>/cancel", methods=["POST"])
-@role_required("verificator", "releaser")
+@jwt_html_required
 def cancel_pam_route(pam_id):
     result = cancel_pam_record(pam_id, session.get("company_id", 0))
     return jsonify(result)
 
 
 @bp.route("/pam/<int:pam_id>/gl-account", methods=["POST"])
-@role_required("verificator", "releaser")
+@jwt_html_required
 def update_gl_account(pam_id):
     data       = request.get_json(force=True) or {}
     gl_account = (data.get("gl_account") or "").strip()
@@ -309,7 +310,7 @@ def update_gl_account(pam_id):
 
 
 @bp.route("/pam/<int:pam_id>/export/pdf-custom", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def export_pam_pdf_custom_route(pam_id):
     data       = request.get_json(force=True) or {}
     company_id = session.get("company_id", 0)
@@ -329,7 +330,7 @@ def export_pam_pdf_custom_route(pam_id):
 
 
 @bp.route("/pam/<int:pam_id>/export/excel-custom", methods=["POST"])
-@role_required("requester", "verificator", "releaser")
+@jwt_html_required
 def export_pam_excel_custom_route(pam_id):
     data       = request.get_json(force=True) or {}
     company_id = session.get("company_id", 0)
@@ -346,3 +347,15 @@ def export_pam_excel_custom_route(pam_id):
         download_name=fname,
         as_attachment=True,
     )
+
+
+@bp.route("/<int:memo_id>/tanggal-bayar", methods=["POST"])
+@jwt_html_required
+def memo_tanggal_bayar(memo_id):
+    company_id = session.get("company_id")
+    data = request.get_json(force=True) or {}
+    return jsonify(set_memo_tanggal_bayar(
+        memo_id,
+        data.get("tanggal_bayar", ""),
+        company_id,
+    ))

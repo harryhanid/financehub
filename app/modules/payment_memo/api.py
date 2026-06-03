@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 import config
-from auth.middleware import api_role_required
+from auth.middleware import jwt_html_required
 from modules.payment_memo.service import (
     get_draft_payments,
     get_memo_list,
@@ -59,7 +59,7 @@ def api_list_memo():
 
 @memo_api.post("/payment-memo")
 @jwt_required(locations=["headers"])
-@api_role_required("verificator")
+@jwt_html_required
 def api_create_memo():
     body = request.get_json(force=True) or {}
     code = body.get("company", "")
