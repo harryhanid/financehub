@@ -444,7 +444,7 @@ def migrate_db():
             """CREATE TABLE IF NOT EXISTS rekam_medis (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 company_id INTEGER NOT NULL,
-                payment_id INTEGER NOT NULL,
+                payment_id INTEGER NOT NULL REFERENCES payment_beasiswa(id),
                 siswa_code TEXT NOT NULL,
                 kelas TEXT NOT NULL,
                 rumah_sakit TEXT NOT NULL,
