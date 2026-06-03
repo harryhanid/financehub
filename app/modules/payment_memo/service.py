@@ -116,46 +116,87 @@ def get_memo_detail(memo_id: int, company_id: int) -> dict | None:
 
 
 def update_memo_status(memo_id: int, new_status: str, by_user: str, company_id: int = 0) -> dict:
-    allowed = {"draft", "submitted", "approved", "paid"}
+    allowed = {"draft", "on_process", "complete"}
     if new_status not in allowed:
         return {"ok": False, "pesan": f"Status '{new_status}' tidak valid."}
+
     conn = get_conn()
-    memo = conn.execute(
-        "SELECT id FROM payment_memo WHERE id=? AND company_id=?",
-        (memo_id, company_id)
+    row = conn.execute(
+        "SELECT id FROM payment_memo WHERE id=? AND (? = 0 OR company_id=?)",
+        (memo_id, company_id, company_id)
     ).fetchone()
-    if not memo:
+    if not row:
         conn.close()
         return {"ok": False, "pesan": "Memo tidak ditemukan."}
-    now  = _ts()
-    if new_status == "approved":
+
+    now = _ts()
+    conn.execute(
+        "UPDATE payment_memo SET status=?, updated_at=? WHERE id=?",
+        (new_status, now, memo_id)
+    )
+
+    if new_status == "complete":
         conn.execute(
-            "UPDATE payment_memo SET status=?, approved_by=?, approved_at=?, updated_at=? WHERE id=? AND company_id=?",
-            (new_status, by_user, now, now, memo_id, company_id)
-        )
-    elif new_status == "paid":
-        conn.execute(
-            "UPDATE payment_memo SET status=?, updated_at=? WHERE id=? AND company_id=?",
-            (new_status, now, memo_id, company_id)
-        )
-        items = conn.execute(
-            "SELECT source_id, source_module FROM payment_memo_items WHERE memo_id=?",
+            "UPDATE payment_beasiswa SET status='paid' WHERE memo_id=?",
             (memo_id,)
-        ).fetchall()
-        for item in items:
-            if item["source_module"] == "beasiswa":
-                conn.execute(
-                    "UPDATE payment_beasiswa SET status='paid' WHERE id=?",
-                    (item["source_id"],)
-                )
-    else:
-        conn.execute(
-            "UPDATE payment_memo SET status=?, updated_at=? WHERE id=? AND company_id=?",
-            (new_status, now, memo_id, company_id)
         )
+
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": f"Status memo diubah ke '{new_status}'."}
+
+
+def set_memo_tanggal_bayar(memo_id: int, tanggal_bayar: str, company_id: int) -> dict:
+    """
+    Set tanggal_bayar di payment_memo → status complete,
+    cascade ke etf_pa: tanggal_bayar + status=complete.
+    """
+    if not tanggal_bayar:
+        return {"ok": False, "pesan": "Tanggal bayar wajib diisi."}
+
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id FROM payment_memo WHERE id=? AND company_id=?",
+        (memo_id, company_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Memo tidak ditemukan."}
+
+    now = _ts()
+
+    # 1. Update payment_memo
+    conn.execute(
+        "UPDATE payment_memo SET tanggal_bayar=?, status='complete', updated_at=? WHERE id=?",
+        (tanggal_bayar, now, memo_id)
+    )
+
+    # 2. Update payment_beasiswa status
+    conn.execute(
+        "UPDATE payment_beasiswa SET status='paid' WHERE memo_id=?",
+        (memo_id,)
+    )
+
+    # 3. Cascade ke etf_pa
+    lines = conn.execute(
+        "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa WHERE memo_id=? AND etf_pa_line_id IS NOT NULL",
+        (memo_id,)
+    ).fetchall()
+    line_ids = [r[0] for r in lines]
+
+    if line_ids:
+        ph = ",".join("?" * len(line_ids))
+        conn.execute(
+            f"""UPDATE etf_pa SET tanggal_bayar=?, status='complete', updated_at=?
+                WHERE id IN (
+                    SELECT DISTINCT pa_id FROM etf_pa_lines WHERE id IN ({ph})
+                ) AND company_id=?""",
+            [tanggal_bayar, now] + line_ids + [company_id]
+        )
+
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Tanggal bayar berhasil disimpan."}
 
 
 # ── PAM helpers ─────────────────────────────────────────────────────────────
