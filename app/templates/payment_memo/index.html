@@ -19,9 +19,11 @@
 <div data-tabs>
   <div class="tabs">
     <button class="tab-btn" data-tab="tab-draft-pay">Open PAM ({{ drafts|length }})</button>
-    <button class="tab-btn" data-tab="tab-input-payment" onclick="ipayReset()">Input PAM</button>
-    <button class="tab-btn" data-tab="tab-pam" onclick="loadPAM()">Rekap PAM</button>
-    <button class="tab-btn" data-tab="tab-days-of-pam" onclick="dopTabOpened()">Days of PAM</button>
+    <button class="tab-btn" data-tab="tab-input-payment" onclick="ipayReset()">Input</button>
+    <button class="tab-btn" data-tab="tab-pam" onclick="loadPAM()">AGRI</button>
+    <button class="tab-btn" data-tab="tab-fiori" onclick="loadFIORI()">APP</button>
+    <button class="tab-btn" data-tab="tab-sml" onclick="loadSML()">SML</button>
+    <button class="tab-btn" data-tab="tab-days-of-pam" onclick="dopTabOpened()">SLA</button>
     <button class="tab-btn" data-tab="tab-draft-memo">Print Memo</button>
   </div>
 
@@ -85,6 +87,18 @@
 
   <!-- TAB INPUT PAYMENT -->
   <div class="tab-panel" id="tab-input-payment">
+    {# ── sub-tab: Beasiswa | AGRI ── #}
+    <div style="display:flex;gap:0;margin-bottom:1rem;border:1px solid var(--border);border-radius:6px;overflow:hidden;width:fit-content">
+      <button id="ipay-sub-beasiswa" onclick="ipaySubTab('beasiswa')"
+              style="padding:.3rem .9rem;font-size:.8rem;font-weight:600;border:none;cursor:pointer;
+                     background:var(--primary,#3b82f6);color:#fff;border-right:1px solid var(--border)">Beasiswa</button>
+      <button id="ipay-sub-agri" onclick="ipaySubTab('agri')"
+              style="padding:.3rem .9rem;font-size:.8rem;font-weight:600;border:none;cursor:pointer;
+                     background:var(--bg-muted,#f1f3f5);color:var(--text-muted)">AGRI</button>
+    </div>
+
+    {# ── Panel Beasiswa (existing) ── #}
+    <div id="ipay-panel-beasiswa">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem;max-width:800px">
       <div class="form-group">
         <label>Tanggal</label>
@@ -148,27 +162,85 @@
       <button class="btn btn-secondary btn-sm" onclick="ipayAddRow()">+ Tambah Baris</button>
       <button class="btn btn-primary" onclick="ipaySave()">💾 Simpan Payment</button>
     </div>
+    </div>{# end ipay-panel-beasiswa #}
+
+    {# ── Panel AGRI ── #}
+    <div id="ipay-panel-agri" style="display:none">
+      <div style="display:grid;grid-template-columns:auto auto auto 1fr;gap:.75rem;align-items:end;margin-bottom:1rem;max-width:700px">
+        <div class="form-group" style="margin:0">
+          <label>Tanggal PAM</label>
+          <input type="date" id="agri-pam-date">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Keterangan</label>
+          <input type="text" id="agri-pam-ket" placeholder="Opsional" style="min-width:220px">
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="agriLoadOpen()" style="align-self:flex-end">
+          🔄 Muat PA Open
+        </button>
+        <span id="agri-count" style="font-size:.78rem;color:var(--text-muted);align-self:flex-end;padding-bottom:.15rem"></span>
+      </div>
+
+      {# checklist select all + counter #}
+      <div id="agri-bulk-bar" style="display:none;align-items:center;gap:.75rem;margin-bottom:.5rem;padding:.4rem .75rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:.82rem">
+        <span id="agri-sel-count" style="font-weight:600;color:#1d4ed8"></span>
+        <button class="btn btn-secondary btn-sm" onclick="agriClearSel()">✕ Batalkan</button>
+      </div>
+
+      <div style="overflow-x:auto">
+        <table id="agri-pa-table" style="width:100%;border-collapse:collapse;font-size:.8rem">
+          <thead class="thead-primary">
+            <tr>
+              <th style="padding:7px 8px;width:32px"><input type="checkbox" id="agri-chk-all" onchange="agriToggleAll(this)"></th>
+              <th style="padding:7px 8px">No. PA</th>
+              <th style="padding:7px 8px">Nama Siswa</th>
+              <th style="padding:7px 8px">Instansi</th>
+              <th style="padding:7px 8px">Jenjang</th>
+              <th style="padding:7px 8px">Jenis Bayar</th>
+              <th style="padding:7px 8px">Semester</th>
+              <th style="padding:7px 8px;text-align:right">Jumlah (Rp)</th>
+              <th style="padding:7px 8px">Tgl PA</th>
+            </tr>
+          </thead>
+          <tbody id="agri-pa-tbody">
+            <tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-muted)">Klik "Muat PA Open" untuk memuat data.</td></tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="7" style="text-align:right;padding:.5rem .75rem;font-weight:600;font-size:.85rem">Total Terpilih:</td>
+              <td id="agri-total-amt" style="text-align:right;padding:.5rem .75rem;font-weight:700;color:#1a56db">Rp 0</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
+        <button class="btn btn-primary" onclick="agriSavePAM()">💾 Buat PAM AGRI</button>
+      </div>
+    </div>{# end ipay-panel-agri #}
+
   </div>
 
   <!-- PAM Records Tab -->
   <div class="tab-panel" id="tab-pam">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
       <input id="pam-search" type="text" placeholder="Cari PAM No / PT / Siswa..."
-             style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:240px;"
+             style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:200px;"
              oninput="loadPAMDebounced()">
       <select id="pam-filter-bulan" onchange="loadPAMDebounced()"
-              style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
-        <option value="">-- Semua Bulan --</option>
-        <option value="01">Januari</option><option value="02">Februari</option>
-        <option value="03">Maret</option><option value="04">April</option>
-        <option value="05">Mei</option><option value="06">Juni</option>
-        <option value="07">Juli</option><option value="08">Agustus</option>
-        <option value="09">September</option><option value="10">Oktober</option>
-        <option value="11">November</option><option value="12">Desember</option>
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px">
+        <option value="">Bulan</option>
+        <option value="01">Jan</option><option value="02">Feb</option>
+        <option value="03">Mar</option><option value="04">Apr</option>
+        <option value="05">Mei</option><option value="06">Jun</option>
+        <option value="07">Jul</option><option value="08">Agu</option>
+        <option value="09">Sep</option><option value="10">Okt</option>
+        <option value="11">Nov</option><option value="12">Des</option>
       </select>
       <select id="pam-filter-tahun" onchange="loadPAMDebounced()"
-              style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
-        <option value="">-- Semua Tahun --</option>
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:76px">
+        <option value="">Tahun</option>
         <option value="2023">2023</option><option value="2024">2024</option>
         <option value="2025">2025</option><option value="2026">2026</option>
         <option value="2027">2027</option>
@@ -330,6 +402,156 @@
     </div>
   </div>
 
+  <!-- APP (FIORI) Tab -->
+  <div class="tab-panel" id="tab-fiori">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+      <input id="fiori-search" type="text" placeholder="Cari NO PA / Vendor / Keterangan..."
+             style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
+             oninput="loadFIORIDebounced()">
+      <select id="fiori-filter-bulan" onchange="loadFIORIDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px">
+        <option value="">Bulan</option>
+        <option value="01">Jan</option><option value="02">Feb</option>
+        <option value="03">Mar</option><option value="04">Apr</option>
+        <option value="05">Mei</option><option value="06">Jun</option>
+        <option value="07">Jul</option><option value="08">Agu</option>
+        <option value="09">Sep</option><option value="10">Okt</option>
+        <option value="11">Nov</option><option value="12">Des</option>
+      </select>
+      <select id="fiori-filter-tahun" onchange="loadFIORIDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:76px">
+        <option value="">Tahun</option>
+        <option value="2024">2024</option><option value="2025">2025</option>
+        <option value="2026">2026</option><option value="2027">2027</option>
+      </select>
+      <button id="fiori-update-btn" class="btn btn-primary btn-sm" onclick="fioriBulkUpdate()" disabled style="opacity:.5">Update Terpilih (0)</button>
+      <button class="btn btn-secondary btn-sm" onclick="fioriClearDates()">Reset Tanggal</button>
+      <span id="fiori-count" style="font-size:11px;color:#6b7280"></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead class="thead-primary">
+          <tr>
+            <th style="padding:7px 6px;text-align:center;width:30px">
+              <input type="checkbox" id="fiori-select-all" onchange="fioriToggleSelectAll(this)">
+            </th>
+            <th style="padding:7px 8px;white-space:nowrap">NO PA</th>
+            <th style="padding:7px 8px;">Category</th>
+            <th style="padding:7px 8px;min-width:200px;">Keterangan</th>
+            <th style="padding:7px 8px;">Cat 1</th>
+            <th style="padding:7px 8px;min-width:180px;">Nama Vendor</th>
+            <th style="padding:7px 8px;text-align:right;">Total</th>
+            <th style="padding:7px 8px;white-space:nowrap">Terima Doc</th>
+            <th style="padding:7px 8px;white-space:nowrap">Input Aspiro</th>
+            <th style="padding:7px 8px;white-space:nowrap">Verifikasi Tax</th>
+            <th style="padding:7px 8px;white-space:nowrap">Approval 1</th>
+            <th style="padding:7px 8px;white-space:nowrap">Approval 2</th>
+            <th style="padding:7px 8px;white-space:nowrap">Kirim Aspiro</th>
+            <th style="padding:7px 8px;white-space:nowrap">Paid</th>
+            <th style="padding:7px 8px;">Status</th>
+            <th style="padding:7px 8px;">Aksi</th>
+          </tr>
+          <tr class="thead-subfilter">
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"><input id="fiori-d-terima" type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="fiori-d-input"  type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="fiori-d-verif"  type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="fiori-d-app1"   type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="fiori-d-app2"   type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="fiori-d-kirim"  type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="fiori-d-paid"   type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+          </tr>
+        </thead>
+        <tbody id="fiori-tbody">
+          <tr><td colspan="16" style="text-align:center;padding:20px;color:#6b7280;">Memuat data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SML Tab -->
+  <div class="tab-panel" id="tab-sml">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <input id="sml-search" type="text" placeholder="Cari NO PA / Vendor / Keterangan..."
+             style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
+             oninput="loadSMLDebounced()">
+      <select id="sml-filter-bulan" onchange="loadSMLDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px">
+        <option value="">Bulan</option>
+        <option value="01">Jan</option><option value="02">Feb</option>
+        <option value="03">Mar</option><option value="04">Apr</option>
+        <option value="05">Mei</option><option value="06">Jun</option>
+        <option value="07">Jul</option><option value="08">Agu</option>
+        <option value="09">Sep</option><option value="10">Okt</option>
+        <option value="11">Nov</option><option value="12">Des</option>
+      </select>
+      <select id="sml-filter-tahun" onchange="loadSMLDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:76px">
+        <option value="">Tahun</option>
+        <option value="2024">2024</option><option value="2025">2025</option>
+        <option value="2026">2026</option><option value="2027">2027</option>
+      </select>
+      <button id="sml-update-btn" class="btn btn-primary btn-sm" onclick="smlBulkUpdate()" disabled style="opacity:.5">Update Terpilih (0)</button>
+      <button class="btn btn-secondary btn-sm" onclick="smlClearDates()">Reset Tanggal</button>
+      <span id="sml-count" style="font-size:11px;color:#6b7280"></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead class="thead-primary">
+          <tr>
+            <th style="padding:7px 6px;text-align:center;width:30px">
+              <input type="checkbox" id="sml-select-all" onchange="smlToggleSelectAll(this)">
+            </th>
+            <th style="padding:7px 8px;white-space:nowrap">NO PA</th>
+            <th style="padding:7px 8px;">Category</th>
+            <th style="padding:7px 8px;min-width:200px;">Keterangan</th>
+            <th style="padding:7px 8px;">Cat 1</th>
+            <th style="padding:7px 8px;min-width:180px;">Nama Vendor</th>
+            <th style="padding:7px 8px;text-align:right;">Total</th>
+            <th style="padding:7px 8px;white-space:nowrap">Terima Doc</th>
+            <th style="padding:7px 8px;white-space:nowrap">Input Aspiro</th>
+            <th style="padding:7px 8px;white-space:nowrap">Verifikasi Tax</th>
+            <th style="padding:7px 8px;white-space:nowrap">Approval 1</th>
+            <th style="padding:7px 8px;white-space:nowrap">Approval 2</th>
+            <th style="padding:7px 8px;white-space:nowrap">Kirim Aspiro</th>
+            <th style="padding:7px 8px;white-space:nowrap">Paid</th>
+            <th style="padding:7px 8px;">Status</th>
+            <th style="padding:7px 8px;">Aksi</th>
+          </tr>
+          <tr class="thead-subfilter">
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"><input id="sml-d-terima" type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="sml-d-input"  type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="sml-d-verif"  type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="sml-d-app1"   type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="sml-d-app2"   type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="sml-d-kirim"  type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"><input id="sml-d-paid"   type="date" style="width:100%;box-sizing:border-box;padding:2px 3px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
+            <td style="padding:3px 4px"></td>
+            <td style="padding:3px 4px"></td>
+          </tr>
+        </thead>
+        <tbody id="sml-tbody">
+          <tr><td colspan="16" style="text-align:center;padding:20px;color:#6b7280;">Belum ada data SML.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Format Memo Tab -->
   <div class="tab-panel" id="tab-draft-memo">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
@@ -371,6 +593,75 @@
       <button class="modal-close" onclick="closeModal('modal-memo-detail')">x</button>
     </div>
     <div id="memo-detail-body">Loading...</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-fiori">
+  <div class="modal" style="width:min(580px,95vw);max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <span class="modal-title" id="edit-fiori-title">Edit APP Record</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-fiori')">x</button>
+    </div>
+    <input type="hidden" id="edit-fiori-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+      <div class="form-group" style="grid-column:1/-1">
+        <label>NO PA</label>
+        <input type="text" id="edit-fiori-no-pa">
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <input type="text" id="edit-fiori-category">
+      </div>
+      <div class="form-group">
+        <label>Categori 1</label>
+        <input type="text" id="edit-fiori-categori1">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Keterangan</label>
+        <input type="text" id="edit-fiori-keterangan">
+      </div>
+      <div class="form-group">
+        <label>Nomor Vendor</label>
+        <input type="text" id="edit-fiori-nomor-vendor">
+      </div>
+      <div class="form-group">
+        <label>Nama Vendor</label>
+        <input type="text" id="edit-fiori-nama-vendor">
+      </div>
+      <div class="form-group">
+        <label>Mata Uang</label>
+        <input type="text" id="edit-fiori-mata-uang">
+      </div>
+      <div class="form-group">
+        <label>DPP</label>
+        <input type="number" id="edit-fiori-dpp" min="0">
+      </div>
+      <div class="form-group">
+        <label>PPN</label>
+        <input type="number" id="edit-fiori-ppn" min="0">
+      </div>
+      <div class="form-group">
+        <label>Total</label>
+        <input type="number" id="edit-fiori-total" min="0">
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border);margin:.5rem 0 .75rem;padding-top:.75rem">
+      <div style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">Tanggal Proses</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group"><label>Terima Document</label><input type="date" id="edit-fiori-terima-doc"></div>
+        <div class="form-group"><label>Input Aspiro</label><input type="date" id="edit-fiori-input-aspiro"></div>
+        <div class="form-group"><label>Verifikasi Tax</label><input type="date" id="edit-fiori-verifikasi-tax"></div>
+        <div class="form-group"><label>Approval 1</label><input type="date" id="edit-fiori-approval1"></div>
+        <div class="form-group"><label>Approval 2</label><input type="date" id="edit-fiori-approval2"></div>
+        <div class="form-group"><label>Approval 3</label><input type="date" id="edit-fiori-approval3"></div>
+        <div class="form-group"><label>Kirim Aspiro</label><input type="date" id="edit-fiori-kirim-aspiro"></div>
+        <div class="form-group"><label>Paid</label><input type="date" id="edit-fiori-paid"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-fiori')">Batal</button>
+      <button class="btn btn-primary" onclick="submitEditFiori()">Simpan</button>
+    </div>
   </div>
 </div>
 
@@ -615,6 +906,327 @@ async function showMemoDetail(memoId) {
   openModal("modal-memo-detail");
 }
 
+// ── SML ───────────────────────────────────────────────────────────────────────
+const _smlSelected = new Set();
+let _smlDebounce;
+function loadSMLDebounced() { clearTimeout(_smlDebounce); _smlDebounce = setTimeout(loadSML, 300); }
+
+async function loadSML() {
+  const search = (document.getElementById('sml-search')?.value || '').trim();
+  const bulan  = (document.getElementById('sml-filter-bulan')?.value || '');
+  const tahun  = (document.getElementById('sml-filter-tahun')?.value || '');
+  const params = new URLSearchParams({ search, bulan, tahun });
+  const res    = await apiFetch('/payment-memo/sml?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  const tbody  = document.getElementById('sml-tbody');
+  const count  = document.getElementById('sml-count');
+  _smlSelected.clear();
+  smlUpdateBtn();
+  const sa = document.getElementById('sml-select-all');
+  if (sa) sa.checked = false;
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:#6b7280;">Belum ada data SML.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map((r, i) => {
+    const st = r.status || 'open';
+    const stCls = {open:'badge-gray', approved:'badge-green', paid:'badge-blue'}[st] || 'badge-gray';
+    let aksi = '';
+    if (st === 'open')
+      aksi += `<button class="btn btn-sm btn-success" onclick="smlUpdateStatus(${r.id},'approved')">Approve</button>`;
+    else if (st === 'approved')
+      aksi += `<button class="btn btn-sm btn-ghost" onclick="smlUpdateStatus(${r.id},'open')">Revert</button>`;
+    aksi += `<button class="btn btn-sm btn-danger" onclick="smlCancel(${r.id})">Cancel</button>`;
+    return `
+    <tr class="sml-row" data-id="${r.id}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+      <td style="padding:6px;text-align:center"><input type="checkbox" class="sml-cb" data-id="${r.id}" onchange="smlToggleCb(this)"></td>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;color:#1d4ed8;white-space:nowrap">${esc(r.no_pa)}</td>
+      <td style="padding:6px 8px">${esc(r.category || '-')}</td>
+      <td style="padding:6px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.categori_1 || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total)}</td>
+      <td style="padding:6px 8px">${esc(r.terima_document || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.input_aspiro || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.verifikasi_tax || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.approval_1 || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.approval_2 || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.kirim_aspiro || '-')}</td>
+      <td style="padding:6px 8px;font-weight:600;color:${r.paid ? '#16a34a' : '#6b7280'}">${esc(r.paid || '-')}</td>
+      <td style="padding:6px 8px"><span class="badge ${stCls}">${esc(st)}</span></td>
+      <td style="padding:6px 8px"><div style="display:flex;gap:4px">${aksi}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+function smlToggleCb(cb) {
+  const id = parseInt(cb.dataset.id, 10);
+  if (cb.checked) _smlSelected.add(id); else _smlSelected.delete(id);
+  smlUpdateBtn();
+}
+
+function smlToggleSelectAll(masterCb) {
+  document.querySelectorAll('#sml-tbody .sml-cb').forEach(cb => {
+    cb.checked = masterCb.checked;
+    const id = parseInt(cb.dataset.id, 10);
+    if (masterCb.checked) _smlSelected.add(id); else _smlSelected.delete(id);
+  });
+  smlUpdateBtn();
+}
+
+function smlUpdateBtn() {
+  const btn = document.getElementById('sml-update-btn');
+  if (!btn) return;
+  const n = _smlSelected.size;
+  btn.textContent = `Update Terpilih (${n})`;
+  btn.disabled    = n === 0;
+  btn.style.opacity = n === 0 ? '0.5' : '1';
+}
+
+function smlClearDates() {
+  ['sml-d-terima','sml-d-input','sml-d-verif',
+   'sml-d-app1','sml-d-app2','sml-d-kirim','sml-d-paid']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
+async function smlBulkUpdate() {
+  if (_smlSelected.size === 0) return;
+  const dates = {
+    terima_document: document.getElementById('sml-d-terima').value,
+    input_aspiro:    document.getElementById('sml-d-input').value,
+    verifikasi_tax:  document.getElementById('sml-d-verif').value,
+    approval_1:      document.getElementById('sml-d-app1').value,
+    approval_2:      document.getElementById('sml-d-app2').value,
+    kirim_aspiro:    document.getElementById('sml-d-kirim').value,
+    paid:            document.getElementById('sml-d-paid').value,
+  };
+  if (!Object.values(dates).some(v => v)) {
+    showToast('Isi minimal satu field tanggal.', 'error'); return;
+  }
+  const res = await apiFetch('/payment-memo/sml/bulk-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [..._smlSelected], dates })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) setTimeout(() => loadSML(), 600);
+}
+
+async function smlUpdateStatus(id, status) {
+  const label = {approved:'Approve', open:'Revert ke Open', paid:'Mark Paid'}[status] || status;
+  if (!confirm(`${label} record ini?`)) return;
+  const res = await apiFetch(`/payment-memo/sml/${id}/status`, {
+    method:'POST', body: JSON.stringify({status})
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadSML();
+}
+
+async function smlCancel(id) {
+  if (!confirm('Hapus record ini permanen?')) return;
+  const res = await apiFetch(`/payment-memo/sml/${id}/cancel`, {method:'POST'});
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadSML();
+}
+
+// ── FIORI (APP) ───────────────────────────────────────────────────────────────
+const _fioriSelected = new Set();
+let _fioriDebounce;
+function loadFIORIDebounced() { clearTimeout(_fioriDebounce); _fioriDebounce = setTimeout(loadFIORI, 300); }
+
+async function loadFIORI() {
+  const search = (document.getElementById('fiori-search')?.value || '').trim();
+  const bulan  = (document.getElementById('fiori-filter-bulan')?.value || '');
+  const tahun  = (document.getElementById('fiori-filter-tahun')?.value || '');
+  const params = new URLSearchParams({ search, bulan, tahun });
+  const res    = await apiFetch('/payment-memo/fiori?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  const tbody  = document.getElementById('fiori-tbody');
+  const count  = document.getElementById('fiori-count');
+  _fioriSelected.clear();
+  fioriUpdateBtn();
+  const sa = document.getElementById('fiori-select-all');
+  if (sa) sa.checked = false;
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:#6b7280;">Belum ada data APP.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map((r, i) => {
+    const st = r.status || 'open';
+    const stCls = {open:'badge-gray', approved:'badge-green', paid:'badge-blue'}[st] || 'badge-gray';
+    let aksi = '';
+    aksi += `<button class="btn btn-sm btn-primary" onclick="openEditFiori(${r.id})">Edit</button>`;
+    aksi += `<button class="btn btn-sm btn-danger" onclick="fioriCancel(${r.id})">Cancel</button>`;
+    return `
+    <tr class="fiori-row" data-id="${r.id}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+      <td style="padding:6px;text-align:center"><input type="checkbox" class="fiori-cb" data-id="${r.id}" onchange="fioriToggleCb(this)"></td>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;color:#1d4ed8;white-space:nowrap">${esc(r.no_pa)}</td>
+      <td style="padding:6px 8px">${esc(r.category || '-')}</td>
+      <td style="padding:6px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.categori_1 || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total)}</td>
+      <td style="padding:6px 8px">${esc(r.terima_document || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.input_aspiro || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.verifikasi_tax || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.approval_1 || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.approval_2 || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.kirim_aspiro || '-')}</td>
+      <td style="padding:6px 8px;font-weight:600;color:${r.paid ? '#16a34a' : '#6b7280'}">${esc(r.paid || '-')}</td>
+      <td style="padding:6px 8px"><span class="badge ${stCls}">${esc(st)}</span></td>
+      <td style="padding:6px 8px"><div style="display:flex;gap:4px">${aksi}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+async function openEditFiori(id) {
+  const res = await apiFetch(`/payment-memo/fiori/${id}/detail`);
+  if (!res) return;
+  const data = await res.json();
+  if (!data.ok) { showToast('Gagal memuat data.', 'error'); return; }
+  const r = data.data;
+  document.getElementById('edit-fiori-id').value          = r.id;
+  document.getElementById('edit-fiori-title').textContent = 'Edit APP — ' + r.no_pa;
+  document.getElementById('edit-fiori-no-pa').value       = r.no_pa || '';
+  document.getElementById('edit-fiori-category').value    = r.category || '';
+  document.getElementById('edit-fiori-categori1').value   = r.categori_1 || '';
+  document.getElementById('edit-fiori-keterangan').value  = r.keterangan || '';
+  document.getElementById('edit-fiori-nomor-vendor').value = r.nomor_vendor || '';
+  document.getElementById('edit-fiori-nama-vendor').value  = r.nama_vendor || '';
+  document.getElementById('edit-fiori-mata-uang').value   = r.mata_uang || 'IDR';
+  document.getElementById('edit-fiori-dpp').value         = r.dpp || 0;
+  document.getElementById('edit-fiori-ppn').value         = r.ppn || 0;
+  document.getElementById('edit-fiori-total').value       = r.total || 0;
+  document.getElementById('edit-fiori-terima-doc').value      = r.terima_document || '';
+  document.getElementById('edit-fiori-input-aspiro').value    = r.input_aspiro || '';
+  document.getElementById('edit-fiori-verifikasi-tax').value  = r.verifikasi_tax || '';
+  document.getElementById('edit-fiori-approval1').value       = r.approval_1 || '';
+  document.getElementById('edit-fiori-approval2').value       = r.approval_2 || '';
+  document.getElementById('edit-fiori-approval3').value       = r.approval_3 || '';
+  document.getElementById('edit-fiori-kirim-aspiro').value    = r.kirim_aspiro || '';
+  document.getElementById('edit-fiori-paid').value            = r.paid || '';
+  openModal('modal-edit-fiori');
+}
+
+async function submitEditFiori() {
+  const id = parseInt(document.getElementById('edit-fiori-id').value);
+  const payload = {
+    no_pa:        document.getElementById('edit-fiori-no-pa').value.trim(),
+    category:     document.getElementById('edit-fiori-category').value.trim(),
+    categori_1:   document.getElementById('edit-fiori-categori1').value.trim(),
+    keterangan:   document.getElementById('edit-fiori-keterangan').value.trim(),
+    nomor_vendor: document.getElementById('edit-fiori-nomor-vendor').value.trim(),
+    nama_vendor:  document.getElementById('edit-fiori-nama-vendor').value.trim(),
+    mata_uang:    document.getElementById('edit-fiori-mata-uang').value.trim() || 'IDR',
+    dpp:              parseFloat(document.getElementById('edit-fiori-dpp').value) || 0,
+    ppn:              parseFloat(document.getElementById('edit-fiori-ppn').value) || 0,
+    total:            parseFloat(document.getElementById('edit-fiori-total').value) || 0,
+    terima_document:  document.getElementById('edit-fiori-terima-doc').value || null,
+    input_aspiro:     document.getElementById('edit-fiori-input-aspiro').value || null,
+    verifikasi_tax:   document.getElementById('edit-fiori-verifikasi-tax').value || null,
+    approval_1:       document.getElementById('edit-fiori-approval1').value || null,
+    approval_2:       document.getElementById('edit-fiori-approval2').value || null,
+    approval_3:       document.getElementById('edit-fiori-approval3').value || null,
+    kirim_aspiro:     document.getElementById('edit-fiori-kirim-aspiro').value || null,
+    paid:             document.getElementById('edit-fiori-paid').value || null,
+  };
+  const res = await apiFetch(`/payment-memo/fiori/${id}/edit`, {
+    method: 'POST', body: JSON.stringify(payload)
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) { closeModal('modal-edit-fiori'); loadFIORI(); }
+}
+
+async function fioriUpdateStatus(id, status) {
+  const label = {approved:'Approve', open:'Revert ke Open', paid:'Mark Paid'}[status] || status;
+  if (!confirm(`${label} record ini?`)) return;
+  const res = await apiFetch(`/payment-memo/fiori/${id}/status`, {
+    method:'POST', body: JSON.stringify({status})
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadFIORI();
+}
+
+async function fioriCancel(id) {
+  if (!confirm('Hapus record ini permanen?')) return;
+  const res = await apiFetch(`/payment-memo/fiori/${id}/cancel`, {method:'POST'});
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadFIORI();
+}
+
+function fioriToggleCb(cb) {
+  const id = parseInt(cb.dataset.id, 10);
+  if (cb.checked) _fioriSelected.add(id); else _fioriSelected.delete(id);
+  fioriUpdateBtn();
+}
+
+function fioriToggleSelectAll(masterCb) {
+  document.querySelectorAll('#fiori-tbody .fiori-cb').forEach(cb => {
+    cb.checked = masterCb.checked;
+    const id = parseInt(cb.dataset.id, 10);
+    if (masterCb.checked) _fioriSelected.add(id); else _fioriSelected.delete(id);
+  });
+  fioriUpdateBtn();
+}
+
+function fioriUpdateBtn() {
+  const btn = document.getElementById('fiori-update-btn');
+  if (!btn) return;
+  const n = _fioriSelected.size;
+  btn.textContent = `Update Terpilih (${n})`;
+  btn.disabled    = n === 0;
+  btn.style.opacity = n === 0 ? '0.5' : '1';
+}
+
+function fioriClearDates() {
+  ['fiori-d-terima','fiori-d-input','fiori-d-verif',
+   'fiori-d-app1','fiori-d-app2','fiori-d-kirim','fiori-d-paid']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
+async function fioriBulkUpdate() {
+  if (_fioriSelected.size === 0) return;
+  const dates = {
+    terima_document: document.getElementById('fiori-d-terima').value,
+    input_aspiro:    document.getElementById('fiori-d-input').value,
+    verifikasi_tax:  document.getElementById('fiori-d-verif').value,
+    approval_1:      document.getElementById('fiori-d-app1').value,
+    approval_2:      document.getElementById('fiori-d-app2').value,
+    kirim_aspiro:    document.getElementById('fiori-d-kirim').value,
+    paid:            document.getElementById('fiori-d-paid').value,
+  };
+  if (!Object.values(dates).some(v => v)) {
+    showToast('Isi minimal satu field tanggal.', 'error'); return;
+  }
+  const res = await apiFetch('/payment-memo/fiori/bulk-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [..._fioriSelected], dates })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) setTimeout(() => loadFIORI(), 600);
+}
+
 // ── PAM Records ──────────────────────────────────────────────────────────────
 let _coaOptions = [];
 let _pamCache   = {};
@@ -674,9 +1286,146 @@ function _aksiCell(r) {
     btns += _btn('Revert', 'btn-ghost', `updatePAMStatus(${r.id},'draft')`);
   btns += _btn('Edit', 'btn-primary', `openEditPAM(${r.id})`);
   btns += `<a href="/payment-memo/pam/${r.id}/export/excel" class="btn btn-sm btn-success">Excel</a>`;
+  // AGRI PAM: Set Paid button dengan date picker inline
+  if (r.source === 'etf_agri' && r.status !== 'paid') {
+    btns += `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:4px">
+      <input type="date" id="paid-date-${r.id}"
+             style="font-size:.7rem;padding:1px 4px;border:1px solid #93c5fd;border-radius:3px;width:120px"
+             value="${new Date().toISOString().slice(0,10)}">
+      <button class="btn btn-sm" style="background:#10b981;color:#fff;border:none;padding:2px 7px;border-radius:3px;font-size:.7rem;cursor:pointer"
+              onclick="pamSetPaidAgri(${r.id})">Tgl Paid</button>
+    </span>`;
+  }
   btns += _btn('Cancel', 'btn-danger', `cancelPAM(${r.id})`);
   return `<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${btns}</div>`;
 }
+
+// ── PAM AGRI: Set Paid cascade ────────────────────────────────────────────────
+async function pamSetPaidAgri(pamId) {
+  const inp = document.getElementById('paid-date-' + pamId);
+  const tgl = inp ? inp.value : '';
+  if (!tgl) { showToast('Pilih tanggal paid.', 'error'); return; }
+  if (!confirm(`Set Tgl Paid ${tgl} untuk PAM ini? Akan cascade ke Payment Application AGRI.`)) return;
+  const res  = await apiFetch(`/payment-memo/pam/${pamId}/set-paid-agri`, {
+    method: 'POST', body: JSON.stringify({ tanggal_bayar: tgl })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadPAM();
+}
+
+// ── Input AGRI sub-tab ────────────────────────────────────────────────────────
+let _agriRows = [];
+let _agriSel  = new Set();
+
+function ipaySubTab(tab) {
+  const isBsw = tab === 'beasiswa';
+  document.getElementById('ipay-panel-beasiswa').style.display = isBsw ? '' : 'none';
+  document.getElementById('ipay-panel-agri').style.display     = isBsw ? 'none' : '';
+  document.getElementById('ipay-sub-beasiswa').style.background = isBsw ? 'var(--primary,#3b82f6)' : 'var(--bg-muted,#f1f3f5)';
+  document.getElementById('ipay-sub-beasiswa').style.color      = isBsw ? '#fff' : 'var(--text-muted)';
+  document.getElementById('ipay-sub-agri').style.background     = isBsw ? 'var(--bg-muted,#f1f3f5)' : 'var(--primary,#3b82f6)';
+  document.getElementById('ipay-sub-agri').style.color          = isBsw ? 'var(--text-muted)' : '#fff';
+  if (!isBsw && !_agriRows.length) agriLoadOpen();
+}
+
+async function agriLoadOpen() {
+  const res  = await apiFetch('/payment-memo/agri-pa-open');
+  if (!res) return;
+  const data = await res.json();
+  _agriRows = data.rows || [];
+  _agriSel.clear();
+  agriRenderTable();
+  document.getElementById('agri-count').textContent = `${_agriRows.length} baris open`;
+}
+
+function agriRenderTable() {
+  const tbody = document.getElementById('agri-pa-tbody');
+  if (!_agriRows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-muted)">Tidak ada PA dengan status Open.</td></tr>';
+    agriUpdateTotal();
+    return;
+  }
+  tbody.innerHTML = _agriRows.map((r, i) => `
+    <tr style="background:${i%2===0?'#fff':'#f8fafc'}">
+      <td style="padding:5px 8px"><input type="checkbox" class="agri-chk" value="${r.pa_id}"
+          ${_agriSel.has(r.pa_id)?'checked':''} onchange="agriOnCheck(${r.pa_id},this.checked)"></td>
+      <td style="padding:5px 8px;font-size:.75rem;font-family:monospace">${esc(r.pa_number)}</td>
+      <td style="padding:5px 8px">${esc(r.nama)}</td>
+      <td style="padding:5px 8px;font-size:.75rem">${esc(r.instansi||'-')}</td>
+      <td style="padding:5px 8px">${esc(r.jenjang||'-')}</td>
+      <td style="padding:5px 8px">${esc(r.jenis_pembayaran||'-')}</td>
+      <td style="padding:5px 8px">${esc(r.semester||'-')}</td>
+      <td style="padding:5px 8px;text-align:right;font-weight:600">${fmtRupiah(r.jumlah_pembayaran)}</td>
+      <td style="padding:5px 8px;font-size:.75rem">${esc(r.tgl_payment_application||'-')}</td>
+    </tr>
+  `).join('');
+  agriUpdateTotal();
+  agriUpdateBulkBar();
+}
+
+function agriOnCheck(paId, checked) {
+  if (checked) _agriSel.add(paId); else _agriSel.delete(paId);
+  agriUpdateTotal();
+  agriUpdateBulkBar();
+}
+
+function agriToggleAll(chk) {
+  _agriRows.forEach(r => {
+    if (chk.checked) _agriSel.add(r.pa_id); else _agriSel.delete(r.pa_id);
+  });
+  document.querySelectorAll('.agri-chk').forEach(c => c.checked = chk.checked);
+  agriUpdateTotal();
+  agriUpdateBulkBar();
+}
+
+function agriClearSel() {
+  _agriSel.clear();
+  document.querySelectorAll('.agri-chk').forEach(c => c.checked = false);
+  document.getElementById('agri-chk-all').checked = false;
+  agriUpdateTotal();
+  agriUpdateBulkBar();
+}
+
+function agriUpdateTotal() {
+  const sel = _agriRows.filter(r => _agriSel.has(r.pa_id));
+  const total = sel.reduce((s, r) => s + (r.jumlah_pembayaran || 0), 0);
+  document.getElementById('agri-total-amt').textContent = fmtRupiah(total);
+}
+
+function agriUpdateBulkBar() {
+  const bar = document.getElementById('agri-bulk-bar');
+  const n   = _agriSel.size;
+  bar.style.display = n ? 'flex' : 'none';
+  document.getElementById('agri-sel-count').textContent = `${n} PA dipilih`;
+}
+
+async function agriSavePAM() {
+  const paDate = document.getElementById('agri-pam-date').value;
+  if (!paDate) { showToast('Pilih tanggal PAM.', 'error'); return; }
+  const ids = [..._agriSel];
+  if (!ids.length) { showToast('Pilih minimal 1 PA.', 'error'); return; }
+  const keterangan = document.getElementById('agri-pam-ket').value.trim();
+  const res  = await apiFetch('/payment-memo/create-agri-pam', {
+    method: 'POST',
+    body: JSON.stringify({ pam_date: paDate, pa_ids: ids, keterangan })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    _agriSel.clear();
+    agriLoadOpen(); // reload sisa PA open
+    loadPAM();      // reload AGRI PAM tab
+  }
+}
+
+// Init tanggal hari ini untuk AGRI PAM date
+document.addEventListener('DOMContentLoaded', () => {
+  const agriDateEl = document.getElementById('agri-pam-date');
+  if (agriDateEl && !agriDateEl.value) agriDateEl.value = new Date().toISOString().slice(0,10);
+});
 
 let _pamDebounce;
 function loadPAMDebounced() { clearTimeout(_pamDebounce); _pamDebounce = setTimeout(loadPAM, 300); }
@@ -1645,7 +2394,64 @@ function _mkDrop(opts, ph) {
   document.addEventListener("mousedown", e => { if (!w.contains(e.target) && !pan.contains(e.target)) pan.style.display = "none"; }, true);
   w._hid = hid; w._pan = pan;
   w.appendChild(hid); w.appendChild(dsp);
+  w.setOpts = function(newOpts, autoSelect) {
+    opts = newOpts;
+    hid.value = autoSelect || "";
+    lbl.textContent = autoSelect || ph;
+    lbl.style.color = autoSelect ? "#111827" : "#9ca3af";
+    pan.style.display = "none";
+    if (autoSelect) hid.dispatchEvent(new Event("change"));
+  };
   return w;
+}
+
+function _ipayResetAutoFill(tr) {
+  tr._hidEtfLineId.value = "";
+  tr._amtInp.value = ""; tr._amtInp.readOnly = false;
+  tr._tgls.forEach(i => { i.value = ""; i.readOnly = false; });
+}
+
+function _ipayFillLine(tr, line) {
+  tr._hidEtfLineId.value = line.line_id;
+  tr._amtInp.value = line.jumlah_pembayaran || ""; tr._amtInp.readOnly = true;
+  tr._tgls[0].value = line.tgl_surat_pengajuan || "";
+  tr._tgls[1].value = line.doc_received_by_educ || "";
+  tr._tgls[2].value = line.tgl_payment_application || "";
+  tr._tgls[0].readOnly = tr._tgls[1].readOnly = tr._tgls[2].readOnly = true;
+  ipayUpdateTotal(); _ipayUpdateSisaCell(tr);
+}
+
+function _ipayBuildPickerRow(tr, candidates) {
+  const pr = document.createElement("tr");
+  pr.className = "ipay-pa-picker-row";
+  const td = document.createElement("td");
+  td.colSpan = 10;
+  td.style.cssText = "padding:4px 8px 10px 24px;background:#eff6ff;border-top:1px solid #bfdbfe";
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px";
+  title.textContent = candidates.length + " PA ditemukan — pilih salah satu:";
+  const tbl = document.createElement("table");
+  tbl.style.cssText = "border-collapse:collapse;font-size:.8rem";
+  tbl.innerHTML = `<thead><tr style="background:#dbeafe">
+    <th style="padding:4px 10px;text-align:left;font-weight:700;color:#1e40af;border:1px solid #bfdbfe">No PA</th>
+    <th style="padding:4px 10px;text-align:right;font-weight:700;color:#1e40af;border:1px solid #bfdbfe">Amount (Rp)</th>
+  </tr></thead>`;
+  const tbody = document.createElement("tbody");
+  candidates.forEach((line, i) => {
+    const row = document.createElement("tr");
+    const bg0 = i % 2 === 0 ? "#fff" : "#f8fafc";
+    row.style.cssText = "cursor:pointer;background:" + bg0;
+    row.innerHTML = `
+      <td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:.78rem;color:#1d4ed8">${line.pa_number}</td>
+      <td style="padding:5px 10px;border:1px solid #e2e8f0;text-align:right;font-weight:600">Rp ${new Intl.NumberFormat('id-ID').format(line.jumlah_pembayaran||0)}</td>`;
+    row.addEventListener("mouseover", () => { row.style.background = "#eff6ff"; });
+    row.addEventListener("mouseout",  () => { row.style.background = bg0; });
+    row.addEventListener("click", () => { _ipayFillLine(tr, line); pr.remove(); tr._paPickerRow = null; });
+    tbody.appendChild(row);
+  });
+  tbl.appendChild(tbody);
+  td.appendChild(title); td.appendChild(tbl); pr.appendChild(td);
+  return pr;
 }
 
 // ── Input Payment tab ─────────────────────────────────────────────────────────
@@ -1827,10 +2633,14 @@ function ipayAddRow() {
           d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:.5rem";
           d.innerHTML = `<span style="font-weight:600;color:#1a56db;min-width:72px">${s.code}</span><span style="color:#374151">${s.nama}</span>`;
           d.addEventListener("mousedown", () => {
-            siswaInp.value = `${s.code} — ${s.nama}`; tr.dataset.siswaCode=s.code; tr.dataset.etfSiswaId=s.id; sugg.style.display="none"; tr._hidEtfLineId.value="";
+            siswaInp.value = `${s.code} — ${s.nama}`; tr.dataset.siswaCode=s.code; tr.dataset.etfSiswaId=s.id; sugg.style.display="none";
+            tr._allLines=[]; tr._hidEtfLineId.value="";
             sCat1.innerHTML=`<option value="">Memuat...</option>`; sCat1.disabled=true;
+            cat2Drop.setOpts([]); _ipayResetAutoFill(tr); ipayUpdateTotal();
             apiFetch(`/etf-payment-application/draft-lines?siswa_id=${s.id}`).then(r=>r.json()).then(lines => {
-              sCat1.innerHTML=`<option value="">— Pilih Kategori 1 —</option>`+lines.map(l=>`<option value="${l.jenis_pembayaran}" data-line="${JSON.stringify(l).replace(/"/g,'&quot;')}">${l.jenis_pembayaran} (${l.pa_number})</option>`).join("");
+              tr._allLines = lines;
+              const cat1s = [...new Set(lines.map(l => l.jenis_pembayaran).filter(Boolean))];
+              sCat1.innerHTML=`<option value="">— Pilih Kategori 1 —</option>`+cat1s.map(c=>`<option value="${c}">${c}</option>`).join("");
               sCat1.disabled=false;
             }).catch(()=>{sCat1.innerHTML=`<option value="">Gagal memuat.</option>`;sCat1.disabled=false;});
             tr._sisaBudget={}; tr._sisaCell.textContent="Memuat..."; tr._sisaCell.style.color="#6b7280";
@@ -1850,16 +2660,29 @@ function ipayAddRow() {
   const tdCat1 = document.createElement("td");
   const sCat1 = document.createElement("select"); sCat1.style.width="100%"; sCat1.innerHTML=`<option value="">— Pilih Kategori 1 —</option>`; sCat1.disabled=true;
   sCat1.addEventListener("change", () => {
-    _ipayUpdateSisaCell(tr);
-    const opt = sCat1.options[sCat1.selectedIndex];
-    if (!opt||!opt.dataset.line) { tr._hidEtfLineId.value=""; tr._amtInp.value=""; tr._amtInp.readOnly=false; tr._tgls.forEach(i=>{i.value="";i.readOnly=false;}); ipayUpdateTotal(); return; }
-    const line = JSON.parse(opt.dataset.line);
-    tr._hidEtfLineId.value=line.line_id; tr._amtInp.value=line.jumlah_pembayaran||""; tr._amtInp.readOnly=true;
-    tr._tgls[0].value=line.tgl_surat_pengajuan||""; tr._tgls[1].value=line.doc_received_by_educ||""; tr._tgls[2].value=line.tgl_payment_application||"";
-    tr._tgls[0].readOnly=tr._tgls[1].readOnly=tr._tgls[2].readOnly=true;
+    const selectedCat1 = sCat1.value;
+    // Reset Cat2 and auto-fill whenever Cat1 changes
+    cat2Drop.setOpts([]);
+    _ipayResetAutoFill(tr);
     ipayUpdateTotal(); _ipayUpdateSisaCell(tr);
-    const cat2val = cat2Drop._hid.value;
-    const isMed = _isMedical(sCat1.value, cat2val);
+    if (selectedCat1) {
+      const matching = (tr._allLines||[]).filter(l => l.jenis_pembayaran === selectedCat1);
+      if (matching.length > 0) {
+        const sems = [...new Set(matching.map(l => l.semester).filter(Boolean))];
+        if (sems.length === 0) {
+          // No semester field — use tahun_ajaran as cat2 options, wait for user selection
+          const years = [...new Set(matching.map(l => l.tahun_ajaran).filter(Boolean))];
+          cat2Drop.setOpts(years.length ? years : ['—']);
+        } else if (sems.length === 1) {
+          // One semester — show it but wait for user to select before filling
+          cat2Drop.setOpts(sems);
+        } else {
+          // Multiple semesters — present them for user to pick
+          cat2Drop.setOpts(sems);
+        }
+      }
+    }
+    const isMed = _isMedical(selectedCat1, cat2Drop._hid.value);
     medisRow.style.display = isMed ? "" : "none";
     btnToggle.style.display = isMed ? "" : "none";
     btnToggle.textContent = "▲";
@@ -1878,7 +2701,14 @@ function ipayAddRow() {
   const cat2Drop = _mkDrop(CAT2_SEM, "Pilih kat 2..."); cat2Drop.style.width="100%"; tdCat2.appendChild(cat2Drop);
 
   cat2Drop._hid.addEventListener("change", () => {
-    const isMed = _isMedical(sCat1.value, cat2Drop._hid.value);
+    const selectedCat1 = sCat1.value;
+    const selectedCat2 = cat2Drop._hid.value;
+    if (selectedCat1 && selectedCat2) {
+      const line = (tr._allLines||[]).find(l => l.jenis_pembayaran === selectedCat1 && l.semester === selectedCat2)
+               || (tr._allLines||[]).find(l => l.jenis_pembayaran === selectedCat1 && (l.tahun_ajaran === selectedCat2 || selectedCat2 === '—'));
+      if (line) _ipayFillLine(tr, line);
+    }
+    const isMed = _isMedical(selectedCat1, selectedCat2);
     medisRow.style.display = isMed ? "" : "none";
     btnToggle.style.display = isMed ? "" : "none";
     btnToggle.textContent = "▲";
