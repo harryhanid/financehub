@@ -443,7 +443,7 @@ def migrate_db():
         conn.execute(
             """CREATE TABLE IF NOT EXISTS sml_pa (
                 id                       INTEGER PRIMARY KEY AUTOINCREMENT,
-                company_id               INTEGER NOT NULL,
+                company_id               INTEGER NOT NULL REFERENCES companies(id),
                 pa_number                TEXT UNIQUE NOT NULL,
                 tgl_payment_application  TEXT,
                 tgl_surat_pengajuan      TEXT,
@@ -481,6 +481,8 @@ def migrate_db():
         "nomor_pam TEXT",
         "tanggal_bayar TEXT",
         "keterangan TEXT",
+        "status TEXT NOT NULL DEFAULT 'open'",
+        "created_at TEXT DEFAULT '2000-01-01T00:00:00'",
         "updated_at TEXT",
     ]:
         try:
@@ -495,7 +497,7 @@ def migrate_db():
             """CREATE TABLE IF NOT EXISTS sml_pa_lines (
                 id                   INTEGER PRIMARY KEY AUTOINCREMENT,
                 pa_id                INTEGER NOT NULL REFERENCES sml_pa(id) ON DELETE CASCADE,
-                student_id           INTEGER NOT NULL,
+                student_id           INTEGER NOT NULL REFERENCES siswa(id),
                 jenis_pembayaran     TEXT,
                 semester             TEXT,
                 tahun_ajaran         TEXT,
@@ -511,7 +513,7 @@ def migrate_db():
         conn.execute(
             """CREATE TABLE IF NOT EXISTS app_pa (
                 id                       INTEGER PRIMARY KEY AUTOINCREMENT,
-                company_id               INTEGER NOT NULL,
+                company_id               INTEGER NOT NULL REFERENCES companies(id),
                 pa_number                TEXT UNIQUE NOT NULL,
                 tgl_payment_application  TEXT,
                 tgl_surat_pengajuan      TEXT,
@@ -539,7 +541,7 @@ def migrate_db():
             """CREATE TABLE IF NOT EXISTS app_pa_lines (
                 id                   INTEGER PRIMARY KEY AUTOINCREMENT,
                 pa_id                INTEGER NOT NULL REFERENCES app_pa(id) ON DELETE CASCADE,
-                student_id           INTEGER NOT NULL,
+                student_id           INTEGER NOT NULL REFERENCES siswa(id),
                 jenis_pembayaran     TEXT,
                 semester             TEXT,
                 tahun_ajaran         TEXT,
@@ -549,6 +551,21 @@ def migrate_db():
         conn.commit()
     except Exception:
         pass
+
+    # indexes for sml_pa and app_pa queries
+    for idx_sql in [
+        "CREATE INDEX IF NOT EXISTS idx_sml_pa_company   ON sml_pa(company_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sml_pa_lines_pa  ON sml_pa_lines(pa_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sml_pa_lines_sid ON sml_pa_lines(student_id)",
+        "CREATE INDEX IF NOT EXISTS idx_app_pa_company   ON app_pa(company_id)",
+        "CREATE INDEX IF NOT EXISTS idx_app_pa_lines_pa  ON app_pa_lines(pa_id)",
+        "CREATE INDEX IF NOT EXISTS idx_app_pa_lines_sid ON app_pa_lines(student_id)",
+    ]:
+        try:
+            conn.execute(idx_sql)
+        except Exception:
+            pass
+    conn.commit()
 
     # rekam_medis table (new — safe to run on existing DBs)
     try:
