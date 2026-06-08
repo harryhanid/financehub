@@ -196,6 +196,7 @@ def set_memo_tanggal_bayar(memo_id: int, tanggal_bayar: str, company_id: int) ->
             ("etf_pa_lines", "etf_pa"),
             ("app_pa_lines", "app_pa"),
             ("sml_pa_lines", "sml_pa"),
+            ("setf_pa_lines", "setf_pa"),
         ]:
             conn.execute(
                 f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status='complete', updated_at=?
@@ -809,7 +810,7 @@ def update_pam_and_application(pam_id: int, pam_data: dict,
             "UPDATE payment_beasiswa SET pam=? WHERE pam=? AND company_id=?",
             (new_pam_no, old_pam_no, company_id)
         )
-        for tbl in ("etf_pa", "app_pa", "sml_pa"):
+        for tbl in ("etf_pa", "app_pa", "sml_pa", "setf_pa"):
             conn.execute(
                 f"UPDATE {tbl} SET nomor_pam=? WHERE nomor_pam=? AND company_id=?",
                 (new_pam_no, old_pam_no, company_id)
