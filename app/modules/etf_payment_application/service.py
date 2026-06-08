@@ -2,13 +2,25 @@
 from datetime import datetime
 from database import get_conn
 
+VALID_TABS = {"agri", "app", "sml"}
+
+# Maps tab → (pa_table, lines_table, pa_number_prefix, pam_prefix)
+_TAB_CFG = {
+    "agri": ("etf_pa",  "etf_pa_lines",  "ETF", "ETF"),
+    "app":  ("app_pa",  "app_pa_lines",  "APP", "APP"),
+    "sml":  ("sml_pa",  "sml_pa_lines",  "SML", "SML"),
+}
+
+
+def _tbls(tab: str) -> tuple:
+    return _TAB_CFG.get(tab, _TAB_CFG["agri"])
+
 
 def _ts():
     return datetime.now().isoformat(timespec="seconds")
 
 
 def _latest_ipk(siswa_row: dict) -> float:
-    """Return IPK sem terakhir yang tidak nol dari data siswa."""
     for i in range(10, 0, -1):
         val = siswa_row.get(f"ipk_sem{i}") or 0
         if val:
@@ -17,7 +29,6 @@ def _latest_ipk(siswa_row: dict) -> float:
 
 
 def get_siswa_autocomplete(company_id: int, q: str) -> list:
-    """Return list siswa untuk autocomplete input (nama + id)."""
     conn = get_conn()
     rows = conn.execute(
         """SELECT id, code, nama, jenjang, angkatan, program, fakultas,
@@ -38,36 +49,36 @@ def get_siswa_autocomplete(company_id: int, q: str) -> list:
     return result
 
 
-def _gen_pa_number(company_id: int, conn) -> str:
-    year = datetime.now().strftime("%Y")
+def _gen_pa_number(company_id: int, conn, pa_tbl: str, prefix: str) -> str:
+    year  = datetime.now().strftime("%Y")
     count = conn.execute(
-        "SELECT COUNT(*) FROM etf_pa WHERE company_id=?", (company_id,)
+        f"SELECT COUNT(*) FROM {pa_tbl} WHERE company_id=?", (company_id,)
     ).fetchone()[0]
-    return f"PA/ETF/{count + 1:03d}/{year}"
+    return f"PA/{prefix}/{count + 1:03d}/{year}"
 
 
-def _gen_nomor_pam(company_id: int, conn) -> str:
-    now = datetime.now()
+def _gen_nomor_pam(company_id: int, conn, pa_tbl: str, prefix: str) -> str:
+    now  = datetime.now()
     mm   = now.strftime("%m")
     yyyy = now.strftime("%Y")
     count = conn.execute(
-        """SELECT COUNT(*) FROM etf_pa
-           WHERE company_id=? AND nomor_pam IS NOT NULL
-           AND strftime('%Y-%m', created_at)=?""",
+        f"""SELECT COUNT(*) FROM {pa_tbl}
+            WHERE company_id=? AND nomor_pam IS NOT NULL
+            AND strftime('%Y-%m', created_at)=?""",
         (company_id, f"{yyyy}-{mm}")
     ).fetchone()[0]
-    return f"{count + 1:03d}-ETF-{mm}-{yyyy}"
+    return f"{count + 1:03d}-{prefix}-{mm}-{yyyy}"
 
 
-def get_pa_list(company_id: int) -> list:
-    """Return satu row per PA header, dengan aggregate count siswa dan total bayar."""
+def get_pa_list(company_id: int, tab: str = "agri") -> list:
+    pa_tbl, lines_tbl, *_ = _tbls(tab)
     conn = get_conn()
     rows = conn.execute(
-        """SELECT p.*,
-                  COUNT(l.id)          AS jml_siswa,
-                  COALESCE(SUM(l.jumlah_pembayaran), 0) AS total_bayar
-           FROM etf_pa p
-           LEFT JOIN etf_pa_lines l ON l.pa_id = p.id
+        f"""SELECT p.*,
+                  COUNT(l.id)                            AS jml_siswa,
+                  COALESCE(SUM(l.jumlah_pembayaran), 0)  AS total_bayar
+           FROM {pa_tbl} p
+           LEFT JOIN {lines_tbl} l ON l.pa_id = p.id
            WHERE p.company_id=?
            GROUP BY p.id
            ORDER BY p.created_at DESC""",
@@ -77,11 +88,11 @@ def get_pa_list(company_id: int) -> list:
     return [dict(r) for r in rows]
 
 
-def get_pa_flat(company_id: int) -> list:
-    """Return flat rows: satu baris per line, header fields diulang per baris."""
+def get_pa_flat(company_id: int, tab: str = "agri") -> list:
+    pa_tbl, lines_tbl, *_ = _tbls(tab)
     conn = get_conn()
     rows = conn.execute(
-        """SELECT
+        f"""SELECT
                   s.code             AS student_code,
                   p.id               AS pa_id,
                   s.nama,
@@ -113,8 +124,8 @@ def get_pa_flat(company_id: int) -> list:
                   p.status,
                   p.pa_number,
                   l.id               AS line_id
-           FROM etf_pa p
-           JOIN etf_pa_lines l ON l.pa_id = p.id
+           FROM {pa_tbl} p
+           JOIN {lines_tbl} l ON l.pa_id = p.id
            JOIN siswa s ON s.id = l.student_id
            WHERE p.company_id=?
            ORDER BY p.created_at DESC, l.id ASC""",
@@ -124,8 +135,7 @@ def get_pa_flat(company_id: int) -> list:
     return [dict(r) for r in rows]
 
 
-def bulk_update_pa(pa_ids: list, field: str, value: str, company_id: int) -> dict:
-    """Bulk update satu field (tanggal atau status) untuk banyak PA sekaligus."""
+def bulk_update_pa(pa_ids: list, field: str, value: str, company_id: int, tab: str = "agri") -> dict:
     ALLOWED_FIELDS = {
         "tgl_payment_application", "tgl_surat_pengajuan",
         "doc_received_by_educ", "received_pa_from_educ", "checked_by_fincon",
@@ -137,15 +147,16 @@ def bulk_update_pa(pa_ids: list, field: str, value: str, company_id: int) -> dic
     if not pa_ids:
         return {"ok": False, "pesan": "Tidak ada PA yang dipilih."}
 
+    pa_tbl, *_ = _tbls(tab)
     conn = get_conn()
     placeholders = ",".join("?" * len(pa_ids))
     extra_set = ", status='complete'" if field == "tanggal_bayar" and value else ""
     conn.execute(
-        f"UPDATE etf_pa SET {field}=?{extra_set}, updated_at=? WHERE id IN ({placeholders}) AND company_id=?",
+        f"UPDATE {pa_tbl} SET {field}=?{extra_set}, updated_at=? WHERE id IN ({placeholders}) AND company_id=?",
         [value, _ts()] + list(pa_ids) + [company_id]
     )
     count = conn.execute(
-        f"SELECT COUNT(*) FROM etf_pa WHERE id IN ({placeholders}) AND company_id=?",
+        f"SELECT COUNT(*) FROM {pa_tbl} WHERE id IN ({placeholders}) AND company_id=?",
         list(pa_ids) + [company_id]
     ).fetchone()[0]
     conn.commit()
@@ -153,55 +164,55 @@ def bulk_update_pa(pa_ids: list, field: str, value: str, company_id: int) -> dic
     return {"ok": True, "pesan": f"{count} PA berhasil diupdate ({field} = '{value}')."}
 
 
-def get_draft_siswa(company_id: int, q: str) -> list:
-    """Return siswa yang punya minimal 1 PA line di mana PA status='open'."""
+def get_draft_siswa(company_id: int, q: str, tab: str = "agri") -> list:
+    pa_tbl, lines_tbl, *_ = _tbls(tab)
     conn = get_conn()
     rows = conn.execute(
-        """SELECT DISTINCT s.id, s.code, s.nama, s.jenjang, s.universitas
-           FROM siswa s
-           JOIN etf_pa_lines l ON l.student_id = s.id
-           JOIN etf_pa p ON p.id = l.pa_id
-           WHERE p.company_id = ? AND p.status = 'open'
-             AND (s.nama LIKE ? OR s.code LIKE ?)
-           ORDER BY s.nama
-           LIMIT 20""",
+        f"""SELECT DISTINCT s.id, s.code, s.nama, s.jenjang, s.universitas
+            FROM siswa s
+            JOIN {lines_tbl} l ON l.student_id = s.id
+            JOIN {pa_tbl} p ON p.id = l.pa_id
+            WHERE p.company_id = ? AND LOWER(p.status) = 'open'
+              AND (s.nama LIKE ? OR s.code LIKE ?)
+            ORDER BY s.nama
+            LIMIT 20""",
         (company_id, f"%{q}%", f"%{q}%")
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
-def get_draft_lines_for_siswa(company_id: int, siswa_id: int) -> list:
-    """Return semua PA lines milik siswa dengan PA status='open'."""
+def get_draft_lines_for_siswa(company_id: int, siswa_id: int, tab: str = "agri") -> list:
+    pa_tbl, lines_tbl, *_ = _tbls(tab)
     conn = get_conn()
     rows = conn.execute(
-        """SELECT l.id AS line_id, l.pa_id, p.pa_number,
-                  l.jenis_pembayaran, l.jumlah_pembayaran,
-                  p.tgl_surat_pengajuan,
-                  p.doc_received_by_educ,
-                  p.tgl_payment_application
-           FROM etf_pa_lines l
-           JOIN etf_pa p ON p.id = l.pa_id
-           WHERE p.company_id = ? AND p.status = 'open'
-             AND l.student_id = ?
-           ORDER BY p.created_at DESC""",
+        f"""SELECT l.id AS line_id, l.pa_id, p.pa_number,
+                   l.jenis_pembayaran, l.jumlah_pembayaran,
+                   p.tgl_surat_pengajuan,
+                   p.doc_received_by_educ,
+                   p.tgl_payment_application
+            FROM {lines_tbl} l
+            JOIN {pa_tbl} p ON p.id = l.pa_id
+            WHERE p.company_id = ? AND LOWER(p.status) = 'open'
+              AND l.student_id = ?
+            ORDER BY p.created_at DESC""",
         (company_id, siswa_id)
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
-def export_pa_excel(company_id: int) -> bytes:
-    """Generate Excel workbook dari seluruh data PA flat, return bytes."""
+def export_pa_excel(company_id: int, tab: str = "agri") -> bytes:
     import io
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
-    rows = get_pa_flat(company_id)
+    rows = get_pa_flat(company_id, tab)
+    tab_label = tab.upper()
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "ETF Payment Application"
+    ws.title = f"{tab_label} Payment Application"
 
     headers = [
         "No. PA", "ID Siswa", "Nama PB", "Status PB", "Instansi", "Angkatan ETF",
@@ -248,7 +259,6 @@ def export_pa_excel(company_id: int) -> bytes:
             if is_op:
                 cell.fill = op_fill
 
-    # column widths
     col_widths = [16, 12, 22, 9, 22, 11, 12, 9, 12, 18, 20,
                   12, 14, 14, 12, 12, 10, 14, 12, 12, 12, 12, 12, 12, 12, 16, 12, 40, 10]
     for ci, w in enumerate(col_widths, 1):
@@ -262,49 +272,45 @@ def export_pa_excel(company_id: int) -> bytes:
     return buf.getvalue()
 
 
-def get_pa_header(pa_id: int, company_id: int) -> dict | None:
-    """Return single PA header record for edit modal."""
+def get_pa_header(pa_id: int, company_id: int, tab: str = "agri") -> dict | None:
+    pa_tbl, *_ = _tbls(tab)
     conn = get_conn()
     row = conn.execute(
-        "SELECT * FROM etf_pa WHERE id=? AND company_id=?", (pa_id, company_id)
+        f"SELECT * FROM {pa_tbl} WHERE id=? AND company_id=?", (pa_id, company_id)
     ).fetchone()
     conn.close()
     return dict(row) if row else None
 
 
-def get_pa_lines(pa_id: int, company_id: int) -> list:
-    """Return semua lines untuk satu PA, dengan data siswa di-JOIN."""
+def get_pa_lines(pa_id: int, company_id: int, tab: str = "agri") -> list:
+    pa_tbl, lines_tbl, *_ = _tbls(tab)
     conn = get_conn()
     rows = conn.execute(
-        """SELECT l.*,
-                  s.nama, s.code AS siswa_code, s.status AS status_pb,
-                  s.universitas AS instansi_pendidikan,
-                  s.angkatan AS angkatan_etf,
-                  s.jenjang AS jenjang_pendidikan,
-                  s.program AS program_beasiswa,
-                  s.fakultas
-           FROM etf_pa_lines l
-           JOIN siswa s ON s.id = l.student_id
-           JOIN etf_pa p ON p.id = l.pa_id
-           WHERE l.pa_id=? AND p.company_id=?
-           ORDER BY l.id""",
+        f"""SELECT l.*,
+                   s.nama, s.code AS siswa_code, s.status AS status_pb,
+                   s.universitas AS instansi_pendidikan,
+                   s.angkatan AS angkatan_etf,
+                   s.jenjang AS jenjang_pendidikan,
+                   s.program AS program_beasiswa,
+                   s.fakultas
+            FROM {lines_tbl} l
+            JOIN siswa s ON s.id = l.student_id
+            JOIN {pa_tbl} p ON p.id = l.pa_id
+            WHERE l.pa_id=? AND p.company_id=?
+            ORDER BY l.id""",
         (pa_id, company_id)
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
-def create_pa(company_id: int, header: dict, lines: list) -> dict:
-    """
-    header keys: tgl_payment_application, tgl_surat_pengajuan, keterangan
-    lines items: {student_id, jenis_pembayaran, semester, tahun_ajaran,
-                  ipk_sem_sebelumnya, jumlah_pembayaran}
-    """
+def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri") -> dict:
     if not lines:
         return {"ok": False, "pesan": "Minimal 1 siswa harus diisi."}
 
+    pa_tbl, lines_tbl, pa_prefix, _ = _tbls(tab)
     conn = get_conn()
-    # validate all student_ids belong to company — single query instead of N queries
+
     sids = [line.get("student_id") for line in lines]
     ph = ",".join("?" * len(sids))
     found = {r[0] for r in conn.execute(
@@ -316,27 +322,29 @@ def create_pa(company_id: int, header: dict, lines: list) -> dict:
         conn.close()
         return {"ok": False, "pesan": f"Siswa ID {missing[0]} tidak ditemukan."}
 
-    pa_number = _gen_pa_number(company_id, conn)
+    pa_number = _gen_pa_number(company_id, conn, pa_tbl, pa_prefix)
     ts = _ts()
     cur = conn.execute(
-        """INSERT INTO etf_pa
-           (company_id, pa_number, tgl_payment_application, tgl_surat_pengajuan,
-            keterangan, status, created_at)
-           VALUES (?,?,?,?,?,'open',?)""",
+        f"""INSERT INTO {pa_tbl}
+            (company_id, pa_number, tgl_payment_application, tgl_surat_pengajuan,
+             keterangan, doc_received_by_educ, received_pa_from_educ, status, created_at)
+            VALUES (?,?,?,?,?,?,?,'open',?)""",
         (company_id, pa_number,
          header.get("tgl_payment_application", ""),
          header.get("tgl_surat_pengajuan", ""),
          header.get("keterangan", ""),
+         header.get("doc_received_by_educ", ""),
+         header.get("received_pa_from_educ", ""),
          ts)
     )
     pa_id = cur.lastrowid
 
     for line in lines:
         conn.execute(
-            """INSERT INTO etf_pa_lines
-               (pa_id, student_id, jenis_pembayaran, semester,
-                tahun_ajaran, ipk_sem_sebelumnya, jumlah_pembayaran)
-               VALUES (?,?,?,?,?,?,?)""",
+            f"""INSERT INTO {lines_tbl}
+                (pa_id, student_id, jenis_pembayaran, semester,
+                 tahun_ajaran, ipk_sem_sebelumnya, jumlah_pembayaran)
+                VALUES (?,?,?,?,?,?,?)""",
             (pa_id,
              line.get("student_id"),
              line.get("jenis_pembayaran", ""),
@@ -352,14 +360,11 @@ def create_pa(company_id: int, header: dict, lines: list) -> dict:
             "pesan": f"Payment Application {pa_number} berhasil dibuat."}
 
 
-def update_pa(pa_id: int, company_id: int, data: dict) -> dict:
-    """
-    Update SLA dates, keterangan, tanggal_bayar, nomor_pam, status.
-    Jika status → on_process dan nomor_pam belum ada, auto-generate.
-    """
+def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dict:
+    pa_tbl, _, _, pam_prefix = _tbls(tab)
     conn = get_conn()
     row = conn.execute(
-        "SELECT id, status, nomor_pam FROM etf_pa WHERE id=? AND company_id=?",
+        f"SELECT id, status, nomor_pam FROM {pa_tbl} WHERE id=? AND company_id=?",
         (pa_id, company_id)
     ).fetchone()
     if not row:
@@ -369,29 +374,29 @@ def update_pa(pa_id: int, company_id: int, data: dict) -> dict:
     new_status = data.get("status", row["status"])
     if data.get("tanggal_bayar"):
         new_status = "complete"
-    nomor_pam   = data.get("nomor_pam") or row["nomor_pam"]
+    nomor_pam = data.get("nomor_pam") or row["nomor_pam"]
 
-    # auto-generate PAM number when transitioning to on_process
     if new_status == "on_process" and not nomor_pam:
-        nomor_pam = _gen_nomor_pam(company_id, conn)
+        pa_tbl2, _, _, pam_pfx = _tbls(tab)
+        nomor_pam = _gen_nomor_pam(company_id, conn, pa_tbl2, pam_pfx)
 
     conn.execute(
-        """UPDATE etf_pa SET
-            tgl_payment_application = ?,
-            tgl_surat_pengajuan     = ?,
-            doc_received_by_educ    = ?,
-            received_pa_from_educ   = ?,
-            checked_by_fincon       = ?,
-            approved_by_htj_1       = ?,
-            send_pa_back_to_educ    = ?,
-            pa_received_by_po_fin   = ?,
-            approval_by_htj_2       = ?,
-            nomor_pam               = ?,
-            tanggal_bayar           = ?,
-            keterangan              = ?,
-            status                  = ?,
-            updated_at              = ?
-           WHERE id=? AND company_id=?""",
+        f"""UPDATE {pa_tbl} SET
+             tgl_payment_application = ?,
+             tgl_surat_pengajuan     = ?,
+             doc_received_by_educ    = ?,
+             received_pa_from_educ   = ?,
+             checked_by_fincon       = ?,
+             approved_by_htj_1       = ?,
+             send_pa_back_to_educ    = ?,
+             pa_received_by_po_fin   = ?,
+             approval_by_htj_2       = ?,
+             nomor_pam               = ?,
+             tanggal_bayar           = ?,
+             keterangan              = ?,
+             status                  = ?,
+             updated_at              = ?
+            WHERE id=? AND company_id=?""",
         (data.get("tgl_payment_application", ""),
          data.get("tgl_surat_pengajuan", ""),
          data.get("doc_received_by_educ", ""),

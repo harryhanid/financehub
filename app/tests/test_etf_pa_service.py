@@ -183,3 +183,78 @@ def test_get_siswa_autocomplete():
 def test_get_siswa_autocomplete_empty():
     results = get_siswa_autocomplete(COMPANY_ID, "ZZZ_tidak_ada")
     assert results == []
+
+
+from modules.etf_payment_application.service import (
+    get_draft_siswa, get_draft_lines_for_siswa,
+)
+
+
+def _make_pa(conn, company_id: int, siswa_id: int, status: str) -> tuple:
+    """Insert one etf_pa + one line. Returns (pa_id, line_id)."""
+    from datetime import datetime
+    ts = datetime.now().isoformat(timespec="seconds")
+    cur = conn.execute(
+        """INSERT INTO etf_pa
+           (company_id, pa_number, tgl_payment_application, status, created_at)
+           VALUES (?,?,?,?,?)""",
+        (company_id, f"PA/ETF/{status[:2].upper()}/001/2026", "2026-06-01", status, ts)
+    )
+    pa_id = cur.lastrowid
+    cur2 = conn.execute(
+        """INSERT INTO etf_pa_lines
+           (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran)
+           VALUES (?,?,?,?)""",
+        (pa_id, siswa_id, "By Pendidikan", 5000000)
+    )
+    conn.commit()
+    return pa_id, cur2.lastrowid
+
+
+def test_get_draft_siswa_open_only():
+    """Only 'open' PA records must appear in student search."""
+    conn = get_conn()
+    sid = _student_id("1230001")
+    _make_pa(conn, COMPANY_ID, sid, "open")
+    conn.close()
+    results = get_draft_siswa(COMPANY_ID, "Budi")
+    assert len(results) == 1
+    assert results[0]["code"] == "1230001"
+
+
+def test_get_draft_siswa_excludes_draft():
+    """'draft' PA records must NOT appear — only 'open' is valid."""
+    conn = get_conn()
+    sid = _student_id("1230001")
+    _make_pa(conn, COMPANY_ID, sid, "draft")
+    conn.close()
+    results = get_draft_siswa(COMPANY_ID, "Budi")
+    assert results == [], "draft PA should be excluded from student search"
+
+
+def test_get_draft_siswa_excludes_on_process():
+    conn = get_conn()
+    sid = _student_id("1230001")
+    _make_pa(conn, COMPANY_ID, sid, "on_process")
+    conn.close()
+    results = get_draft_siswa(COMPANY_ID, "Budi")
+    assert results == []
+
+
+def test_get_draft_lines_open_only():
+    conn = get_conn()
+    sid = _student_id("1230001")
+    pa_id, line_id = _make_pa(conn, COMPANY_ID, sid, "open")
+    conn.close()
+    lines = get_draft_lines_for_siswa(COMPANY_ID, sid)
+    assert len(lines) == 1
+    assert lines[0]["line_id"] == line_id
+
+
+def test_get_draft_lines_excludes_draft():
+    conn = get_conn()
+    sid = _student_id("1230001")
+    _make_pa(conn, COMPANY_ID, sid, "draft")
+    conn.close()
+    lines = get_draft_lines_for_siswa(COMPANY_ID, sid)
+    assert lines == [], "draft PA lines should be excluded"
