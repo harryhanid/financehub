@@ -183,7 +183,7 @@ def set_memo_tanggal_bayar(memo_id: int, tanggal_bayar: str, company_id: int) ->
         (memo_id,)
     )
 
-    # 3. Cascade ke etf_pa
+    # 3. Cascade ke semua PA tables yang di-referensi
     lines = conn.execute(
         "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa WHERE memo_id=? AND etf_pa_line_id IS NOT NULL",
         (memo_id,)
@@ -192,13 +192,18 @@ def set_memo_tanggal_bayar(memo_id: int, tanggal_bayar: str, company_id: int) ->
 
     if line_ids:
         ph = ",".join("?" * len(line_ids))
-        conn.execute(
-            f"""UPDATE etf_pa SET tanggal_bayar=?, status='complete', updated_at=?
-                WHERE id IN (
-                    SELECT DISTINCT pa_id FROM etf_pa_lines WHERE id IN ({ph})
-                ) AND company_id=?""",
-            [tanggal_bayar, now] + line_ids + [company_id]
-        )
+        for lines_tbl, pa_tbl in [
+            ("etf_pa_lines", "etf_pa"),
+            ("app_pa_lines", "app_pa"),
+            ("sml_pa_lines", "sml_pa"),
+        ]:
+            conn.execute(
+                f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status='complete', updated_at=?
+                    WHERE id IN (
+                        SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})
+                    ) AND company_id=?""",
+                [tanggal_bayar, now] + line_ids + [company_id]
+            )
 
     conn.commit()
     conn.close()
@@ -394,47 +399,58 @@ def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
 def cancel_pam_record(pam_id: int, company_id: int) -> dict:
     conn = get_conn()
     pam = conn.execute(
-        "SELECT pam_no FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id)
+        "SELECT pam_no, source FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id)
     ).fetchone()
     if not pam:
         conn.close()
         return {"ok": False, "pesan": "PAM record tidak ditemukan."}
     pam_no = pam["pam_no"]
+    source = pam["source"] or "beasiswa"
 
-    # Kumpulkan etf_pa_line_ids sebelum dihapus untuk revert status PA
-    lines = conn.execute(
-        "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa WHERE pam=? AND company_id=? AND etf_pa_line_id IS NOT NULL",
-        (pam_no, company_id)
-    ).fetchall()
-    line_ids = [r[0] for r in lines]
+    now = _ts()
 
-    conn.execute("DELETE FROM payment_beasiswa WHERE pam=? AND company_id=?", (pam_no, company_id))
-    conn.execute("DELETE FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id))
-
-    # Revert etf_pa ke draft jika tidak ada payment aktif lagi
-    if line_ids:
-        now = _ts()
-        ph = ",".join("?" * len(line_ids))
-        pa_ids = conn.execute(
-            f"SELECT DISTINCT pa_id FROM etf_pa_lines WHERE id IN ({ph})", line_ids
+    if source == "etf_agri":
+        # AGRI flow: revert etf_pa yang linked via nomor_pam → back to 'open', clear nomor_pam
+        conn.execute(
+            """UPDATE etf_pa SET status='open', nomor_pam=NULL, updated_at=?
+               WHERE nomor_pam=? AND company_id=?""",
+            (now, pam_no, company_id)
+        )
+        conn.execute("DELETE FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id))
+    else:
+        # Beasiswa flow (existing)
+        lines = conn.execute(
+            "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa WHERE pam=? AND company_id=? AND etf_pa_line_id IS NOT NULL",
+            (pam_no, company_id)
         ).fetchall()
-        for row in pa_ids:
-            pa_id = row[0]
-            remaining = conn.execute(
-                """SELECT COUNT(*) FROM payment_beasiswa pb
-                   JOIN etf_pa_lines el ON el.id = pb.etf_pa_line_id
-                   WHERE el.pa_id=? AND pb.company_id=?""",
-                (pa_id, company_id)
-            ).fetchone()[0]
-            if remaining == 0:
-                conn.execute(
-                    "UPDATE etf_pa SET status='draft', updated_at=? WHERE id=? AND company_id=?",
-                    (now, pa_id, company_id)
-                )
+        line_ids = [r[0] for r in lines]
+
+        conn.execute("DELETE FROM payment_beasiswa WHERE pam=? AND company_id=?", (pam_no, company_id))
+        conn.execute("DELETE FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id))
+
+        # Revert etf_pa ke draft jika tidak ada payment aktif lagi
+        if line_ids:
+            ph = ",".join("?" * len(line_ids))
+            pa_ids = conn.execute(
+                f"SELECT DISTINCT pa_id FROM etf_pa_lines WHERE id IN ({ph})", line_ids
+            ).fetchall()
+            for row in pa_ids:
+                pa_id = row[0]
+                remaining = conn.execute(
+                    """SELECT COUNT(*) FROM payment_beasiswa pb
+                       JOIN etf_pa_lines el ON el.id = pb.etf_pa_line_id
+                       WHERE el.pa_id=? AND pb.company_id=?""",
+                    (pa_id, company_id)
+                ).fetchone()[0]
+                if remaining == 0:
+                    conn.execute(
+                        "UPDATE etf_pa SET status='open', updated_at=? WHERE id=? AND company_id=?",
+                        (now, pa_id, company_id)
+                    )
 
     conn.commit()
     conn.close()
-    return {"ok": True, "pesan": f"PAM {pam_no} dan payment terkait berhasil dihapus."}
+    return {"ok": True, "pesan": f"PAM {pam_no} berhasil dihapus, PA terkait dikembalikan ke Open."}
 
 
 def get_pam_detail(pam_id: int, company_id: int) -> dict | None:
@@ -950,3 +966,311 @@ def export_memo_pdf(memo_id: int, company_id: int, company_name: str) -> bytes:
     doc.build(elements)
     buffer.seek(0)
     return buffer.read()
+
+
+def get_fiori_list(search: str = "", bulan: str = "", tahun: str = "") -> list:
+    conn = get_conn()
+    sql  = "SELECT * FROM fiori_pa WHERE 1=1"
+    params = []
+    if search:
+        sql += " AND (no_pa LIKE ? OR nama_vendor LIKE ? OR keterangan LIKE ?)"
+        like = f"%{search}%"
+        params += [like, like, like]
+    if bulan:
+        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        params += [f"%-{bulan}-%", f"%-{bulan}-%"]
+    if tahun:
+        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        params += [f"{tahun}-%", f"{tahun}-%"]
+    sql += " ORDER BY terima_document DESC, id DESC"
+    rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
+    conn.close()
+    return rows
+
+
+def get_sml_list(search: str = "", bulan: str = "", tahun: str = "") -> list:
+    conn = get_conn()
+    sql  = "SELECT * FROM sml_pa WHERE 1=1"
+    params = []
+    if search:
+        sql += " AND (no_pa LIKE ? OR nama_vendor LIKE ? OR keterangan LIKE ?)"
+        like = f"%{search}%"
+        params += [like, like, like]
+    if bulan:
+        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        params += [f"%-{bulan}-%", f"%-{bulan}-%"]
+    if tahun:
+        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        params += [f"{tahun}-%", f"{tahun}-%"]
+    sql += " ORDER BY terima_document DESC, id DESC"
+    rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
+    conn.close()
+    return rows
+
+
+def bulk_update_fiori_dates(ids: list, dates: dict) -> dict:
+    _ALLOWED = {"terima_document", "input_aspiro", "verifikasi_tax",
+                "approval_1", "approval_2", "kirim_aspiro", "paid"}
+    fields = [(k, v) for k, v in dates.items() if k in _ALLOWED and v]
+    if not fields:
+        return {"ok": False, "pesan": "Tidak ada tanggal yang diisi."}
+    if not ids:
+        return {"ok": False, "pesan": "Tidak ada baris yang dipilih."}
+    set_clause   = ", ".join(f"{k}=?" for k, _ in fields)
+    vals         = [v for _, v in fields]
+    placeholders = ",".join("?" * len(ids))
+    conn = get_conn()
+    cur  = conn.execute(
+        f"UPDATE fiori_pa SET {set_clause} WHERE id IN ({placeholders})",
+        vals + list(ids)
+    )
+    updated = cur.rowcount
+    conn.commit()
+    conn.close()
+    return {"ok": True, "updated": updated,
+            "pesan": f"{updated} baris berhasil diperbarui."}
+
+
+def update_fiori_status(record_id: int, new_status: str) -> dict:
+    _ALLOWED = {"open", "approved", "paid"}
+    if new_status not in _ALLOWED:
+        return {"ok": False, "pesan": "Status tidak valid."}
+    conn = get_conn()
+    r = conn.execute("SELECT id FROM fiori_pa WHERE id=?", (record_id,)).fetchone()
+    if not r:
+        conn.close()
+        return {"ok": False, "pesan": "Record tidak ditemukan."}
+    conn.execute("UPDATE fiori_pa SET status=? WHERE id=?", (new_status, record_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"Status diubah ke '{new_status}'."}
+
+
+def cancel_fiori_record(record_id: int) -> dict:
+    conn = get_conn()
+    r = conn.execute("SELECT no_pa FROM fiori_pa WHERE id=?", (record_id,)).fetchone()
+    if not r:
+        conn.close()
+        return {"ok": False, "pesan": "Record tidak ditemukan."}
+    conn.execute("DELETE FROM fiori_pa WHERE id=?", (record_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"Record {r['no_pa']} dihapus."}
+
+
+def update_sml_status(record_id: int, new_status: str) -> dict:
+    _ALLOWED = {"open", "approved", "paid"}
+    if new_status not in _ALLOWED:
+        return {"ok": False, "pesan": "Status tidak valid."}
+    conn = get_conn()
+    r = conn.execute("SELECT id FROM sml_pa WHERE id=?", (record_id,)).fetchone()
+    if not r:
+        conn.close()
+        return {"ok": False, "pesan": "Record tidak ditemukan."}
+    conn.execute("UPDATE sml_pa SET status=? WHERE id=?", (new_status, record_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"Status diubah ke '{new_status}'."}
+
+
+def cancel_sml_record(record_id: int) -> dict:
+    conn = get_conn()
+    r = conn.execute("SELECT no_pa FROM sml_pa WHERE id=?", (record_id,)).fetchone()
+    if not r:
+        conn.close()
+        return {"ok": False, "pesan": "Record tidak ditemukan."}
+    conn.execute("DELETE FROM sml_pa WHERE id=?", (record_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"Record {r['no_pa']} dihapus."}
+
+
+def bulk_update_sml_dates(ids: list, dates: dict) -> dict:
+    _ALLOWED = {"terima_document", "input_aspiro", "verifikasi_tax",
+                "approval_1", "approval_2", "kirim_aspiro", "paid"}
+    fields = [(k, v) for k, v in dates.items() if k in _ALLOWED and v]
+    if not fields:
+        return {"ok": False, "pesan": "Tidak ada tanggal yang diisi."}
+    if not ids:
+        return {"ok": False, "pesan": "Tidak ada baris yang dipilih."}
+    set_clause   = ", ".join(f"{k}=?" for k, _ in fields)
+    vals         = [v for _, v in fields]
+    placeholders = ",".join("?" * len(ids))
+    conn = get_conn()
+    cur  = conn.execute(
+        f"UPDATE sml_pa SET {set_clause} WHERE id IN ({placeholders})",
+        vals + list(ids)
+    )
+    updated = cur.rowcount
+    conn.commit()
+    conn.close()
+    return {"ok": True, "updated": updated,
+            "pesan": f"{updated} baris berhasil diperbarui."}
+
+
+def get_fiori_detail(record_id: int) -> dict | None:
+    conn = get_conn()
+    r = conn.execute("SELECT * FROM fiori_pa WHERE id=?", (record_id,)).fetchone()
+    conn.close()
+    return dict(r) if r else None
+
+
+def update_fiori_record(record_id: int, data: dict) -> dict:
+    _FIELDS = ("no_pa", "category", "keterangan", "categori_1",
+               "nomor_vendor", "nama_vendor", "mata_uang", "dpp", "ppn", "total",
+               "terima_document", "input_aspiro", "verifikasi_tax",
+               "approval_1", "approval_2", "approval_3", "kirim_aspiro", "paid")
+    fields = [(k, data[k]) for k in _FIELDS if k in data and data[k] is not None]
+    # include null/empty string for date fields so user can clear them
+    date_fields = ("terima_document", "input_aspiro", "verifikasi_tax",
+                   "approval_1", "approval_2", "approval_3", "kirim_aspiro", "paid")
+    for k in date_fields:
+        if k in data and data[k] is None and k not in [f for f, _ in fields]:
+            fields.append((k, None))
+    if not fields:
+        return {"ok": False, "pesan": "Tidak ada data untuk diupdate."}
+    set_clause = ", ".join(f"{k}=?" for k, _ in fields)
+    vals = [v for _, v in fields]
+    conn = get_conn()
+    r = conn.execute("SELECT id FROM fiori_pa WHERE id=?", (record_id,)).fetchone()
+    if not r:
+        conn.close()
+        return {"ok": False, "pesan": "Record tidak ditemukan."}
+    conn.execute(f"UPDATE fiori_pa SET {set_clause} WHERE id=?", vals + [record_id])
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Record berhasil diperbarui."}
+
+
+# ── AGRI ETF-PA → PAM workflow ──────────────────────────────────────────────
+
+def get_open_etf_pa_for_pam(company_id: int) -> list:
+    """Return flat rows etf_pa status='open' dengan info siswa, untuk dipilih di Input AGRI."""
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT
+              p.id                AS pa_id,
+              p.pa_number,
+              p.tgl_payment_application,
+              p.keterangan        AS pa_keterangan,
+              p.status,
+              s.code              AS siswa_code,
+              s.nama,
+              s.universitas       AS instansi,
+              s.jenjang,
+              s.angkatan,
+              l.jenis_pembayaran,
+              l.semester,
+              l.jumlah_pembayaran,
+              l.id                AS line_id
+           FROM etf_pa p
+           JOIN etf_pa_lines l ON l.pa_id = p.id
+           JOIN siswa s ON s.id = l.student_id
+           WHERE p.company_id = ? AND p.status = 'open'
+           ORDER BY p.pa_number, l.id""",
+        (company_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def create_pam_from_etf_pa(company_id: int, company_code: str,
+                            pam_date: str, pa_ids: list, keterangan: str = "") -> dict:
+    """
+    Buat pam_records dari etf_pa yang dipilih.
+    - Create pam_records (source='etf_agri')
+    - Update etf_pa.nomor_pam = pam_no, status='on_process'
+    """
+    if not pa_ids:
+        return {"ok": False, "pesan": "Pilih minimal 1 PA."}
+
+    conn = get_conn()
+
+    # Validate semua pa_ids milik company dan status='open'
+    ph   = ",".join("?" * len(pa_ids))
+    rows = conn.execute(
+        f"SELECT id, status FROM etf_pa WHERE id IN ({ph}) AND company_id=?",
+        pa_ids + [company_id]
+    ).fetchall()
+    if len(rows) != len(pa_ids):
+        conn.close()
+        return {"ok": False, "pesan": "Beberapa PA tidak ditemukan."}
+    not_open = [dict(r)["id"] for r in rows if dict(r)["status"] != "open"]
+    if not_open:
+        conn.close()
+        return {"ok": False, "pesan": f"PA {not_open} bukan status open."}
+
+    # Hitung total
+    total = conn.execute(
+        f"""SELECT COALESCE(SUM(l.jumlah_pembayaran),0)
+            FROM etf_pa_lines l WHERE l.pa_id IN ({ph})""",
+        pa_ids
+    ).fetchone()[0]
+
+    # Generate PAM number
+    now   = datetime.now()
+    year  = now.strftime("%Y")
+    month = now.strftime("%m")
+    pam_no = generate_pam_number(company_id, company_code, year, month, conn)
+
+    ts = _ts()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, gl_account, cost_center, pt,
+            requestors_name, keterangan, total_amount, due_date, status, source, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'draft','etf_agri',?)""",
+        (company_id, pam_no, pam_date,
+         config.PAM_DEFAULT_GL if hasattr(config, 'PAM_DEFAULT_GL') else "",
+         "", company_code,
+         config.PAM_DEFAULT_REQUESTOR if hasattr(config, 'PAM_DEFAULT_REQUESTOR') else "",
+         keterangan, float(total),
+         _add_one_month(pam_date), ts)
+    )
+
+    # Update etf_pa
+    conn.execute(
+        f"UPDATE etf_pa SET nomor_pam=?, status='on_process', updated_at=? WHERE id IN ({ph}) AND company_id=?",
+        [pam_no, ts] + pa_ids + [company_id]
+    )
+
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pam_no": pam_no, "pesan": f"PAM {pam_no} berhasil dibuat dari {len(pa_ids)} PA."}
+
+
+def set_pam_tanggal_bayar_agri(pam_id: int, tanggal_bayar: str, company_id: int) -> dict:
+    """
+    Isi tanggal_bayar di pam_records (source='etf_agri') → status='paid',
+    cascade ke etf_pa: tanggal_bayar + status='complete'.
+    """
+    if not tanggal_bayar:
+        return {"ok": False, "pesan": "Tanggal bayar wajib diisi."}
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT id, pam_no, source FROM pam_records WHERE id=? AND company_id=?",
+        (pam_id, company_id)
+    ).fetchone()
+    if not pam:
+        conn.close()
+        return {"ok": False, "pesan": "PAM tidak ditemukan."}
+
+    pam = dict(pam)
+    ts  = _ts()
+
+    # 1. Update pam_records
+    conn.execute(
+        "UPDATE pam_records SET tanggal_bayar=?, status='paid', updated_at=? WHERE id=?",
+        (tanggal_bayar, ts, pam_id)
+    )
+
+    # 2. Cascade ke etf_pa jika source='etf_agri'
+    if pam.get("source") == "etf_agri":
+        conn.execute(
+            """UPDATE etf_pa SET tanggal_bayar=?, status='complete', updated_at=?
+               WHERE nomor_pam=? AND company_id=?""",
+            (tanggal_bayar, ts, pam["pam_no"], company_id)
+        )
+
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"Tgl Paid disimpan, PAM selesai."}

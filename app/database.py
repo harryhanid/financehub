@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS payment_beasiswa (
     tgl_receive     TEXT,
     tgl_pa          TEXT,
     tgl_final       TEXT,
-    etf_pa_line_id  INTEGER REFERENCES etf_pa_lines(id),
+    etf_pa_line_id  INTEGER,
     status          TEXT DEFAULT 'draft',
     created_at      TEXT DEFAULT CURRENT_TIMESTAMP
 );
