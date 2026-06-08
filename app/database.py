@@ -465,6 +465,30 @@ def migrate_db():
     except Exception:
         pass
 
+    # sml_pa — safely add student-PA columns if old tracking schema exists
+    for _col in [
+        "company_id INTEGER NOT NULL DEFAULT 2",
+        "pa_number TEXT",
+        "tgl_payment_application TEXT",
+        "tgl_surat_pengajuan TEXT",
+        "doc_received_by_educ TEXT",
+        "received_pa_from_educ TEXT",
+        "checked_by_fincon TEXT",
+        "approved_by_htj_1 TEXT",
+        "send_pa_back_to_educ TEXT",
+        "pa_received_by_po_fin TEXT",
+        "approval_by_htj_2 TEXT",
+        "nomor_pam TEXT",
+        "tanggal_bayar TEXT",
+        "keterangan TEXT",
+        "updated_at TEXT",
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE sml_pa ADD COLUMN {_col}")
+            conn.commit()
+        except Exception:
+            pass
+
     # sml_pa_lines table
     try:
         conn.execute(
@@ -521,36 +545,6 @@ def migrate_db():
                 tahun_ajaran         TEXT,
                 ipk_sem_sebelumnya   REAL,
                 jumlah_pembayaran    INTEGER DEFAULT 0)"""
-        )
-        conn.commit()
-    except Exception:
-        pass
-
-    # fiori_pa table
-    try:
-        conn.execute(
-            """CREATE TABLE IF NOT EXISTS fiori_pa (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                no_pa           TEXT UNIQUE NOT NULL,
-                category        TEXT,
-                keterangan      TEXT,
-                categori_1      TEXT,
-                nomor_vendor    TEXT,
-                nama_vendor     TEXT,
-                mata_uang       TEXT DEFAULT 'IDR',
-                dpp             INTEGER DEFAULT 0,
-                ppn             INTEGER DEFAULT 0,
-                total           INTEGER DEFAULT 0,
-                terima_document TEXT,
-                input_aspiro    TEXT,
-                verifikasi_tax  TEXT,
-                approval_1      TEXT,
-                approval_2      TEXT,
-                approval_3      TEXT,
-                kirim_aspiro    TEXT,
-                paid            TEXT,
-                status          TEXT NOT NULL DEFAULT 'open',
-                created_at      TEXT DEFAULT CURRENT_TIMESTAMP)"""
         )
         conn.commit()
     except Exception:
