@@ -194,6 +194,14 @@
         <option value="2025">2025</option><option value="2026">2026</option>
         <option value="2027">2027</option>
       </select>
+      <select id="pam-filter-source" onchange="loadPAMDebounced()"
+              style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;color:#374151">
+        <option value="">Semua Tipe</option>
+        <option value="agri">AGRI</option>
+        <option value="app">APP</option>
+        <option value="sml">SML</option>
+        <option value="setf">SETF</option>
+      </select>
     </div>
     <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -205,7 +213,7 @@
             <th style="padding:8px 10px;text-align:left;">Cost Center</th>
             <th style="padding:8px 10px;min-width:220px;text-align:left;">GL Account</th>
             <th style="padding:8px 10px;text-align:left;">Requestor</th>
-            <th style="padding:8px 10px;text-align:left;">Keterangan</th>
+            <th style="padding:8px 10px;text-align:left;">Catatan Payment</th>
             <th style="padding:8px 10px;text-align:right;">Total (Rp)</th>
             <th style="padding:8px 10px;text-align:left;">Due Date</th>
             <th style="padding:8px 10px;text-align:left;">Tgl Paid</th>
@@ -1258,7 +1266,8 @@ async function loadPAM() {
   const search = (document.getElementById('pam-search')?.value || '').trim();
   const bulan  = (document.getElementById('pam-filter-bulan')?.value || '');
   const tahun  = (document.getElementById('pam-filter-tahun')?.value || '');
-  const params = new URLSearchParams({ search, bulan, tahun });
+  const source = (document.getElementById('pam-filter-source')?.value || '');
+  const params = new URLSearchParams({ search, bulan, tahun, source });
   const res    = await apiFetch('/payment-memo/pam?' + params);
   if (!res) return;
   const data   = await res.json();
