@@ -223,6 +223,24 @@ def _add_one_month(date_str: str) -> str:
         return date_str
 
 
+# Tab → pam_prefix mapping (mirrors etf_payment_application._TAB_CFG)
+_IPAY_PAM_PREFIX = {
+    "agri":  "ETF",
+    "app":   "APP",
+    "sml":   "SML",
+    "setf":  "SETF",
+}
+
+
+def get_next_pam_no(company_id: int, company_code: str,
+                    tab: str, date_str: str) -> str:
+    """Return next PAM number for selected type, e.g. 'PAM-054-SETF-06-2026'."""
+    prefix = _IPAY_PAM_PREFIX.get(tab, company_code)
+    year   = date_str[:4]
+    month  = date_str[5:7]
+    return generate_pam_number(company_id, prefix, year, month)
+
+
 def generate_pam_number(company_id: int, company_code: str, year: str,
                         month: str, conn=None) -> str:
     like_pat  = f"PAM-%-{company_code}-{month}-{year}"
@@ -667,8 +685,26 @@ def update_pam_and_application(pam_id: int, pam_data: dict,
     if not pam:
         conn.close()
         return {"ok": False, "pesan": "PAM record tidak ditemukan."}
-    _PAM_FIELDS = ("keterangan", "requestors_name", "total_amount", "due_date", "pam_date")
+
+    old_pam_no = pam["pam_no"]
+    new_pam_no = (pam_data.get("pam_no") or "").strip() or None
+    pam_no_changed = new_pam_no and new_pam_no != old_pam_no
+
+    # Validate new pam_no not already used by another record
+    if pam_no_changed:
+        conflict = conn.execute(
+            "SELECT id FROM pam_records WHERE pam_no=? AND company_id=? AND id!=?",
+            (new_pam_no, company_id, pam_id)
+        ).fetchone()
+        if conflict:
+            conn.close()
+            return {"ok": False, "pesan": f"No. PAM '{new_pam_no}' sudah digunakan oleh PAM lain."}
+
+    _PAM_FIELDS = ("keterangan", "requestors_name", "total_amount", "due_date",
+                   "pam_date", "tanggal_bayar")
     f, p = [], []
+    if pam_no_changed:
+        f.append("pam_no=?"); p.append(new_pam_no)
     for k in _PAM_FIELDS:
         if k in pam_data and pam_data[k] is not None:
             f.append(f"{k}=?"); p.append(pam_data[k])
@@ -677,21 +713,35 @@ def update_pam_and_application(pam_id: int, pam_data: dict,
             f"UPDATE pam_records SET {','.join(f)}, updated_at=? WHERE id=? AND company_id=?",
             p + [_ts(), pam_id, company_id]
         )
-    _APP_FIELDS = ("submitted_at", "target_payment_date", "actual_payment_date", "notes", "status")
-    fa, pa = [], []
-    for k in _APP_FIELDS:
-        if k in app_data and app_data[k] is not None:
-            fa.append(f"{k}=?"); pa.append(app_data[k])
-    if fa:
+
+    # Cascade pam_no rename to all referencing tables
+    if pam_no_changed:
         conn.execute(
-            f"UPDATE payment_application SET {','.join(fa)} "
+            "UPDATE payment_beasiswa SET pam=? WHERE pam=? AND company_id=?",
+            (new_pam_no, old_pam_no, company_id)
+        )
+        for tbl in ("etf_pa", "app_pa", "sml_pa"):
+            conn.execute(
+                f"UPDATE {tbl} SET nomor_pam=? WHERE nomor_pam=? AND company_id=?",
+                (new_pam_no, old_pam_no, company_id)
+            )
+
+    # Update payment_application notes only
+    effective_pam = new_pam_no if pam_no_changed else old_pam_no
+    if app_data.get("notes") is not None:
+        conn.execute(
+            "UPDATE payment_application SET notes=? "
             "WHERE memo_id IN (SELECT memo_id FROM payment_beasiswa WHERE pam=? AND memo_id IS NOT NULL) "
             "AND company_id=?",
-            pa + [pam["pam_no"], company_id]
+            (app_data["notes"], effective_pam, company_id)
         )
+
     conn.commit()
     conn.close()
-    return {"ok": True, "pesan": "PAM & Payment Application berhasil diperbarui."}
+    msg = "PAM berhasil diperbarui."
+    if pam_no_changed:
+        msg = f"No. PAM diubah dari '{old_pam_no}' → '{new_pam_no}' dan semua referensi sudah diperbarui."
+    return {"ok": True, "pesan": msg}
 
 
 def get_draft_payment_detail(payment_id: int, company_id: int) -> dict | None:

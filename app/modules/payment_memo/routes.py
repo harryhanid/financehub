@@ -13,6 +13,13 @@ from modules.payment_memo.service import (
     delete_payment_beasiswa, cancel_pam_record,
     get_days_of_pam, get_days_of_pam_candidates, bulk_update_dates,
     set_memo_tanggal_bayar,
+    get_fiori_list, bulk_update_fiori_dates,
+    update_fiori_status, cancel_fiori_record,
+    get_fiori_detail, update_fiori_record,
+    get_sml_list, bulk_update_sml_dates,
+    update_sml_status, cancel_sml_record,
+    get_open_etf_pa_for_pam, create_pam_from_etf_pa, set_pam_tanggal_bayar_agri,
+    get_next_pam_no,
 )
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
@@ -364,3 +371,127 @@ def memo_tanggal_bayar(memo_id):
         data.get("tanggal_bayar", ""),
         company_id,
     ))
+
+
+@bp.route("/fiori")
+@jwt_html_required
+def fiori_list():
+    search = request.args.get("search", "").strip()
+    bulan  = request.args.get("bulan",  "").strip()
+    tahun  = request.args.get("tahun",  "").strip()
+    rows   = get_fiori_list(search, bulan, tahun)
+    return jsonify({"ok": True, "rows": rows})
+
+
+@bp.route("/fiori/bulk-update", methods=["POST"])
+@jwt_html_required
+def fiori_bulk_update():
+    data  = request.get_json(force=True) or {}
+    ids   = data.get("ids", [])
+    dates = data.get("dates", {})
+    result = bulk_update_fiori_dates(ids, dates)
+    return jsonify(result)
+
+
+@bp.route("/fiori/<int:record_id>/status", methods=["POST"])
+@jwt_html_required
+def fiori_status(record_id):
+    data = request.get_json(force=True) or {}
+    return jsonify(update_fiori_status(record_id, data.get("status", "")))
+
+
+@bp.route("/fiori/<int:record_id>/cancel", methods=["POST"])
+@jwt_html_required
+def fiori_cancel(record_id):
+    return jsonify(cancel_fiori_record(record_id))
+
+
+@bp.route("/sml")
+@jwt_html_required
+def sml_list_route():
+    search = request.args.get("search", "").strip()
+    bulan  = request.args.get("bulan",  "").strip()
+    tahun  = request.args.get("tahun",  "").strip()
+    rows   = get_sml_list(search, bulan, tahun)
+    return jsonify({"ok": True, "rows": rows})
+
+
+@bp.route("/sml/bulk-update", methods=["POST"])
+@jwt_html_required
+def sml_bulk_update():
+    data  = request.get_json(force=True) or {}
+    return jsonify(bulk_update_sml_dates(data.get("ids", []), data.get("dates", {})))
+
+
+@bp.route("/sml/<int:record_id>/status", methods=["POST"])
+@jwt_html_required
+def sml_status(record_id):
+    data = request.get_json(force=True) or {}
+    return jsonify(update_sml_status(record_id, data.get("status", "")))
+
+
+@bp.route("/sml/<int:record_id>/cancel", methods=["POST"])
+@jwt_html_required
+def sml_cancel(record_id):
+    return jsonify(cancel_sml_record(record_id))
+
+
+@bp.route("/fiori/<int:record_id>/detail")
+@jwt_html_required
+def fiori_detail(record_id):
+    data = get_fiori_detail(record_id)
+    if not data:
+        return jsonify({"ok": False, "pesan": "Record tidak ditemukan."}), 404
+    return jsonify({"ok": True, "data": data})
+
+
+@bp.route("/fiori/<int:record_id>/edit", methods=["POST"])
+@jwt_html_required
+def fiori_edit(record_id):
+    data = request.get_json(force=True) or {}
+    return jsonify(update_fiori_record(record_id, data))
+
+
+# ── AGRI ETF-PA → PAM workflow endpoints ────────────────────────────────────
+
+@bp.route("/agri-pa-open")
+@jwt_html_required
+def agri_pa_open():
+    """Return etf_pa with status='open' untuk dipilih di Input AGRI."""
+    company_id = session.get("company_id")
+    return jsonify({"ok": True, "rows": get_open_etf_pa_for_pam(company_id)})
+
+
+@bp.route("/create-agri-pam", methods=["POST"])
+@jwt_html_required
+def create_agri_pam():
+    """Buat PAM dari etf_pa yang dipilih → on_process + nomor_pam."""
+    company_id   = session.get("company_id")
+    company_code = session.get("company_code", "ETF")
+    data         = request.get_json(force=True) or {}
+    pam_date     = data.get("pam_date", "")
+    pa_ids       = data.get("pa_ids", [])
+    keterangan   = data.get("keterangan", "")
+    return jsonify(create_pam_from_etf_pa(company_id, company_code, pam_date, pa_ids, keterangan))
+
+
+@bp.route("/pam/<int:pam_id>/set-paid-agri", methods=["POST"])
+@jwt_html_required
+def set_paid_agri(pam_id):
+    """Set tanggal_bayar di PAM AGRI → cascade complete ke etf_pa."""
+    company_id   = session.get("company_id")
+    data         = request.get_json(force=True) or {}
+    tanggal_bayar = data.get("tanggal_bayar", "")
+    return jsonify(set_pam_tanggal_bayar_agri(pam_id, tanggal_bayar, company_id))
+
+
+@bp.route("/ipay/next-pam-no")
+@jwt_html_required
+def ipay_next_pam_no():
+    from datetime import datetime as _dt
+    tab      = request.args.get("tab", "agri").lower()
+    date_str = request.args.get("date", _dt.now().strftime("%Y-%m-%d"))
+    company_id   = session.get("company_id", 0)
+    company_code = session.get("company_code", "ETF")
+    pam_no = get_next_pam_no(company_id, company_code, tab, date_str)
+    return jsonify({"ok": True, "pam_no": pam_no})
