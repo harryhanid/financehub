@@ -2,13 +2,14 @@
 from datetime import datetime
 from database import get_conn
 
-VALID_TABS = {"agri", "app", "sml"}
+VALID_TABS = {"agri", "app", "sml", "setf"}
 
 # Maps tab → (pa_table, lines_table, pa_number_prefix, pam_prefix)
 _TAB_CFG = {
-    "agri": ("etf_pa",  "etf_pa_lines",  "ETF", "ETF"),
-    "app":  ("app_pa",  "app_pa_lines",  "APP", "APP"),
-    "sml":  ("sml_pa",  "sml_pa_lines",  "SML", "SML"),
+    "agri":  ("etf_pa",  "etf_pa_lines",  "ETF",  "ETF"),
+    "app":   ("app_pa",  "app_pa_lines",  "APP",  "APP"),
+    "sml":   ("sml_pa",  "sml_pa_lines",  "SML",  "SML"),
+    "setf":  ("setf_pa", "setf_pa_lines", "SETF", "SETF"),
 }
 
 
@@ -88,9 +89,14 @@ def get_pa_list(company_id: int, tab: str = "agri") -> list:
     return [dict(r) for r in rows]
 
 
-def get_pa_flat(company_id: int, tab: str = "agri") -> list:
+def get_pa_flat(company_id: int, tab: str = "agri", status_filter: str = "") -> list:
     pa_tbl, lines_tbl, *_ = _tbls(tab)
     conn = get_conn()
+    extra_where = ""
+    params: list = [company_id]
+    if status_filter:
+        extra_where = " AND LOWER(p.status)=?"
+        params.append(status_filter.lower())
     rows = conn.execute(
         f"""SELECT
                   s.code             AS student_code,
@@ -127,9 +133,9 @@ def get_pa_flat(company_id: int, tab: str = "agri") -> list:
            FROM {pa_tbl} p
            JOIN {lines_tbl} l ON l.pa_id = p.id
            JOIN siswa s ON s.id = l.student_id
-           WHERE p.company_id=?
+           WHERE p.company_id=?{extra_where}
            ORDER BY p.created_at DESC, l.id ASC""",
-        (company_id,)
+        params
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -187,7 +193,7 @@ def get_draft_lines_for_siswa(company_id: int, siswa_id: int, tab: str = "agri")
     conn = get_conn()
     rows = conn.execute(
         f"""SELECT l.id AS line_id, l.pa_id, p.pa_number,
-                   l.jenis_pembayaran, l.jumlah_pembayaran,
+                   l.jenis_pembayaran, l.semester, l.tahun_ajaran, l.jumlah_pembayaran,
                    p.tgl_surat_pengajuan,
                    p.doc_received_by_educ,
                    p.tgl_payment_application
