@@ -2661,7 +2661,8 @@ function ipayAddRow() {
   const sCat1 = document.createElement("select"); sCat1.style.width="100%"; sCat1.innerHTML=`<option value="">— Pilih Kategori 1 —</option>`; sCat1.disabled=true;
   sCat1.addEventListener("change", () => {
     const selectedCat1 = sCat1.value;
-    // Reset Cat2 and auto-fill whenever Cat1 changes
+    // Reset Cat2, auto-fill, and picker whenever Cat1 changes
+    tr._paPickerRow?.remove(); tr._paPickerRow = null;
     cat2Drop.setOpts([]);
     _ipayResetAutoFill(tr);
     ipayUpdateTotal(); _ipayUpdateSisaCell(tr);
@@ -2743,7 +2744,7 @@ function ipayAddRow() {
   const { td: tdTglFinal,     inp: inpTglFinal     } = tdInput("date","");
   const tdDel = document.createElement("td");
   const btnDel = document.createElement("button"); btnDel.className="btn btn-sm"; btnDel.style.cssText="background:#ef4444;color:#fff;padding:2px 8px"; btnDel.textContent="✕";
-  btnDel.addEventListener("click",()=>{sugg.remove();cat2Drop._pan?.remove();tr.remove();medisRow.remove();ipayUpdateTotal();if(!document.getElementById("ipay-tbody").querySelector("tr[data-rid]")){document.getElementById("ipay-tbody").innerHTML=`<tr id="ipay-empty-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;}});
+  btnDel.addEventListener("click",()=>{sugg.remove();cat2Drop._pan?.remove();tr._paPickerRow?.remove();tr.remove();medisRow.remove();ipayUpdateTotal();if(!document.getElementById("ipay-tbody").querySelector("tr[data-rid]")){document.getElementById("ipay-tbody").innerHTML=`<tr id="ipay-empty-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;}});
   tdDel.appendChild(btnDel);
 
   tr._cat2Drop=cat2Drop; tr._amtInp=amtInp; tr._tgls=[inpTglPengajuan,inpTglReceive,inpTglPa,inpTglFinal]; tr._cat1Select=sCat1;
