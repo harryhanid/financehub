@@ -513,8 +513,8 @@ def migrate_db():
         conn.execute(
             """CREATE TABLE IF NOT EXISTS setf_pa (
                 id                       INTEGER PRIMARY KEY AUTOINCREMENT,
-                company_id               INTEGER NOT NULL,
-                pa_number                TEXT NOT NULL,
+                company_id               INTEGER NOT NULL REFERENCES companies(id),
+                pa_number                TEXT UNIQUE NOT NULL,
                 tgl_payment_application  TEXT,
                 tgl_surat_pengajuan      TEXT,
                 doc_received_by_educ     TEXT,
@@ -527,8 +527,8 @@ def migrate_db():
                 nomor_pam                TEXT,
                 tanggal_bayar            TEXT,
                 keterangan               TEXT,
-                status                   TEXT DEFAULT 'open',
-                created_at               TEXT,
+                status                   TEXT NOT NULL DEFAULT 'open',
+                created_at               TEXT NOT NULL,
                 updated_at               TEXT)"""
         )
         conn.commit()
@@ -540,13 +540,13 @@ def migrate_db():
         conn.execute(
             """CREATE TABLE IF NOT EXISTS setf_pa_lines (
                 id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-                pa_id                INTEGER NOT NULL REFERENCES setf_pa(id),
+                pa_id                INTEGER NOT NULL REFERENCES setf_pa(id) ON DELETE CASCADE,
                 student_id           INTEGER NOT NULL REFERENCES siswa(id),
                 jenis_pembayaran     TEXT,
                 semester             TEXT,
                 tahun_ajaran         TEXT,
-                ipk_sem_sebelumnya   REAL DEFAULT 0,
-                jumlah_pembayaran    REAL DEFAULT 0)"""
+                ipk_sem_sebelumnya   REAL,
+                jumlah_pembayaran    INTEGER DEFAULT 0)"""
         )
         conn.commit()
     except Exception:
