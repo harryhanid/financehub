@@ -677,25 +677,32 @@ def delete_payment_row(company_id: int, row_id: int) -> dict:
                 (pam_no, company_id)
             )
 
-    # Revert etf_pa ke draft jika tidak ada payment aktif lagi untuk PA ini
+    # Revert semua PA tables ke open jika tidak ada payment aktif lagi untuk PA ini
     if line_id:
-        pa_row = conn.execute(
-            "SELECT pa_id FROM etf_pa_lines WHERE id=?", (line_id,)
-        ).fetchone()
-        if pa_row:
-            pa_id = pa_row[0]
-            remaining_pa = conn.execute(
-                """SELECT COUNT(*) FROM payment_beasiswa pb
-                   JOIN etf_pa_lines el ON el.id = pb.etf_pa_line_id
-                   WHERE el.pa_id=? AND pb.company_id=?""",
-                (pa_id, company_id)
-            ).fetchone()[0]
-            if remaining_pa == 0:
-                from datetime import datetime as _dt
-                conn.execute(
-                    "UPDATE etf_pa SET status='open', updated_at=? WHERE id=? AND company_id=?",
-                    (_dt.now().isoformat(timespec="seconds"), pa_id, company_id)
-                )
+        from datetime import datetime as _dt
+        _now = _dt.now().isoformat(timespec="seconds")
+        for lines_tbl, pa_tbl in [
+            ("etf_pa_lines", "etf_pa"),
+            ("app_pa_lines", "app_pa"),
+            ("sml_pa_lines", "sml_pa"),
+        ]:
+            pa_row = conn.execute(
+                f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (line_id,)
+            ).fetchone()
+            if pa_row:
+                pa_id = pa_row[0]
+                remaining_pa = conn.execute(
+                    f"""SELECT COUNT(*) FROM payment_beasiswa pb
+                           JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
+                           WHERE el.pa_id=? AND pb.company_id=?""",
+                    (pa_id, company_id)
+                ).fetchone()[0]
+                if remaining_pa == 0:
+                    conn.execute(
+                        f"UPDATE {pa_tbl} SET status='open', nomor_pam=NULL, updated_at=? "
+                        f"WHERE id=? AND company_id=?",
+                        (_now, pa_id, company_id)
+                    )
 
     conn.commit()
     conn.close()
@@ -739,25 +746,32 @@ def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
                 (pam_no, company_id)
             )
 
-    # Revert etf_pa ke draft jika tidak ada payment aktif lagi untuk PA ini
+    # Revert semua PA tables ke open jika tidak ada payment aktif lagi untuk PA ini
     if line_id:
-        pa_row = conn.execute(
-            "SELECT pa_id FROM etf_pa_lines WHERE id=?", (line_id,)
-        ).fetchone()
-        if pa_row:
-            pa_id = pa_row[0]
-            remaining_pa = conn.execute(
-                """SELECT COUNT(*) FROM payment_beasiswa pb
-                   JOIN etf_pa_lines el ON el.id = pb.etf_pa_line_id
-                   WHERE el.pa_id=? AND pb.company_id=?""",
-                (pa_id, company_id)
-            ).fetchone()[0]
-            if remaining_pa == 0:
-                from datetime import datetime as _dt
-                conn.execute(
-                    "UPDATE etf_pa SET status='open', updated_at=? WHERE id=? AND company_id=?",
-                    (_dt.now().isoformat(timespec="seconds"), pa_id, company_id)
-                )
+        from datetime import datetime as _dt
+        _now = _dt.now().isoformat(timespec="seconds")
+        for lines_tbl, pa_tbl in [
+            ("etf_pa_lines", "etf_pa"),
+            ("app_pa_lines", "app_pa"),
+            ("sml_pa_lines", "sml_pa"),
+        ]:
+            pa_row = conn.execute(
+                f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (line_id,)
+            ).fetchone()
+            if pa_row:
+                pa_id = pa_row[0]
+                remaining_pa = conn.execute(
+                    f"""SELECT COUNT(*) FROM payment_beasiswa pb
+                           JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
+                           WHERE el.pa_id=? AND pb.company_id=?""",
+                    (pa_id, company_id)
+                ).fetchone()[0]
+                if remaining_pa == 0:
+                    conn.execute(
+                        f"UPDATE {pa_tbl} SET status='open', nomor_pam=NULL, updated_at=? "
+                        f"WHERE id=? AND company_id=?",
+                        (_now, pa_id, company_id)
+                    )
 
     conn.commit()
     conn.close()

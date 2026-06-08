@@ -127,3 +127,82 @@ def test_tanggal_bayar_cascades_to_sml_pa():
     conn.close()
     assert row["status"] == "complete", f"sml_pa.status expected 'complete', got '{row['status']}'"
     assert row["tanggal_bayar"] == "2026-06-15"
+
+
+# ── cancel_pam_record revert tests ──────────────────────────────────────────
+
+def _insert_pam_and_link(conn, pa_tbl, lines_tbl, pa_id, line_id):
+    """Insert pam_records + payment_beasiswa with PAM link. Returns (pam_id, pam_no)."""
+    pam_no = "PAM-001-ETF-06-2026"
+    cur = conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, total_amount, status, created_at)
+           VALUES (?,?,?,?,?,?)""",
+        (COMPANY_ID, pam_no, "2026-06-08", 5000000, "draft", _ts())
+    )
+    pam_id = cur.lastrowid
+    conn.execute(
+        f"UPDATE {pa_tbl} SET nomor_pam=?, status='on_process' WHERE id=?",
+        (pam_no, pa_id)
+    )
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, pam, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'draft')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 3",
+         "2026-06-01", 5000000, "AGRI", "PT. SMART Tbk", pam_no, line_id)
+    )
+    conn.commit()
+    return pam_id, pam_no
+
+
+def test_cancel_pam_reverts_etf_pa():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pa_id, line_id = _insert_pa(conn, "etf_pa", "etf_pa_lines", "ETF", sid, "on_process")
+    pam_id, _ = _insert_pam_and_link(conn, "etf_pa", "etf_pa_lines", pa_id, line_id)
+    conn.close()
+
+    result = cancel_pam_record(pam_id, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    row = conn.execute("SELECT status, nomor_pam FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert row["status"] == "open"
+    assert row["nomor_pam"] is None
+
+
+def test_cancel_pam_reverts_app_pa():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pa_id, line_id = _insert_pa(conn, "app_pa", "app_pa_lines", "APP", sid, "on_process")
+    pam_id, _ = _insert_pam_and_link(conn, "app_pa", "app_pa_lines", pa_id, line_id)
+    conn.close()
+
+    result = cancel_pam_record(pam_id, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    row = conn.execute("SELECT status, nomor_pam FROM app_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert row["status"] == "open", f"app_pa.status expected 'open', got '{row['status']}'"
+    assert row["nomor_pam"] is None
+
+
+def test_cancel_pam_reverts_sml_pa():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pa_id, line_id = _insert_pa(conn, "sml_pa", "sml_pa_lines", "SML", sid, "on_process")
+    pam_id, _ = _insert_pam_and_link(conn, "sml_pa", "sml_pa_lines", pa_id, line_id)
+    conn.close()
+
+    result = cancel_pam_record(pam_id, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    row = conn.execute("SELECT status, nomor_pam FROM sml_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert row["status"] == "open", f"sml_pa.status expected 'open', got '{row['status']}'"
+    assert row["nomor_pam"] is None
