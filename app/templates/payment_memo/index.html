@@ -2703,10 +2703,24 @@ function ipayAddRow() {
   cat2Drop._hid.addEventListener("change", () => {
     const selectedCat1 = sCat1.value;
     const selectedCat2 = cat2Drop._hid.value;
+    // Remove existing picker before rebuilding
+    tr._paPickerRow?.remove(); tr._paPickerRow = null;
     if (selectedCat1 && selectedCat2) {
-      const line = (tr._allLines||[]).find(l => l.jenis_pembayaran === selectedCat1 && l.semester === selectedCat2)
-               || (tr._allLines||[]).find(l => l.jenis_pembayaran === selectedCat1 && (l.tahun_ajaran === selectedCat2 || selectedCat2 === '—'));
-      if (line) _ipayFillLine(tr, line);
+      const candidates = (tr._allLines||[]).filter(l =>
+        l.jenis_pembayaran === selectedCat1 && (
+          l.semester === selectedCat2 ||
+          l.tahun_ajaran === selectedCat2 ||
+          selectedCat2 === '—'
+        )
+      );
+      if (candidates.length === 1) {
+        _ipayFillLine(tr, candidates[0]);
+      } else if (candidates.length > 1) {
+        _ipayResetAutoFill(tr);
+        const pr = _ipayBuildPickerRow(tr, candidates);
+        tr._paPickerRow = pr;
+        medisRow.parentNode.insertBefore(pr, medisRow.nextSibling);
+      }
     }
     const isMed = _isMedical(selectedCat1, selectedCat2);
     medisRow.style.display = isMed ? "" : "none";
