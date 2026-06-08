@@ -597,6 +597,18 @@ def migrate_db():
         except Exception:
             pass
 
+    # Normalize PA status values to lowercase (fix Title Case legacy data)
+    # Old data may have 'Open', 'Complete', 'On_Process' from before the lowercase refactor
+    for pa_tbl in ["etf_pa", "app_pa", "sml_pa"]:
+        try:
+            conn.execute(
+                f"UPDATE {pa_tbl} SET status = LOWER(status) "
+                f"WHERE status != LOWER(status)"
+            )
+            conn.commit()
+        except Exception:
+            pass
+
     conn.close()
 
 
