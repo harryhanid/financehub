@@ -548,3 +548,61 @@ def test_delete_payment_juga_hapus_rekam_medis():
     rm_after = conn.execute("SELECT id FROM rekam_medis WHERE payment_id=?", (pay_id,)).fetchone()
     assert rm_after is None
     conn.close()
+
+
+def _seed_siswa_and_pa(conn, company_id: int) -> tuple:
+    """Insert one siswa + one etf_pa + one etf_pa_line. Returns (siswa_id, pa_id, line_id)."""
+    from datetime import datetime
+    ts = datetime.now().isoformat(timespec="seconds")
+    conn.execute(
+        """INSERT INTO siswa
+           (company_id, code, nama, jenjang, angkatan, program,
+            fakultas, universitas, status)
+           VALUES (?,?,?,?,?,?,?,?,?)""",
+        (company_id, "1250001", "Budi Santoso", "S1", 2025,
+         "SMART", "Teknik", "UI", "Aktif")
+    )
+    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    cur = conn.execute(
+        """INSERT INTO etf_pa
+           (company_id, pa_number, tgl_payment_application, status, created_at)
+           VALUES (?,?,?,?,?)""",
+        (company_id, "PA/ETF/001/2026", "2026-06-01", "open", ts)
+    )
+    pa_id = cur.lastrowid
+    cur2 = conn.execute(
+        """INSERT INTO etf_pa_lines
+           (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran)
+           VALUES (?,?,?,?)""",
+        (pa_id, sid, "By Pendidikan", 5000000)
+    )
+    line_id = cur2.lastrowid
+    conn.commit()
+    return sid, pa_id, line_id
+
+
+def test_add_payment_multi_fills_nomor_pam_in_etf_pa():
+    """After add_payment_multi(), etf_pa.nomor_pam must be filled with the PAM number."""
+    conn = get_conn()
+    sid, pa_id, line_id = _seed_siswa_and_pa(conn, COMPANY_ID)
+    conn.close()
+
+    result = add_payment_multi(
+        COMPANY_ID, "ETF", "2026-06-08", "AGRI", "PT. SMART Tbk",
+        [{"siswa_code": "1250001", "cat1": "By Pendidikan",
+          "cat2": "Semester 3", "amount": 5000000,
+          "etf_pa_line_id": line_id}],
+    )
+    assert result["ok"] is True
+    pam_no = result["pam_no"]
+
+    conn = get_conn()
+    pa_row = conn.execute(
+        "SELECT nomor_pam, status FROM etf_pa WHERE id=?", (pa_id,)
+    ).fetchone()
+    conn.close()
+
+    assert pa_row["nomor_pam"] == pam_no, (
+        f"etf_pa.nomor_pam expected '{pam_no}', got '{pa_row['nomor_pam']}'"
+    )
+    assert pa_row["status"] == "on_process"

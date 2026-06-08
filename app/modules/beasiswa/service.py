@@ -395,13 +395,19 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
         ]
         if pa_line_ids:
             ph = ",".join("?" * len(pa_line_ids))
-            conn.execute(
-                f"""UPDATE etf_pa SET status = 'on_process', updated_at = ?
-                    WHERE id IN (
-                        SELECT DISTINCT pa_id FROM etf_pa_lines WHERE id IN ({ph})
-                    ) AND company_id = ? AND status = 'open'""",
-                [_ts()] + pa_line_ids + [company_id]
-            )
+            ts_op = _ts()
+            for lines_tbl, pa_tbl in [
+                ("etf_pa_lines", "etf_pa"),
+                ("app_pa_lines", "app_pa"),
+                ("sml_pa_lines", "sml_pa"),
+            ]:
+                conn.execute(
+                    f"""UPDATE {pa_tbl} SET status = 'on_process', updated_at = ?
+                        WHERE id IN (
+                            SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})
+                        ) AND company_id = ? AND status = 'open'""",
+                    [ts_op] + pa_line_ids + [company_id]
+                )
 
         # Collect student names for keterangan
         unique_codes = list({
@@ -425,6 +431,23 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
             "total_amount": total,
             "payment_ids":  payment_ids,
         })
+
+        # Fill nomor_pam in all linked PA tables
+        if pa_line_ids and pam_no:
+            ph = ",".join("?" * len(pa_line_ids))
+            ts_pam = _ts()
+            for lines_tbl, pa_tbl in [
+                ("etf_pa_lines", "etf_pa"),
+                ("app_pa_lines", "app_pa"),
+                ("sml_pa_lines", "sml_pa"),
+            ]:
+                conn.execute(
+                    f"""UPDATE {pa_tbl} SET nomor_pam = ?, updated_at = ?
+                        WHERE id IN (
+                            SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})
+                        ) AND company_id = ?""",
+                    [pam_no, ts_pam] + pa_line_ids + [company_id]
+                )
 
         conn.commit()
         return {
