@@ -19,7 +19,7 @@ from modules.payment_memo.service import (
     get_sml_list, bulk_update_sml_dates,
     update_sml_status, cancel_sml_record,
     get_open_etf_pa_for_pam, create_pam_from_etf_pa, set_pam_tanggal_bayar_agri,
-    get_next_pam_no,
+    get_next_pam_no, save_pa_payment,
 )
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
@@ -495,3 +495,13 @@ def ipay_next_pam_no():
     company_code = session.get("company_code", "ETF")
     pam_no = get_next_pam_no(company_id, company_code, tab, date_str)
     return jsonify({"ok": True, "pam_no": pam_no})
+
+
+@bp.route("/ipay/save-pa", methods=["POST"])
+@jwt_html_required
+def ipay_save_pa():
+    data         = request.get_json(force=True) or {}
+    company_id   = session.get("company_id", 0)
+    company_code = session.get("company_code", "ETF")
+    result = save_pa_payment(company_id, company_code, data)
+    return jsonify(result)

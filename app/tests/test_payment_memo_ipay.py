@@ -50,3 +50,25 @@ def test_get_next_pam_no_sml_uses_sml_prefix():
     result = get_next_pam_no(company_id=1, company_code="ETF",
                              tab="sml", date_str="2026-06-08")
     assert "SML" in result, f"Got: {result}"
+
+
+from modules.payment_memo.service import save_pa_payment
+
+
+def test_save_pa_payment_missing_pam_no():
+    result = save_pa_payment(
+        company_id=1, company_code="ETF",
+        data={"tab": "setf", "tanggal": "2026-06-08", "pam_no": "",
+              "rows": [{"siswa_code": "ETF001", "amount": 100}]}
+    )
+    assert result["ok"] is False
+    assert "PAM" in result["pesan"]
+
+
+def test_save_pa_payment_no_rows():
+    result = save_pa_payment(
+        company_id=1, company_code="ETF",
+        data={"tab": "agri", "tanggal": "2026-06-08",
+              "pam_no": "PAM-001-ETF-06-2026", "rows": []}
+    )
+    assert result["ok"] is False

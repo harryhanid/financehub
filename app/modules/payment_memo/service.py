@@ -241,6 +241,92 @@ def get_next_pam_no(company_id: int, company_code: str,
     return generate_pam_number(company_id, prefix, year, month)
 
 
+def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
+    """
+    Unified save for Input PA (AGRI/APP/SML/SETF):
+    1. Create payment_beasiswa rows via add_payment_multi
+    2. Link rows to pam_no
+    3. Create pam_records entry
+    4. Update PA header: nomor_pam + status='on_process'
+    """
+    from modules.beasiswa.service import add_payment_multi
+    from modules.etf_payment_application.service import _TAB_CFG
+
+    tab        = (data.get("tab") or "agri").lower()
+    tanggal    = data.get("tanggal") or _ts()[:10]
+    pam_no     = (data.get("pam_no") or "").strip()
+    keterangan = data.get("keterangan") or ""
+    perusahaan = data.get("perusahaan") or ""
+    pillar     = data.get("pillar") or ""
+    rows       = data.get("rows") or []
+
+    if not pam_no:
+        return {"ok": False, "pesan": "No. PAM wajib diisi."}
+    if not rows:
+        return {"ok": False, "pesan": "Minimal 1 baris siswa."}
+
+    pa_tbl, lines_tbl, _, _ = _TAB_CFG.get(tab, _TAB_CFG["agri"])
+
+    # 1. Create payment_beasiswa rows
+    bsw_result = add_payment_multi(
+        company_id, company_code, tanggal, pillar, perusahaan, rows
+    )
+    if not bsw_result.get("ok"):
+        return bsw_result
+
+    payment_ids = bsw_result.get("payment_ids", [])
+    total       = float(bsw_result.get("total", 0))
+
+    conn = get_conn()
+    try:
+        # 2. Link payment_beasiswa rows to pam_no
+        if payment_ids:
+            ph = ",".join("?" * len(payment_ids))
+            conn.execute(
+                f"UPDATE payment_beasiswa SET pam=? WHERE id IN ({ph})",
+                [pam_no] + list(payment_ids)
+            )
+
+        # 3. Create pam_records
+        due_date = _add_one_month(tanggal)
+        conn.execute(
+            """INSERT INTO pam_records
+               (company_id, pam_no, pam_date, requestors_name, keterangan,
+                total_amount, due_date, source, status, created_at)
+               VALUES (?,?,?,?,?,?,?,?,'draft',?)""",
+            (company_id, pam_no, tanggal,
+             company_code, keterangan,
+             total, due_date, f"etf_{tab}", _ts())
+        )
+
+        # 4. Update PA: nomor_pam + status='on_process' for linked PA headers
+        line_ids = [r.get("etf_pa_line_id") for r in rows
+                    if r.get("etf_pa_line_id")]
+        if line_ids:
+            ph = ",".join("?" * len(line_ids))
+            pa_rows = conn.execute(
+                f"SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})",
+                line_ids
+            ).fetchall()
+            pa_ids = [row[0] for row in pa_rows]
+            if pa_ids:
+                ph2 = ",".join("?" * len(pa_ids))
+                conn.execute(
+                    f"UPDATE {pa_tbl} SET nomor_pam=?, status='on_process'"
+                    f" WHERE id IN ({ph2}) AND company_id=?",
+                    [pam_no] + list(pa_ids) + [company_id]
+                )
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return {"ok": False, "pesan": f"Gagal menyimpan: {e}"}
+
+    conn.close()
+    return {"ok": True, "pesan": f"PAM {pam_no} berhasil dibuat.", "pam_no": pam_no}
+
+
 def generate_pam_number(company_id: int, company_code: str, year: str,
                         month: str, conn=None) -> str:
     like_pat  = f"PAM-%-{company_code}-{month}-{year}"
