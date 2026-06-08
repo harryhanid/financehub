@@ -2288,6 +2288,7 @@ function ipayReset() {
   const el = document.getElementById("ipay-total-amt");
   if (el) el.textContent = "Rp 0";
   _ipayRowId = 0;
+  ipayFetchNextPamNo();
 }
 
 function ipayUpdateTotal() {
@@ -2314,17 +2315,17 @@ function ipayOnTypeChange() {
   const saveBtn = document.getElementById("ipay-save-btn");
   if (saveBtn) saveBtn.textContent = `\u{1F4BE} Simpan PAM ${type.toUpperCase()}`;
   ipayFetchNextPamNo();
+  ipayReset();
 }
 
 async function ipayFetchNextPamNo() {
   const type = document.getElementById("ipay-type")?.value || "agri";
-  const tgl  = document.getElementById("ipay-tgl")?.value || "";
+  const tgl  = document.getElementById("ipay-tgl")?.value || new Date().toISOString().slice(0, 10);
   const pamEl = document.getElementById("ipay-pam-full");
   if (!pamEl) return;
-  if (!tgl) { pamEl.value = ""; return; }
   pamEl.value = "Memuat...";
   try {
-    const res = await apiFetch(`/ipay/next-pam-no?type=${encodeURIComponent(type)}&tgl=${encodeURIComponent(tgl)}`);
+    const res = await apiFetch(`/payment-memo/ipay/next-pam-no?tab=${encodeURIComponent(type)}&date=${encodeURIComponent(tgl)}`);
     if (!res) { pamEl.value = ""; return; }
     const data = await res.json();
     pamEl.value = data.ok ? (data.pam_no || "") : "";
@@ -2453,11 +2454,12 @@ function ipayAddRow() {
     const q = siswaInp.value.trim();
     sugg.innerHTML = "";
     if (!q) { sugg.style.display="none"; tr.dataset.siswaCode=""; tr._hidEtfLineId.value=""; sCat1.innerHTML=`<option value="">— Pilih siswa dulu —</option>`; sCat1.disabled=true; tr._sisaBudget={}; tr._sisaCell.textContent="—"; return; }
-    apiFetch(`/etf-payment-application/draft-siswa?q=${encodeURIComponent(q)}`)
+    const _type = document.getElementById("ipay-type")?.value || "agri";
+    apiFetch(`/etf-payment-application/draft-siswa?q=${encodeURIComponent(q)}&tab=${encodeURIComponent(_type)}`)
       .then(r => { if (!r||r.status===401) { sugg.innerHTML=`<div style="padding:10px 12px;font-size:.875rem;color:#dc2626">Sesi habis. Refresh halaman.</div>`; _posSugg(); sugg.style.display="block"; return Promise.reject(); } return r.json(); })
       .then(hits => {
         if (!hits) return;
-        if (!hits.length) { sugg.innerHTML=`<div style="padding:10px 12px;font-size:.875rem;color:#6b7280">Tidak ditemukan. Pastikan PA sudah dibuat dengan status Draft.</div>`; _posSugg(); sugg.style.display="block"; return; }
+        if (!hits.length) { sugg.innerHTML=`<div style="padding:10px 12px;font-size:.875rem;color:#6b7280">Tidak ditemukan. Pastikan PA sudah dibuat dengan status Draft (tipe ${_type.toUpperCase()}).</div>`; _posSugg(); sugg.style.display="block"; return; }
         sugg.innerHTML = "";
         hits.forEach(s => {
           const d = document.createElement("div");
@@ -2468,7 +2470,8 @@ function ipayAddRow() {
             tr._allLines=[]; tr._hidEtfLineId.value="";
             sCat1.innerHTML=`<option value="">Memuat...</option>`; sCat1.disabled=true;
             cat2Drop.setOpts([]); _ipayResetAutoFill(tr); ipayUpdateTotal();
-            apiFetch(`/etf-payment-application/draft-lines?siswa_id=${s.id}`).then(r=>r.json()).then(lines => {
+            const _lineType = document.getElementById("ipay-type")?.value || "agri";
+            apiFetch(`/etf-payment-application/draft-lines?siswa_id=${s.id}&tab=${encodeURIComponent(_lineType)}`).then(r=>r.json()).then(lines => {
               tr._allLines = lines;
               const cat1s = [...new Set(lines.map(l => l.jenis_pembayaran).filter(Boolean))];
               sCat1.innerHTML=`<option value="">— Pilih Kategori 1 —</option>`+cat1s.map(c=>`<option value="${c}">${c}</option>`).join("");
@@ -2654,6 +2657,45 @@ async function ipaySave() {
   const d=await(await apiFetch("/beasiswa/payment/tambah-multi",{method:"POST",body:JSON.stringify({tanggal,pillar,perusahaan,pam,rows})})).json();
   showToast(d.pesan,d.ok?"success":"error");
   if (d.ok) ipayReset();
+}
+
+async function ipaySavePa() {
+  const type       = document.getElementById("ipay-type")?.value || "agri";
+  const tanggal    = document.getElementById("ipay-tgl").value;
+  const pam_no     = document.getElementById("ipay-pam-full").value.trim();
+  const keterangan = document.getElementById("ipay-catatan")?.value.trim() || "";
+  const pillar     = document.getElementById("ipay-pillar").value;
+  const perusahaan = document.getElementById("ipay-perusahaan").value;
+
+  if (!tanggal || !pam_no || pam_no === "Memuat...") {
+    showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
+  }
+  if (!perusahaan) { showToast("Perusahaan wajib diisi.", "error"); return; }
+
+  const allTrs = [...document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]")];
+  const rows = allTrs.map(tr => ({
+    siswa_code:     tr.dataset.siswaCode || "",
+    etf_pa_line_id: tr._hidEtfLineId?.value ? parseInt(tr._hidEtfLineId.value) : null,
+    cat1:           tr._cat1Select?.value || "",
+    cat2:           tr._cat2Drop?._hid?.value || "",
+    amount:         parseFloat(tr._amtInp?.value) || 0,
+    tgl_pengajuan:  tr._tgls?.[0]?.value || "",
+    tgl_receive:    tr._tgls?.[1]?.value || "",
+    tgl_pa:         tr._tgls?.[2]?.value || "",
+    tgl_final:      tr._tgls?.[3]?.value || "",
+  })).filter(r => r.amount > 0);
+
+  if (!rows.length) { showToast("Minimal 1 baris dengan amount > 0.", "error"); return; }
+  if (rows.some(r => !r.siswa_code)) { showToast("Semua baris harus memilih siswa.", "error"); return; }
+
+  const res = await apiFetch("/payment-memo/ipay/save-pa", {
+    method: "POST",
+    body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) { ipayReset(); loadPAM(); }
 }
 
 // ── Input Klaim tab ────────────────────────────────────────────────────────────
