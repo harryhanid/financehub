@@ -87,47 +87,51 @@
 
   <!-- TAB INPUT PAYMENT -->
   <div class="tab-panel" id="tab-input-payment">
-    {# ── sub-tab: Beasiswa | AGRI ── #}
-    <div style="display:flex;gap:0;margin-bottom:1rem;border:1px solid var(--border);border-radius:6px;overflow:hidden;width:fit-content">
-      <button id="ipay-sub-beasiswa" onclick="ipaySubTab('beasiswa')"
-              style="padding:.3rem .9rem;font-size:.8rem;font-weight:600;border:none;cursor:pointer;
-                     background:var(--primary,#3b82f6);color:#fff;border-right:1px solid var(--border)">Beasiswa</button>
-      <button id="ipay-sub-agri" onclick="ipaySubTab('agri')"
-              style="padding:.3rem .9rem;font-size:.8rem;font-weight:600;border:none;cursor:pointer;
-                     background:var(--bg-muted,#f1f3f5);color:var(--text-muted)">AGRI</button>
-    </div>
-
     {# ── Panel Beasiswa (existing) ── #}
     <div id="ipay-panel-beasiswa">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem;max-width:800px">
-      <div class="form-group">
+    <div style="display:grid;grid-template-columns:140px 160px minmax(220px,1fr) 200px;gap:.75rem;margin-bottom:.5rem;align-items:end;max-width:900px">
+      <div class="form-group" style="margin:0">
+        <label>Tipe PAM</label>
+        <select id="ipay-type" onchange="ipayOnTypeChange()"
+                style="width:100%;border:1.5px solid #3b82f6;color:#1d4ed8;font-weight:700;background:#eff6ff">
+          <option value="agri">AGRI</option>
+          <option value="app">APP</option>
+          <option value="sml">SML</option>
+          <option value="setf">SETF</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
         <label>Tanggal</label>
-        <input type="date" id="ipay-tgl">
+        <input type="date" id="ipay-tgl" onchange="ipayFetchNextPamNo()">
       </div>
-      <div class="form-group">
-        <label>PAM</label>
-        <div style="display:flex;gap:.375rem;align-items:center">
-          <span style="font-size:.875rem;color:#6b7280;white-space:nowrap">PAM-</span>
-          <input type="text" id="ipay-pam-seq" placeholder="001" style="width:56px;text-align:center" oninput="ipayUpdatePAM()" maxlength="10">
-          <span id="ipay-pam-preview" style="font-size:.75rem;color:#6b7280;white-space:nowrap"></span>
-        </div>
+      <div class="form-group" style="margin:0">
+        <label>No. PAM <span id="ipay-pam-type-badge" style="font-size:.65rem;color:#10b981;font-weight:400">(auto AGRI)</span></label>
+        <input type="text" id="ipay-pam-full" readonly placeholder="Memuat..."
+               style="font-family:monospace;font-weight:700;color:#1d4ed8;background:#f0f9ff;cursor:default">
       </div>
-      <div class="form-group">
+      <div class="form-group" style="margin:0">
         <label>Perusahaan</label>
         <div style="position:relative">
-          <input type="text" id="ipay-perusahaan-search" placeholder="Cari vendor..." autocomplete="off"
-                 oninput="ipayVendorSearch()" onblur="setTimeout(()=>document.getElementById('ipay-vendor-sugg').style.display='none',200)">
+          <input type="text" id="ipay-perusahaan-search" placeholder="Cari vendor..."
+                 autocomplete="off" oninput="ipayVendorSearch()"
+                 onblur="setTimeout(()=>document.getElementById('ipay-vendor-sugg').style.display='none',200)">
           <input type="hidden" id="ipay-perusahaan">
           <div id="ipay-vendor-sugg" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
         </div>
       </div>
-      <div class="form-group">
+    </div>
+    <div style="display:grid;grid-template-columns:200px 1fr;gap:.75rem;margin-bottom:1rem;align-items:end;max-width:900px">
+      <div class="form-group" style="margin:0">
         <label>Pillar</label>
         <input type="text" id="ipay-pillar" readonly placeholder="Auto dari vendor"
                style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
       </div>
+      <div class="form-group" style="margin:0">
+        <label>Catatan Payment <span style="font-size:.65rem;color:#6b7280;font-weight:400">(tampil di tab PAM)</span></label>
+        <input type="text" id="ipay-catatan" placeholder="Opsional — muncul di kolom Catatan PAM tab"
+               style="border:1px solid #93c5fd;background:#fafeff">
+      </div>
     </div>
-    <input type="hidden" id="ipay-pam-full">
     <div class="table-wrap">
       <table id="ipay-table" style="min-width:1200px">
         <thead>
@@ -160,65 +164,10 @@
     </div>
     <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
       <button class="btn btn-secondary btn-sm" onclick="ipayAddRow()">+ Tambah Baris</button>
-      <button class="btn btn-primary" onclick="ipaySave()">💾 Simpan Payment</button>
+      <button id="ipay-save-btn" class="btn btn-primary" onclick="ipaySavePa()">💾 Simpan PAM AGRI</button>
     </div>
     </div>{# end ipay-panel-beasiswa #}
 
-    {# ── Panel AGRI ── #}
-    <div id="ipay-panel-agri" style="display:none">
-      <div style="display:grid;grid-template-columns:auto auto auto 1fr;gap:.75rem;align-items:end;margin-bottom:1rem;max-width:700px">
-        <div class="form-group" style="margin:0">
-          <label>Tanggal PAM</label>
-          <input type="date" id="agri-pam-date">
-        </div>
-        <div class="form-group" style="margin:0">
-          <label>Keterangan</label>
-          <input type="text" id="agri-pam-ket" placeholder="Opsional" style="min-width:220px">
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="agriLoadOpen()" style="align-self:flex-end">
-          🔄 Muat PA Open
-        </button>
-        <span id="agri-count" style="font-size:.78rem;color:var(--text-muted);align-self:flex-end;padding-bottom:.15rem"></span>
-      </div>
-
-      {# checklist select all + counter #}
-      <div id="agri-bulk-bar" style="display:none;align-items:center;gap:.75rem;margin-bottom:.5rem;padding:.4rem .75rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:.82rem">
-        <span id="agri-sel-count" style="font-weight:600;color:#1d4ed8"></span>
-        <button class="btn btn-secondary btn-sm" onclick="agriClearSel()">✕ Batalkan</button>
-      </div>
-
-      <div style="overflow-x:auto">
-        <table id="agri-pa-table" style="width:100%;border-collapse:collapse;font-size:.8rem">
-          <thead class="thead-primary">
-            <tr>
-              <th style="padding:7px 8px;width:32px"><input type="checkbox" id="agri-chk-all" onchange="agriToggleAll(this)"></th>
-              <th style="padding:7px 8px">No. PA</th>
-              <th style="padding:7px 8px">Nama Siswa</th>
-              <th style="padding:7px 8px">Instansi</th>
-              <th style="padding:7px 8px">Jenjang</th>
-              <th style="padding:7px 8px">Jenis Bayar</th>
-              <th style="padding:7px 8px">Semester</th>
-              <th style="padding:7px 8px;text-align:right">Jumlah (Rp)</th>
-              <th style="padding:7px 8px">Tgl PA</th>
-            </tr>
-          </thead>
-          <tbody id="agri-pa-tbody">
-            <tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-muted)">Klik "Muat PA Open" untuk memuat data.</td></tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="7" style="text-align:right;padding:.5rem .75rem;font-weight:600;font-size:.85rem">Total Terpilih:</td>
-              <td id="agri-total-amt" style="text-align:right;padding:.5rem .75rem;font-weight:700;color:#1a56db">Rp 0</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
-        <button class="btn btn-primary" onclick="agriSavePAM()">💾 Buat PAM AGRI</button>
-      </div>
-    </div>{# end ipay-panel-agri #}
 
   </div>
 
@@ -675,6 +624,12 @@
     <p style="font-size:.75rem;font-weight:700;color:#1e40af;margin:.25rem 0 .5rem">PAM Record</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
       <div class="form-group" style="grid-column:1/-1">
+        <label>No. PAM</label>
+        <input type="text" id="edit-pam-no" placeholder="Nomor PAM"
+               style="font-family:monospace;font-weight:600;color:#1e40af">
+        <p style="font-size:.7rem;color:#f59e0b;margin:.25rem 0 0">⚠️ Mengubah No. PAM akan mengupdate semua referensi terkait (payment beasiswa, ETF/APP/SML PA).</p>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
         <label>Keterangan</label>
         <input type="text" id="edit-pam-keterangan" placeholder="Keterangan PAM">
       </div>
@@ -699,29 +654,9 @@
         <input type="date" id="edit-pam-tanggal-bayar">
       </div>
     </div>
-    <p style="font-size:.75rem;font-weight:700;color:#1e40af;margin:.5rem 0 .5rem">Payment Application</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem" id="pam-app-section">
+    <div style="margin-bottom:.75rem" id="pam-app-section">
       <div class="form-group">
-        <label>Tgl Pengajuan</label>
-        <input type="date" id="edit-pam-app-submitted">
-      </div>
-      <div class="form-group">
-        <label>Target Payment Date</label>
-        <input type="date" id="edit-pam-app-target">
-      </div>
-      <div class="form-group">
-        <label>Actual Payment Date</label>
-        <input type="date" id="edit-pam-app-actual">
-      </div>
-      <div class="form-group">
-        <label>Status Application</label>
-        <select id="edit-pam-app-status">
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-        </select>
-      </div>
-      <div class="form-group" style="grid-column:1/-1">
-        <label>Notes</label>
+        <label style="font-size:.75rem;font-weight:700;color:#1e40af">Notes (Payment Application)</label>
         <input type="text" id="edit-pam-app-notes" placeholder="Catatan application">
       </div>
     </div>
@@ -1315,117 +1250,6 @@ async function pamSetPaidAgri(pamId) {
   if (data.ok) loadPAM();
 }
 
-// ── Input AGRI sub-tab ────────────────────────────────────────────────────────
-let _agriRows = [];
-let _agriSel  = new Set();
-
-function ipaySubTab(tab) {
-  const isBsw = tab === 'beasiswa';
-  document.getElementById('ipay-panel-beasiswa').style.display = isBsw ? '' : 'none';
-  document.getElementById('ipay-panel-agri').style.display     = isBsw ? 'none' : '';
-  document.getElementById('ipay-sub-beasiswa').style.background = isBsw ? 'var(--primary,#3b82f6)' : 'var(--bg-muted,#f1f3f5)';
-  document.getElementById('ipay-sub-beasiswa').style.color      = isBsw ? '#fff' : 'var(--text-muted)';
-  document.getElementById('ipay-sub-agri').style.background     = isBsw ? 'var(--bg-muted,#f1f3f5)' : 'var(--primary,#3b82f6)';
-  document.getElementById('ipay-sub-agri').style.color          = isBsw ? 'var(--text-muted)' : '#fff';
-  if (!isBsw && !_agriRows.length) agriLoadOpen();
-}
-
-async function agriLoadOpen() {
-  const res  = await apiFetch('/payment-memo/agri-pa-open');
-  if (!res) return;
-  const data = await res.json();
-  _agriRows = data.rows || [];
-  _agriSel.clear();
-  agriRenderTable();
-  document.getElementById('agri-count').textContent = `${_agriRows.length} baris open`;
-}
-
-function agriRenderTable() {
-  const tbody = document.getElementById('agri-pa-tbody');
-  if (!_agriRows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-muted)">Tidak ada PA dengan status Open.</td></tr>';
-    agriUpdateTotal();
-    return;
-  }
-  tbody.innerHTML = _agriRows.map((r, i) => `
-    <tr style="background:${i%2===0?'#fff':'#f8fafc'}">
-      <td style="padding:5px 8px"><input type="checkbox" class="agri-chk" value="${r.pa_id}"
-          ${_agriSel.has(r.pa_id)?'checked':''} onchange="agriOnCheck(${r.pa_id},this.checked)"></td>
-      <td style="padding:5px 8px;font-size:.75rem;font-family:monospace">${esc(r.pa_number)}</td>
-      <td style="padding:5px 8px">${esc(r.nama)}</td>
-      <td style="padding:5px 8px;font-size:.75rem">${esc(r.instansi||'-')}</td>
-      <td style="padding:5px 8px">${esc(r.jenjang||'-')}</td>
-      <td style="padding:5px 8px">${esc(r.jenis_pembayaran||'-')}</td>
-      <td style="padding:5px 8px">${esc(r.semester||'-')}</td>
-      <td style="padding:5px 8px;text-align:right;font-weight:600">${fmtRupiah(r.jumlah_pembayaran)}</td>
-      <td style="padding:5px 8px;font-size:.75rem">${esc(r.tgl_payment_application||'-')}</td>
-    </tr>
-  `).join('');
-  agriUpdateTotal();
-  agriUpdateBulkBar();
-}
-
-function agriOnCheck(paId, checked) {
-  if (checked) _agriSel.add(paId); else _agriSel.delete(paId);
-  agriUpdateTotal();
-  agriUpdateBulkBar();
-}
-
-function agriToggleAll(chk) {
-  _agriRows.forEach(r => {
-    if (chk.checked) _agriSel.add(r.pa_id); else _agriSel.delete(r.pa_id);
-  });
-  document.querySelectorAll('.agri-chk').forEach(c => c.checked = chk.checked);
-  agriUpdateTotal();
-  agriUpdateBulkBar();
-}
-
-function agriClearSel() {
-  _agriSel.clear();
-  document.querySelectorAll('.agri-chk').forEach(c => c.checked = false);
-  document.getElementById('agri-chk-all').checked = false;
-  agriUpdateTotal();
-  agriUpdateBulkBar();
-}
-
-function agriUpdateTotal() {
-  const sel = _agriRows.filter(r => _agriSel.has(r.pa_id));
-  const total = sel.reduce((s, r) => s + (r.jumlah_pembayaran || 0), 0);
-  document.getElementById('agri-total-amt').textContent = fmtRupiah(total);
-}
-
-function agriUpdateBulkBar() {
-  const bar = document.getElementById('agri-bulk-bar');
-  const n   = _agriSel.size;
-  bar.style.display = n ? 'flex' : 'none';
-  document.getElementById('agri-sel-count').textContent = `${n} PA dipilih`;
-}
-
-async function agriSavePAM() {
-  const paDate = document.getElementById('agri-pam-date').value;
-  if (!paDate) { showToast('Pilih tanggal PAM.', 'error'); return; }
-  const ids = [..._agriSel];
-  if (!ids.length) { showToast('Pilih minimal 1 PA.', 'error'); return; }
-  const keterangan = document.getElementById('agri-pam-ket').value.trim();
-  const res  = await apiFetch('/payment-memo/create-agri-pam', {
-    method: 'POST',
-    body: JSON.stringify({ pam_date: paDate, pa_ids: ids, keterangan })
-  });
-  if (!res) return;
-  const data = await res.json();
-  showToast(data.pesan, data.ok ? 'success' : 'error');
-  if (data.ok) {
-    _agriSel.clear();
-    agriLoadOpen(); // reload sisa PA open
-    loadPAM();      // reload AGRI PAM tab
-  }
-}
-
-// Init tanggal hari ini untuk AGRI PAM date
-document.addEventListener('DOMContentLoaded', () => {
-  const agriDateEl = document.getElementById('agri-pam-date');
-  if (agriDateEl && !agriDateEl.value) agriDateEl.value = new Date().toISOString().slice(0,10);
-});
 
 let _pamDebounce;
 function loadPAMDebounced() { clearTimeout(_pamDebounce); _pamDebounce = setTimeout(loadPAM, 300); }
@@ -1487,22 +1311,17 @@ async function openEditPAM(pamId) {
   const data = await res.json();
   if (!data.ok) { showToast('Gagal memuat detail PAM.', 'error'); return; }
   const r = data.data;
-  document.getElementById('edit-pam-id').value           = r.id;
-  document.getElementById('edit-pam-title').textContent  = 'Edit PAM — ' + r.pam_no;
-  document.getElementById('edit-pam-keterangan').value   = r.keterangan || '';
-  document.getElementById('edit-pam-requestor').value    = r.requestors_name || '';
-  document.getElementById('edit-pam-date').value         = r.pam_date || '';
-  document.getElementById('edit-pam-due').value          = r.due_date || '';
+  document.getElementById('edit-pam-id').value            = r.id;
+  document.getElementById('edit-pam-title').textContent   = 'Edit PAM — ' + r.pam_no;
+  document.getElementById('edit-pam-no').value            = r.pam_no || '';
+  document.getElementById('edit-pam-keterangan').value    = r.keterangan || '';
+  document.getElementById('edit-pam-requestor').value     = r.requestors_name || '';
+  document.getElementById('edit-pam-date').value          = r.pam_date || '';
+  document.getElementById('edit-pam-due').value           = r.due_date || '';
   document.getElementById('edit-pam-tanggal-bayar').value = r.tanggal_bayar || '';
-  document.getElementById('edit-pam-amount').value       = r.total_amount || 0;
+  document.getElementById('edit-pam-amount').value        = r.total_amount || 0;
   const app = r.payment_application || {};
-  document.getElementById('edit-pam-app-submitted').value = app.submitted_at || '';
-  document.getElementById('edit-pam-app-target').value    = app.target_payment_date || '';
-  document.getElementById('edit-pam-app-actual').value    = app.actual_payment_date || '';
   document.getElementById('edit-pam-app-notes').value     = app.notes || '';
-  document.getElementById('edit-pam-app-status').value    = app.status || 'pending';
-  const sec = document.getElementById('pam-app-section');
-  if (sec) sec.style.opacity = app.id ? '1' : '0.5';
   openModal('modal-edit-pam');
 }
 
@@ -1510,6 +1329,7 @@ async function submitEditPAM() {
   const pamId   = parseInt(document.getElementById('edit-pam-id').value);
   const payload = {
     pam: {
+      pam_no:          document.getElementById('edit-pam-no').value.trim() || null,
       keterangan:      document.getElementById('edit-pam-keterangan').value.trim(),
       requestors_name: document.getElementById('edit-pam-requestor').value.trim(),
       pam_date:        document.getElementById('edit-pam-date').value,
@@ -1518,11 +1338,7 @@ async function submitEditPAM() {
       tanggal_bayar:   document.getElementById('edit-pam-tanggal-bayar').value || null,
     },
     app: {
-      submitted_at:        document.getElementById('edit-pam-app-submitted').value || null,
-      target_payment_date: document.getElementById('edit-pam-app-target').value || null,
-      actual_payment_date: document.getElementById('edit-pam-app-actual').value || null,
-      notes:               document.getElementById('edit-pam-app-notes').value.trim() || null,
-      status:              document.getElementById('edit-pam-app-status').value || null,
+      notes: document.getElementById('edit-pam-app-notes').value.trim() || null,
     },
   };
   const res  = await apiFetch(`/payment-memo/pam/${pamId}/edit`, {
@@ -2459,14 +2275,14 @@ let _ipayRowId = 0;
 
 function ipayReset() {
   document.querySelectorAll("[data-ipaysugg]").forEach(el => el.remove());
-  document.getElementById("ipay-tgl").value = "";
-  document.getElementById("ipay-pam-seq").value = "";
-  document.getElementById("ipay-pam-preview").textContent = "";
+  document.getElementById("ipay-tgl").value = new Date().toISOString().slice(0, 10);
   document.getElementById("ipay-pam-full").value = "";
   document.getElementById("ipay-perusahaan-search").value = "";
   document.getElementById("ipay-perusahaan").value = "";
   document.getElementById("ipay-pillar").value = "";
   document.getElementById("ipay-vendor-sugg").style.display = "none";
+  const catatanEl = document.getElementById("ipay-catatan");
+  if (catatanEl) catatanEl.value = "";
   document.getElementById("ipay-tbody").innerHTML =
     `<tr id="ipay-empty-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
   const el = document.getElementById("ipay-total-amt");
@@ -2491,13 +2307,28 @@ function _ipayUpdateSisaCell(tr) {
   tr._sisaCell.style.color = amt > sisa ? "var(--danger)" : "#15803d";
 }
 
-function ipayUpdatePAM() {
-  const seq = document.getElementById("ipay-pam-seq").value.trim();
-  const tgl = document.getElementById("ipay-tgl").value;
-  let datePart = "";
-  if (tgl) { const d = new Date(tgl); const mm = String(d.getMonth()+1).padStart(2,"0"); datePart = `-${COMPANY_CODE}-${mm}-${d.getFullYear()}`; }
-  document.getElementById("ipay-pam-preview").textContent = datePart;
-  document.getElementById("ipay-pam-full").value = seq ? `PAM-${seq}${datePart}` : "";
+function ipayOnTypeChange() {
+  const type = document.getElementById("ipay-type")?.value || "agri";
+  const badge = document.getElementById("ipay-pam-type-badge");
+  if (badge) badge.textContent = `(auto ${type.toUpperCase()})`;
+  const saveBtn = document.getElementById("ipay-save-btn");
+  if (saveBtn) saveBtn.textContent = `\u{1F4BE} Simpan PAM ${type.toUpperCase()}`;
+  ipayFetchNextPamNo();
+}
+
+async function ipayFetchNextPamNo() {
+  const type = document.getElementById("ipay-type")?.value || "agri";
+  const tgl  = document.getElementById("ipay-tgl")?.value || "";
+  const pamEl = document.getElementById("ipay-pam-full");
+  if (!pamEl) return;
+  if (!tgl) { pamEl.value = ""; return; }
+  pamEl.value = "Memuat...";
+  try {
+    const res = await apiFetch(`/ipay/next-pam-no?type=${encodeURIComponent(type)}&tgl=${encodeURIComponent(tgl)}`);
+    if (!res) { pamEl.value = ""; return; }
+    const data = await res.json();
+    pamEl.value = data.ok ? (data.pam_no || "") : "";
+  } catch { pamEl.value = ""; }
 }
 
 function _isMedical(cat1, cat2) {
@@ -2890,7 +2721,9 @@ async function iklaimSave() {
 
 document.addEventListener("DOMContentLoaded",()=>{
   const tglEl=document.getElementById("ipay-tgl");
-  if(tglEl) tglEl.addEventListener("change",ipayUpdatePAM);
+  if(tglEl) tglEl.addEventListener("change",ipayFetchNextPamNo);
+  // set today as default date on load
+  if(tglEl && !tglEl.value) tglEl.value = new Date().toISOString().slice(0,10);
 });
 </script>
 {% endblock %}
