@@ -508,6 +508,50 @@ def migrate_db():
     except Exception:
         pass
 
+    # setf_pa table — student-based PA for SETF
+    try:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS setf_pa (
+                id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id               INTEGER NOT NULL,
+                pa_number                TEXT NOT NULL,
+                tgl_payment_application  TEXT,
+                tgl_surat_pengajuan      TEXT,
+                doc_received_by_educ     TEXT,
+                received_pa_from_educ    TEXT,
+                checked_by_fincon        TEXT,
+                approved_by_htj_1        TEXT,
+                send_pa_back_to_educ     TEXT,
+                pa_received_by_po_fin    TEXT,
+                approval_by_htj_2        TEXT,
+                nomor_pam                TEXT,
+                tanggal_bayar            TEXT,
+                keterangan               TEXT,
+                status                   TEXT DEFAULT 'open',
+                created_at               TEXT,
+                updated_at               TEXT)"""
+        )
+        conn.commit()
+    except Exception:
+        pass
+
+    # setf_pa_lines table
+    try:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS setf_pa_lines (
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                pa_id                INTEGER NOT NULL REFERENCES setf_pa(id),
+                student_id           INTEGER NOT NULL REFERENCES siswa(id),
+                jenis_pembayaran     TEXT,
+                semester             TEXT,
+                tahun_ajaran         TEXT,
+                ipk_sem_sebelumnya   REAL DEFAULT 0,
+                jumlah_pembayaran    REAL DEFAULT 0)"""
+        )
+        conn.commit()
+    except Exception:
+        pass
+
     # app_pa table — student-based PA for APP
     try:
         conn.execute(
@@ -552,14 +596,17 @@ def migrate_db():
     except Exception:
         pass
 
-    # indexes for sml_pa and app_pa queries
+    # indexes for sml_pa, setf_pa, and app_pa queries
     for idx_sql in [
-        "CREATE INDEX IF NOT EXISTS idx_sml_pa_company   ON sml_pa(company_id)",
-        "CREATE INDEX IF NOT EXISTS idx_sml_pa_lines_pa  ON sml_pa_lines(pa_id)",
-        "CREATE INDEX IF NOT EXISTS idx_sml_pa_lines_sid ON sml_pa_lines(student_id)",
-        "CREATE INDEX IF NOT EXISTS idx_app_pa_company   ON app_pa(company_id)",
-        "CREATE INDEX IF NOT EXISTS idx_app_pa_lines_pa  ON app_pa_lines(pa_id)",
-        "CREATE INDEX IF NOT EXISTS idx_app_pa_lines_sid ON app_pa_lines(student_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sml_pa_company    ON sml_pa(company_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sml_pa_lines_pa   ON sml_pa_lines(pa_id)",
+        "CREATE INDEX IF NOT EXISTS idx_sml_pa_lines_sid  ON sml_pa_lines(student_id)",
+        "CREATE INDEX IF NOT EXISTS idx_setf_pa_company   ON setf_pa(company_id)",
+        "CREATE INDEX IF NOT EXISTS idx_setf_pa_lines_pa  ON setf_pa_lines(pa_id)",
+        "CREATE INDEX IF NOT EXISTS idx_setf_pa_lines_sid ON setf_pa_lines(student_id)",
+        "CREATE INDEX IF NOT EXISTS idx_app_pa_company    ON app_pa(company_id)",
+        "CREATE INDEX IF NOT EXISTS idx_app_pa_lines_pa   ON app_pa_lines(pa_id)",
+        "CREATE INDEX IF NOT EXISTS idx_app_pa_lines_sid  ON app_pa_lines(student_id)",
     ]:
         try:
             conn.execute(idx_sql)
