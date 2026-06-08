@@ -379,7 +379,7 @@ def create_pam_record(conn, company_id: int, company_code: str,
 
 
 def get_pam_list(company_id: int, search: str = "", bulan: str = "",
-                 tahun: str = "") -> list:
+                 tahun: str = "", source: str = "") -> list:
     sql    = "SELECT * FROM pam_records WHERE company_id=?"
     params = [company_id]
     if search:
@@ -392,6 +392,9 @@ def get_pam_list(company_id: int, search: str = "", bulan: str = "",
     if tahun:
         sql    += " AND strftime('%Y', pam_date)=?"
         params += [tahun]
+    if source:
+        sql    += " AND source LIKE ?"
+        params += [f"etf_{source}%"]
     sql += " ORDER BY created_at DESC"
     conn = get_conn()
     rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
