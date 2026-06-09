@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS payment_memo (
     tanggal      TEXT,
     total_amount REAL DEFAULT 0,
     tanggal_bayar TEXT,
-    status       TEXT DEFAULT 'draft',
+    status       TEXT DEFAULT 'open',
     notes        TEXT,
     created_by   TEXT,
     approved_by  TEXT,
@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS payment_beasiswa (
     tgl_pa          TEXT,
     tgl_final       TEXT,
     etf_pa_line_id  INTEGER,
-    status          TEXT DEFAULT 'draft',
+    status          TEXT DEFAULT 'open',
     created_at      TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS payment_application (
     submitted_at        TEXT,
     target_payment_date TEXT,
     actual_payment_date TEXT,
-    status              TEXT DEFAULT 'pending',
+    status              TEXT DEFAULT 'open',
     tat_days            INTEGER,
     notes               TEXT,
     created_at          TEXT DEFAULT CURRENT_TIMESTAMP
@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS pam_records (
     keterangan      TEXT,
     total_amount    REAL DEFAULT 0,
     due_date        TEXT,
-    status          TEXT DEFAULT 'draft',
+    status          TEXT DEFAULT 'open',
     created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at      TEXT
 );
