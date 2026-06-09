@@ -34,7 +34,7 @@ def get_draft_payments(company_id: int) -> list:
         """SELECT pb.*, s.nama, s.bank, s.norek, s.namarek
            FROM payment_beasiswa pb
            LEFT JOIN siswa s ON s.company_id = pb.company_id AND s.code = pb.siswa_code
-           WHERE pb.company_id = ? AND pb.status = 'draft'
+           WHERE pb.company_id = ? AND pb.status = 'open'
            ORDER BY pb.tanggal DESC""",
         (company_id,)
     ).fetchall()]
@@ -54,7 +54,7 @@ def create_memo(company_id: int, company_code: str, tanggal: str,
         cur = conn.execute(
             """INSERT INTO payment_memo
                (company_id, memo_number, tanggal, total_amount, status, notes, created_by, created_at)
-               VALUES (?,?,?,?,'draft',?,?,?)""",
+               VALUES (?,?,?,?,'open',?,?,?)""",
             (company_id, memo_number, tanggal, total, notes, created_by, _ts())
         )
         memo_id = cur.lastrowid
@@ -73,7 +73,7 @@ def create_memo(company_id: int, company_code: str, tanggal: str,
             )
             if item.get("source_module", "beasiswa") == "beasiswa":
                 conn.execute(
-                    "UPDATE payment_beasiswa SET status='in_memo', memo_id=? WHERE id=?",
+                    "UPDATE payment_beasiswa SET status='on_process', memo_id=? WHERE id=?",
                     (memo_id, item["source_id"])
                 )
         conn.commit()
@@ -116,7 +116,7 @@ def get_memo_detail(memo_id: int, company_id: int) -> dict | None:
 
 
 def update_memo_status(memo_id: int, new_status: str, by_user: str, company_id: int = 0) -> dict:
-    allowed = {"draft", "on_process", "complete"}
+    allowed = {"open", "on_process", "complete"}
     if new_status not in allowed:
         return {"ok": False, "pesan": f"Status '{new_status}' tidak valid."}
 
@@ -137,13 +137,13 @@ def update_memo_status(memo_id: int, new_status: str, by_user: str, company_id: 
 
     if new_status == "complete":
         conn.execute(
-            "UPDATE payment_beasiswa SET status='paid' WHERE memo_id=?",
+            "UPDATE payment_beasiswa SET status='complete' WHERE memo_id=?",
             (memo_id,)
         )
-    elif new_status in ("draft", "on_process"):
-        # Revert payment_beasiswa ke draft saat memo diturunkan statusnya
+    elif new_status in ("open", "on_process"):
+        # Revert payment_beasiswa ke open saat memo diturunkan statusnya
         conn.execute(
-            "UPDATE payment_beasiswa SET status='draft' WHERE memo_id=? AND status='paid'",
+            "UPDATE payment_beasiswa SET status='open' WHERE memo_id=? AND status='complete'",
             (memo_id,)
         )
 
@@ -179,7 +179,7 @@ def set_memo_tanggal_bayar(memo_id: int, tanggal_bayar: str, company_id: int) ->
 
     # 2. Update payment_beasiswa status
     conn.execute(
-        "UPDATE payment_beasiswa SET status='paid' WHERE memo_id=?",
+        "UPDATE payment_beasiswa SET status='complete' WHERE memo_id=?",
         (memo_id,)
     )
 
@@ -294,7 +294,7 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
                 total_amount, due_date, source, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,'draft',?)""",
+               VALUES (?,?,?,?,?,?,?,?,'open',?)""",
             (company_id, pam_no, tanggal,
              company_code, keterangan,
              total, due_date, f"etf_{tab}", _ts())
@@ -363,7 +363,7 @@ def create_pam_record(conn, company_id: int, company_code: str,
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, gl_account, cost_center, pt,
             requestors_name, keterangan, total_amount, due_date, status, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,'draft',?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,'open',?)""",
         (company_id, pam_no, pam_date,
          data.get("gl_account", config.PAM_DEFAULT_GL),
          cost_center, data.get("pt", ""),
@@ -438,7 +438,7 @@ def update_pam_gl_account(pam_id: int, gl_account: str,
 
 
 def update_pam_status(pam_id: int, new_status: str, company_id: int) -> dict:
-    allowed = {"draft", "approved", "paid"}
+    allowed = {"open", "on_process", "complete"}
     if new_status not in allowed:
         return {"ok": False, "pesan": f"Status '{new_status}' tidak valid."}
     conn = get_conn()
@@ -495,9 +495,9 @@ def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
     if not row:
         conn.close()
         return {"ok": False, "pesan": "Payment tidak ditemukan."}
-    if row["status"] != "draft":
+    if row["status"] != "open":
         conn.close()
-        return {"ok": False, "pesan": "Hanya payment berstatus draft yang bisa dihapus."}
+        return {"ok": False, "pesan": "Hanya payment berstatus open yang bisa dihapus."}
     conn.execute("DELETE FROM payment_beasiswa WHERE id=? AND company_id=?", (payment_id, company_id))
     conn.commit()
     conn.close()
@@ -1179,7 +1179,7 @@ def bulk_update_fiori_dates(ids: list, dates: dict) -> dict:
 
 
 def update_fiori_status(record_id: int, new_status: str) -> dict:
-    _ALLOWED = {"open", "approved", "paid"}
+    _ALLOWED = {"open", "on_process", "complete"}
     if new_status not in _ALLOWED:
         return {"ok": False, "pesan": "Status tidak valid."}
     conn = get_conn()
@@ -1206,7 +1206,7 @@ def cancel_fiori_record(record_id: int) -> dict:
 
 
 def update_sml_status(record_id: int, new_status: str) -> dict:
-    _ALLOWED = {"open", "approved", "paid"}
+    _ALLOWED = {"open", "on_process", "complete"}
     if new_status not in _ALLOWED:
         return {"ok": False, "pesan": "Status tidak valid."}
     conn = get_conn()
@@ -1365,7 +1365,7 @@ def create_pam_from_etf_pa(company_id: int, company_code: str,
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, gl_account, cost_center, pt,
             requestors_name, keterangan, total_amount, due_date, status, source, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,'draft','etf_agri',?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,'open','etf_agri',?)""",
         (company_id, pam_no, pam_date,
          config.PAM_DEFAULT_GL if hasattr(config, 'PAM_DEFAULT_GL') else "",
          "", company_code,
@@ -1406,7 +1406,7 @@ def set_pam_tanggal_bayar_agri(pam_id: int, tanggal_bayar: str, company_id: int)
 
     # 1. Update pam_records
     conn.execute(
-        "UPDATE pam_records SET tanggal_bayar=?, status='paid', updated_at=? WHERE id=?",
+        "UPDATE pam_records SET tanggal_bayar=?, status='complete', updated_at=? WHERE id=?",
         (tanggal_bayar, ts, pam_id)
     )
 
