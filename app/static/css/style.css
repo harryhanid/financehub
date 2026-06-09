@@ -28,6 +28,7 @@
 
   /* Aliases */
   --bg: var(--sl-50); --card: #FFF; --border: var(--sl-200);
+  --bg-muted: var(--sl-100);
   --ink: var(--sl-900); --text: var(--sl-900); --text-muted: var(--sl-500);
   --primary: var(--accent); --primary-dark: var(--accent-dark);
   --success: var(--positive); --danger: var(--negative); --warning: var(--caution);
@@ -134,64 +135,37 @@ button { font-family: inherit; }
   background: var(--sl-50);
 }
 
-/* ── Sidebar + Layout ────────────────────────────────── */
-.layout {
-  display: flex;
-  margin-top: var(--navbar-h);
-  min-height: calc(100dvh - var(--navbar-h));
+/* ── Navbar links ────────────────────────────────────── */
+.navbar-links {
+  display: flex; align-items: center; gap: .125rem;
+  flex-wrap: nowrap; overflow-x: auto;
 }
-.sidebar {
-  width: var(--sidebar-w);
-  background: #FFF;
-  border-right: 1px solid var(--sl-200);
-  position: fixed;
-  top: var(--navbar-h); bottom: 0; left: 0;
-  overflow-y: auto;
-  padding: 1rem 0 1.5rem;
-}
-.sidebar::-webkit-scrollbar { width: 3px; }
-.sidebar::-webkit-scrollbar-thumb { background: var(--sl-200); border-radius: 2px; }
-
-/* Section label — quiet, barely there */
-.sidebar-section {
-  padding: 1.25rem 1rem .3rem;
-  font-size: .625rem;
-  font-weight: 700;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-  color: var(--sl-400);
-}
-/* Nav links — left-border active indicator, no background fill */
-.sidebar a {
-  position: relative;
-  display: flex; align-items: center; gap: .5rem;
-  padding: .4rem .875rem .4rem 1rem;
-  margin: .0625rem 0;
-  color: var(--sl-600);
-  font-size: .8125rem;
-  font-weight: 500;
+.navbar-link {
+  font-size: .775rem; font-weight: 500;
+  color: var(--sl-500);
+  padding: .3rem .5rem;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
   transition: color .1s, background .1s;
-  border-left: 2px solid transparent;
+  border-bottom: 2px solid transparent;
 }
-.sidebar a svg { flex-shrink: 0; color: var(--sl-400); transition: color .1s; }
-.sidebar a:hover {
-  color: var(--sl-800);
-  background: var(--sl-50);
-}
-.sidebar a:hover svg { color: var(--sl-600); }
-.sidebar a.active {
+.navbar-link:hover { color: var(--sl-800); background: var(--sl-100); }
+.navbar-link.active {
   color: var(--accent-text);
   font-weight: 600;
-  border-left-color: var(--accent);
-  background: var(--accent-surface);
+  border-bottom-color: var(--accent);
 }
-.sidebar a.active svg { color: var(--accent); }
-.sidebar a.coming-soon { opacity: .32; pointer-events: none; }
+.navbar-link.coming-soon {
+  opacity: .35;
+  pointer-events: none;
+  cursor: default;
+}
 
+/* ── Main layout ─────────────────────────────────────── */
 .main {
-  margin-left: var(--sidebar-w);
-  flex: 1;
+  margin-top: var(--navbar-h);
   padding: 1.625rem 1.75rem;
+  min-height: calc(100dvh - var(--navbar-h));
 }
 
 /* ── Page Header ─────────────────────────────────────── */
@@ -586,35 +560,58 @@ input[readonly], input[disabled] {
 }
 .login-sub { color: var(--sl-500); text-align: center; font-size: .8125rem; margin-bottom: 1.375rem; }
 
-/* ── Company Select ──────────────────────────────────── */
-.select-wrap {
-  min-height: 100dvh; display: flex; align-items: center; justify-content: center;
-  background: var(--sl-50);
+/* ── Company Select (Split Screen) ──────────────────── */
+.cs-split {
+  display: flex; height: 100dvh; width: 100vw; overflow: hidden; position: relative;
 }
-.company-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: .875rem; margin-top: 1.375rem;
+.cs-form { flex: 1; display: flex; }
+.cs-badge {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  background: rgba(255,255,255,.08); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.7); font-family: 'Figtree', sans-serif;
+  font-size: .75rem; font-weight: 600; letter-spacing: .8px;
+  padding: .5rem 1.25rem; border-radius: 0 0 .875rem .875rem;
+  white-space: nowrap; z-index: 10; pointer-events: none;
 }
-.company-card {
-  background: #FFF; border: 1px solid var(--sl-200);
-  border-radius: var(--r-lg);
-  padding: 1.5rem 1.25rem; text-align: center;
-  cursor: pointer; color: var(--sl-900);
-  transition: border-color .12s, box-shadow .12s;
+.cs-panel {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1.25rem; padding: 2rem; cursor: pointer;
+  border: none; outline: none; color: #fff;
+  transition: filter .18s ease; position: relative;
 }
-.company-card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-surface);
+.cs-panel:hover { filter: brightness(1.12); }
+.cs-panel:hover .cs-hint { opacity: 1; transform: translateX(0); }
+.cs-panel-smt { background: linear-gradient(150deg, #1a3252, #2d5a8e, #1e4d7a); }
+.cs-panel-etf { background: linear-gradient(150deg, #2e1650, #5c2d91, #3d1a6e); }
+.cs-divider { width: 1px; background: rgba(255,255,255,.12); flex-shrink: 0; }
+.cs-icon { font-size: 4.5rem; line-height: 1; filter: drop-shadow(0 4px 16px rgba(0,0,0,.3)); }
+.cs-name { font-size: 1.375rem; font-weight: 700; text-align: center; line-height: 1.3; letter-spacing: .2px; }
+.cs-code {
+  font-size: .8125rem; font-weight: 600; color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.15);
+  border-radius: .5rem; padding: .25rem .875rem; letter-spacing: 1px;
 }
-.company-icon { font-size: 1.5rem; margin-bottom: .625rem; }
-.company-name { font-size: .9375rem; font-weight: 600; color: var(--sl-900); }
-.company-code { font-size: .75rem; color: var(--sl-500); margin-top: .1875rem; }
+.cs-hint {
+  position: absolute; bottom: 2.5rem;
+  font-size: .8125rem; color: rgba(255,255,255,.5);
+  opacity: 0; transform: translateX(-6px);
+  transition: opacity .18s, transform .18s;
+  letter-spacing: .5px; pointer-events: none;
+}
+@media (max-width: 600px) {
+  .cs-split { flex-direction: column; }
+  .cs-badge { display: none; }
+  .cs-icon { font-size: 3.5rem; }
+  .cs-name { font-size: 1.125rem; }
+}
 
 /* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 768px) {
   .login-brand { display: none; }
   .kpi-grid, .stats-grid { grid-template-columns: 1fr 1fr; }
-  .main { margin-left: 0; padding: .875rem 1rem; }
+  .main { padding: .875rem 1rem; }
 }
 
 /* ── Dark Mode ───────────────────────────────────────── */
@@ -637,9 +634,10 @@ input[readonly], input[disabled] {
   --caution:          #FBBF24; --caution-surface:  rgba(251,191,36,0.1);  --caution-border:  rgba(251,191,36,0.3);
 
   /* Surface aliases */
-  --bg:   #0C0F1A;
-  --card: #131726;
-  --border: rgba(255,255,255,0.08);
+  --bg:      #0C0F1A;
+  --card:    #131726;
+  --border:  rgba(255,255,255,0.08);
+  --bg-muted: rgba(255,255,255,0.05);
 }
 
 /* Dark: body */
@@ -666,19 +664,10 @@ input[readonly], input[disabled] {
   color: var(--sl-700);
 }
 
-/* Dark: sidebar */
-[data-theme="dark"] .sidebar {
-  background: #0F1220;
-  border-right-color: rgba(255,255,255,0.07);
-}
-[data-theme="dark"] .sidebar a { color: var(--sl-500); }
-[data-theme="dark"] .sidebar a:hover { background: rgba(255,255,255,0.05); color: var(--sl-700); }
-[data-theme="dark"] .sidebar a.active {
-  background: var(--accent-surface);
-  color: var(--accent-text);
-  border-left-color: var(--accent);
-}
-[data-theme="dark"] .sidebar-section { color: var(--sl-400); }
+/* Dark: navbar links */
+[data-theme="dark"] .navbar-link { color: var(--sl-500); }
+[data-theme="dark"] .navbar-link:hover { background: rgba(255,255,255,0.06); color: var(--sl-700); }
+[data-theme="dark"] .navbar-link.active { color: var(--accent-text); border-bottom-color: var(--accent); }
 
 /* Dark: cards */
 [data-theme="dark"] .card,
@@ -689,7 +678,7 @@ input[readonly], input[disabled] {
 [data-theme="dark"] th { color: var(--sl-500); border-bottom-color: var(--border); }
 [data-theme="dark"] td { color: var(--sl-600); border-bottom-color: rgba(255,255,255,0.04); }
 [data-theme="dark"] tbody tr:hover td { background: rgba(255,255,255,0.04); }
-[data-theme="dark"] tfoot tr { background: rgba(255,255,255,0.04); border-top-color: var(--border); }
+[data-theme="dark"] tfoot tr { background: rgba(255,255,255,0.04) !important; border-top-color: var(--border); }
 [data-theme="dark"] .table-wrap { border-color: var(--border); }
 [data-theme="dark"] .thead-primary th {
   background: rgba(255,255,255,0.08);
@@ -773,11 +762,6 @@ input[readonly], input[disabled] {
 [data-theme="dark"] .section-toggle { background: rgba(255,255,255,0.08); color: var(--sl-800); }
 [data-theme="dark"] .section-toggle:hover { background: rgba(255,255,255,0.12); }
 
-/* Dark: company select */
-[data-theme="dark"] .select-wrap { background: var(--bg); }
-[data-theme="dark"] .company-card { background: var(--card); border-color: var(--border); color: var(--sl-900); }
-[data-theme="dark"] .company-card:hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-surface); }
-
 /* ── Theme Toggle Button ─────────────────────────────── */
 .btn-theme-toggle {
   background: transparent;
@@ -809,3 +793,37 @@ input[readonly], input[disabled] {
 .icon-moon { display: block; }
 [data-theme="dark"] .icon-sun  { display: block; }
 [data-theme="dark"] .icon-moon { display: none; }
+
+/* ── Dark: JS-generated table rows (inline style override) ───────── */
+/* payment_memo: SML, APP, AGRI tabs use JS zebra-stripe via inline style */
+[data-theme="dark"] .sml-row,
+[data-theme="dark"] .fiori-row,
+[data-theme="dark"] #pam-tbody tr { background: var(--card) !important; }
+[data-theme="dark"] .sml-row:hover td,
+[data-theme="dark"] .fiori-row:hover td,
+[data-theme="dark"] #pam-tbody tr:hover td { background: rgba(255,255,255,0.04) !important; }
+
+/* ── Dark: suggestion / dropdown panels (inline style override) ──── */
+/* Targets both static HTML inline-style panels and JS-set IDs */
+[data-theme="dark"] #dop-sugg-pam,
+[data-theme="dark"] #dop-sugg-nama,
+[data-theme="dark"] #ipay-vendor-sugg,
+[data-theme="dark"] #dm-pam-dropdown,
+[data-theme="dark"] #edit-draft-cat2-panel,
+[data-theme="dark"] #ibgt-sugg,
+[data-theme="dark"] #lpr-sugg,
+[data-theme="dark"] #bgt-sugg,
+[data-theme="dark"] #bgt-cat2-panel,
+[data-theme="dark"] #pay-catpay-view {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+  color: var(--sl-900);
+}
+/* Hover items inside suggestion panels */
+[data-theme="dark"] #dop-sugg-pam > div:hover,
+[data-theme="dark"] #dop-sugg-nama > div:hover,
+[data-theme="dark"] #ipay-vendor-sugg > div:hover,
+[data-theme="dark"] #dm-pam-dropdown > div:hover,
+[data-theme="dark"] #ibgt-sugg > div:hover,
+[data-theme="dark"] #lpr-sugg > div:hover,
+[data-theme="dark"] #bgt-sugg > div:hover { background: rgba(255,255,255,0.06) !important; }
