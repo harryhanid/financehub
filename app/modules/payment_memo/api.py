@@ -95,7 +95,7 @@ def api_create_memo():
             f"""SELECT pb.id, pb.amount, pb.siswa_code, s.nama, s.bank, s.norek, s.namarek
                 FROM payment_beasiswa pb
                 LEFT JOIN siswa s ON s.company_id=pb.company_id AND s.code=pb.siswa_code
-                WHERE pb.id IN ({placeholders}) AND pb.company_id=? AND pb.status='draft'""",
+                WHERE pb.id IN ({placeholders}) AND pb.company_id=? AND pb.status='open'""",
             (*item_ids, cid)
         ).fetchall()
         conn.close()

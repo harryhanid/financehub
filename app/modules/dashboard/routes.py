@@ -69,7 +69,7 @@ def index():
         "SELECT COUNT(*) FROM payment_memo WHERE company_id = ?", (company_id,)
     ).fetchone()[0]
     stats["memo_draft"] = conn.execute(
-        "SELECT COUNT(*) FROM payment_memo WHERE company_id = ? AND status = 'draft'", (company_id,)
+        "SELECT COUNT(*) FROM payment_memo WHERE company_id = ? AND status = 'open'", (company_id,)
     ).fetchone()[0]
     conn.close()
 

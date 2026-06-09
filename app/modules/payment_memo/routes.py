@@ -115,8 +115,8 @@ def update_status(memo_id):
     new_status = data.get("status", "")
     claims     = get_jwt()
     username   = claims.get("username", "")
-    if new_status == "paid" and claims.get("role") != "releaser":
-        return jsonify({"ok": False, "pesan": "Hanya Releaser yang dapat mark as Paid."}), 403
+    if new_status == "complete" and claims.get("role") != "releaser":
+        return jsonify({"ok": False, "pesan": "Hanya Releaser yang dapat mark as Complete."}), 403
     result = update_memo_status(memo_id, new_status, username, company_id=session.get("company_id", 0))
     return jsonify(result)
 
