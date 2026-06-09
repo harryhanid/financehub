@@ -1507,49 +1507,53 @@ function dopRenderRows(rows) {
     _dopUpdateInfo(0);
     return;
   }
-  tb.innerHTML = rows.map(r => `
-    <tr class="dop-row"
-        data-id="${r.id}"
-        data-code="${(r.siswa_code||'').toLowerCase()}"
-        data-nama="${(r.nama||'').toLowerCase()}"
-        data-pam="${(r.pam_no||'').toLowerCase()}"
-        data-cat1="${(r.cat1||'').toLowerCase()}"
-        data-cat2="${(r.cat2||'').toLowerCase()}"
-        data-perusahaan="${(r.perusahaan||'').toLowerCase()}"
-        data-pillar="${(r.pillar||'').toLowerCase()}"
-        style="border-bottom:1px solid #f1f5f9">
-      <td style="padding:6px;text-align:center">
-        <input type="checkbox" class="dop-cb" data-id="${r.id}" onchange="dopToggleCb(this)">
-      </td>
-      <td style="padding:6px 8px">${r.siswa_code||''}</td>
-      <td style="padding:6px 8px">${r.nama||'-'}</td>
-      <td style="padding:6px 8px;font-family:monospace;color:#1d4ed8">${r.pam_no||''}</td>
-      <td style="padding:6px 8px">${r.cat1||''}</td>
-      <td style="padding:6px 8px">${r.cat2||''}</td>
-      <td style="padding:6px 8px">${r.perusahaan||''}</td>
-      <td style="padding:6px 8px">${r.pillar||''}</td>
-      <td style="padding:6px 8px;text-align:right">Rp ${new Intl.NumberFormat('id-ID').format(r.amount||0)}</td>
-      <td style="padding:6px 8px">${r.tanggal||''}</td>
-      <td style="padding:6px 8px">${r.tgl_pengajuan||''}</td>
-      <td style="padding:6px 8px">${r.tgl_receive||''}</td>
-      <td style="padding:6px 8px">${r.tgl_pa||''}</td>
-      <td style="padding:6px 8px">${r.tgl_final||''}</td>
-      <td style="padding:6px 8px">${r.tgl_retur||''}</td>
-      <td style="padding:6px 8px">${r.tgl_final6||''}</td>
-      <td style="padding:6px 8px">${r.tgl_proses||''}</td>
-      <td style="padding:6px 8px">${r.tgl_HT_AGRI||''}</td>
-      <td style="padding:6px 8px">${r.tgl_Yurike_AGRI||''}</td>
-      <td style="padding:6px 8px">${r.tgl_Aditya_AGRI||''}</td>
-      <td style="padding:6px 8px">${r.tgl_Pedy_AGRI||''}</td>
-      <td style="padding:6px 8px">${r.tgl_C2_AGRI||''}</td>
-      <td style="padding:6px 8px">${r.tgl_MSIG_AGRI||''}</td>
-      <td style="padding:6px 8px">${r.tgl_Paid_AGRI||''}</td>
-      <td style="padding:6px 8px">${r['tgl_A-GS_APP']||''}</td>
-      <td style="padding:6px 8px">${r['tgl_A-HJK_APP']||''}</td>
-      <td style="padding:6px 8px">${r.tgl_ASPIRO_APP||''}</td>
-      <td style="padding:6px 8px">${r.tgl_Paid_APP||''}</td>
-    </tr>`).join('');
-  _dopSelected.clear();
+  tb.innerHTML = rows.map(r => {
+    const sel = _dopSelected.has(r.id);
+    const rowBg  = sel ? 'background:#eff6ff;' : '';
+    const nameSt = sel ? 'color:#1d4ed8;font-weight:600;' : '';
+    return `
+      <tr class="dop-row"
+          data-id="${r.id}"
+          data-code="${(r.siswa_code||'').toLowerCase()}"
+          data-nama="${(r.nama||'').toLowerCase()}"
+          data-pam="${(r.pam_no||'').toLowerCase()}"
+          data-cat1="${(r.cat1||'').toLowerCase()}"
+          data-cat2="${(r.cat2||'').toLowerCase()}"
+          data-perusahaan="${(r.perusahaan||'').toLowerCase()}"
+          data-pillar="${(r.pillar||'').toLowerCase()}"
+          style="border-bottom:1px solid #f1f5f9;${rowBg}">
+        <td style="padding:6px;text-align:center">
+          <input type="checkbox" class="dop-cb" data-id="${r.id}" ${sel ? 'checked' : ''} onchange="dopToggleCb(this)">
+        </td>
+        <td style="padding:6px 8px">${r.siswa_code||''}</td>
+        <td style="padding:6px 8px;${nameSt}">${r.nama||'-'}</td>
+        <td style="padding:6px 8px;font-family:monospace;color:#1d4ed8">${r.pam_no||''}</td>
+        <td style="padding:6px 8px">${r.cat1||''}</td>
+        <td style="padding:6px 8px">${r.cat2||''}</td>
+        <td style="padding:6px 8px">${r.perusahaan||''}</td>
+        <td style="padding:6px 8px">${r.pillar||''}</td>
+        <td style="padding:6px 8px;text-align:right">Rp ${new Intl.NumberFormat('id-ID').format(r.amount||0)}</td>
+        <td style="padding:6px 8px">${r.tanggal||''}</td>
+        <td style="padding:6px 8px">${r.tgl_pengajuan||''}</td>
+        <td style="padding:6px 8px">${r.tgl_receive||''}</td>
+        <td style="padding:6px 8px">${r.tgl_pa||''}</td>
+        <td style="padding:6px 8px">${r.tgl_final||''}</td>
+        <td style="padding:6px 8px">${r.tgl_retur||''}</td>
+        <td style="padding:6px 8px">${r.tgl_final6||''}</td>
+        <td style="padding:6px 8px">${r.tgl_proses||''}</td>
+        <td style="padding:6px 8px">${r.tgl_HT_AGRI||''}</td>
+        <td style="padding:6px 8px">${r.tgl_Yurike_AGRI||''}</td>
+        <td style="padding:6px 8px">${r.tgl_Aditya_AGRI||''}</td>
+        <td style="padding:6px 8px">${r.tgl_Pedy_AGRI||''}</td>
+        <td style="padding:6px 8px">${r.tgl_C2_AGRI||''}</td>
+        <td style="padding:6px 8px">${r.tgl_MSIG_AGRI||''}</td>
+        <td style="padding:6px 8px">${r.tgl_Paid_AGRI||''}</td>
+        <td style="padding:6px 8px">${r['tgl_A-GS_APP']||''}</td>
+        <td style="padding:6px 8px">${r['tgl_A-HJK_APP']||''}</td>
+        <td style="padding:6px 8px">${r.tgl_ASPIRO_APP||''}</td>
+        <td style="padding:6px 8px">${r.tgl_Paid_APP||''}</td>
+      </tr>`;
+  }).join('');
   const sa = document.getElementById('dop-select-all');
   if (sa) sa.checked = false;
   _dopReveal();
