@@ -94,7 +94,9 @@ def get_pa_flat(company_id: int, tab: str = "agri", status_filter: str = "") -> 
     conn = get_conn()
     extra_where = ""
     params: list = [company_id]
-    if status_filter:
+    if status_filter == "active":
+        extra_where = " AND LOWER(p.status) IN ('open', 'on_process')"
+    elif status_filter:
         extra_where = " AND LOWER(p.status)=?"
         params.append(status_filter.lower())
     rows = conn.execute(
@@ -367,7 +369,7 @@ def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri") -> 
 
 
 def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dict:
-    pa_tbl, _, _, pam_prefix = _tbls(tab)
+    pa_tbl, lines_tbl, _, pam_prefix = _tbls(tab)
     conn = get_conn()
     row = conn.execute(
         f"SELECT id, status, nomor_pam FROM {pa_tbl} WHERE id=? AND company_id=?",
@@ -418,6 +420,23 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
          new_status,
          _ts(), pa_id, company_id)
     )
+    line_id = data.get("line_id")
+    if line_id:
+        conn.execute(
+            f"""UPDATE {lines_tbl} SET
+                 jenis_pembayaran   = ?,
+                 semester           = ?,
+                 tahun_ajaran       = ?,
+                 ipk_sem_sebelumnya = ?,
+                 jumlah_pembayaran  = ?
+                WHERE id=? AND pa_id=?""",
+            (data.get("jenis_pembayaran", ""),
+             data.get("semester", ""),
+             data.get("tahun_ajaran", ""),
+             data.get("ipk_sem_sebelumnya") or 0,
+             data.get("jumlah_pembayaran") or 0,
+             line_id, pa_id)
+        )
     conn.commit()
     conn.close()
 
