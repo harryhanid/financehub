@@ -90,8 +90,8 @@ function toggleTheme() {
 }
 </script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-<div id="modal-confirm" class="modal-overlay" style="display:none;align-items:center;justify-content:center">
-  <div class="modal-box" style="max-width:380px">
+<div id="modal-confirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-confirm-title">
+  <div class="modal" style="max-width:380px">
     <div class="modal-header">
       <span class="modal-title" id="modal-confirm-title">Konfirmasi</span>
     </div>
@@ -107,8 +107,9 @@ function toggleTheme() {
 <script>
 function confirmModal(message, opts) {
   opts = opts || {};
+  var overlay   = document.getElementById('modal-confirm');
+  if (overlay.classList.contains('open')) return Promise.resolve(false);
   return new Promise(function(resolve) {
-    var overlay   = document.getElementById('modal-confirm');
     var titleEl   = document.getElementById('modal-confirm-title');
     var msgEl     = document.getElementById('modal-confirm-message');
     var okBtn     = document.getElementById('modal-confirm-ok');
@@ -124,19 +125,26 @@ function confirmModal(message, opts) {
     okBtn.className     = 'btn ' + (type === 'danger' ? 'btn-danger' : 'btn-primary');
     cancelBtn.textContent = opts.cancelText || 'Batal';
 
-    overlay.style.display = 'flex';
+    overlay.classList.add('open');
+    okBtn.focus();
 
     function cleanup(result) {
-      overlay.style.display = 'none';
+      overlay.classList.remove('open');
       okBtn.removeEventListener('click', onOk);
       cancelBtn.removeEventListener('click', onCancel);
+      document.removeEventListener('keydown', onKeydown);
+      overlay.removeEventListener('click', onBackdrop);
       resolve(result);
     }
-    function onOk()     { cleanup(true);  }
-    function onCancel() { cleanup(false); }
+    function onOk()       { cleanup(true);  }
+    function onCancel()   { cleanup(false); }
+    function onKeydown(e) { if (e.key === 'Escape') cleanup(false); }
+    function onBackdrop(e){ if (e.target === overlay) cleanup(false); }
 
     okBtn.addEventListener('click', onOk);
     cancelBtn.addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKeydown);
+    overlay.addEventListener('click', onBackdrop);
   });
 }
 </script>
