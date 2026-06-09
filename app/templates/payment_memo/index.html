@@ -264,6 +264,9 @@
       </div>
     </div>
 
+    <!-- Chip tags — selected rows persisten lintas search -->
+    <div id="dop-chips-row" style="display:none;padding:5px 10px;background:#eff6ff;border-bottom:1px solid #bfdbfe;display:none;align-items:center;gap:5px;flex-wrap:wrap"></div>
+
     <!-- Table — secondary filters + date inputs in subheader -->
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -1469,7 +1472,8 @@ async function cancelPAM(pamId) {
 let _dopCandidates  = null;   // cached after first tab open
 let _dopLoaded      = false;  // true once candidates fetched
 let _dopLastSearchQs = '';    // last search query string (to refresh after bulk update)
-const _dopSelected  = new Set();
+const _dopSelected     = new Set();
+const _dopSelectionMeta = new Map();  // id → { nama, cat1 }
 
 function _dopReveal() {
   const tb = document.getElementById('dop-tbody');
