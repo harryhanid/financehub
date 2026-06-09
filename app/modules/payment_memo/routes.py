@@ -19,7 +19,7 @@ from modules.payment_memo.service import (
     get_sml_list, bulk_update_sml_dates,
     update_sml_status, cancel_sml_record,
     get_open_etf_pa_for_pam, create_pam_from_etf_pa, set_pam_tanggal_bayar_agri,
-    get_next_pam_no, save_pa_payment,
+    get_next_pam_no, save_pa_payment, check_pam_no_exists,
 )
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
@@ -484,6 +484,15 @@ def set_paid_agri(pam_id):
     data         = request.get_json(force=True) or {}
     tanggal_bayar = data.get("tanggal_bayar", "")
     return jsonify(set_pam_tanggal_bayar_agri(pam_id, tanggal_bayar, company_id))
+
+
+@bp.route("/pam/check")
+@jwt_html_required
+def check_pam_no_route():
+    pam_no = (request.args.get("pam_no") or "").strip()
+    if not pam_no:
+        return jsonify({"ok": True, "exists": False})
+    return jsonify(check_pam_no_exists(session.get("company_id", 0), pam_no))
 
 
 @bp.route("/ipay/next-pam-no")
