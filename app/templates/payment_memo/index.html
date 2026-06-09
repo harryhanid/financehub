@@ -2747,6 +2747,8 @@ async function ipaySavePa() {
   }
   const badge = document.getElementById("ipay-pam-manual-badge");
   if (badge && badge.style.display !== "none") {
+    const saveBtn = document.getElementById("ipay-save-btn");
+    if (saveBtn) saveBtn.disabled = true;
     const chkRes = await apiFetch(`/payment-memo/pam/check?pam_no=${encodeURIComponent(pam_no)}`);
     if (chkRes) {
       const chk = await chkRes.json();
@@ -2759,6 +2761,9 @@ async function ipaySavePa() {
         if (btn)   btn.disabled = true;
         showToast("No. PAM sudah terdaftar.", "error"); return;
       }
+      if (saveBtn) saveBtn.disabled = false;
+    } else {
+      if (saveBtn) saveBtn.disabled = false;
     }
   }
   if (!perusahaan) { showToast("Perusahaan wajib diisi.", "error"); return; }
