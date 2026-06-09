@@ -1421,3 +1421,13 @@ def set_pam_tanggal_bayar_agri(pam_id: int, tanggal_bayar: str, company_id: int)
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": f"Tgl Paid disimpan, PAM selesai."}
+
+
+def check_pam_no_exists(company_id: int, pam_no: str) -> dict:
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT 1 FROM pam_records WHERE pam_no=? AND company_id=?",
+        (pam_no, company_id)
+    ).fetchone()
+    conn.close()
+    return {"ok": True, "exists": row is not None}
