@@ -699,7 +699,7 @@ async function openEditSiswa(code) {
 }
 
 async function hapusSiswa(code, nama) {
-  if (!confirm(`Hapus siswa "${nama}" (${code})?\nSemua data budget dan payment siswa ini juga akan dihapus.`)) return;
+  if (!await confirmModal(`Hapus siswa "${nama}" (${code})? Semua data budget dan payment siswa ini juga akan dihapus permanen.`, { type: 'danger', confirmText: 'Hapus' })) return;
   const d = await (await apiFetch(`/beasiswa/siswa/${code}/hapus`, { method: "POST" })).json();
   showToast(d.pesan, d.ok ? "success" : "error");
   if (d.ok) setTimeout(() => location.reload(), 800);
@@ -1006,7 +1006,7 @@ async function bgtSaveRows() {
 }
 
 async function bgtDeleteRow(id) {
-  if (!confirm("Hapus baris budget ini?")) return;
+  if (!await confirmModal("Hapus baris budget ini? Data tidak dapat dikembalikan.", { type: 'danger', confirmText: 'Hapus' })) return;
   const d = await (await apiFetch(`/beasiswa/budget/${id}/hapus`, { method: "POST" })).json();
   showToast(d.pesan, d.ok ? "success" : "error");
   if (d.ok) await _bgtAfterSave();
@@ -1291,7 +1291,7 @@ async function loadPaymentList() {
 }
 
 async function payDeleteRow(id) {
-  if (!confirm("Hapus baris payment ini?")) return;
+  if (!await confirmModal("Hapus baris payment ini? Data tidak dapat dikembalikan.", { type: 'danger', confirmText: 'Hapus' })) return;
   const d = await (await apiFetch(`/beasiswa/payment/${id}/hapus`, { method: "POST" })).json();
   showToast(d.pesan, d.ok ? "success" : "error");
   if (d.ok) await loadPaymentList();
