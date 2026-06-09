@@ -429,8 +429,9 @@
           <label>Status</label>
           <select id="pay-filter-status" onchange="loadPaymentList()">
             <option value="">Semua Status</option>
-            <option value="approved">Approved</option>
-            <option value="draft">Draft</option>
+            <option value="on_process">On Process</option>
+            <option value="open">Open</option>
+            <option value="complete">Complete</option>
           </select>
         </div>
         <div style="align-self:flex-end;display:flex;gap:.375rem">
@@ -1268,8 +1269,9 @@ async function loadPaymentList() {
     document.getElementById("pay-list-info").textContent =
       `Menampilkan ${d.rows.length.toLocaleString("id-ID")} dari ${d.total.toLocaleString("id-ID")} record`;
     const BADGE = {
-      approved: `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Approved</span>`,
-      draft:    `<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Draft</span>`,
+      on_process: `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">On Process</span>`,
+      open:       `<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Open</span>`,
+      complete:   `<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Complete</span>`,
     };
     tbody.innerHTML = d.rows.map(r => `<tr>
       <td style="white-space:nowrap"><code>${r.siswa_code||""}</code></td>
@@ -1563,8 +1565,9 @@ async function loadLaporan(code) {
   document.getElementById("lpr-total-badges").innerHTML = "";
 
   const LBADGE = {
-    approved: `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Approved</span>`,
-    draft:    `<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Draft</span>`,
+    on_process: `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">On Process</span>`,
+    open:       `<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Open</span>`,
+    complete:   `<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Complete</span>`,
   };
   document.getElementById("lpr-cat-tbody").innerHTML = (d.cat_summary || []).map(c => {
     const neg = c.sisa < 0;

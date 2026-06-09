@@ -789,7 +789,7 @@ function toggleAllDrafts(cb) {
 }
 
 async function changeStatus(memoId, newStatus) {
-  const label = { submitted: "Submit", approved: "Approve", paid: "Mark as Paid", on_process: "Submit / Proses" }[newStatus] || newStatus;
+  const label = { submitted: "Submit", on_process: "Submit / Proses", complete: "Mark as Complete" }[newStatus] || newStatus;
   if (!await confirmModal(`${label} memo ini?`, { confirmText: label })) return;
   const resp = await apiFetch(`/payment-memo/${memoId}/update-status`, {
     method: "POST", body: JSON.stringify({ status: newStatus })
@@ -891,11 +891,11 @@ async function loadSML() {
   tbody.innerHTML = data.rows.map((r, i) => {
     const st  = r.status || 'open';
     const sel = _smlSelected.has(r.id);
-    const stCls = {open:'badge-gray', approved:'badge-green', paid:'badge-blue'}[st] || 'badge-gray';
+    const stCls = {open:'badge-gray', on_process:'badge-green', complete:'badge-blue'}[st] || 'badge-gray';
     let aksi = '';
     if (st === 'open')
-      aksi += `<button class="btn btn-sm btn-success" onclick="smlUpdateStatus(${r.id},'approved')">Approve</button>`;
-    else if (st === 'approved')
+      aksi += `<button class="btn btn-sm btn-success" onclick="smlUpdateStatus(${r.id},'on_process')">Approve</button>`;
+    else if (st === 'on_process')
       aksi += `<button class="btn btn-sm btn-ghost" onclick="smlUpdateStatus(${r.id},'open')">Revert</button>`;
     aksi += `<button class="btn btn-sm btn-danger" onclick="smlCancel(${r.id})">Cancel</button>`;
     return `
