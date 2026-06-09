@@ -14,7 +14,7 @@
 #pa-table th.s3, #pa-table td.s3 {
   position: sticky;
   z-index: 3;
-  background: #fff;
+  background: var(--card, #fff);
 }
 
 /* thead frozen cells: header bg, higher z-index so they sit above body sticky cells */
@@ -72,6 +72,39 @@
 #pa-table thead th.s1 { top: 0; left: 36px;  z-index: 5; }
 #pa-table thead th.s2 { top: 0; left: 166px; z-index: 5; }
 #pa-table thead th.s3 { top: 0; left: 238px; z-index: 5; }
+
+/* ── Dark mode overrides for sticky cells ──────────────────────────── */
+[data-theme="dark"] #pa-table th.s0, [data-theme="dark"] #pa-table td.s0,
+[data-theme="dark"] #pa-table th.s1, [data-theme="dark"] #pa-table td.s1,
+[data-theme="dark"] #pa-table th.s2, [data-theme="dark"] #pa-table td.s2,
+[data-theme="dark"] #pa-table th.s3, [data-theme="dark"] #pa-table td.s3 { background: var(--card); }
+
+[data-theme="dark"] #pa-table thead th { background: #181b25; }
+[data-theme="dark"] #pa-table thead th.s0,
+[data-theme="dark"] #pa-table thead th.s1,
+[data-theme="dark"] #pa-table thead th.s2,
+[data-theme="dark"] #pa-table thead th.s3 { background: #181b25; }
+
+[data-theme="dark"] #pa-table tbody tr:hover td.s0,
+[data-theme="dark"] #pa-table tbody tr:hover td.s1,
+[data-theme="dark"] #pa-table tbody tr:hover td.s2,
+[data-theme="dark"] #pa-table tbody tr:hover td.s3 { background: #212533; }
+
+[data-theme="dark"] #pa-table tr.row-op td.s0,
+[data-theme="dark"] #pa-table tr.row-op td.s1,
+[data-theme="dark"] #pa-table tr.row-op td.s2,
+[data-theme="dark"] #pa-table tr.row-op td.s3 { background: #2a2826; }
+
+[data-theme="dark"] #pa-table tr.row-op:hover td.s0,
+[data-theme="dark"] #pa-table tr.row-op:hover td.s1,
+[data-theme="dark"] #pa-table tr.row-op:hover td.s2,
+[data-theme="dark"] #pa-table tr.row-op:hover td.s3 { background: #383226; }
+
+[data-theme="dark"] #pa-table tr.row-sel td { background: rgba(59,130,246,0.18) !important; }
+[data-theme="dark"] #pa-table tr.row-sel td.s0,
+[data-theme="dark"] #pa-table tr.row-sel td.s1,
+[data-theme="dark"] #pa-table tr.row-sel td.s2,
+[data-theme="dark"] #pa-table tr.row-sel td.s3 { background: #1a2a4b !important; }
 
 /* ── Sticky page header (filter bar) ────────────────────────────── */
 /* Stays at top of viewport while the scroll container handles the    */
