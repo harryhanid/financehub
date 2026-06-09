@@ -21,6 +21,7 @@ def main():
         # payment_beasiswa
         "UPDATE payment_beasiswa SET status='open'       WHERE status='draft'",
         "UPDATE payment_beasiswa SET status='on_process' WHERE status='in_memo'",
+        "UPDATE payment_beasiswa SET status='on_process' WHERE status='approved'",
         "UPDATE payment_beasiswa SET status='complete'   WHERE status='paid'",
         # payment_memo
         "UPDATE payment_memo SET status='open'       WHERE status='draft'",
