@@ -281,6 +281,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
 {# ── Bulk action toolbar ──────────────────────────────────────────────────── #}
 <div id="bulk-bar" style="display:none; align-items:center; gap:.75rem; margin-bottom:.5rem; padding:.5rem .75rem; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; font-size:.82rem; flex-wrap:wrap">
   <span id="bulk-count" style="font-weight:600; color:#1d4ed8; white-space:nowrap"></span>
+  <div id="pa-chips-row" style="display:none;width:100%;flex-basis:100%;display:none;align-items:center;gap:5px;flex-wrap:wrap;margin-top:2px"></div>
   <div style="display:flex; align-items:center; gap:.4rem; flex-wrap:wrap">
     <select id="bulk-field-sel" style="font-size:.78rem; padding:2px 4px; border:1px solid #93c5fd; border-radius:4px; background:#fff">
       <option value="tgl_payment_application">Tgl PA</option>
@@ -621,6 +622,7 @@ function applyFilters() {
     show.forEach(tr => { if (tr.style.display === "none") tr.style.display = ""; });
     hide.forEach(tr => { if (tr.style.display !== "none") tr.style.display = "none"; });
     document.getElementById("f-count").textContent = `${visible} / ${rows.length} baris`;
+    renderPaChips();
   });
 }
 function resetFilters() {
@@ -654,6 +656,48 @@ function updateBulkBar() {
   const bar = document.getElementById("bulk-bar");
   bar.style.display = sel.length ? "flex" : "none";
   document.getElementById("bulk-count").textContent = `${sel.length} baris dipilih`;
+  renderPaChips();
+}
+
+function renderPaChips() {
+  const container = document.getElementById("pa-chips-row");
+  if (!container) return;
+  const checked = [...document.querySelectorAll(".row-chk:checked")];
+  if (!checked.length) { container.style.display = "none"; return; }
+  const LIMIT  = 5;
+  const hidden = checked.length > LIMIT + 1 ? checked.slice(LIMIT) : [];
+  const shown  = hidden.length ? checked.slice(0, LIMIT) : checked;
+  function chipHtml(cb) {
+    const id   = cb.value;
+    const nama = cb.closest("tr")?.dataset.nama || id;
+    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${nama}<span onclick="removePaChip('${id}')" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+  }
+  let html = `<span style="font-size:10px;color:#1d4ed8;font-weight:700;white-space:nowrap;margin-right:2px">● Tandai:</span>`;
+  html += shown.map(chipHtml).join('');
+  if (hidden.length) {
+    html += `<span id="pa-chips-expand" onclick="expandPaChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
+    html += `<span id="pa-chips-hidden" style="display:none">` + hidden.map(chipHtml).join('') + `</span>`;
+  }
+  container.innerHTML = html;
+  container.style.display = "flex";
+}
+
+function expandPaChips() {
+  const h = document.getElementById("pa-chips-hidden");
+  const b = document.getElementById("pa-chips-expand");
+  if (!h || !b) return;
+  const expanded = h.style.display !== "none";
+  h.style.display = expanded ? "none" : "contents";
+  b.textContent   = expanded ? `+${document.querySelectorAll(".row-chk:checked").length - 5} lagi ▾` : "▲ sembunyikan";
+}
+
+function removePaChip(paId) {
+  const cb = document.querySelector(`.row-chk[value="${paId}"]`);
+  if (cb) { cb.checked = false; cb.closest("tr")?.classList.remove("row-sel"); }
+  const all     = document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none']) .row-chk");
+  const checked = [...all].filter(c => c.checked);
+  document.getElementById("chk-all").checked = checked.length === all.length && all.length > 0;
+  updateBulkBar();
 }
 function selectedPaIds() {
   return [...document.querySelectorAll(".row-chk:checked")].map(c => parseInt(c.value));
