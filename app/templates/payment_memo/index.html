@@ -1438,14 +1438,14 @@ function _aksiCell(r) {
   const _btn = (label, cls, fn) =>
     `<button class="btn btn-sm ${cls}" onclick="${fn}">${label}</button>`;
   let btns = '';
-  if (r.status === 'draft')
-    btns += _btn('Approve', 'btn-success', `updatePAMStatus(${r.id},'approved')`);
-  else if (r.status === 'approved')
-    btns += _btn('Revert', 'btn-ghost', `updatePAMStatus(${r.id},'draft')`);
+  if (r.status === 'open')
+    btns += _btn('Process', 'btn-success', `updatePAMStatus(${r.id},'on_process')`);
+  else if (r.status === 'on_process')
+    btns += _btn('Revert', 'btn-ghost', `updatePAMStatus(${r.id},'open')`);
   btns += _btn('Edit', 'btn-primary', `openEditPAM(${r.id})`);
   btns += `<a href="/payment-memo/pam/${r.id}/export/excel" class="btn btn-sm btn-success">Excel</a>`;
   // AGRI PAM: Set Paid button dengan date picker inline
-  if (r.source === 'etf_agri' && r.status !== 'paid') {
+  if (r.source === 'etf_agri' && r.status !== 'complete') {
     btns += `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:4px">
       <input type="date" id="paid-date-${r.id}"
              style="font-size:.7rem;padding:1px 4px;border:1px solid #93c5fd;border-radius:3px;width:120px"
