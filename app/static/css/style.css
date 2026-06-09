@@ -567,7 +567,7 @@ input[readonly], input[disabled] {
 .cs-form { flex: 1; display: flex; }
 .cs-badge {
   position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-  background: rgba(255,255,255,.08); backdrop-filter: blur(8px);
+  background: rgba(255,255,255,.08); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   border: 1px solid rgba(255,255,255,.12);
   color: rgba(255,255,255,.7); font-family: 'Figtree', sans-serif;
   font-size: .75rem; font-weight: 600; letter-spacing: .8px;
@@ -583,6 +583,7 @@ input[readonly], input[disabled] {
 }
 .cs-panel:hover { filter: brightness(1.12); }
 .cs-panel:hover .cs-hint { opacity: 1; transform: translateX(0); }
+.cs-panel:focus-visible { outline: 3px solid rgba(255,255,255,.6); outline-offset: -4px; }
 .cs-panel-smt { background: linear-gradient(150deg, #1a3252, #2d5a8e, #1e4d7a); }
 .cs-panel-etf { background: linear-gradient(150deg, #2e1650, #5c2d91, #3d1a6e); }
 .cs-divider { width: 1px; background: rgba(255,255,255,.12); flex-shrink: 0; }
