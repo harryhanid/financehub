@@ -756,6 +756,7 @@ function _updateRowCells(paIds, field, value) {
 async function doBulkUpdate(field, value) {
   const ids = selectedPaIds();
   if (!ids.length) { showToast("Pilih baris terlebih dahulu.", "error"); return; }
+  if (!await confirmModal(`Update ${ids.length} baris terpilih?`, { confirmText: "Update" })) return;
   const resp = await apiFetch(`/etf-payment-application/bulk-update?tab=${ACTIVE_TAB}`, {
     method: "POST", body: JSON.stringify({ pa_ids: ids, field, value })
   });
@@ -840,6 +841,7 @@ async function submitPA() {
   if (!tglApp) { showToast("Tgl Payment Application wajib diisi.", "error"); return; }
   const rows = document.querySelectorAll("#pa-lines-container .pa-line-row");
   if (!rows.length) { showToast("Minimal 1 siswa harus ditambahkan.", "error"); return; }
+  if (!await confirmModal("Simpan Payment Application baru ini?")) return;
   const lines = [];
   for (const row of rows) {
     const sid = row.querySelector(".siswa-id-input").value;
@@ -898,6 +900,7 @@ async function openEditById(paId, lineId) {
   openModal("modal-edit-pa");
 }
 async function saveEdit() {
+  if (!await confirmModal("Simpan perubahan PA ini?")) return;
   const paId = document.getElementById("edit-pa-id").value;
   const payload = {
     tgl_payment_application: document.getElementById("edit-tgl-app").value,

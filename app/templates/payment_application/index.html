@@ -1,6 +1,36 @@
 {% extends "base.html" %}
 {% block title %}Payment Application{% endblock %}
 
+{% block head %}
+<style>
+#pa-table { border-collapse: separate; border-spacing: 0; }
+#pa-table th.f0, #pa-table td.f0,
+#pa-table th.f1, #pa-table td.f1,
+#pa-table th.f2, #pa-table td.f2 {
+  position: sticky; z-index: 3; background: var(--card, #fff);
+}
+#pa-table thead th.f0,
+#pa-table thead th.f1,
+#pa-table thead th.f2 { background: var(--bg-muted, var(--sl-50)); z-index: 4; }
+#pa-table thead tr th { position: sticky; top: 0; z-index: 3; background: var(--bg-muted, var(--sl-50)); }
+#pa-table th.f0, #pa-table td.f0 { left: 0;     min-width: 160px; }
+#pa-table th.f1, #pa-table td.f1 { left: 160px; min-width: 130px; }
+#pa-table th.f2, #pa-table td.f2 { left: 290px; min-width: 110px; box-shadow: 3px 0 5px -2px rgba(0,0,0,.10); }
+#pa-table tbody tr:hover td.f0,
+#pa-table tbody tr:hover td.f1,
+#pa-table tbody tr:hover td.f2 { background: var(--sl-50); }
+[data-theme="dark"] #pa-table th.f0, [data-theme="dark"] #pa-table td.f0,
+[data-theme="dark"] #pa-table th.f1, [data-theme="dark"] #pa-table td.f1,
+[data-theme="dark"] #pa-table th.f2, [data-theme="dark"] #pa-table td.f2 { background: var(--card); }
+[data-theme="dark"] #pa-table thead th.f0,
+[data-theme="dark"] #pa-table thead th.f1,
+[data-theme="dark"] #pa-table thead th.f2 { background: rgba(255,255,255,0.04); }
+[data-theme="dark"] #pa-table tbody tr:hover td.f0,
+[data-theme="dark"] #pa-table tbody tr:hover td.f1,
+[data-theme="dark"] #pa-table tbody tr:hover td.f2 { background: rgba(255,255,255,0.04); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
   <h1 style="font-size:1.25rem; font-weight:700">Payment Application -- {{ company_name }}</h1>
@@ -9,11 +39,44 @@
   {% endif %}
 </div>
 
-<div class="table-wrap">
-  <table>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+  <form method="get" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <select name="month" onchange="this.form.submit()"
+            style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:160px">
+      <option value="">Semua Bulan</option>
+      <option value="1" {% if filter_month==1 %}selected{% endif %}>Januari</option>
+      <option value="2" {% if filter_month==2 %}selected{% endif %}>Februari</option>
+      <option value="3" {% if filter_month==3 %}selected{% endif %}>Maret</option>
+      <option value="4" {% if filter_month==4 %}selected{% endif %}>April</option>
+      <option value="5" {% if filter_month==5 %}selected{% endif %}>Mei</option>
+      <option value="6" {% if filter_month==6 %}selected{% endif %}>Juni</option>
+      <option value="7" {% if filter_month==7 %}selected{% endif %}>Juli</option>
+      <option value="8" {% if filter_month==8 %}selected{% endif %}>Agustus</option>
+      <option value="9" {% if filter_month==9 %}selected{% endif %}>September</option>
+      <option value="10" {% if filter_month==10 %}selected{% endif %}>Oktober</option>
+      <option value="11" {% if filter_month==11 %}selected{% endif %}>November</option>
+      <option value="12" {% if filter_month==12 %}selected{% endif %}>Desember</option>
+    </select>
+    <select name="year" onchange="this.form.submit()"
+            style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:130px">
+      <option value="">Semua Tahun</option>
+      {% for y in range(2023, 2028) %}
+      <option value="{{ y }}" {% if filter_year==y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+    {% if filter_month or filter_year %}
+    <a href="?" style="padding:6px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;text-decoration:none;color:#374151">Reset</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="table-wrap" style="overflow-x:auto; width:100%;">
+  <table id="pa-table" style="width:100%; min-width:max-content;">
     <thead>
       <tr>
-        <th>No. Application</th><th>Memo</th><th>Tgl Pengajuan</th>
+        <th class="f0">No. Application</th>
+        <th class="f1">Memo</th>
+        <th class="f2">Tgl Pengajuan</th>
         <th>Target Bayar</th><th>Aktual Bayar</th>
         <th class="num-right">Total</th><th>TAT (hari kerja)</th>
         <th>Status</th><th>Aksi</th>
@@ -22,9 +85,9 @@
     <tbody>
       {% for a in applications %}
       <tr>
-        <td><code>{{ a.application_number }}</code></td>
-        <td>{{ a.memo_number }}</td>
-        <td>{{ a.submitted_at or '--' }}</td>
+        <td class="f0"><code>{{ a.application_number }}</code></td>
+        <td class="f1">{{ a.memo_number }}</td>
+        <td class="f2">{{ a.submitted_at or '--' }}</td>
         <td>{{ a.target_payment_date or '--' }}</td>
         <td>{{ a.actual_payment_date or '--' }}</td>
         <td class="num-right">Rp {{ "{:,.0f}".format(a.total_amount) }}</td>
@@ -142,6 +205,7 @@ function openUpdatePayment(appId, label) {
 async function saveActualPayment() {
   const actual = document.getElementById("actual-pay-date").value;
   if (!actual) { showToast("Tanggal aktual wajib diisi.", "error"); return; }
+  if (!await confirmModal(`Simpan tanggal pembayaran aktual ${actual}?`)) return;
   const resp = await apiFetch(`/payment-application/${_currentAppId}/update-payment`, {
     method: "POST", body: JSON.stringify({ actual_payment_date: actual })
   });
