@@ -124,7 +124,7 @@ def test_pam_detail_includes_payments(client):
             "INSERT INTO payment_beasiswa"
             " (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,pam,status)"
             " VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (2, "S001", "General", "Sem 1", "2026-05-31", 5000000, "ETF", "PT. SMART Tbk", pam_no, "draft"),
+            (2, "S001", "General", "Sem 1", "2026-05-31", 5000000, "ETF", "PT. SMART Tbk", pam_no, "open"),
         )
         conn.commit()
         pam_id = conn.execute(

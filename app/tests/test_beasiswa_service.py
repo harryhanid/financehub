@@ -114,7 +114,7 @@ def test_add_payment_batch_creates_draft():
         (COMPANY_ID, "1250001")
     ).fetchone()
     conn.close()
-    assert row["status"] == "draft"
+    assert row["status"] == "open"
 
 def test_get_rekap_empty():
     rows = get_rekap(COMPANY_ID)
@@ -165,7 +165,7 @@ def test_add_klaim_multi_saves_klaim_and_payment():
     assert pay["cat1"] == "By Medical"
     assert pay["cat2"] == "Rawat Jalan"
     assert pay["amount"] == 3000000
-    assert pay["status"] == "draft"
+    assert pay["status"] == "open"
     conn.close()
 
 def test_add_klaim_multi_skips_zero_amount():

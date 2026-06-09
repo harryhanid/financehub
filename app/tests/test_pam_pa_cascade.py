@@ -68,7 +68,7 @@ def _insert_memo_and_payment(conn, line_id):
         """INSERT INTO payment_beasiswa
            (company_id, siswa_code, cat1, cat2, tanggal, amount,
             pillar, perusahaan, memo_id, etf_pa_line_id, status)
-           VALUES (?,?,?,?,?,?,?,?,?,?,'in_memo')""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,'on_process')""",
         (COMPANY_ID, "1250001", "By Pendidikan", "Semester 3",
          "2026-06-01", 5000000, "AGRI", "PT. SMART Tbk", memo_id, line_id)
     )
@@ -138,7 +138,7 @@ def _insert_pam_and_link(conn, pa_tbl, lines_tbl, pa_id, line_id):
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, total_amount, status, created_at)
            VALUES (?,?,?,?,?,?)""",
-        (COMPANY_ID, pam_no, "2026-06-08", 5000000, "draft", _ts())
+        (COMPANY_ID, pam_no, "2026-06-08", 5000000, "open", _ts())
     )
     pam_id = cur.lastrowid
     conn.execute(
@@ -149,7 +149,7 @@ def _insert_pam_and_link(conn, pa_tbl, lines_tbl, pa_id, line_id):
         """INSERT INTO payment_beasiswa
            (company_id, siswa_code, cat1, cat2, tanggal, amount,
             pillar, perusahaan, pam, etf_pa_line_id, status)
-           VALUES (?,?,?,?,?,?,?,?,?,?,'draft')""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,'open')""",
         (COMPANY_ID, "1250001", "By Pendidikan", "Semester 3",
          "2026-06-01", 5000000, "AGRI", "PT. SMART Tbk", pam_no, line_id)
     )

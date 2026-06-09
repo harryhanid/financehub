@@ -27,7 +27,7 @@ def _seed():
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, gl_account, cost_center, pt,
             requestors_name, keterangan, total_amount, due_date, status, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,'draft',?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,'open',?)""",
         (COMPANY_ID, "PAM-001-ETF-05-2026", "2026-05-26", "70110230",
          "1008C1POFF", "PT. SMART Tbk", "Jany Turkanda",
          "Harry Santoso", 5000000, "2026-06-26", "2026-05-26T10:00:00")
@@ -45,7 +45,7 @@ def _seed():
             pillar, perusahaan, pam, status)
            VALUES (?,?,?,?,?,?,?,?,?,?)""",
         (COMPANY_ID, "S001", "General", "Sem 1", "2026-05-26",
-         5000000, "ETF", "PT. SMART Tbk", "PAM-001-ETF-05-2026", "draft")
+         5000000, "ETF", "PT. SMART Tbk", "PAM-001-ETF-05-2026", "open")
     )
     conn.commit()
     conn.close()
@@ -209,7 +209,7 @@ def _seed_detail():
             "INSERT INTO payment_beasiswa "
             "(company_id, siswa_code, cat1, cat2, tanggal, amount, pam, status) "
             "VALUES (?,?,?,?,?,?,?,?)",
-            (COMPANY_ID, "S002", cat1, cat2, "2026-05-26", amt, PAM_NO, "draft")
+            (COMPANY_ID, "S002", cat1, cat2, "2026-05-26", amt, PAM_NO, "open")
         )
     conn.execute(
         "INSERT INTO budget_beasiswa "

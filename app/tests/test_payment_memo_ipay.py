@@ -92,8 +92,8 @@ def test_get_pam_list_source_filter(tmp_path, monkeypatch):
         cost_center TEXT, requestors_name TEXT, total_amount REAL,
         due_date TEXT, tanggal_bayar TEXT
     )""")
-    conn.execute("INSERT INTO pam_records (company_id,pam_no,source,status,created_at) VALUES (1,'PAM-001-ETF-06-2026','etf_agri','draft','2026-06-08')")
-    conn.execute("INSERT INTO pam_records (company_id,pam_no,source,status,created_at) VALUES (1,'PAM-001-APP-06-2026','etf_app','draft','2026-06-08')")
+    conn.execute("INSERT INTO pam_records (company_id,pam_no,source,status,created_at) VALUES (1,'PAM-001-ETF-06-2026','etf_agri','open','2026-06-08')")
+    conn.execute("INSERT INTO pam_records (company_id,pam_no,source,status,created_at) VALUES (1,'PAM-001-APP-06-2026','etf_app','open','2026-06-08')")
     conn.commit(); conn.close()
 
     from modules.payment_memo.service import get_pam_list

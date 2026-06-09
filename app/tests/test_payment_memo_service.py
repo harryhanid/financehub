@@ -25,7 +25,7 @@ def _add_draft_payment(siswa_code="1250001", amount=5000000):
     conn = get_conn()
     conn.execute(
         "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, perusahaan, status) "
-        "VALUES (?,?,?,?,?,?,?,?,'draft')",
+        "VALUES (?,?,?,?,?,?,?,?,'open')",
         (COMPANY_ID, siswa_code, "By Pendidikan", "Semester 1", "2025-06-01", amount, "AGRI", "PT. SMART Tbk")
     )
     last_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -39,9 +39,9 @@ def test_generate_memo_number_first():
 def test_generate_memo_number_increments():
     conn = get_conn()
     conn.execute("INSERT INTO payment_memo (company_id, memo_number, status) VALUES (?,?,?)",
-        (COMPANY_ID, "PAM/ETF/2025/001", "draft"))
+        (COMPANY_ID, "PAM/ETF/2025/001", "open"))
     conn.execute("INSERT INTO payment_memo (company_id, memo_number, status) VALUES (?,?,?)",
-        (COMPANY_ID, "PAM/ETF/2025/002", "draft"))
+        (COMPANY_ID, "PAM/ETF/2025/002", "open"))
     conn.commit(); conn.close()
     num = generate_memo_number(COMPANY_ID, COMPANY_CODE, "2025")
     assert num == "PAM/ETF/2025/003"
@@ -74,7 +74,7 @@ def test_create_memo_updates_payment_status():
     conn = get_conn()
     row  = conn.execute("SELECT status FROM payment_beasiswa WHERE id=?", (pay_id,)).fetchone()
     conn.close()
-    assert row["status"] == "in_memo"
+    assert row["status"] == "on_process"
 
 def test_get_memo_list():
     pay_id = _add_draft_payment()

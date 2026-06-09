@@ -77,7 +77,7 @@ def test_create_pam_record_inserts_row():
     assert row["keterangan"]      == "Harry, Joni"
     assert row["total_amount"]    == 7500000.0
     assert row["due_date"]        == "2026-06-30"
-    assert row["status"]          == "draft"
+    assert row["status"]          == "open"
 
 
 def test_create_pam_record_updates_payment_pam_field():
@@ -88,7 +88,7 @@ def test_create_pam_record_updates_payment_pam_field():
            (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, perusahaan, status)
            VALUES (?,?,?,?,?,?,?,?,?)""",
         (COMPANY_ID, "S001", "By Pendidikan", "Semester 1",
-         "2026-05-31", 2000000, "AGRI", "PT. SMART Tbk", "draft")
+         "2026-05-31", 2000000, "AGRI", "PT. SMART Tbk", "open")
     )
     payment_id = cur.lastrowid
     pam_no = create_pam_record(conn, COMPANY_ID, COMPANY_CODE, {
@@ -143,7 +143,7 @@ def test_update_pam_gl_account_success():
     assert row["gl_account"] == "70107800"
 
 
-def test_update_pam_status_approved():
+def test_update_pam_status_on_process():
     conn = get_conn()
     pam_no = create_pam_record(conn, COMPANY_ID, COMPANY_CODE, {
         "pam_date": "2026-05-31", "pt": "PT. SMART Tbk",
@@ -154,12 +154,12 @@ def test_update_pam_status_approved():
         "SELECT id FROM pam_records WHERE pam_no=?", (pam_no,)
     ).fetchone()["id"]
     conn.close()
-    result = update_pam_status(pam_id, "approved", COMPANY_ID)
+    result = update_pam_status(pam_id, "on_process", COMPANY_ID)
     assert result["ok"] is True
     conn2 = get_conn()
     row = conn2.execute("SELECT status FROM pam_records WHERE id=?", (pam_id,)).fetchone()
     conn2.close()
-    assert row["status"] == "approved"
+    assert row["status"] == "on_process"
 
 
 def test_update_pam_status_invalid():
@@ -234,7 +234,7 @@ def _seed_siswa_and_payment(conn, company_id, pam_no):
             pillar, perusahaan, pam, status)
            VALUES (?,?,?,?,?,?,?,?,?,?)""",
         (company_id, "S001", "General", "Sem 1", "2026-05-26",
-         5000000, "ETF", "PT. SMART Tbk", pam_no, "draft")
+         5000000, "ETF", "PT. SMART Tbk", pam_no, "open")
     )
     conn.commit()
 
