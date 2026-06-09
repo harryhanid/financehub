@@ -9,7 +9,7 @@ Replace the current card grid on `/select-company` with a full-viewport split la
 
 ## Layout
 
-Two panels fill `100dvh × 100vw` side by side via `display: flex`. A 1px semi-transparent divider sits between them. A "FINANCE HUB" badge is pinned to the top-center of the page (position absolute, spanning both panels).
+Two panels fill `100dvh × 100vw` side by side via `display: flex`. A 1px semi-transparent divider sits between them. A "FINANCE HUB" badge is pinned to the top-center — placed as the first child **inside** `.cs-split` (which has `position: relative`), so the badge's `position: absolute` resolves against the split container.
 
 On mobile (`≤600px`) the panels stack vertically (top = SMT, bottom = ETF) and the badge is hidden.
 
