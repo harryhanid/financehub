@@ -28,15 +28,19 @@ def _ctx():
 def index():
     if not session.get("company_id"):
         return redirect(url_for("dashboard.select_company"))
-    company_id   = session["company_id"]
-    applications = get_applications(company_id)
-    approved_memos = [m for m in get_memo_list(company_id, status="approved")
+    company_id = session["company_id"]
+    month = request.args.get("month", type=int)
+    year  = request.args.get("year", type=int)
+    applications = get_applications(company_id, month=month, year=year)
+    approved_memos = [m for m in get_memo_list(company_id, status="on_process")
                       if not any(a["memo_id"] == m["id"] for a in applications)]
     return render_template(
         "payment_application/index.html",
         applications=applications,
         approved_memos=approved_memos,
         active_page="payment_app",
+        filter_month=month,
+        filter_year=year,
         **_ctx()
     )
 

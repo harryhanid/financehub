@@ -6,16 +6,21 @@ def _ts():
     return datetime.now().isoformat(timespec="seconds")
 
 
-def get_applications(company_id: int) -> list:
+def get_applications(company_id: int, month: int = None, year: int = None) -> list:
     conn = get_conn()
-    rows = [dict(r) for r in conn.execute(
-        """SELECT pa.*, pm.memo_number, pm.total_amount, pm.status as memo_status
-           FROM payment_application pa
-           JOIN payment_memo pm ON pm.id = pa.memo_id
-           WHERE pa.company_id = ?
-           ORDER BY pa.created_at DESC""",
-        (company_id,)
-    ).fetchall()]
+    query = """SELECT pa.*, pm.memo_number, pm.total_amount, pm.status as memo_status
+               FROM payment_application pa
+               JOIN payment_memo pm ON pm.id = pa.memo_id
+               WHERE pa.company_id = ?"""
+    params = [company_id]
+    if month:
+        query += " AND strftime('%m', pa.submitted_at) = ?"
+        params.append(f"{month:02d}")
+    if year:
+        query += " AND strftime('%Y', pa.submitted_at) = ?"
+        params.append(str(year))
+    query += " ORDER BY pa.created_at DESC"
+    rows = [dict(r) for r in conn.execute(query, params).fetchall()]
     conn.close()
     for r in rows:
         if r.get("submitted_at") and r.get("actual_payment_date"):
@@ -50,9 +55,9 @@ def create_application(company_id: int, memo_id: int, tanggal_pengajuan: str,
     if not memo:
         conn.close()
         return {"ok": False, "pesan": "Memo tidak ditemukan."}
-    if memo["status"] not in ("approved", "paid"):
+    if memo["status"] not in ("on_process", "complete"):
         conn.close()
-        return {"ok": False, "pesan": "Memo harus berstatus 'approved' sebelum diajukan."}
+        return {"ok": False, "pesan": "Memo harus berstatus 'on_process' atau 'complete' sebelum diajukan."}
 
     year  = (tanggal_pengajuan or datetime.now().strftime("%Y"))[:4]
     count = conn.execute(
@@ -63,7 +68,7 @@ def create_application(company_id: int, memo_id: int, tanggal_pengajuan: str,
     cur = conn.execute(
         """INSERT INTO payment_application
            (company_id, memo_id, application_number, submitted_at, target_payment_date, notes, status, created_at)
-           VALUES (?,?,?,?,?,?,'pending',?)""",
+           VALUES (?,?,?,?,?,?,'open',?)""",
         (company_id, memo_id, app_number, tanggal_pengajuan, target_payment_date, notes, _ts())
     )
     app_id = cur.lastrowid
@@ -86,7 +91,7 @@ def update_actual_payment(app_id: int, actual_date: str, company_id: int = 0) ->
     if row["submitted_at"]:
         tat = _workday_diff(row["submitted_at"][:10], actual_date)
     conn.execute(
-        "UPDATE payment_application SET actual_payment_date=?, tat_days=?, status='completed', updated_at=? WHERE id=? AND company_id=?",
+        "UPDATE payment_application SET actual_payment_date=?, tat_days=?, status='complete', updated_at=? WHERE id=? AND company_id=?",
         (actual_date, tat, _ts(), app_id, company_id)
     )
     conn.commit()
