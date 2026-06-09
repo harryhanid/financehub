@@ -27,16 +27,38 @@
   <span class="navbar-sep">/</span>
   <a class="navbar-company" href="/select-company" title="Ganti perusahaan">{{ company_name }}</a>
   {% endif %}
+  {% if company_name %}
+  <span class="navbar-sep" style="margin:0 .25rem">|</span>
+  {% set co = company_code or '' %}
+  <nav class="navbar-links">
+    <a href="/dashboard" class="navbar-link {% if active_page == 'dashboard' %}active{% endif %}">Dashboard</a>
+    {% if co == 'ETF' %}
+    <a href="/beasiswa" class="navbar-link {% if active_page == 'beasiswa' %}active{% endif %}">Beasiswa</a>
+    {% endif %}
+    <a href="/payment-memo" class="navbar-link {% if active_page == 'payment_memo' %}active{% endif %}">Payment Approval Memo</a>
+    {% if co == 'ETF' %}
+    <a href="/etf-payment-application" class="navbar-link {% if active_page == 'etf_payment_app' %}active{% endif %}">Payment Application</a>
+    {% else %}
+    <a href="/payment-application" class="navbar-link {% if active_page == 'payment_app' %}active{% endif %}">Payment Application</a>
+    {% endif %}
+    <span class="navbar-sep" style="margin:0 .125rem">|</span>
+    <a class="navbar-link coming-soon" title="Coming Soon">Bank</a>
+    <a class="navbar-link coming-soon" title="Coming Soon">Account Payable</a>
+    <a class="navbar-link coming-soon" title="Coming Soon">Advance</a>
+    <a class="navbar-link coming-soon" title="Coming Soon">Petty Cash</a>
+    <a class="navbar-link coming-soon" title="Coming Soon">Sponsorship</a>
+    <span class="navbar-sep" style="margin:0 .125rem">|</span>
+    <a href="/users" class="navbar-link {% if active_page == 'users' %}active{% endif %}">Users</a>
+  </nav>
+  {% endif %}
   <span class="navbar-user">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
     {{ current_user or 'user' }}
   </span>
   <button class="btn-theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" aria-label="Toggle dark mode">
-    <!-- Sun icon (shown in dark mode) -->
     <svg class="icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
     </svg>
-    <!-- Moon icon (shown in light mode) -->
     <svg class="icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
     </svg>
@@ -46,65 +68,7 @@
     Keluar
   </button>
 </nav>
-<div class="layout">
-  <aside class="sidebar">
-    {% set co = company_code or '' %}
-    <div class="sidebar-section">Navigasi</div>
-    <a href="/dashboard" {% if active_page == 'dashboard' %}class="active"{% endif %}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
-      Dashboard
-    </a>
-    {% if co == 'ETF' %}
-    <div class="sidebar-section">ETF</div>
-    <a href="/beasiswa" {% if active_page == 'beasiswa' %}class="active"{% endif %}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-      Beasiswa
-    </a>
-    {% endif %}
-    <div class="sidebar-section">Pembayaran</div>
-    <a href="/payment-memo" {% if active_page == 'payment_memo' %}class="active"{% endif %}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      Payment Approval Memo
-    </a>
-    {% if co == 'ETF' %}
-    <a href="/etf-payment-application" {% if active_page == 'etf_payment_app' %}class="active"{% endif %}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      Payment Application
-    </a>
-    {% else %}
-    <a href="/payment-application" {% if active_page == 'payment_app' %}class="active"{% endif %}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-      Payment Application
-    </a>
-    {% endif %}
-    <div class="sidebar-section">Coming Soon</div>
-    <a href="/bank" class="coming-soon">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12,2 20,7 4,7"/></svg>
-      Bank
-    </a>
-    <a href="/account-payable" class="coming-soon">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
-      Account Payable
-    </a>
-    <a href="/advance" class="coming-soon">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-      Advance
-    </a>
-    <a href="/petty-cash" class="coming-soon">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>
-      Petty Cash
-    </a>
-    <a href="/sponsorship" class="coming-soon">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Sponsorship
-    </a>
-    <div class="sidebar-section">Admin</div>
-    <a href="/users" {% if active_page == 'users' %}class="active"{% endif %}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      User Management
-    </a>
-  </aside>
-  <main class="main">
+<main class="main">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
         <div class="alert alert-{{ category }}">{{ message }}</div>
@@ -112,7 +76,6 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
-</div>
 <script>
 function toggleTheme() {
   var html = document.documentElement;
@@ -127,6 +90,56 @@ function toggleTheme() {
 }
 </script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<div id="modal-confirm" class="modal-overlay" style="display:none;align-items:center;justify-content:center">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-confirm-title">Konfirmasi</span>
+    </div>
+    <div class="modal-body">
+      <p id="modal-confirm-message" style="margin:0;line-height:1.5"></p>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem">
+      <button id="modal-confirm-cancel" class="btn btn-secondary">Batal</button>
+      <button id="modal-confirm-ok" class="btn btn-primary">Simpan</button>
+    </div>
+  </div>
+</div>
+<script>
+function confirmModal(message, opts) {
+  opts = opts || {};
+  return new Promise(function(resolve) {
+    var overlay   = document.getElementById('modal-confirm');
+    var titleEl   = document.getElementById('modal-confirm-title');
+    var msgEl     = document.getElementById('modal-confirm-message');
+    var okBtn     = document.getElementById('modal-confirm-ok');
+    var cancelBtn = document.getElementById('modal-confirm-cancel');
+
+    var type        = opts.type || 'primary';
+    var title       = opts.title || (type === 'danger' ? 'Konfirmasi Hapus' : 'Konfirmasi');
+    var confirmText = opts.confirmText || (type === 'danger' ? 'Hapus' : 'Simpan');
+
+    titleEl.textContent = title;
+    msgEl.textContent   = message;
+    okBtn.textContent   = confirmText;
+    okBtn.className     = 'btn ' + (type === 'danger' ? 'btn-danger' : 'btn-primary');
+    cancelBtn.textContent = opts.cancelText || 'Batal';
+
+    overlay.style.display = 'flex';
+
+    function cleanup(result) {
+      overlay.style.display = 'none';
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    function onOk()     { cleanup(true);  }
+    function onCancel() { cleanup(false); }
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
