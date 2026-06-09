@@ -786,25 +786,38 @@ async function submitPA() {
 }
 
 // ─── Edit ─────────────────────────────────────────────────────────────────────
-async function openEditById(paId) {
+async function openEditById(paId, lineId) {
   const resp = await apiFetch(`/etf-payment-application/${paId}/header?tab=${ACTIVE_TAB}`);
   if (!resp.ok) { showToast("Gagal memuat data PA.", "error"); return; }
   const pa = await resp.json();
-  document.getElementById("edit-pa-id").value       = pa.id;
-  document.getElementById("edit-pa-title").textContent = `Edit PA: ${pa.pa_number}`;
-  document.getElementById("edit-tgl-app").value     = pa.tgl_payment_application || "";
-  document.getElementById("edit-tgl-surat").value   = pa.tgl_surat_pengajuan || "";
-  document.getElementById("edit-doc-recv").value    = pa.doc_received_by_educ || "";
-  document.getElementById("edit-recv-pa").value     = pa.received_pa_from_educ || "";
-  document.getElementById("edit-checked").value     = pa.checked_by_fincon || "";
-  document.getElementById("edit-approved1").value   = pa.approved_by_htj_1 || "";
-  document.getElementById("edit-send-back").value   = pa.send_pa_back_to_educ || "";
-  document.getElementById("edit-recv-po").value     = pa.pa_received_by_po_fin || "";
-  document.getElementById("edit-approval2").value   = pa.approval_by_htj_2 || "";
-  document.getElementById("edit-nomor-pam").value   = pa.nomor_pam || "";
-  document.getElementById("edit-tgl-bayar").value   = pa.tanggal_bayar || "";
-  document.getElementById("edit-keterangan").value  = pa.keterangan || "";
-  document.getElementById("edit-status").value      = pa.status || "open";
+  document.getElementById("edit-pa-id").value          = pa.id;
+  document.getElementById("edit-line-id").value         = lineId || "";
+  document.getElementById("edit-pa-title").textContent  = `Edit PA: ${pa.pa_number}`;
+  document.getElementById("edit-tgl-app").value         = pa.tgl_payment_application || "";
+  document.getElementById("edit-tgl-surat").value       = pa.tgl_surat_pengajuan || "";
+  document.getElementById("edit-doc-recv").value        = pa.doc_received_by_educ || "";
+  document.getElementById("edit-recv-pa").value         = pa.received_pa_from_educ || "";
+  document.getElementById("edit-checked").value         = pa.checked_by_fincon || "";
+  document.getElementById("edit-approved1").value       = pa.approved_by_htj_1 || "";
+  document.getElementById("edit-send-back").value       = pa.send_pa_back_to_educ || "";
+  document.getElementById("edit-recv-po").value         = pa.pa_received_by_po_fin || "";
+  document.getElementById("edit-approval2").value       = pa.approval_by_htj_2 || "";
+  document.getElementById("edit-nomor-pam").value       = pa.nomor_pam || "";
+  document.getElementById("edit-tgl-bayar").value       = pa.tanggal_bayar || "";
+  document.getElementById("edit-keterangan").value      = pa.keterangan || "";
+  document.getElementById("edit-status").value          = pa.status || "open";
+  const lineResp = await apiFetch(`/etf-payment-application/${paId}/lines?tab=${ACTIVE_TAB}`);
+  if (lineResp && lineResp.ok) {
+    const lines = await lineResp.json();
+    const line = lines.find(l => l.id === lineId);
+    if (line) {
+      document.getElementById("edit-jenis-bayar").value  = line.jenis_pembayaran || "";
+      document.getElementById("edit-semester").value     = line.semester || "";
+      document.getElementById("edit-tahun-ajaran").value = line.tahun_ajaran || "";
+      document.getElementById("edit-ipk").value          = line.ipk_sem_sebelumnya || "";
+      document.getElementById("edit-jumlah").value       = line.jumlah_pembayaran || "";
+    }
+  }
   openModal("modal-edit-pa");
 }
 async function saveEdit() {
@@ -823,6 +836,12 @@ async function saveEdit() {
     tanggal_bayar:           document.getElementById("edit-tgl-bayar").value,
     keterangan:              document.getElementById("edit-keterangan").value,
     status:                  document.getElementById("edit-status").value,
+    line_id:                 parseInt(document.getElementById("edit-line-id").value) || null,
+    jenis_pembayaran:        document.getElementById("edit-jenis-bayar").value,
+    semester:                document.getElementById("edit-semester").value,
+    tahun_ajaran:            document.getElementById("edit-tahun-ajaran").value,
+    ipk_sem_sebelumnya:      parseFloat(document.getElementById("edit-ipk").value) || 0,
+    jumlah_pembayaran:       parseFloat(document.getElementById("edit-jumlah").value) || 0,
   };
   const resp = await apiFetch(`/etf-payment-application/${paId}/update?tab=${ACTIVE_TAB}`, { method: "POST", body: JSON.stringify(payload) });
   const data = await resp.json();
