@@ -639,6 +639,7 @@ async function genKode() {
 }
 
 async function simpanSiswa() {
+  if (!await confirmModal(_editMode ? "Update data siswa ini?" : "Simpan siswa baru?", { confirmText: _editMode ? "Update" : "Simpan" })) return;
   const payload = {
     code: document.getElementById("s-code").value,
     nama: document.getElementById("s-nama").value,
@@ -889,6 +890,7 @@ document.addEventListener("mousedown", e => {
 });
 
 async function bgtSaveRow() {
+  if (!await confirmModal("Update baris budget ini?", { confirmText: "Update" })) return;
   const id     = document.getElementById("bgt-edit-id").value;
   const cat1   = document.getElementById("bgt-cat1").value;
   const cat2   = document.getElementById("bgt-cat2").value;
@@ -988,6 +990,7 @@ async function bgtSaveRows() {
   const tanggal = document.getElementById("bgt-tgl").value;
   const pillar  = document.getElementById("bgt-pillar").value;
   if (!tanggal) { showToast("Tanggal wajib diisi.", "error"); return; }
+  if (!await confirmModal("Simpan baris budget ini?")) return;
   const itemEls = [...document.querySelectorAll(".bgt-item-row")];
   if (!itemEls.length) { showToast("Tambah minimal 1 baris.", "error"); return; }
   const items = itemEls.map(r => ({
@@ -1105,6 +1108,7 @@ function ibgtCancelCatatan() {
 
 async function ibgtSaveCatatan() {
   if (!_ibgtCode) return;
+  if (!await confirmModal("Simpan catatan input budget?")) return;
   const catatan = document.getElementById("ibgt-catatan-input").value;
   const d = await (await apiFetch(`/beasiswa/siswa/${_ibgtCode}/catatan`,
     { method: "POST", body: JSON.stringify({ catatan }) })).json();
@@ -1182,6 +1186,7 @@ async function savePayment() {
   const code=document.getElementById("pay-siswa").value, tgl=document.getElementById("pay-tgl").value,
         pillar=document.getElementById("pay-pillar").value, per=document.getElementById("pay-perusahaan").value;
   if (!code||!tgl||!pillar||!per) { showToast("Semua field wajib diisi.","error"); return; }
+  if (!await confirmModal("Simpan data payment ini?")) return;
   const items=[...document.querySelectorAll(".pay-row")].map(r=>({
     cat1:r.querySelector(".pay-row-cat1")._hid.value, cat2:r.querySelector(".pay-row-cat2")._hid.value,
     cat3:"",cat4:"", amount:parseFloat(r.querySelector(".pay-row-amount").value)||0 }));
@@ -1226,6 +1231,7 @@ function payCancelCatpay() {
 }
 async function paySaveCatpay() {
   if (!_payCurrentSiswaCode) return;
+  if (!await confirmModal("Simpan catatan payment?")) return;
   const catatan_payment = document.getElementById("pay-catpay-input").value;
   const d = await (await apiFetch(`/beasiswa/siswa/${_payCurrentSiswaCode}/catatan-payment`,
     { method: "POST", body: JSON.stringify({ catatan_payment }) })).json();
