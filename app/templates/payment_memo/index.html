@@ -1045,6 +1045,7 @@ function smlClearDates() {
 
 async function smlBulkUpdate() {
   if (_smlSelected.size === 0) return;
+  if (!await confirmModal(`Update ${_smlSelected.size} record SML terpilih?`, { confirmText: "Update" })) return;
   const dates = {
     terima_document: document.getElementById('sml-d-terima').value,
     input_aspiro:    document.getElementById('sml-d-input').value,
@@ -1355,6 +1356,7 @@ function fioriClearDates() {
 
 async function fioriBulkUpdate() {
   if (_fioriSelected.size === 0) return;
+  if (!await confirmModal(`Update ${_fioriSelected.size} record Fiori terpilih?`, { confirmText: "Update" })) return;
   const dates = {
     terima_document: document.getElementById('fiori-d-terima').value,
     input_aspiro:    document.getElementById('fiori-d-input').value,
@@ -2009,6 +2011,7 @@ function dopClearAllChips() {
 
 async function dopBulkUpdate() {
   if (_dopSelected.size === 0) return;
+  if (!await confirmModal(`Update ${_dopSelected.size} record DOP terpilih?`, { confirmText: "Update" })) return;
   const dates = {
     tanggal:          document.getElementById('dop-d-tanggal').value,
     tgl_pengajuan:    document.getElementById('dop-d-pengajuan').value,
