@@ -1835,9 +1835,11 @@ async function dopBulkUpdate() {
   if (!res) return;
   const data = await res.json();
   showToast(data.pesan, data.ok ? 'success' : 'error');
-  if (data.ok && _dopLastSearchQs) {
-    // refresh current search results instead of full page reload
-    setTimeout(() => _dopFetch(_dopLastSearchQs), 600);
+  if (data.ok) {
+    _dopSelected.clear();
+    _dopSelectionMeta.clear();
+    dopRenderChips();
+    if (_dopLastSearchQs) setTimeout(() => _dopFetch(_dopLastSearchQs), 600);
   }
 }
 
