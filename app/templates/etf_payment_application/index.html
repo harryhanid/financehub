@@ -174,11 +174,12 @@ body.pa-focus #pa-focus-exit { display: flex; }
   </div>
   <div class="form-group" style="margin:0; width:120px">
     <label style="font-size:.72rem; font-weight:600">Status</label>
-    <select id="f-status" onchange="applyFilters()" style="font-size:.82rem">
+    <select id="f-status" onchange="statusFilterChanged(this)" style="font-size:.82rem">
       <option value="">Semua</option>
-      <option value="open">Open</option>
-      <option value="on_process">On Process</option>
-      <option value="complete">Complete</option>
+      <option value="active" {% if active_sf == 'active' %}selected{% endif %}>Open + On Process</option>
+      <option value="open" {% if active_sf == 'open' %}selected{% endif %}>Open</option>
+      <option value="on_process" {% if active_sf == 'on_process' %}selected{% endif %}>On Process</option>
+      <option value="complete" {% if active_sf == 'complete' %}selected{% endif %}>Complete</option>
     </select>
   </div>
   <div class="form-group" style="margin:0; width:110px">
@@ -324,6 +325,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
     <tbody>
       {% for r in pa_rows %}
       <tr data-pa-id="{{ r.pa_id }}"
+          data-line-id="{{ r.line_id }}"
           data-nama="{{ r.nama | lower }}"
           data-status="{{ (r.status or '') | lower }}"
           data-jenjang="{{ r.jenjang_pendidikan or '' }}"
@@ -367,7 +369,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
             {{ r.status | replace('_', ' ') | title }}
           </span>
         </td>
-        <td><button class="btn btn-primary btn-sm" onclick="openEditById({{ r.pa_id }})">Edit</button></td>
+        <td><button class="btn btn-primary btn-sm" onclick="openEditById({{ r.pa_id }}, {{ r.line_id }})">Edit</button></td>
       </tr>
       {% else %}
       <tr><td colspan="32" style="text-align:center; color:var(--text-muted); padding:2rem">Belum ada payment application ETF.</td></tr>
@@ -412,6 +414,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
       <button class="modal-close" onclick="closeModal('modal-edit-pa')">x</button>
     </div>
     <input type="hidden" id="edit-pa-id">
+    <input type="hidden" id="edit-line-id">
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem">
       <div class="form-group"><label>Tgl PA</label><input type="date" id="edit-tgl-app"></div>
       <div class="form-group"><label>Tgl Surat Pengajuan</label><input type="date" id="edit-tgl-surat"></div>
@@ -433,6 +436,32 @@ body.pa-focus #pa-focus-exit { display: flex; }
       </div>
     </div>
     <div class="form-group"><label>Keterangan</label><textarea id="edit-keterangan" rows="3" style="width:100%; resize:vertical"></textarea></div>
+    <div style="border-top:1px solid var(--border);margin-top:.75rem;padding-top:.75rem">
+      <div style="font-size:.75rem;font-weight:600;color:#374151;margin-bottom:.5rem">Data Siswa (Line)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group"><label>Jenis Bayar</label>
+          <select id="edit-jenis-bayar">
+            <option value="">-- Pilih --</option>
+            {% for c in cat1 %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label>Semester</label>
+          <select id="edit-semester">
+            <option value="">-- Pilih --</option>
+            {% for c in cat2_sem %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label>Tahun Ajaran</label>
+          <input type="text" id="edit-tahun-ajaran" placeholder="2024/2025">
+        </div>
+        <div class="form-group"><label>IPK Sblmnya</label>
+          <input type="number" id="edit-ipk" step="0.01" min="0" max="4">
+        </div>
+      </div>
+      <div class="form-group"><label>Jumlah (Rp)</label>
+        <input type="number" id="edit-jumlah" min="0">
+      </div>
+    </div>
     <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:1rem">
       <button class="btn btn-secondary" onclick="closeModal('modal-edit-pa')">Batal</button>
       <button class="btn btn-primary" onclick="saveEdit()">Simpan</button>
@@ -523,9 +552,15 @@ function applyFiltersDebounced() {
   _filterTimer = setTimeout(applyFilters, 150);
 }
 
+function statusFilterChanged(el) {
+  const url = new URL(window.location);
+  if (el.value) url.searchParams.set("sf", el.value);
+  else url.searchParams.delete("sf");
+  window.location.href = url.toString();
+}
+
 function applyFilters() {
   const nama     = document.getElementById("f-nama").value.toLowerCase().trim();
-  const status   = document.getElementById("f-status").value;
   const jenjang  = document.getElementById("f-jenjang").value;
   const program  = document.getElementById("f-program").value;
   const angkatan = document.getElementById("f-angkatan").value;
@@ -540,7 +575,6 @@ function applyFilters() {
     const tgl = tr.dataset.tglPa || "";
     const match =
       (!nama     || tr.dataset.nama.includes(nama)) &&
-      (!status   || tr.dataset.status === status) &&
       (!jenjang  || tr.dataset.jenjang === jenjang) &&
       (!program  || tr.dataset.program === program) &&
       (!angkatan || tr.dataset.angkatan == angkatan) &&
@@ -557,9 +591,9 @@ function applyFilters() {
   });
 }
 function resetFilters() {
-  ["f-nama","f-pam"].forEach(id => document.getElementById(id).value = "");
-  ["f-status","f-jenjang","f-program","f-angkatan","f-jenis","f-bulan-pa","f-tahun-pa"].forEach(id => document.getElementById(id).value = "");
-  applyFilters();
+  const url = new URL(window.location);
+  url.searchParams.delete("sf");
+  window.location.href = url.toString();
 }
 window.addEventListener("DOMContentLoaded", applyFilters);
 
