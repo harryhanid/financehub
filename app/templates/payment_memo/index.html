@@ -820,6 +820,7 @@ async function saveTanggalBayar() {
   const memoId = document.getElementById("tgl-bayar-memo-id").value;
   const tgl    = document.getElementById("input-tgl-bayar").value;
   if (!tgl) { showToast("Pilih tanggal bayar dulu.", "error"); return; }
+  if (!await confirmModal(`Simpan tanggal bayar ${tgl}?`)) return;
   const resp = await apiFetch(`/payment-memo/${memoId}/tanggal-bayar`, {
     method: "POST", body: JSON.stringify({ tanggal_bayar: tgl })
   });
@@ -1177,6 +1178,7 @@ async function openEditFiori(id) {
 }
 
 async function submitEditFiori() {
+  if (!await confirmModal("Simpan perubahan data Fiori ini?")) return;
   const id = parseInt(document.getElementById('edit-fiori-id').value);
   const payload = {
     no_pa:        document.getElementById('edit-fiori-no-pa').value.trim(),
@@ -1546,6 +1548,7 @@ async function openEditPAM(pamId) {
 }
 
 async function submitEditPAM() {
+  if (!await confirmModal("Simpan perubahan data PAM ini?")) return;
   const pamId   = parseInt(document.getElementById('edit-pam-id').value);
   const payload = {
     pam: {
@@ -1634,6 +1637,7 @@ async function submitEditDraft() {
   const paymentId = parseInt(document.getElementById('edit-draft-id').value);
   const cat2val   = document.getElementById('edit-draft-cat2').value.trim();
   if (!cat2val) { showToast('Kategori 2 wajib dipilih.', 'error'); return; }
+  if (!await confirmModal("Simpan perubahan draft payment ini?")) return;
   const payload = {
     payment: {
       cat1:   document.getElementById('edit-draft-cat1').value,
@@ -3048,6 +3052,7 @@ async function ipaySave() {
 }
 
 async function ipaySavePa() {
+  if (!await confirmModal("Simpan PAM baru ini?")) return;
   const type       = document.getElementById("ipay-type")?.value || "agri";
   const tanggal    = document.getElementById("ipay-tgl").value;
   const pam_no     = document.getElementById("ipay-pam-full").value.trim();
