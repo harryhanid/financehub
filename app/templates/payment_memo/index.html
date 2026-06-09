@@ -1716,7 +1716,7 @@ function dopRenderChips() {
 
   if (hidden.length) {
     html += `<span id="dop-chips-expand" onclick="dopExpandChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
-    html += `<span id="dop-chips-hidden" style="display:none;display:contents">` + hidden.map(chipHtml).join('') + `</span>`;
+    html += `<span id="dop-chips-hidden" style="display:none">` + hidden.map(chipHtml).join('') + `</span>`;
   }
 
   html += `<span onclick="dopClearAllChips()" style="font-size:10px;color:#dc2626;cursor:pointer;margin-left:6px;white-space:nowrap">Hapus semua</span>`;
