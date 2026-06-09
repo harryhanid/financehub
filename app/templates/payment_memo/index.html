@@ -790,7 +790,7 @@ function toggleAllDrafts(cb) {
 
 async function changeStatus(memoId, newStatus) {
   const label = { submitted: "Submit", approved: "Approve", paid: "Mark as Paid", on_process: "Submit / Proses" }[newStatus] || newStatus;
-  if (!confirm(`${label} memo ini?`)) return;
+  if (!await confirmModal(`${label} memo ini?`, { confirmText: label })) return;
   const resp = await apiFetch(`/payment-memo/${memoId}/update-status`, {
     method: "POST", body: JSON.stringify({ status: newStatus })
   });
@@ -800,7 +800,7 @@ async function changeStatus(memoId, newStatus) {
 }
 
 async function submitMemoStatus(memoId) {
-  if (!confirm("Submit memo ini ke status on_process?")) return;
+  if (!await confirmModal("Submit memo ini ke status on_process?", { confirmText: "Submit" })) return;
   const resp = await apiFetch(`/payment-memo/${memoId}/update-status`, {
     method: "POST", body: JSON.stringify({ status: "on_process" })
   });
@@ -1076,7 +1076,7 @@ async function smlBulkUpdate() {
 
 async function smlUpdateStatus(id, status) {
   const label = {approved:'Approve', open:'Revert ke Open', paid:'Mark Paid'}[status] || status;
-  if (!confirm(`${label} record ini?`)) return;
+  if (!await confirmModal(`${label} record ini?`, { confirmText: label })) return;
   const res = await apiFetch(`/payment-memo/sml/${id}/status`, {
     method:'POST', body: JSON.stringify({status})
   });
@@ -1087,7 +1087,7 @@ async function smlUpdateStatus(id, status) {
 }
 
 async function smlCancel(id) {
-  if (!confirm('Hapus record ini permanen?')) return;
+  if (!await confirmModal('Hapus record ini permanen? Data tidak dapat dikembalikan.', { type: 'danger', confirmText: 'Hapus' })) return;
   const res = await apiFetch(`/payment-memo/sml/${id}/cancel`, {method:'POST'});
   if (!res) return;
   const data = await res.json();
@@ -1212,7 +1212,7 @@ async function submitEditFiori() {
 
 async function fioriUpdateStatus(id, status) {
   const label = {approved:'Approve', open:'Revert ke Open', paid:'Mark Paid'}[status] || status;
-  if (!confirm(`${label} record ini?`)) return;
+  if (!await confirmModal(`${label} record ini?`, { confirmText: label })) return;
   const res = await apiFetch(`/payment-memo/fiori/${id}/status`, {
     method:'POST', body: JSON.stringify({status})
   });
@@ -1223,7 +1223,7 @@ async function fioriUpdateStatus(id, status) {
 }
 
 async function fioriCancel(id) {
-  if (!confirm('Hapus record ini permanen?')) return;
+  if (!await confirmModal('Hapus record ini permanen? Data tidak dapat dikembalikan.', { type: 'danger', confirmText: 'Hapus' })) return;
   const res = await apiFetch(`/payment-memo/fiori/${id}/cancel`, {method:'POST'});
   if (!res) return;
   const data = await res.json();
@@ -1463,7 +1463,7 @@ async function pamSetPaidAgri(pamId) {
   const inp = document.getElementById('paid-date-' + pamId);
   const tgl = inp ? inp.value : '';
   if (!tgl) { showToast('Pilih tanggal paid.', 'error'); return; }
-  if (!confirm(`Set Tgl Paid ${tgl} untuk PAM ini? Akan cascade ke Payment Application AGRI.`)) return;
+  if (!await confirmModal(`Set Tgl Paid ${tgl} untuk PAM ini? Akan cascade ke Payment Application AGRI.`, { confirmText: "Set Paid" })) return;
   const res  = await apiFetch(`/payment-memo/pam/${pamId}/set-paid-agri`, {
     method: 'POST', body: JSON.stringify({ tanggal_bayar: tgl })
   });
@@ -1519,7 +1519,7 @@ async function loadPAM() {
 
 async function updatePAMStatus(pamId, newStatus) {
   const label = { approved: 'Approve', draft: 'Revert ke Draft', paid: 'Mark Paid' }[newStatus] || newStatus;
-  if (!confirm(`${label} PAM ini?`)) return;
+  if (!await confirmModal(`${label} PAM ini?`, { confirmText: label })) return;
   const res  = await apiFetch(`/payment-memo/pam/${pamId}/status`, {
     method: 'POST', body: JSON.stringify({ status: newStatus })
   });
@@ -1658,7 +1658,7 @@ async function submitEditDraft() {
 }
 
 async function deleteDraft(paymentId) {
-  if (!confirm('Hapus payment ini? Data tidak dapat dikembalikan.')) return;
+  if (!await confirmModal('Hapus payment ini? Data tidak dapat dikembalikan.', { type: 'danger', confirmText: 'Hapus' })) return;
   const res  = await apiFetch(`/payment-memo/drafts/${paymentId}/delete`, { method: 'POST' });
   if (!res) return;
   const data = await res.json();
@@ -1668,7 +1668,7 @@ async function deleteDraft(paymentId) {
 
 // ── PAM cancel ────────────────────────────────────────────────────────────────
 async function cancelPAM(pamId) {
-  if (!confirm('Cancel PAM ini? Semua data PAM dan payment terkait akan dihapus permanen.')) return;
+  if (!await confirmModal('Cancel PAM ini? Semua data PAM dan payment terkait akan dihapus permanen.', { type: 'danger', title: 'Konfirmasi Cancel PAM', confirmText: 'Cancel PAM' })) return;
   const res  = await apiFetch(`/payment-memo/pam/${pamId}/cancel`, { method: 'POST' });
   if (!res) return;
   const data = await res.json();
