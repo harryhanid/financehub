@@ -1665,9 +1665,26 @@ function dopClearSearch() {
 
 function dopToggleCb(cb) {
   const id = parseInt(cb.dataset.id, 10);
-  if (cb.checked) _dopSelected.add(id);
-  else            _dopSelected.delete(id);
+  const tr = cb.closest('tr');
+  if (cb.checked) {
+    _dopSelected.add(id);
+    if (tr) {
+      const nama = tr.cells[2] ? tr.cells[2].textContent.trim() : '';
+      const cat1 = tr.cells[4] ? tr.cells[4].textContent.trim() : '';
+      _dopSelectionMeta.set(id, { nama, cat1 });
+      tr.style.background = '#eff6ff';
+      if (tr.cells[2]) tr.cells[2].style.cssText = 'color:#1d4ed8;font-weight:600;padding:6px 8px';
+    }
+  } else {
+    _dopSelected.delete(id);
+    _dopSelectionMeta.delete(id);
+    if (tr) {
+      tr.style.background = '';
+      if (tr.cells[2]) tr.cells[2].style.cssText = 'padding:6px 8px';
+    }
+  }
   _dopUpdateInfo();
+  dopRenderChips();
 }
 
 function dopToggleSelectAll(masterCb) {
@@ -1677,10 +1694,22 @@ function dopToggleSelectAll(masterCb) {
     if (!cb) return;
     cb.checked = masterCb.checked;
     const id = parseInt(cb.dataset.id, 10);
-    if (masterCb.checked) _dopSelected.add(id);
-    else                  _dopSelected.delete(id);
+    if (masterCb.checked) {
+      _dopSelected.add(id);
+      const nama = row.cells[2] ? row.cells[2].textContent.trim() : '';
+      const cat1 = row.cells[4] ? row.cells[4].textContent.trim() : '';
+      _dopSelectionMeta.set(id, { nama, cat1 });
+      row.style.background = '#eff6ff';
+      if (row.cells[2]) row.cells[2].style.cssText = 'color:#1d4ed8;font-weight:600;padding:6px 8px';
+    } else {
+      _dopSelected.delete(id);
+      _dopSelectionMeta.delete(id);
+      row.style.background = '';
+      if (row.cells[2]) row.cells[2].style.cssText = 'padding:6px 8px';
+    }
   });
   _dopUpdateInfo();
+  dopRenderChips();
 }
 
 function _dopUpdateInfo(visibleOverride) {
