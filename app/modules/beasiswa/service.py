@@ -655,9 +655,9 @@ def delete_payment_row(company_id: int, row_id: int) -> dict:
     if not row:
         conn.close()
         return {"ok": False, "pesan": "Baris payment tidak ditemukan."}
-    if row["status"] == "approved":
+    if row["status"] == "complete":
         conn.close()
-        return {"ok": False, "pesan": "Payment yang sudah approved tidak bisa dihapus."}
+        return {"ok": False, "pesan": "Payment yang sudah selesai tidak bisa dihapus."}
 
     pam_no = row["pam"]
     line_id = row["etf_pa_line_id"]
@@ -719,9 +719,9 @@ def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
     if not row:
         conn.close()
         return {"ok": False, "pesan": "Baris payment tidak ditemukan."}
-    if row["status"] == "approved":
+    if row["status"] == "complete":
         conn.close()
-        return {"ok": False, "pesan": "Payment yang sudah approved tidak bisa dihapus."}
+        return {"ok": False, "pesan": "Payment yang sudah selesai tidak bisa dihapus."}
 
     pam_no = row["pam"]
     line_id = row["etf_pa_line_id"]
@@ -957,9 +957,9 @@ def delete_klaim_row(company_id: int, row_id: int) -> dict:
             "SELECT status FROM payment_beasiswa WHERE id=? AND company_id=?",
             (row["payment_id"], company_id)
         ).fetchone()
-        if pay and pay["status"] == "approved":
+        if pay and pay["status"] == "complete":
             conn.close()
-            return {"ok": False, "pesan": "Klaim yang sudah approved tidak bisa dihapus."}
+            return {"ok": False, "pesan": "Klaim yang sudah selesai tidak bisa dihapus."}
         conn.execute("DELETE FROM payment_beasiswa WHERE id=? AND company_id=?",
                      (row["payment_id"], company_id))
     conn.execute("DELETE FROM klaim_medical WHERE id=? AND company_id=?",
