@@ -2323,6 +2323,62 @@ function _ipayUpdateSisaCell(tr) {
   tr._sisaCell.style.color = amt > sisa ? "var(--danger)" : "#15803d";
 }
 
+const _PAM_RE = /^PAM-\d{3}-(AGRI|APP|SML|SETF)-\d{2}-\d{4}$/;
+
+function _ipayResetPamState() {
+  const pamEl = document.getElementById("ipay-pam-full");
+  const badge = document.getElementById("ipay-pam-manual-badge");
+  const hint  = document.getElementById("ipay-pam-hint");
+  const btn   = document.getElementById("ipay-save-btn");
+  if (pamEl)  pamEl.style.borderColor = "#93c5fd";
+  if (badge)  badge.style.display = "none";
+  if (hint)  { hint.style.display = "none"; hint.textContent = ""; }
+  if (btn)    btn.disabled = false;
+}
+
+function ipayValidatePamNo() {
+  const pamEl = document.getElementById("ipay-pam-full");
+  const badge = document.getElementById("ipay-pam-manual-badge");
+  const hint  = document.getElementById("ipay-pam-hint");
+  const btn   = document.getElementById("ipay-save-btn");
+  if (!pamEl) return;
+  const val = pamEl.value.trim();
+  if (badge) badge.style.display = "inline";
+  if (_PAM_RE.test(val)) {
+    pamEl.style.borderColor = "#f59e0b";
+    if (hint) { hint.style.display = "none"; hint.textContent = ""; }
+    if (btn) btn.disabled = false;
+  } else {
+    pamEl.style.borderColor = "#dc2626";
+    if (hint) { hint.style.display = "block"; hint.textContent = "Format: PAM-054-AGRI-06-2026"; }
+    if (btn) btn.disabled = true;
+  }
+}
+
+async function ipayCheckPamCollision() {
+  const pamEl = document.getElementById("ipay-pam-full");
+  const badge = document.getElementById("ipay-pam-manual-badge");
+  if (!pamEl || !badge || badge.style.display === "none") return;
+  const val = pamEl.value.trim();
+  if (!_PAM_RE.test(val)) return;
+  try {
+    const res = await apiFetch(`/payment-memo/pam/check?pam_no=${encodeURIComponent(val)}`);
+    if (!res) return;
+    const data = await res.json();
+    const hint = document.getElementById("ipay-pam-hint");
+    const btn  = document.getElementById("ipay-save-btn");
+    if (data.exists) {
+      pamEl.style.borderColor = "#dc2626";
+      if (hint) { hint.style.display = "block"; hint.textContent = "PAM ini sudah terdaftar"; }
+      if (btn) btn.disabled = true;
+    } else {
+      pamEl.style.borderColor = "#22c55e";
+      if (hint) { hint.style.display = "none"; hint.textContent = ""; }
+      if (btn) btn.disabled = false;
+    }
+  } catch { /* ignore */ }
+}
+
 function ipayOnTypeChange() {
   const type = document.getElementById("ipay-type")?.value || "agri";
   const badge = document.getElementById("ipay-pam-type-badge");
@@ -2345,6 +2401,7 @@ async function ipayFetchNextPamNo() {
     const data = await res.json();
     pamEl.value = data.ok ? (data.pam_no || "") : "";
   } catch { pamEl.value = ""; }
+  _ipayResetPamState();
 }
 
 function _isMedical(cat1, cat2) {
@@ -2684,6 +2741,25 @@ async function ipaySavePa() {
 
   if (!tanggal || !pam_no || pam_no === "Memuat...") {
     showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
+  }
+  if (!_PAM_RE.test(pam_no)) {
+    showToast("No. PAM tidak valid. Format: PAM-054-AGRI-06-2026", "error"); return;
+  }
+  const badge = document.getElementById("ipay-pam-manual-badge");
+  if (badge && badge.style.display !== "none") {
+    const chkRes = await apiFetch(`/payment-memo/pam/check?pam_no=${encodeURIComponent(pam_no)}`);
+    if (chkRes) {
+      const chk = await chkRes.json();
+      if (chk.exists) {
+        const hint  = document.getElementById("ipay-pam-hint");
+        const pamEl = document.getElementById("ipay-pam-full");
+        const btn   = document.getElementById("ipay-save-btn");
+        if (pamEl) pamEl.style.borderColor = "#dc2626";
+        if (hint)  { hint.style.display = "block"; hint.textContent = "PAM ini sudah terdaftar"; }
+        if (btn)   btn.disabled = true;
+        showToast("No. PAM sudah terdaftar.", "error"); return;
+      }
+    }
   }
   if (!perusahaan) { showToast("Perusahaan wajib diisi.", "error"); return; }
 
