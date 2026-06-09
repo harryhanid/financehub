@@ -307,7 +307,7 @@ def add_payment_batch(company_id: int, siswa_code: str, tanggal: str,
         conn.execute(
             """INSERT INTO payment_beasiswa
                (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,cat3,cat4,status)
-               VALUES (?,?,?,?,?,?,?,?,?,?,'draft')""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,'open')""",
             (company_id, siswa_code,
              item.get("cat1",""), item.get("cat2",""),
              tanggal, amount, pillar, perusahaan,
@@ -321,7 +321,7 @@ def add_payment_batch(company_id: int, siswa_code: str, tanggal: str,
 
     conn.commit()
     conn.close()
-    return {"ok": True, "pesan": f"{saved} payment berhasil disimpan (status: draft).", "saved": saved}
+    return {"ok": True, "pesan": f"{saved} payment berhasil disimpan (status: open).", "saved": saved}
 
 
 def add_payment_multi(company_id: int, company_code: str, tanggal: str,
@@ -356,7 +356,7 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
                 """INSERT INTO payment_beasiswa
                    (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,
                     tgl_pengajuan,tgl_receive,tgl_pa,tgl_final,cat3,cat4,etf_pa_line_id,status)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'draft')""",
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'open')""",
                 (company_id, siswa_code,
                  row.get("cat1", ""), row.get("cat2", ""),
                  tanggal, amount, pillar, perusahaan,
@@ -452,7 +452,7 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
         conn.commit()
         return {
             "ok":    True,
-            "pesan": f"{saved} payment berhasil disimpan (status: draft).",
+            "pesan": f"{saved} payment berhasil disimpan (status: open).",
             "saved": saved,
             "pam_no": pam_no,
         }
@@ -881,7 +881,7 @@ def add_klaim_multi(company_id: int, pam: str, pillar: str,
         cur = conn.execute(
             """INSERT INTO payment_beasiswa
                (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,pam,status)
-               VALUES (?,?,?,?,?,?,?,?,?,'draft')""",
+               VALUES (?,?,?,?,?,?,?,?,?,'open')""",
             (company_id, siswa_code, "By Medical", perawatan,
              tanggal, amount, pillar, perusahaan, pam)
         )
