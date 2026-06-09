@@ -1693,6 +1693,81 @@ function _dopUpdateInfo(visibleOverride) {
   btn.style.opacity = sel === 0 ? '0.5' : '1';
 }
 
+function dopRenderChips() {
+  const row = document.getElementById('dop-chips-row');
+  if (!row) return;
+  if (_dopSelected.size === 0) { row.style.display = 'none'; return; }
+
+  const ids    = [..._dopSelected];
+  const LIMIT  = 5;
+  const hidden = ids.length > LIMIT + 1 ? ids.slice(LIMIT) : [];
+  const shown  = hidden.length ? ids.slice(0, LIMIT) : ids;
+
+  function chipHtml(id) {
+    const m = _dopSelectionMeta.get(id) || { nama: String(id), cat1: '' };
+    const cat = m.cat1 ? `<span style="font-size:9px;opacity:.65;margin-left:3px">${m.cat1}</span>` : '';
+    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">` +
+           `${m.nama}${cat}` +
+           `<span onclick="dopRemoveChip(${id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+  }
+
+  let html = `<span style="font-size:10px;color:#1d4ed8;font-weight:700;white-space:nowrap;margin-right:2px">● Terpilih:</span>`;
+  html += shown.map(chipHtml).join('');
+
+  if (hidden.length) {
+    html += `<span id="dop-chips-expand" onclick="dopExpandChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
+    html += `<span id="dop-chips-hidden" style="display:none;display:contents">` + hidden.map(chipHtml).join('') + `</span>`;
+  }
+
+  html += `<span onclick="dopClearAllChips()" style="font-size:10px;color:#dc2626;cursor:pointer;margin-left:6px;white-space:nowrap">Hapus semua</span>`;
+
+  row.innerHTML = html;
+  row.style.display = 'flex';
+}
+
+function dopExpandChips() {
+  const hidden = document.getElementById('dop-chips-hidden');
+  const btn    = document.getElementById('dop-chips-expand');
+  if (!hidden || !btn) return;
+  const expanded = hidden.style.display !== 'none';
+  hidden.style.display = expanded ? 'none' : 'contents';
+  const n = _dopSelected.size - 5;
+  btn.textContent = expanded ? `+${n} lagi ▾` : `▲ sembunyikan`;
+}
+
+function dopRemoveChip(id) {
+  _dopSelected.delete(id);
+  _dopSelectionMeta.delete(id);
+  const cb = document.querySelector(`#dop-tbody .dop-cb[data-id="${id}"]`);
+  if (cb) {
+    cb.checked = false;
+    const tr = cb.closest('tr');
+    if (tr) {
+      tr.style.background = '';
+      if (tr.cells[2]) tr.cells[2].style.cssText = 'padding:6px 8px';
+    }
+  }
+  _dopUpdateInfo();
+  dopRenderChips();
+}
+
+function dopClearAllChips() {
+  _dopSelected.clear();
+  _dopSelectionMeta.clear();
+  document.querySelectorAll('#dop-tbody .dop-cb').forEach(cb => {
+    cb.checked = false;
+    const tr = cb.closest('tr');
+    if (tr) {
+      tr.style.background = '';
+      if (tr.cells[2]) tr.cells[2].style.cssText = 'padding:6px 8px';
+    }
+  });
+  const sa = document.getElementById('dop-select-all');
+  if (sa) sa.checked = false;
+  _dopUpdateInfo();
+  dopRenderChips();
+}
+
 async function dopBulkUpdate() {
   if (_dopSelected.size === 0) return;
   const dates = {
