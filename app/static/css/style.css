@@ -703,8 +703,8 @@ input[readonly], input[disabled] {
 }
 [data-theme="dark"] input[readonly],
 [data-theme="dark"] input[disabled] {
-  background: rgba(255,255,255,0.03);
-  color: var(--sl-400);
+  background: rgba(255,255,255,0.03) !important;
+  color: var(--sl-400) !important;
 }
 
 /* Dark: buttons */
@@ -828,3 +828,174 @@ input[readonly], input[disabled] {
 [data-theme="dark"] #ibgt-sugg > div:hover,
 [data-theme="dark"] #lpr-sugg > div:hover,
 [data-theme="dark"] #bgt-sugg > div:hover { background: rgba(255,255,255,0.06) !important; }
+
+/* ── Dark: dm-inp (payment memo compact table row inputs) ───────── */
+/* .dm-inp has hardcoded color:#1e293b which overrides dark-mode input rule  */
+/* → results in near-black text on near-black bg (invisible) without fix.    */
+[data-theme="dark"] .dm-inp {
+  color: var(--sl-900) !important;
+  border-bottom-color: rgba(255,255,255,0.18) !important;
+}
+[data-theme="dark"] .dm-inp:focus {
+  background: rgba(59,130,246,0.12) !important;
+  border-bottom-color: var(--accent) !important;
+}
+
+/* ── Dark: bulk / chips rows (selection bars across all pages) ───── */
+[data-theme="dark"] #bulk-bar,
+[data-theme="dark"] #dop-chips-row,
+[data-theme="dark"] #fiori-chips-row,
+[data-theme="dark"] #sml-chips-row {
+  background: rgba(59,130,246,0.10) !important;
+  border-color: rgba(59,130,246,0.22) !important;
+  color: var(--sl-900) !important;
+}
+[data-theme="dark"] #bulk-count { color: var(--accent-text) !important; }
+[data-theme="dark"] #bulk-field-sel {
+  background: rgba(255,255,255,0.06) !important;
+  color: var(--sl-900) !important;
+  border-color: rgba(59,130,246,0.3) !important;
+}
+[data-theme="dark"] #bulk-date-inp { border-color: rgba(59,130,246,0.3) !important; }
+
+/* ── Dark: date fill buttons in ETF PA column header ──────────────── */
+[data-theme="dark"] .btn-isi {
+  background: rgba(59,130,246,0.15) !important;
+  color: var(--accent-text) !important;
+  border-color: rgba(59,130,246,0.3) !important;
+}
+[data-theme="dark"] .btn-isi:hover { background: rgba(59,130,246,0.25) !important; }
+[data-theme="dark"] .btn-hn {
+  background: rgba(52,211,153,0.15) !important;
+  color: #6EE7B7 !important;
+  border-color: rgba(52,211,153,0.3) !important;
+}
+[data-theme="dark"] .btn-hn:hover { background: rgba(52,211,153,0.25) !important; }
+[data-theme="dark"] .th-date-ctrl input[type=date] {
+  border-color: rgba(59,130,246,0.3) !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--sl-900) !important;
+}
+
+/* ── Dark: PAM/FIORI/SML search & filter bar small controls ──────── */
+[data-theme="dark"] #pam-search,
+[data-theme="dark"] #pam-filter-bulan,
+[data-theme="dark"] #pam-filter-tahun,
+[data-theme="dark"] #pam-filter-source,
+[data-theme="dark"] #fiori-search,
+[data-theme="dark"] #fiori-filter-bulan,
+[data-theme="dark"] #fiori-filter-tahun,
+[data-theme="dark"] #sml-search,
+[data-theme="dark"] #sml-filter-bulan,
+[data-theme="dark"] #sml-filter-tahun {
+  border-color: rgba(255,255,255,0.12) !important;
+  color: var(--sl-900) !important;
+  background: rgba(255,255,255,0.05) !important;
+}
+
+/* ── Dark: DOP (SLA tab) subfilter text inputs + date inputs ─────── */
+[data-theme="dark"] .dop-filter {
+  color: var(--sl-900) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(59,130,246,0.25) !important;
+}
+[data-theme="dark"] [id^="dop-d-"],
+[data-theme="dark"] [id^="fiori-d-"],
+[data-theme="dark"] [id^="sml-d-"] {
+  color: var(--sl-900) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(59,130,246,0.25) !important;
+}
+[data-theme="dark"] #dop-ph {
+  border-color: var(--border) !important;
+  color: var(--sl-500) !important;
+}
+
+/* ── Dark: input payment area (ipay-* fields) ────────────────────── */
+[data-theme="dark"] #ipay-type {
+  background: rgba(59,130,246,0.15) !important;
+  color: var(--accent-text) !important;
+  border-color: rgba(59,130,246,0.4) !important;
+}
+[data-theme="dark"] #ipay-pam-full {
+  color: var(--accent-text) !important;
+  border-color: rgba(59,130,246,0.4) !important;
+  background: rgba(59,130,246,0.08) !important;
+}
+[data-theme="dark"] #ipay-catatan {
+  border-color: rgba(59,130,246,0.25) !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--sl-900) !important;
+}
+[data-theme="dark"] #ipay-pillar {
+  background: rgba(255,255,255,0.04) !important;
+  color: var(--sl-700) !important;
+}
+[data-theme="dark"] #ipay-total-amt { color: var(--accent-text) !important; }
+[data-theme="dark"] #ipay-pam-type-badge { color: var(--positive) !important; }
+[data-theme="dark"] #tab-draft-pay tfoot tr { background: rgba(255,255,255,0.04) !important; }
+
+/* ── Dark: beasiswa summary cards (Budget & Payment tabs) ─────────── */
+/* Containers: replace hardcoded light bg/border with dark equivalents */
+[data-theme="dark"] #bgt-summary > div,
+[data-theme="dark"] #pay-summary > div {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+}
+/* Override per-card title text colors */
+[data-theme="dark"] #bgt-summary [style*="color:#3b82f6"],
+[data-theme="dark"] #pay-summary [style*="color:#3b82f6"] { color: var(--accent-text) !important; }
+[data-theme="dark"] #bgt-summary [style*="color:#16a34a"],
+[data-theme="dark"] #pay-summary [style*="color:#16a34a"] { color: var(--positive) !important; }
+[data-theme="dark"] #bgt-summary [style*="color:#d97706"],
+[data-theme="dark"] #pay-summary [style*="color:#d97706"] { color: var(--caution) !important; }
+[data-theme="dark"] #bgt-summary [style*="color:#db2777"],
+[data-theme="dark"] #pay-summary [style*="color:#db2777"] { color: #F9A8D4 !important; }
+/* Muted labels inside cards */
+[data-theme="dark"] #bgt-summary [style*="color:#6b7280"],
+[data-theme="dark"] #pay-summary [style*="color:#6b7280"] { color: var(--sl-500) !important; }
+/* Value colors */
+[data-theme="dark"] #bgt-summary [style*="color:#1e40af"],
+[data-theme="dark"] #pay-summary [style*="color:#1e40af"] { color: #93C5FD !important; }
+[data-theme="dark"] #bgt-summary [style*="color:#15803d"],
+[data-theme="dark"] #pay-summary [style*="color:#15803d"] { color: #6EE7B7 !important; }
+[data-theme="dark"] #bgt-summary [style*="color:#b45309"],
+[data-theme="dark"] #pay-summary [style*="color:#b45309"] { color: #FCD34D !important; }
+[data-theme="dark"] #bgt-summary [style*="color:#be185d"],
+[data-theme="dark"] #pay-summary [style*="color:#be185d"] { color: #F9A8D4 !important; }
+/* Divider lines inside cards */
+[data-theme="dark"] #bgt-summary [style*="border-top"],
+[data-theme="dark"] #pay-summary [style*="border-top"] {
+  border-top-color: var(--border) !important;
+}
+/* Total card (was solid dark blue bg) — keep accent but adapt */
+[data-theme="dark"] #bgt-summary > div:last-child,
+[data-theme="dark"] #pay-summary > div:last-child {
+  background: rgba(59,130,246,0.18) !important;
+  border-color: rgba(59,130,246,0.3) !important;
+}
+
+/* ── Dark: beasiswa catatan boxes (yellow note cards) ─────────────── */
+[data-theme="dark"] #ibgt-catatan-view {
+  background: rgba(251,191,36,0.08) !important;
+  border-color: rgba(251,191,36,0.25) !important;
+}
+[data-theme="dark"] #ibgt-catatan-view [style*="color:#92400e"],
+[data-theme="dark"] #ibgt-catatan-view [style*="color:#78350f"] {
+  color: #FCD34D !important;
+}
+[data-theme="dark"] #ibgt-catatan-form label { color: #FCD34D !important; }
+[data-theme="dark"] #ibgt-title { color: var(--accent-text) !important; }
+
+/* ── Dark: hardcoded gray/dark text overrides (targeted scope) ────── */
+/* ipay-catatan label subtext */
+[data-theme="dark"] #tab-input-payment [style*="color:#6b7280"] { color: var(--sl-500) !important; }
+/* Edit PA modal section divider text (#374151) */
+[data-theme="dark"] #modal-edit-pa [style*="color:#374151"] { color: var(--sl-700) !important; }
+/* pam-tbody empty state */
+[data-theme="dark"] #pam-tbody [style*="color:#6b7280"] { color: var(--sl-500) !important; }
+/* ipay tfoot total label */
+[data-theme="dark"] #ipay-table tfoot [style*="color:#374151"] { color: var(--sl-700) !important; }
+[data-theme="dark"] #ipay-table tfoot [style*="color:#1a56db"] { color: var(--accent-text) !important; }
+/* Payment app filter reset link */
+[data-theme="dark"] .pa-filter-reset { color: var(--sl-700) !important; }

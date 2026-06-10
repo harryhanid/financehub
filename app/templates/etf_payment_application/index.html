@@ -279,11 +279,11 @@ body.pa-focus #pa-focus-exit { display: flex; }
 </div>
 
 {# ── Bulk action toolbar ──────────────────────────────────────────────────── #}
-<div id="bulk-bar" style="display:none; align-items:center; gap:.75rem; margin-bottom:.5rem; padding:.5rem .75rem; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; font-size:.82rem; flex-wrap:wrap">
-  <span id="bulk-count" style="font-weight:600; color:#1d4ed8; white-space:nowrap"></span>
+<div id="bulk-bar" style="display:none; align-items:center; gap:.75rem; margin-bottom:.5rem; padding:.5rem .75rem; background:var(--accent-surface); border:1px solid var(--accent-border); border-radius:6px; font-size:.82rem; flex-wrap:wrap">
+  <span id="bulk-count" style="font-weight:600; color:var(--accent-text); white-space:nowrap"></span>
   <div id="pa-chips-row" style="display:none;width:100%;flex-basis:100%;display:none;align-items:center;gap:5px;flex-wrap:wrap;margin-top:2px"></div>
   <div style="display:flex; align-items:center; gap:.4rem; flex-wrap:wrap">
-    <select id="bulk-field-sel" style="font-size:.78rem; padding:2px 4px; border:1px solid #93c5fd; border-radius:4px; background:#fff">
+    <select id="bulk-field-sel" style="font-size:.78rem; padding:2px 4px; border:1px solid var(--accent-border); border-radius:4px; background:var(--card); color:var(--sl-900)">
       <option value="tgl_payment_application">Tgl PA</option>
       <option value="tgl_surat_pengajuan">Tgl Surat</option>
       <option value="doc_received_by_educ">Doc Recv Educ</option>
@@ -295,9 +295,9 @@ body.pa-focus #pa-focus-exit { display: flex; }
       <option value="approval_by_htj_2">Approval HTj</option>
       <option value="tanggal_bayar">Tgl Bayar</option>
     </select>
-    <input type="date" id="bulk-date-inp" style="font-size:.78rem; padding:2px 5px; border:1px solid #93c5fd; border-radius:4px">
-    <button class="btn btn-sm" style="background:#3b82f6; color:#fff; border:none; padding:3px 10px; border-radius:4px; font-size:.78rem; cursor:pointer" onclick="bulkFillDate()">Isi Tanggal</button>
-    <button class="btn btn-sm" style="background:#10b981; color:#fff; border:none; padding:3px 10px; border-radius:4px; font-size:.78rem; cursor:pointer" onclick="bulkFillToday()">Hari Ini</button>
+    <input type="date" id="bulk-date-inp" style="font-size:.78rem; padding:2px 5px; border:1px solid var(--accent-border); border-radius:4px">
+    <button class="btn btn-primary btn-sm" onclick="bulkFillDate()">Isi Tanggal</button>
+    <button class="btn btn-success btn-sm" onclick="bulkFillToday()">Hari Ini</button>
   </div>
   <button class="btn btn-secondary btn-sm" onclick="clearSelection()" style="margin-left:auto">✕ Batalkan Pilihan</button>
 </div>
@@ -471,7 +471,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
     </div>
     <div class="form-group"><label>Keterangan</label><textarea id="edit-keterangan" rows="3" style="width:100%; resize:vertical"></textarea></div>
     <div style="border-top:1px solid var(--border);margin-top:.75rem;padding-top:.75rem">
-      <div style="font-size:.75rem;font-weight:600;color:#374151;margin-bottom:.5rem">Data Siswa (Line)</div>
+      <div style="font-size:.75rem;font-weight:600;color:var(--sl-700);margin-bottom:.5rem">Data Siswa (Line)</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
         <div class="form-group"><label>Jenis Bayar</label>
           <select id="edit-jenis-bayar">
@@ -670,12 +670,12 @@ function renderPaChips() {
   function chipHtml(cb) {
     const id   = cb.value;
     const nama = cb.closest("tr")?.dataset.nama || id;
-    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${nama}<span onclick="removePaChip('${id}')" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+    return `<span style="background:var(--accent);color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${nama}<span onclick="removePaChip('${id}')" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
   }
-  let html = `<span style="font-size:10px;color:#1d4ed8;font-weight:700;white-space:nowrap;margin-right:2px">● Tandai:</span>`;
+  let html = `<span style="font-size:10px;color:var(--accent-text);font-weight:700;white-space:nowrap;margin-right:2px">● Tandai:</span>`;
   html += shown.map(chipHtml).join('');
   if (hidden.length) {
-    html += `<span id="pa-chips-expand" onclick="expandPaChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
+    html += `<span id="pa-chips-expand" onclick="expandPaChips()" style="background:var(--accent-surface);color:var(--accent-text);border:1px solid var(--accent-border);border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
     html += `<span id="pa-chips-hidden" style="display:none">` + hidden.map(chipHtml).join('') + `</span>`;
   }
   container.innerHTML = html;

@@ -42,7 +42,7 @@
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
   <form method="get" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <select name="month" onchange="this.form.submit()"
-            style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:160px">
+            style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;width:160px">
       <option value="">Semua Bulan</option>
       <option value="1" {% if filter_month==1 %}selected{% endif %}>Januari</option>
       <option value="2" {% if filter_month==2 %}selected{% endif %}>Februari</option>
@@ -58,14 +58,14 @@
       <option value="12" {% if filter_month==12 %}selected{% endif %}>Desember</option>
     </select>
     <select name="year" onchange="this.form.submit()"
-            style="padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:130px">
+            style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;width:130px">
       <option value="">Semua Tahun</option>
       {% for y in range(2023, 2028) %}
       <option value="{{ y }}" {% if filter_year==y %}selected{% endif %}>{{ y }}</option>
       {% endfor %}
     </select>
     {% if filter_month or filter_year %}
-    <a href="?" style="padding:6px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;text-decoration:none;color:#374151">Reset</a>
+    <a href="?" class="btn btn-secondary btn-sm pa-filter-reset">Reset</a>
     {% endif %}
   </form>
 </div>
