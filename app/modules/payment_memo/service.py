@@ -689,31 +689,74 @@ def get_pam_payments_detail(pam_no: str, company_id: int) -> list:
     return result
 
 
-def get_days_of_pam(company_id: int) -> list:
-    conn = get_conn()
-    rows = [dict(r) for r in conn.execute(
-        """SELECT pb.id, pb.siswa_code, s.nama,
-                  pb.pam        AS pam_no,
+_SOURCE_MAP = {
+    "AGRI": {"pr_source": "etf_agri", "paid_col": "tgl_Paid_AGRI"},
+    "APP":  {"pr_source": "etf_app",  "paid_col": "tgl_Paid_APP"},
+}
+
+
+def get_days_of_pam(
+    company_id: int,
+    source: str = "AGRI",
+    paid_only: bool = True,
+    pam: str = None,
+    nama: str = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict:
+    src       = _SOURCE_MAP.get(source.upper(), _SOURCE_MAP["AGRI"])
+    pr_source = src["pr_source"]
+    paid_col  = src["paid_col"]
+
+    conditions = [
+        "pb.company_id = ?",
+        "pb.pam IS NOT NULL",
+        "pb.pam != ''",
+        "pr.source = ?",
+    ]
+    params = [company_id, pr_source]
+
+    if paid_only:
+        conditions.append(f'pb."{paid_col}" IS NULL')
+    if pam:
+        conditions.append("pb.pam LIKE ?")
+        params.append(f"%{pam}%")
+    if nama:
+        conditions.append("LOWER(s.nama) LIKE ?")
+        params.append(f"%{nama.lower()}%")
+
+    where = " AND ".join(conditions)
+    base_from = f"""
+        FROM payment_beasiswa pb
+        LEFT JOIN siswa s
+               ON s.company_id = pb.company_id AND s.code = pb.siswa_code
+        JOIN pam_records pr
+               ON pr.pam_no = pb.pam AND pr.company_id = pb.company_id
+        WHERE {where}
+    """
+
+    conn  = get_conn()
+    total = conn.execute(f"SELECT COUNT(*) {base_from}", params).fetchone()[0]
+    rows  = [dict(r) for r in conn.execute(
+        f"""SELECT pb.id, pb.siswa_code, s.nama,
+                  pb.pam AS pam_no,
                   pb.cat1, pb.cat2, pb.perusahaan, pb.pillar,
-                  pb.amount,    pb.tanggal,
+                  pb.amount, pb.tanggal,
                   pb.tgl_pengajuan, pb.tgl_receive,
-                  pb.tgl_pa,    pb.tgl_final,
+                  pb.tgl_pa, pb.tgl_final,
                   pb.tgl_retur, pb.tgl_final6, pb.tgl_proses,
                   pb.tgl_HT_AGRI, pb.tgl_Yurike_AGRI, pb.tgl_Aditya_AGRI,
                   pb.tgl_Pedy_AGRI, pb.tgl_C2_AGRI, pb.tgl_MSIG_AGRI,
                   pb.tgl_Paid_AGRI,
                   pb."tgl_A-GS_APP", pb."tgl_A-HJK_APP",
                   pb.tgl_ASPIRO_APP, pb.tgl_Paid_APP
-           FROM payment_beasiswa pb
-           LEFT JOIN siswa s
-                  ON s.company_id = pb.company_id AND s.code = pb.siswa_code
-           WHERE pb.company_id = ?
-             AND pb.pam IS NOT NULL AND pb.pam != ''
-           ORDER BY pb.tanggal DESC""",
-        (company_id,)
+           {base_from}
+           ORDER BY pb.tanggal DESC
+           LIMIT ? OFFSET ?""",
+        params + [limit, offset]
     ).fetchall()]
     conn.close()
-    return rows
+    return {"rows": rows, "total": total}
 
 
 def get_days_of_pam_candidates(company_id: int) -> list:

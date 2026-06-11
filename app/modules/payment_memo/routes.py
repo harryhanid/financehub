@@ -293,16 +293,27 @@ def days_of_pam_search_route():
     company_id = session.get("company_id")
     if not company_id:
         return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
-    pam  = request.args.get("pam",  "").strip()
-    nama = request.args.get("nama", "").strip().lower()
+    pam      = request.args.get("pam",      "").strip() or None
+    nama     = request.args.get("nama",     "").strip() or None
+    source   = request.args.get("source",   "AGRI").strip().upper()
+    paid_only = request.args.get("paid_only", "true").strip().lower() != "false"
+    try:
+        limit  = int(request.args.get("limit",  100))
+        offset = int(request.args.get("offset", 0))
+    except (TypeError, ValueError):
+        limit, offset = 100, 0
     if not pam and not nama:
-        return jsonify({"ok": True, "rows": []})
-    rows = get_days_of_pam(company_id)
-    if pam:
-        rows = [r for r in rows if pam.lower() in (r["pam_no"] or "").lower()]
-    if nama:
-        rows = [r for r in rows if nama in (r["nama"] or "").lower()]
-    return jsonify({"ok": True, "rows": rows})
+        return jsonify({"ok": True, "rows": [], "total": 0})
+    result = get_days_of_pam(
+        company_id,
+        source=source,
+        paid_only=paid_only,
+        pam=pam,
+        nama=nama,
+        limit=limit,
+        offset=offset,
+    )
+    return jsonify({"ok": True, "rows": result["rows"], "total": result["total"]})
 
 
 @bp.route("/pam/<int:pam_id>/cancel", methods=["POST"])

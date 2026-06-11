@@ -291,8 +291,8 @@ def test_days_of_pam_bulk_update_invalid_ids(client):
 # ── Days of PAM candidates + search ──────────────────────────────────────────
 
 def _seed_dop_row(company_id=2, pam_no="PAM-001-ETF-05-2026",
-                  siswa_code="S099", nama="Harry"):
-    """Seed one payment_beasiswa row that has a pam value."""
+                  siswa_code="S099", nama="Harry", source="etf_agri"):
+    """Seed one payment_beasiswa row + pam_records row that has a pam value."""
     from database import get_conn
     conn = get_conn()
     try:
@@ -305,6 +305,10 @@ def _seed_dop_row(company_id=2, pam_no="PAM-001-ETF-05-2026",
                (company_id, siswa_code, cat1, tanggal, amount, pam)
                VALUES (?,?,?,?,?,?)""",
             (company_id, siswa_code, "General", "2026-05-01", 3000000.0, pam_no)
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO pam_records (company_id, pam_no, source) VALUES (?,?,?)",
+            (company_id, pam_no, source)
         )
         conn.commit()
         row_id = conn.execute(

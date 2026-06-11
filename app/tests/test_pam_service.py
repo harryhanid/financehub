@@ -284,6 +284,11 @@ def test_get_days_of_pam_returns_rows_with_pam():
         (COMPANY_ID, "S001", "Budi Santoso")
     )
     _seed_payment_with_pam(conn, COMPANY_ID, "S001", "PAM-001-ETF-05-2026")
+    # seed pam_records so the JOIN works (source=etf_agri for AGRI)
+    conn.execute(
+        "INSERT INTO pam_records (company_id, pam_no, source) VALUES (?,?,?)",
+        (COMPANY_ID, "PAM-001-ETF-05-2026", "etf_agri")
+    )
     # payment without pam should NOT appear
     conn.execute(
         "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, tanggal, amount) VALUES (?,?,?,?,?)",
@@ -292,7 +297,9 @@ def test_get_days_of_pam_returns_rows_with_pam():
     conn.commit()
     conn.close()
 
-    rows = get_days_of_pam(COMPANY_ID)
+    result = get_days_of_pam(COMPANY_ID, paid_only=False)
+    assert result["total"] == 1
+    rows = result["rows"]
     assert len(rows) == 1
     r = rows[0]
     assert r["pam_no"]      == "PAM-001-ETF-05-2026"
@@ -313,8 +320,9 @@ def test_get_days_of_pam_empty_pam_excluded():
     )
     conn.commit()
     conn.close()
-    rows = get_days_of_pam(COMPANY_ID)
-    assert rows == []
+    result = get_days_of_pam(COMPANY_ID)
+    assert result["rows"] == []
+    assert result["total"] == 0
 
 
 def test_get_days_of_pam_different_company_isolated():
@@ -325,10 +333,16 @@ def test_get_days_of_pam_different_company_isolated():
         (COMPANY_ID, "S001", "Budi")
     )
     _seed_payment_with_pam(conn, COMPANY_ID, "S001", "PAM-001-ETF-05-2026")
+    conn.execute(
+        "INSERT INTO pam_records (company_id, pam_no, source) VALUES (?,?,?)",
+        (COMPANY_ID, "PAM-001-ETF-05-2026", "etf_agri")
+    )
+    conn.commit()
     conn.close()
     # Company 99 should see nothing
-    rows = get_days_of_pam(99)
-    assert rows == []
+    result = get_days_of_pam(99)
+    assert result["rows"] == []
+    assert result["total"] == 0
 
 
 # ── Bulk update dates ─────────────────────────────────────────────────────────
