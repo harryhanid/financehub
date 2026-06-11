@@ -1688,3 +1688,17 @@ def export_open_pam_excel(company_id: int) -> bytes:
                "pam", "perusahaan", "amount", "status"]
     widths  = [14, 24, 18, 18, 12, 22, 22, 16, 12]
     return _make_xlsx("Open PAM", headers, fields, rows, widths)
+
+
+def export_pam_tab_excel(company_id: int, search: str = "", bulan: str = "",
+                          tahun: str = "", source: str = "") -> bytes:
+    from modules.payment_memo.service import get_pam_list
+    rows    = get_pam_list(company_id, search, bulan, tahun, source)
+    headers = ["PAM No", "PAM Date", "PT", "Cost Center", "GL Account",
+               "Requestor", "Catatan Payment", "Total (Rp)", "Due Date",
+               "Tgl Paid", "Status"]
+    fields  = ["pam_no", "pam_date", "pt", "cost_center", "gl_account",
+               "requestors_name", "keterangan", "total_amount", "due_date",
+               "tanggal_bayar", "status"]
+    widths  = [22, 12, 20, 14, 16, 20, 28, 16, 12, 12, 12]
+    return _make_xlsx("PAM AGRI", headers, fields, rows, widths)

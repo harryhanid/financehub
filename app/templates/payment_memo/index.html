@@ -209,6 +209,7 @@
         <option value="sml">SML</option>
         <option value="setf">SETF</option>
       </select>
+      <button class="btn btn-success btn-sm" onclick="exportPamTabExcel()">↓ Export Excel</button>
     </div>
     <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -3188,5 +3189,18 @@ document.addEventListener("DOMContentLoaded",()=>{
   // set today as default date on load
   if(tglEl && !tglEl.value) tglEl.value = new Date().toISOString().slice(0,10);
 });
+
+function exportPamTabExcel() {
+  const url    = new URL('/payment-memo/export/pam', window.location.origin);
+  const search = (document.getElementById('pam-search')?.value || '').trim();
+  const bulan  = document.getElementById('pam-filter-bulan')?.value || '';
+  const tahun  = document.getElementById('pam-filter-tahun')?.value || '';
+  const source = document.getElementById('pam-filter-source')?.value || '';
+  if (search) url.searchParams.set('search', search);
+  if (bulan)  url.searchParams.set('bulan',  bulan);
+  if (tahun)  url.searchParams.set('tahun',  tahun);
+  if (source) url.searchParams.set('source', source);
+  window.location.href = url.toString();
+}
 </script>
 {% endblock %}

@@ -50,3 +50,20 @@ def test_export_open_pam_empty_company():
     result = export_open_pam_excel(9999)
     assert isinstance(result, bytes)
     assert result[:2] == b'PK'
+
+
+def test_export_pam_tab_returns_xlsx():
+    from modules.payment_memo.exports import export_pam_tab_excel
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, gl_account, cost_center, pt,
+            requestors_name, keterangan, total_amount, due_date, status, source, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (COMPANY_ID, "PAM-001-ETF-05-2026", "2026-05-01", "70110230",
+         "1008C1", "PT ABC", "User A", "Catatan", 2000000, "2026-06-01",
+         "open", "etf_agri", "2026-05-01T10:00:00")
+    )
+    conn.commit(); conn.close()
+    result = export_pam_tab_excel(COMPANY_ID, search="", bulan="05", tahun="2026", source="agri")
+    assert isinstance(result, bytes) and result[:2] == b'PK'
