@@ -26,6 +26,7 @@ from modules.payment_memo.exports import (
     export_pam_pdf_custom, export_pam_excel_custom,
     export_open_pam_excel, export_pam_tab_excel,
 )
+from datetime import datetime
 import config, io
 
 bp = Blueprint("payment_memo", __name__, url_prefix="/payment-memo")
@@ -90,8 +91,7 @@ def create():
     username     = claims.get("username", "")
     if tanggal:
         try:
-            from datetime import datetime as dt
-            dt.strptime(tanggal, "%Y-%m-%d")
+            datetime.strptime(tanggal, "%Y-%m-%d")
         except ValueError:
             return jsonify({"ok": False, "pesan": "Format tanggal tidak valid (YYYY-MM-DD)."}), 400
     if not items:
@@ -296,14 +296,12 @@ def days_of_pam_search_route():
     pam      = request.args.get("pam",      "").strip() or None
     nama     = request.args.get("nama",     "").strip() or None
     source   = request.args.get("source",   "AGRI").strip().upper()
-    paid_only = request.args.get("paid_only", "true").strip().lower() != "false"
+    paid_only = request.args.get("paid_only", "1") == "1"
     try:
         limit  = int(request.args.get("limit",  100))
         offset = int(request.args.get("offset", 0))
     except (TypeError, ValueError):
         limit, offset = 100, 0
-    if not pam and not nama:
-        return jsonify({"ok": True, "rows": [], "total": 0})
     result = get_days_of_pam(
         company_id,
         source=source,
@@ -313,7 +311,8 @@ def days_of_pam_search_route():
         limit=limit,
         offset=offset,
     )
-    return jsonify({"ok": True, "rows": result["rows"], "total": result["total"]})
+    return jsonify({"ok": True, "rows": result["rows"], "total": result["total"],
+                    "limit": limit, "offset": offset})
 
 
 @bp.route("/pam/<int:pam_id>/cancel", methods=["POST"])
@@ -380,7 +379,6 @@ def export_open_pam_route():
     company_id = session.get("company_id")
     if not company_id:
         return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
-    from datetime import datetime
     xls = export_open_pam_excel(company_id)
     fname = f"Open_PAM_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     return send_file(
@@ -401,7 +399,6 @@ def export_pam_tab_route():
     bulan  = request.args.get("bulan",  "").strip()
     tahun  = request.args.get("tahun",  "").strip()
     source = request.args.get("source", "").strip()
-    from datetime import datetime
     xls   = export_pam_tab_excel(company_id, search, bulan, tahun, source)
     fname = f"PAM_AGRI_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     return send_file(
@@ -548,9 +545,8 @@ def check_pam_no_route():
 @bp.route("/ipay/next-pam-no")
 @jwt_html_required
 def ipay_next_pam_no():
-    from datetime import datetime as _dt
     tab      = request.args.get("tab", "agri").lower()
-    date_str = request.args.get("date", _dt.now().strftime("%Y-%m-%d"))
+    date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
     company_id   = session.get("company_id", 0)
     company_code = session.get("company_code", "ETF")
     pam_no = get_next_pam_no(company_id, company_code, tab, date_str)
