@@ -1659,7 +1659,9 @@ def _make_xlsx(sheet_title: str, col_headers: list, fields: list,
 
     for ri, r in enumerate(rows, 2):
         for ci, f in enumerate(fields, 1):
-            val  = r.get(f, "") or ""
+            val = r.get(f)
+            if val is None:
+                val = ""
             cell = ws.cell(row=ri, column=ci, value=val)
             cell.font      = Font(size=9)
             cell.border    = border
