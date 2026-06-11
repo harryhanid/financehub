@@ -1630,3 +1630,59 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
     wb.save(buf)
     buf.seek(0)
     return buf.read()
+
+
+# ── Generic xlsx builder ────────────────────────────────────────────────────
+def _make_xlsx(sheet_title: str, col_headers: list, fields: list,
+               rows: list, col_widths: list) -> bytes:
+    """Buat file xlsx dengan header navy, freeze row 1, auto-filter."""
+    import io as _io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = sheet_title[:31]
+
+    hdr_fill = PatternFill("solid", fgColor="1E3A5F")
+    hdr_font = Font(bold=True, color="FFFFFF", size=10)
+    thin     = Side(style="thin", color="D1D5DB")
+    border   = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    for col, h in enumerate(col_headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font      = hdr_font
+        cell.fill      = hdr_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border    = border
+    ws.row_dimensions[1].height = 32
+
+    for ri, r in enumerate(rows, 2):
+        for ci, f in enumerate(fields, 1):
+            val  = r.get(f, "") or ""
+            cell = ws.cell(row=ri, column=ci, value=val)
+            cell.font      = Font(size=9)
+            cell.border    = border
+            cell.alignment = Alignment(vertical="top")
+
+    for ci, w in enumerate(col_widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(ci)].width = w
+
+    ws.freeze_panes    = "A2"
+    ws.auto_filter.ref = ws.dimensions
+
+    buf = _io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# ── Tab export functions ────────────────────────────────────────────────────
+def export_open_pam_excel(company_id: int) -> bytes:
+    from modules.payment_memo.service import get_draft_payments
+    rows    = get_draft_payments(company_id)
+    headers = ["Code", "Nama Siswa", "Kategori 1", "Kategori 2", "Tanggal",
+               "PAM No", "Perusahaan", "Amount (Rp)", "Status"]
+    fields  = ["siswa_code", "nama", "cat1", "cat2", "tanggal",
+               "pam", "perusahaan", "amount", "status"]
+    widths  = [14, 24, 18, 18, 12, 22, 22, 16, 12]
+    return _make_xlsx("Open PAM", headers, fields, rows, widths)

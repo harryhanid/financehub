@@ -24,6 +24,7 @@ from modules.payment_memo.service import (
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
     export_pam_pdf_custom, export_pam_excel_custom,
+    export_open_pam_excel,
 )
 import config, io
 
@@ -356,6 +357,23 @@ def export_pam_excel_custom_route(pam_id):
     fname      = f"{pam_no or f'pam_{pam_id}'}.xlsx"
     return send_file(
         io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=fname,
+        as_attachment=True,
+    )
+
+
+@bp.route("/export/open-pam")
+@jwt_html_required
+def export_open_pam_route():
+    company_id = session.get("company_id")
+    if not company_id:
+        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
+    from datetime import datetime
+    xls = export_open_pam_excel(company_id)
+    fname = f"Open_PAM_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        io.BytesIO(xls),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         download_name=fname,
         as_attachment=True,
