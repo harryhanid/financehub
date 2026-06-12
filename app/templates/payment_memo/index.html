@@ -3338,7 +3338,7 @@ function exportSmlExcel() {
 
 function exportSlaExcel() {
   const url      = new URL('/payment-memo/export/sla', window.location.origin);
-  const source   = document.querySelector('.dop-src-btn.dop-src-active')?.dataset.src || 'AGRI';
+  const source   = (typeof _dopSource !== 'undefined' ? _dopSource : null) || 'AGRI';
   const paidOnly = document.getElementById('dop-paid-only')?.checked ? '1' : '0';
   const pam  = (document.getElementById('dop-s-pam')?.value  || '').trim();
   const nama = (document.getElementById('dop-s-nama')?.value || '').trim();
