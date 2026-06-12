@@ -240,6 +240,21 @@
 
   <!-- Days of PAM Tab -->
   <div class="tab-panel" id="tab-days-of-pam">
+    <!-- Source toggle + paid-only -->
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #e5e7eb;flex-wrap:wrap">
+      <div id="dop-source-toggle" style="display:flex;gap:4px">
+        <button class="dop-src-btn dop-src-active" data-src="AGRI" onclick="dopSetSource('AGRI')"
+                style="padding:4px 12px;border:1px solid #2563eb;border-radius:20px;background:#2563eb;color:#fff;font-size:12px;font-weight:600;cursor:pointer">AGRI</button>
+        <button class="dop-src-btn" data-src="APP" onclick="dopSetSource('APP')"
+                style="padding:4px 12px;border:1px solid #d1d5db;border-radius:20px;background:#fff;color:#374151;font-size:12px;font-weight:600;cursor:pointer">APP</button>
+      </div>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#374151;cursor:pointer;margin-left:8px">
+        <input type="checkbox" id="dop-paid-only" checked onchange="dopSetPaidOnly(this.checked)"
+               style="cursor:pointer">
+        Belum Paid saja
+      </label>
+      <span id="dop-count-label" style="font-size:11px;color:#6b7280;margin-left:auto"></span>
+    </div>
     <!-- Search section: PAM No + Nama autocomplete -->
     <div class="filter-bar">
       <div class="filter-field">
@@ -293,17 +308,17 @@
             <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_retur</th>
             <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_final6</th>
             <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_proses</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_HT_AGRI</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Yurike_AGRI</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Aditya_AGRI</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Pedy_AGRI</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_C2_AGRI</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_MSIG_AGRI</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Paid_AGRI</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_A-GS_APP</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_A-HJK_APP</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_ASPIRO_APP</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Paid_APP</th>
+            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_HT_AGRI</th>
+            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Yurike_AGRI</th>
+            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Aditya_AGRI</th>
+            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Pedy_AGRI</th>
+            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_C2_AGRI</th>
+            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_MSIG_AGRI</th>
+            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Paid_AGRI</th>
+            <th class="dop-col-app" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_A-GS_APP</th>
+            <th class="dop-col-app" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_A-HJK_APP</th>
+            <th class="dop-col-app" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_ASPIRO_APP</th>
+            <th class="dop-col-app" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Paid_APP</th>
           </tr>
           <tr class="thead-subfilter">
             <td style="padding:3px 4px"></td>
@@ -336,27 +351,27 @@
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
             <td style="padding:3px 4px"><input id="dop-d-proses" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-ht-agri" type="date"
+            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-ht-agri" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-yurike-agri" type="date"
+            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-yurike-agri" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-aditya-agri" type="date"
+            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-aditya-agri" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-pedy-agri" type="date"
+            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-pedy-agri" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-c2-agri" type="date"
+            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-c2-agri" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-msig-agri" type="date"
+            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-msig-agri" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-paid-agri" type="date"
+            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-paid-agri" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-ags-app" type="date"
+            <td class="dop-col-app" style="padding:3px 4px"><input id="dop-d-ags-app" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-ahjk-app" type="date"
+            <td class="dop-col-app" style="padding:3px 4px"><input id="dop-d-ahjk-app" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-aspiro-app" type="date"
+            <td class="dop-col-app" style="padding:3px 4px"><input id="dop-d-aspiro-app" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-paid-app" type="date"
+            <td class="dop-col-app" style="padding:3px 4px"><input id="dop-d-paid-app" type="date"
                 style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
           </tr>
         </thead>
@@ -364,9 +379,10 @@
         </tbody>
       </table>
     </div>
-    <!-- Placeholder — shown until user searches -->
-    <div id="dop-ph" style="padding:28px;text-align:center;color:#9ca3af;border:1px dashed #e2e8f0;border-radius:6px;margin-top:4px;font-size:13px">
-      Cari berdasarkan <b>PAM No</b> atau <b>Nama Siswa</b> di atas untuk menampilkan data.
+    <div id="dop-load-more-wrap" style="display:none;text-align:center;padding:10px">
+      <button id="dop-load-more" class="btn btn-secondary btn-sm" onclick="dopLoadMore()" style="font-size:12px">
+        Muat 100 lagi
+      </button>
     </div>
   </div>
 
@@ -394,6 +410,7 @@
       </select>
       <button id="fiori-update-btn" class="btn btn-primary btn-sm" onclick="fioriBulkUpdate()" disabled style="opacity:.5">Update Terpilih (0)</button>
       <button class="btn btn-secondary btn-sm" onclick="fioriClearDates()">Reset Tanggal</button>
+      <button class="btn btn-success btn-sm" onclick="exportFioriExcel()">&#8595; Export Excel</button>
       <span id="fiori-count" style="font-size:11px;color:#6b7280"></span>
     </div>
     <!-- Chip tags — selected rows persisten lintas search -->
