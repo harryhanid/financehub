@@ -412,9 +412,6 @@ def export_pam_tab_route():
 @bp.route("/export/fiori")
 @jwt_html_required
 def export_fiori_route():
-    company_id = session.get("company_id")
-    if not company_id:
-        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
     search = request.args.get("search", "").strip()
     bulan  = request.args.get("bulan",  "").strip()
     tahun  = request.args.get("tahun",  "").strip()

@@ -85,3 +85,10 @@ def test_export_fiori_returns_xlsx():
     conn.commit(); conn.close()
     result = export_fiori_excel(search="", bulan="05", tahun="2026")
     assert isinstance(result, bytes) and result[:2] == b'PK'
+
+
+def test_export_fiori_empty_returns_xlsx():
+    from modules.payment_memo.exports import export_fiori_excel
+    result = export_fiori_excel(search="zzz_no_match_at_all")
+    assert isinstance(result, bytes)
+    assert result[:2] == b'PK'
