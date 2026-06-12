@@ -1784,30 +1784,37 @@ function dopRenderRows(rows, append = false, total = 0) {
   }
 
   const html = rows.map(r => {
-    const sel = _dopSelected.has(r.id);
-    const rowBg  = sel ? 'background:#eff6ff;' : '';
-    const nameSt = sel ? 'color:#1d4ed8;font-weight:600;' : '';
+    const sel     = _dopSelected.has(r.id);
+    const rowBg   = sel ? 'background:#eff6ff;' : '';
+    const nameSt  = sel ? 'color:#1d4ed8;font-weight:600;' : '';
+    const eCode   = esc(r.siswa_code||'');
+    const eNama   = esc(r.nama||'-');
+    const ePam    = esc(r.pam_no||'');
+    const eCat1   = esc(r.cat1||'');
+    const eCat2   = esc(r.cat2||'');
+    const ePerus  = esc(r.perusahaan||'');
+    const ePillar = esc(r.pillar||'');
     return `
       <tr class="dop-row"
           data-id="${r.id}"
-          data-code="${(r.siswa_code||'').toLowerCase()}"
-          data-nama="${(r.nama||'').toLowerCase()}"
-          data-pam="${(r.pam_no||'').toLowerCase()}"
-          data-cat1="${(r.cat1||'').toLowerCase()}"
-          data-cat2="${(r.cat2||'').toLowerCase()}"
-          data-perusahaan="${(r.perusahaan||'').toLowerCase()}"
-          data-pillar="${(r.pillar||'').toLowerCase()}"
+          data-code="${esc((r.siswa_code||'').toLowerCase())}"
+          data-nama="${esc((r.nama||'').toLowerCase())}"
+          data-pam="${esc((r.pam_no||'').toLowerCase())}"
+          data-cat1="${esc((r.cat1||'').toLowerCase())}"
+          data-cat2="${esc((r.cat2||'').toLowerCase())}"
+          data-perusahaan="${esc((r.perusahaan||'').toLowerCase())}"
+          data-pillar="${esc((r.pillar||'').toLowerCase())}"
           style="border-bottom:1px solid #f1f5f9;${rowBg}">
         <td style="padding:6px;text-align:center">
           <input type="checkbox" class="dop-cb" data-id="${r.id}" ${sel ? 'checked' : ''} onchange="dopToggleCb(this)">
         </td>
-        <td style="padding:6px 8px">${r.siswa_code||''}</td>
-        <td style="padding:6px 8px;${nameSt}">${r.nama||'-'}</td>
-        <td style="padding:6px 8px;font-family:monospace;color:#1d4ed8">${r.pam_no||''}</td>
-        <td style="padding:6px 8px">${r.cat1||''}</td>
-        <td style="padding:6px 8px">${r.cat2||''}</td>
-        <td style="padding:6px 8px">${r.perusahaan||''}</td>
-        <td style="padding:6px 8px">${r.pillar||''}</td>
+        <td style="padding:6px 8px">${eCode}</td>
+        <td style="padding:6px 8px;${nameSt}">${eNama}</td>
+        <td style="padding:6px 8px;font-family:monospace;color:#1d4ed8">${ePam}</td>
+        <td style="padding:6px 8px">${eCat1}</td>
+        <td style="padding:6px 8px">${eCat2}</td>
+        <td style="padding:6px 8px">${ePerus}</td>
+        <td style="padding:6px 8px">${ePillar}</td>
         <td style="padding:6px 8px;text-align:right">Rp ${new Intl.NumberFormat('id-ID').format(r.amount||0)}</td>
         <td style="padding:6px 8px">${r.tanggal||''}</td>
         <td style="padding:6px 8px">${r.tgl_pengajuan||''}</td>
@@ -2151,7 +2158,8 @@ async function dopBulkUpdate() {
     _dopSelected.clear();
     _dopSelectionMeta.clear();
     dopRenderChips();
-    if (_dopLastSearchQs) setTimeout(() => _dopFetch(_dopLastSearchQs), 600);
+    _dopOffset = 0;
+    setTimeout(() => _dopFetch(false), 600);
   }
 }
 
