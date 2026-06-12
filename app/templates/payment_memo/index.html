@@ -1696,45 +1696,94 @@ async function cancelPAM(pamId) {
 }
 
 // ── Days of PAM ───────────────────────────────────────────────────────────────
-let _dopCandidates  = null;   // cached after first tab open
-let _dopLoaded      = false;  // true once candidates fetched
-let _dopLastSearchQs = '';    // last search query string (to refresh after bulk update)
-const _dopSelected     = new Set();
+let _dopCandidates   = null;
+let _dopInitialized  = false;
+let _dopSource       = 'AGRI';
+let _dopPaidOnly     = true;
+let _dopOffset       = 0;
+let _dopTotal        = 0;
+const _dopSelected      = new Set();
 const _dopSelectionMeta = new Map();  // id → { nama, cat1 }
 
 function _dopReveal() {
   const tb = document.getElementById('dop-tbody');
-  const ph = document.getElementById('dop-ph');
   if (tb) tb.style.display = '';
-  if (ph) ph.style.display = 'none';
 }
 
 function _dopHide() {
   const tb = document.getElementById('dop-tbody');
-  const ph = document.getElementById('dop-ph');
   if (tb) tb.style.display = 'none';
-  if (ph) ph.style.display = '';
+}
+
+function _dopApplyColVis() {
+  document.querySelectorAll('.dop-col-agri').forEach(el => {
+    el.style.display = _dopSource === 'AGRI' ? '' : 'none';
+  });
+  document.querySelectorAll('.dop-col-app').forEach(el => {
+    el.style.display = _dopSource === 'APP' ? '' : 'none';
+  });
+}
+
+function _dopUpdateLoadMore(loaded, total) {
+  const wrap = document.getElementById('dop-load-more-wrap');
+  const btn  = document.getElementById('dop-load-more');
+  if (!wrap || !btn) return;
+  const remaining = total - loaded;
+  if (remaining > 0) {
+    btn.textContent = `Muat 100 lagi (masih ${remaining})`;
+    wrap.style.display = '';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+function dopSetSource(src) {
+  _dopSource = src;
+  _dopOffset = 0;
+  document.querySelectorAll('.dop-src-btn').forEach(btn => {
+    const isActive = btn.dataset.src === src;
+    btn.style.background  = isActive ? '#2563eb' : '#fff';
+    btn.style.color       = isActive ? '#fff' : '#374151';
+    btn.style.borderColor = isActive ? '#2563eb' : '#d1d5db';
+  });
+  _dopApplyColVis();
+  _dopFetch(false);
+}
+
+function dopSetPaidOnly(val) {
+  _dopPaidOnly = val;
+  _dopOffset   = 0;
+  _dopFetch(false);
+}
+
+function dopLoadMore() {
+  _dopFetch(true);
 }
 
 async function dopTabOpened() {
-  if (_dopLoaded) return;
-  _dopLoaded = true;
-  const res = await apiFetch('/payment-memo/days-of-pam/candidates');
-  if (!res) return;
-  const data = await res.json();
-  if (data.ok) _dopCandidates = data.candidates;
+  if (_dopInitialized) return;
+  _dopInitialized = true;
+  const cres = await apiFetch('/payment-memo/days-of-pam/candidates');
+  if (cres) { const cd = await cres.json(); if (cd.ok) _dopCandidates = cd.candidates; }
+  await _dopFetch(false);
 }
 
-function dopRenderRows(rows) {
+function dopRenderRows(rows, append = false, total = 0) {
   const tb = document.getElementById('dop-tbody');
   if (!tb) return;
-  if (!rows.length) {
-    tb.innerHTML = '<tr><td colspan="28" style="padding:20px;text-align:center;color:#6b7280">Tidak ada data untuk pencarian ini.</td></tr>';
+
+  if (!append && !rows.length) {
+    const msg = _dopPaidOnly
+      ? `Tidak ada record ${_dopSource} yang belum paid.`
+      : `Tidak ada data untuk filter ini.`;
+    tb.innerHTML = `<tr><td colspan="28" style="padding:20px;text-align:center;color:#6b7280">${msg}</td></tr>`;
     _dopReveal();
     _dopUpdateInfo(0);
+    _dopUpdateLoadMore(0, total);
     return;
   }
-  tb.innerHTML = rows.map(r => {
+
+  const html = rows.map(r => {
     const sel = _dopSelected.has(r.id);
     const rowBg  = sel ? 'background:#eff6ff;' : '';
     const nameSt = sel ? 'color:#1d4ed8;font-weight:600;' : '';
@@ -1768,44 +1817,70 @@ function dopRenderRows(rows) {
         <td style="padding:6px 8px">${r.tgl_retur||''}</td>
         <td style="padding:6px 8px">${r.tgl_final6||''}</td>
         <td style="padding:6px 8px">${r.tgl_proses||''}</td>
-        <td style="padding:6px 8px">${r.tgl_HT_AGRI||''}</td>
-        <td style="padding:6px 8px">${r.tgl_Yurike_AGRI||''}</td>
-        <td style="padding:6px 8px">${r.tgl_Aditya_AGRI||''}</td>
-        <td style="padding:6px 8px">${r.tgl_Pedy_AGRI||''}</td>
-        <td style="padding:6px 8px">${r.tgl_C2_AGRI||''}</td>
-        <td style="padding:6px 8px">${r.tgl_MSIG_AGRI||''}</td>
-        <td style="padding:6px 8px">${r.tgl_Paid_AGRI||''}</td>
-        <td style="padding:6px 8px">${r['tgl_A-GS_APP']||''}</td>
-        <td style="padding:6px 8px">${r['tgl_A-HJK_APP']||''}</td>
-        <td style="padding:6px 8px">${r.tgl_ASPIRO_APP||''}</td>
-        <td style="padding:6px 8px">${r.tgl_Paid_APP||''}</td>
+        <td class="dop-col-agri" style="padding:6px 8px">${r.tgl_HT_AGRI||''}</td>
+        <td class="dop-col-agri" style="padding:6px 8px">${r.tgl_Yurike_AGRI||''}</td>
+        <td class="dop-col-agri" style="padding:6px 8px">${r.tgl_Aditya_AGRI||''}</td>
+        <td class="dop-col-agri" style="padding:6px 8px">${r.tgl_Pedy_AGRI||''}</td>
+        <td class="dop-col-agri" style="padding:6px 8px">${r.tgl_C2_AGRI||''}</td>
+        <td class="dop-col-agri" style="padding:6px 8px">${r.tgl_MSIG_AGRI||''}</td>
+        <td class="dop-col-agri" style="padding:6px 8px">${r.tgl_Paid_AGRI||''}</td>
+        <td class="dop-col-app" style="padding:6px 8px">${r['tgl_A-GS_APP']||''}</td>
+        <td class="dop-col-app" style="padding:6px 8px">${r['tgl_A-HJK_APP']||''}</td>
+        <td class="dop-col-app" style="padding:6px 8px">${r.tgl_ASPIRO_APP||''}</td>
+        <td class="dop-col-app" style="padding:6px 8px">${r.tgl_Paid_APP||''}</td>
       </tr>`;
   }).join('');
-  const sa = document.getElementById('dop-select-all');
-  if (sa) sa.checked = false;
+
+  if (append) {
+    tb.insertAdjacentHTML('beforeend', html);
+  } else {
+    tb.innerHTML = html;
+    const sa = document.getElementById('dop-select-all');
+    if (sa) sa.checked = false;
+  }
+
+  _dopApplyColVis();
   _dopReveal();
-  _dopUpdateInfo(rows.length);
-  // re-apply any active secondary filters
+  const loaded = document.querySelectorAll('#dop-tbody .dop-row').length;
+  _dopUpdateInfo(loaded);
+  _dopUpdateLoadMore(loaded, total);
   dopFilter();
 }
 
-async function _dopFetch(qs) {
-  _dopLastSearchQs = qs;
-  const res = await apiFetch(`/payment-memo/days-of-pam/search?${qs}`);
+async function _dopFetch(append = false) {
+  const pam  = (document.getElementById('dop-s-pam')?.value  || '').trim();
+  const nama = (document.getElementById('dop-s-nama')?.value || '').trim();
+  const currentOffset = append ? _dopOffset : 0;
+
+  const params = new URLSearchParams({
+    source:    _dopSource,
+    paid_only: _dopPaidOnly ? '1' : '0',
+    offset:    String(currentOffset),
+  });
+  if (pam)  params.set('pam',  pam);
+  if (nama) params.set('nama', nama);
+
+  if (!append) {
+    const tb = document.getElementById('dop-tbody');
+    if (tb) tb.innerHTML = '<tr><td colspan="28" style="padding:20px;text-align:center;color:#6b7280">Memuat data...</td></tr>';
+    _dopReveal();
+  }
+
+  const res = await apiFetch(`/payment-memo/days-of-pam/search?${params}`);
   if (!res) return;
   const data = await res.json();
-  if (data.ok) dopRenderRows(data.rows);
-  else showToast(data.pesan || 'Gagal memuat data.', 'error');
+  if (!data.ok) { showToast(data.pesan || 'Gagal memuat data.', 'error'); return; }
+
+  _dopTotal = data.total;
+  if (append) _dopOffset += data.rows.length;
+  else        _dopOffset  = data.rows.length;
+
+  dopRenderRows(data.rows, append, data.total);
 }
 
 function _dopFetchCurrent() {
-  const pam  = (document.getElementById('dop-s-pam')?.value  || '').trim();
-  const nama = (document.getElementById('dop-s-nama')?.value || '').trim();
-  if (!pam && !nama) { _dopHide(); return; }
-  const parts = [];
-  if (pam)  parts.push(`pam=${encodeURIComponent(pam)}`);
-  if (nama) parts.push(`nama=${encodeURIComponent(nama)}`);
-  _dopFetch(parts.join('&'));
+  _dopOffset = 0;
+  _dopFetch(false);
 }
 
 function dopFilter() {
@@ -1882,12 +1957,12 @@ function dopClearSearch() {
   ['dop-s-pam','dop-s-nama'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.querySelectorAll('.dop-filter').forEach(el => el.value = '');
   _dopSelected.clear();
-  _dopLastSearchQs = '';
+  _dopSelectionMeta.clear();
   const sa = document.getElementById('dop-select-all');
   if (sa) sa.checked = false;
-  _dopHide();
-  const info = document.getElementById('dop-info');
-  if (info) info.textContent = '';
+  dopRenderChips();
+  _dopOffset = 0;
+  _dopFetch(false);
 }
 
 function dopToggleCb(cb) {
@@ -1946,10 +2021,19 @@ function _dopUpdateInfo(visibleOverride) {
   const sel  = _dopSelected.size;
   const info = document.getElementById('dop-info');
   if (info) info.textContent = `${sel} dipilih | ${totalVisible} baris`;
-  const btn  = document.getElementById('dop-update-btn');
+
+  const countLabel = document.getElementById('dop-count-label');
+  if (countLabel && _dopTotal > 0) {
+    const paidStr = _dopPaidOnly ? ' belum paid' : '';
+    countLabel.textContent = `Menampilkan ${_dopOffset} dari ${_dopTotal} record${paidStr} (${_dopSource})`;
+  } else if (countLabel) {
+    countLabel.textContent = '';
+  }
+
+  const btn = document.getElementById('dop-update-btn');
   if (!btn) return;
   btn.textContent = `Update Terpilih (${sel})`;
-  btn.disabled    = sel === 0;
+  btn.disabled = sel === 0;
   btn.style.opacity = sel === 0 ? '0.5' : '1';
 }
 
