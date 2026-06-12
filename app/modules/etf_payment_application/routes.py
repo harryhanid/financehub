@@ -4,7 +4,7 @@ from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.etf_payment_application.service import (
     get_pa_list, get_pa_flat, get_pa_header, bulk_update_pa, export_pa_excel,
-    create_pa, update_pa, get_pa_lines, get_siswa_autocomplete,
+    create_pa, update_pa, delete_pa, get_pa_lines, get_siswa_autocomplete,
     get_draft_siswa, get_draft_lines_for_siswa, VALID_TABS,
 )
 import config
@@ -26,8 +26,10 @@ def _ctx():
         return {}
 
 
-def _tab():
+def _tab(allow_input: bool = False):
     t = request.args.get("tab", "agri").lower()
+    if allow_input and t == "input":
+        return "input"
     return t if t in VALID_TABS else "agri"
 
 
@@ -37,11 +39,14 @@ def index():
     if not session.get("company_id"):
         return redirect(url_for("dashboard.select_company"))
     company_id = session["company_id"]
-    tab = _tab()
-    sf = request.args.get("sf", "active").lower()
-    if sf not in ("open", "on_process", "complete", "active", ""):
-        sf = "active"
-    pa_rows = get_pa_flat(company_id, tab, sf)
+    tab = _tab(allow_input=True)
+    sf = ""
+    pa_rows = []
+    if tab != "input":
+        sf = request.args.get("sf", "active").lower()
+        if sf not in ("open", "on_process", "complete", "active", ""):
+            sf = "active"
+        pa_rows = get_pa_flat(company_id, tab, sf)
     return render_template(
         "etf_payment_application/index.html",
         pa_rows=pa_rows,
@@ -50,6 +55,9 @@ def index():
         cat1=config.CAT1_BGT,
         cat2_sem=config.CAT2_SEM,
         active_page="etf_payment_app",
+        jenjang=config.JENJANG,
+        program=config.PROGRAM,
+        status_siswa=config.STATUS_SISWA,
         **_ctx(),
     )
 
@@ -108,6 +116,16 @@ def update(pa_id):
         tab = "agri"
     data = request.get_json(force=True)
     return jsonify(update_pa(pa_id, company_id, data, tab))
+
+
+@bp.route("/<int:pa_id>/delete", methods=["POST"])
+@jwt_html_required
+def delete(pa_id):
+    company_id = session.get("company_id")
+    tab        = request.args.get("tab", "agri").lower()
+    if tab not in VALID_TABS:
+        tab = "agri"
+    return jsonify(delete_pa(pa_id, company_id, tab))
 
 
 @bp.route("/<int:pa_id>/lines")

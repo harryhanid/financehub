@@ -775,6 +775,77 @@
     </div>
   </div>
 </div>
+
+<!-- MODAL: Quick Edit Siswa (dari tab Input PAM) -->
+<div class="modal-overlay" id="modal-pam-edit-siswa">
+  <div class="modal" style="width:min(700px,95vw);max-height:90vh;overflow-y:auto">
+    <div class="modal-header" style="position:sticky;top:0;background:#fff;z-index:10;border-bottom:1px solid #e5e7eb;padding-bottom:.625rem">
+      <span class="modal-title" id="pam-esiswa-title">Update Data Siswa</span>
+      <button class="modal-close" onclick="closeModal('modal-pam-edit-siswa')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem">
+      <div class="form-group"><label>Code Siswa</label>
+        <input type="text" id="pam-esiswa-code" readonly style="background:#f3f4f6;font-weight:700;font-family:monospace"></div>
+      <div class="form-group"><label>Nama Lengkap</label>
+        <input type="text" id="pam-esiswa-nama" placeholder="Nama lengkap"></div>
+      <div class="form-group"><label>Jenjang</label>
+        <select id="pam-esiswa-jenjang">
+          {% for j in jenjang %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group"><label>Angkatan (tahun)</label>
+        <input type="number" id="pam-esiswa-angkatan" placeholder="2025" min="2000" max="2099"></div>
+      <div class="form-group"><label>Program</label>
+        <select id="pam-esiswa-program">
+          {% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group"><label>Status</label>
+        <select id="pam-esiswa-status">
+          {% for s in status_siswa %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group"><label>Prodi</label>
+        <input type="text" id="pam-esiswa-prodi" placeholder="Teknik Informatika"></div>
+      <div class="form-group"><label>Angkatan Kuliah</label>
+        <input type="text" id="pam-esiswa-angkatan_kuliah" placeholder="2022"></div>
+      <div class="form-group"><label>Fakultas</label>
+        <input type="text" id="pam-esiswa-fakultas"></div>
+      <div class="form-group"><label>Universitas</label>
+        <input type="text" id="pam-esiswa-universitas"></div>
+      <div class="form-group"><label>Bank</label>
+        <input type="text" id="pam-esiswa-bank"></div>
+      <div class="form-group"><label>No. Rekening</label>
+        <input type="text" id="pam-esiswa-norek"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Nama Rekening</label>
+        <input type="text" id="pam-esiswa-namarek"></div>
+    </div>
+    <div style="margin-top:.75rem">
+      <div style="font-weight:600;font-size:.875rem;margin-bottom:.5rem;color:var(--text-muted)">IPK Pendidikan per Semester</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.75rem">
+        {% for i in range(1,11) %}
+        <div class="form-group" style="margin:0">
+          <label style="font-size:.75rem">Sem {{ i }}</label>
+          <input type="number" id="pam-esiswa-ipk-sem{{ i }}" step="0.01" min="0" max="4" placeholder="0.00">
+        </div>
+        {% endfor %}
+      </div>
+      <div style="font-weight:600;font-size:.875rem;margin-bottom:.5rem;color:var(--text-muted)">IPK Penelitian</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem">
+        {% for i in range(1,4) %}
+        <div class="form-group" style="margin:0">
+          <label style="font-size:.75rem">Tahap {{ i }}</label>
+          <input type="number" id="pam-esiswa-ipk-pen{{ i }}" step="0.01" min="0" max="4" placeholder="0.00">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="form-group"><label>Catatan</label><textarea id="pam-esiswa-catatan" rows="2"></textarea></div>
+    <div class="form-group"><label>Catatan Payment</label>
+      <textarea id="pam-esiswa-catatan_payment" rows="2" placeholder="Catatan review payment..."></textarea></div>
+    <div style="display:flex;gap:.75rem;margin-top:.75rem;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pam-edit-siswa')">Batal</button>
+      <button class="btn btn-primary" onclick="pamSimpanSiswa()">Simpan Update</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -2987,6 +3058,7 @@ function ipayAddRow() {
             }).catch(()=>{sCat1.innerHTML=`<option value="">Gagal memuat.</option>`;sCat1.disabled=false;});
             tr._sisaBudget={}; tr._sisaCell.textContent="Memuat..."; tr._sisaCell.style.color="#6b7280";
             apiFetch(`/beasiswa/siswa/${s.code}/sisa-budget`).then(r=>r.json()).then(data=>{tr._sisaBudget=data.sisa||{};_ipayUpdateSisaCell(tr);}).catch(()=>{tr._sisaCell.textContent="—";});
+            apiFetch(`/beasiswa/siswa/${s.code}`).then(r=>r.json()).then(d=>{if(d.ok)_pamUpdateIpkStrip(tr,d.data);}).catch(()=>{});
           });
           d.addEventListener("mouseover",()=>{d.style.background="#eff6ff";}); d.addEventListener("mouseout",()=>{d.style.background="";});
           sugg.appendChild(d);
@@ -2997,6 +3069,24 @@ function ipayAddRow() {
   siswaInp.addEventListener("focus", ()=>{if(sugg.children.length)_posSugg();});
   siswaInp.addEventListener("blur",  ()=>setTimeout(()=>{sugg.style.display="none";},200));
   tdSiswa.appendChild(siswaInp);
+  // IPK strip + quick-edit button (revealed after siswa is picked)
+  const ipkStrip = document.createElement("div");
+  ipkStrip.style.cssText = "display:none;align-items:center;gap:4px;margin-top:3px;flex-wrap:wrap";
+  const ipkBadge = document.createElement("span");
+  ipkBadge.style.cssText = "background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:1px 7px;font-size:.67rem;font-weight:700";
+  const btnEditSiswa = document.createElement("button");
+  btnEditSiswa.type = "button"; btnEditSiswa.className = "btn btn-sm";
+  btnEditSiswa.style.cssText = "padding:1px 7px;font-size:.67rem;background:#f0fdf4;color:#15803d;border:1px solid #86efac;line-height:1.5;white-space:nowrap";
+  btnEditSiswa.textContent = "✏ Edit Siswa";
+  btnEditSiswa.addEventListener("click", () => {
+    const code = tr.dataset.siswaCode;
+    if (!code) return;
+    pamOpenEditSiswa(code, s => _pamUpdateIpkStrip(tr, s));
+  });
+  ipkStrip.appendChild(ipkBadge);
+  ipkStrip.appendChild(btnEditSiswa);
+  tr._ipkBadge = ipkBadge; tr._ipkStrip = ipkStrip;
+  tdSiswa.appendChild(ipkStrip);
   const hidEtfLineId = document.createElement("input"); hidEtfLineId.type="hidden"; hidEtfLineId.value=""; tr._hidEtfLineId=hidEtfLineId; tdSiswa.appendChild(hidEtfLineId);
 
   const tdCat1 = document.createElement("td");
@@ -3292,6 +3382,78 @@ async function iklaimSave() {
   const d=await(await apiFetch("/beasiswa/klaim/tambah-multi",{method:"POST",body:JSON.stringify({pam,pillar,perusahaan,rows})})).json();
   showToast(d.pesan,d.ok?"success":"error");
   if (d.ok) iklaimReset();
+}
+
+// ── PAM Quick-Edit Siswa helpers ─────────────────────────────────────────────
+function _pamGetLastIpk(s) {
+  for (let i = 10; i >= 1; i--) {
+    const v = parseFloat(s[`ipk_sem${i}`]);
+    if (v > 0) return { label: `IPK Sem ${i}`, value: v };
+  }
+  for (let i = 3; i >= 1; i--) {
+    const v = parseFloat(s[`ipk_pen${i}`]);
+    if (v > 0) return { label: `IPK Pen ${i}`, value: v };
+  }
+  return null;
+}
+
+function _pamUpdateIpkStrip(tr, s) {
+  const ipk = _pamGetLastIpk(s);
+  tr._ipkBadge.textContent = ipk ? `${ipk.label}: ${ipk.value.toFixed(2)}` : 'IPK: —';
+  tr._ipkStrip.style.display = 'flex';
+}
+
+let _pamEditCode = '', _pamEditCallback = null;
+
+async function pamOpenEditSiswa(code, onSaved) {
+  const res = await apiFetch(`/beasiswa/siswa/${code}`);
+  if (!res) return;
+  const d = await res.json();
+  if (!d.ok) { showToast('Gagal memuat data siswa.', 'error'); return; }
+  const s = d.data;
+  _pamEditCode = code;
+  _pamEditCallback = onSaved || null;
+  document.getElementById('pam-esiswa-title').textContent = `Update Data Siswa — ${code}`;
+  ['code','nama','jenjang','angkatan','program','status','prodi','angkatan_kuliah',
+   'fakultas','universitas','bank','norek','namarek','catatan','catatan_payment'].forEach(k => {
+    const el = document.getElementById(`pam-esiswa-${k}`);
+    if (el) el.value = s[k] ?? '';
+  });
+  for (let i = 1; i <= 10; i++) {
+    const el = document.getElementById(`pam-esiswa-ipk-sem${i}`);
+    if (el) el.value = s[`ipk_sem${i}`] || '';
+  }
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`pam-esiswa-ipk-pen${i}`);
+    if (el) el.value = s[`ipk_pen${i}`] || '';
+  }
+  openModal('modal-pam-edit-siswa');
+}
+
+async function pamSimpanSiswa() {
+  if (!await confirmModal(`Update data siswa ${_pamEditCode}?`, { confirmText: 'Update' })) return;
+  const payload = {};
+  ['nama','jenjang','angkatan','program','status','prodi','angkatan_kuliah',
+   'fakultas','universitas','bank','norek','namarek','catatan','catatan_payment'].forEach(k => {
+    const el = document.getElementById(`pam-esiswa-${k}`);
+    if (el) payload[k] = k === 'angkatan' ? (parseInt(el.value) || null) : el.value;
+  });
+  for (let i = 1; i <= 10; i++) {
+    const el = document.getElementById(`pam-esiswa-ipk-sem${i}`);
+    payload[`ipk_sem${i}`] = el ? (parseFloat(el.value) || 0) : 0;
+  }
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`pam-esiswa-ipk-pen${i}`);
+    payload[`ipk_pen${i}`] = el ? (parseFloat(el.value) || 0) : 0;
+  }
+  const res = await apiFetch(`/beasiswa/siswa/${_pamEditCode}/update`, { method: 'POST', body: JSON.stringify(payload) });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    closeModal('modal-pam-edit-siswa');
+    if (_pamEditCallback) _pamEditCallback({ ...payload, code: _pamEditCode });
+  }
 }
 
 document.addEventListener("DOMContentLoaded",()=>{

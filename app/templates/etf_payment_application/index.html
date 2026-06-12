@@ -174,22 +174,19 @@ body.pa-focus #pa-focus-exit { display: flex; }
 <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem">
   <div>
     <h1 style="font-size:1.25rem; font-weight:700; margin-bottom:.5rem">ETF Payment Application — {{ company_name }}</h1>
-    {# ── Tab switcher ── #}
-    <div style="display:flex; gap:0; margin-bottom:.6rem; border:1px solid var(--border); border-radius:6px; overflow:hidden; width:fit-content">
-      {% for t, label in [('agri','AGRI'),('app','APP'),('sml','SML')] %}
+    {# ── Tab navigation ── #}
+    <div style="display:flex; gap:0; border:1px solid var(--border); border-radius:6px; overflow:hidden; width:fit-content">
+      {% for t, label in [('input','Input'),('agri','AGRI'),('app','APP'),('sml','SML'),('setf','SETF')] %}
       <a href="?tab={{ t }}"
          style="padding:.35rem .9rem; font-size:.8rem; font-weight:600; text-decoration:none; white-space:nowrap;
-                {% if active_tab == t %}
-                  background:var(--primary,#3b82f6); color:#fff;
-                {% else %}
-                  background:var(--bg-muted,#f1f3f5); color:var(--text-muted);
-                {% endif %}
-                border-right:1px solid var(--border);"
+                {% if active_tab == t %}background:var(--primary,#3b82f6); color:#fff;
+                {% else %}background:var(--bg-muted,#f1f3f5); color:var(--text-muted);{% endif %}
+                {% if not loop.last %}border-right:1px solid var(--border);{% endif %}"
       >{{ label }}</a>
       {% endfor %}
     </div>
-    <button class="btn btn-primary" onclick="openCreateModal()">+ Buat PA Baru</button>
   </div>
+  {% if active_tab != 'input' %}
   <div style="display:flex; gap:.5rem; align-self:flex-end">
     <button id="pa-focus-btn" class="btn btn-secondary" onclick="enterFocusMode()" title="Sembunyikan filter & navbar (geser tabel untuk otomatis)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
@@ -197,9 +194,11 @@ body.pa-focus #pa-focus-exit { display: flex; }
     </button>
     <button class="btn btn-secondary" onclick="exportETFExcel()">↓ Export Excel</button>
   </div>
+  {% endif %}
 </div>
 
-{# ── Filter bar ──────────────────────────────────────────────────────────── #}
+{# ── Filter + bulk bar: only on data tabs ────────────────────────────────── #}
+{% if active_tab != 'input' %}
 <div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; margin-bottom:.75rem; padding:.65rem .75rem; background:var(--bg-muted,#f8f9fa); border-radius:6px; border:1px solid var(--border)">
   <div class="form-group" style="margin:0; width:160px">
     <label style="font-size:.72rem; font-weight:600">Cari Nama PB</label>
@@ -301,9 +300,84 @@ body.pa-focus #pa-focus-exit { display: flex; }
   </div>
   <button class="btn btn-secondary btn-sm" onclick="clearSelection()" style="margin-left:auto">✕ Batalkan Pilihan</button>
 </div>
+{% endif %}{# end filter+bulk bar #}
 
 </div>{# end pa-page-header #}
 
+{# ── Table (data tabs) ─── OR ── Input panel ─────────────────────────────── #}
+{% if active_tab == 'input' %}
+<div style="max-width:740px; margin:1.5rem auto; padding:1.25rem; background:var(--card,#fff); border:1px solid var(--border); border-radius:10px; box-shadow:var(--sh-xs,0 1px 3px rgba(0,0,0,.08))">
+  <h2 style="font-size:1rem; font-weight:700; margin-bottom:1rem">Buat Payment Application Baru</h2>
+
+  {# ── Jenis PA ── #}
+  <div style="margin-bottom:1rem; padding:.65rem .85rem; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px">
+    <div style="font-size:.8rem; font-weight:700; color:#0369a1; margin-bottom:.45rem">Pilih Jenis PA *</div>
+    <div style="display:flex; gap:1.25rem; flex-wrap:wrap">
+      {% for t, lbl in [('agri','AGRI'),('app','APP'),('sml','SML'),('setf','SETF')] %}
+      <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
+        <input type="radio" name="pa-company-type" value="{{ t }}" {% if loop.first %}checked{% endif %} style="width:15px;height:15px;accent-color:#1d4ed8">
+        {{ lbl }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Siswa + IPK ── #}
+  <div style="margin-bottom:.75rem;padding:.6rem .75rem;background:#f8fafc;border:1px solid var(--border);border-radius:6px">
+    <div style="display:grid;grid-template-columns:1fr 160px;gap:.5rem;align-items:end">
+      <div class="form-group" style="margin:0;position:relative">
+        <label style="font-weight:600">Nama Siswa *</label>
+        <input type="text" id="pa-siswa-search" placeholder="Cari nama atau kode siswa..." autocomplete="off">
+        <input type="hidden" id="pa-siswa-id">
+        <input type="hidden" id="pa-siswa-code">
+        <div id="pa-siswa-sugg" style="display:none;position:absolute;background:#fff;border:1px solid var(--border);border-radius:4px;z-index:200;max-height:200px;overflow-y:auto;width:100%;top:100%;left:0"></div>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>IPK Sem Sblmnya</label>
+        <input type="number" id="pa-siswa-ipk" step="0.01" min="0" max="4" readonly
+               style="background:var(--bg-muted);font-weight:700;color:#1d4ed8">
+      </div>
+    </div>
+    <div id="pa-siswa-info" style="font-size:.75rem;color:var(--text-muted);margin-top:.3rem"></div>
+    <div id="pa-siswa-ipk-strip" style="display:none;align-items:center;gap:6px;margin-top:.3rem;flex-wrap:wrap">
+      <span id="pa-siswa-ipk-badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:1px 8px;font-size:.68rem;font-weight:700"></span>
+      <span id="pa-siswa-ipk-warn" style="display:none;font-size:.68rem;color:#dc2626;font-weight:600">⚠ IPK belum ada</span>
+      <button type="button" id="pa-siswa-edit-btn" class="btn btn-sm" style="padding:1px 8px;font-size:.68rem;line-height:1.5">✏ Update Siswa</button>
+    </div>
+  </div>
+
+  {# ── Tanggal-tanggal ── #}
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;margin-bottom:.5rem">
+    <div class="form-group" style="margin:0"><label>Tgl PA *</label><input type="date" id="pa-tgl-app"></div>
+    <div class="form-group" style="margin:0"><label>Tgl Surat Pengajuan</label><input type="date" id="pa-tgl-surat"></div>
+    <div class="form-group" style="margin:0"><label>Doc Recv Educ</label><input type="date" id="pa-doc-recv"></div>
+    <div class="form-group" style="margin:0"><label>Recv PA Educ</label><input type="date" id="pa-recv-pa"></div>
+  </div>
+
+  <div class="form-group" style="margin-bottom:.75rem">
+    <label>Keterangan</label>
+    <input type="text" id="pa-keterangan" placeholder="Opsional">
+  </div>
+
+  {# ── Baris pembayaran ── #}
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:.25rem 0 .4rem">
+    <strong style="font-size:.875rem">Daftar Pembayaran</strong>
+    <button class="btn btn-secondary btn-sm" onclick="addPayLine()">+ Tambah Baris</button>
+  </div>
+  <div id="pa-paylines-container"></div>
+
+  <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem">
+    <button class="btn btn-primary" onclick="submitPA()">Simpan PA</button>
+  </div>
+</div>
+{% else %}{# data tabs: AGRI / APP / SML / SETF #}
+{% if active_tab == 'setf' and not pa_rows %}
+<div style="margin:2rem auto;max-width:500px;text-align:center;padding:2rem;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text-muted)">
+  <div style="font-size:2rem;margin-bottom:.5rem">📋</div>
+  <div style="font-weight:700;margin-bottom:.4rem">Tab SETF</div>
+  <div style="font-size:.875rem">Data SETF belum tersedia. Akan diisi dan diperbaiki kemudian.<br>Gunakan tab <strong>Input</strong> untuk mulai menambahkan data SETF.</div>
+</div>
+{% endif %}
 {# ── Table ───────────────────────────────────────────────────────────────── #}
 {# overflow:auto on both axes — single scroll container for X and Y.                           #}
 {# thead top:0 + column left:Npx both work inside this container.                             #}
@@ -360,6 +434,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
       {% for r in pa_rows %}
       <tr data-pa-id="{{ r.pa_id }}"
           data-line-id="{{ r.line_id }}"
+          data-pa-number="{{ r.pa_number }}"
           data-nama="{{ r.nama | lower }}"
           data-status="{{ (r.status or '') | lower }}"
           data-jenjang="{{ r.jenjang_pendidikan or '' }}"
@@ -403,7 +478,10 @@ body.pa-focus #pa-focus-exit { display: flex; }
             {{ r.status | replace('_', ' ') | title }}
           </span>
         </td>
-        <td><button class="btn btn-primary btn-sm" onclick="openEditById({{ r.pa_id }}, {{ r.line_id }})">Edit</button></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-primary btn-sm" onclick="openEditById({{ r.pa_id }}, {{ r.line_id }})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePa({{ r.pa_id }}, '{{ r.pa_number }}')">Hapus</button>
+        </td>
       </tr>
       {% else %}
       <tr><td colspan="32" style="text-align:center; color:var(--text-muted); padding:2rem">Belum ada payment application ETF.</td></tr>
@@ -411,34 +489,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
     </tbody>
   </table>
 </div>
-
-{# ── Modal Buat PA Baru ─────────────────────────────────────────────────── #}
-<div class="modal-overlay" id="modal-buat-pa">
-  <div class="modal" style="max-width:700px; width:95%">
-    <div class="modal-header">
-      <span class="modal-title">Buat ETF Payment Application Baru</span>
-      <button class="modal-close" onclick="closeModal('modal-buat-pa')">x</button>
-    </div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem">
-      <div class="form-group"><label>Tgl Payment Application *</label><input type="date" id="pa-tgl-app"></div>
-      <div class="form-group"><label>Tgl Surat Pengajuan</label><input type="date" id="pa-tgl-surat"></div>
-    </div>
-    <div class="form-group"><label>Keterangan</label><input type="text" id="pa-keterangan" placeholder="Opsional"></div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem">
-      <div class="form-group"><label>Doc Recv Educ</label><input type="date" id="pa-doc-recv"></div>
-      <div class="form-group"><label>Recv PA Educ</label><input type="date" id="pa-recv-pa"></div>
-    </div>
-    <div style="display:flex; justify-content:space-between; align-items:center; margin:.75rem 0 .5rem">
-      <strong style="font-size:.875rem">Daftar Siswa</strong>
-      <button class="btn btn-secondary btn-sm" onclick="addLine()">+ Tambah Baris</button>
-    </div>
-    <div id="pa-lines-container" style="max-height:340px; overflow-y:auto"></div>
-    <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:1rem">
-      <button class="btn btn-secondary" onclick="closeModal('modal-buat-pa')">Batal</button>
-      <button class="btn btn-primary" onclick="submitPA()">Simpan PA</button>
-    </div>
-  </div>
-</div>
+{% endif %}{# end input/data tab conditional #}
 
 {# ── Modal Edit PA ──────────────────────────────────────────────────────── #}
 <div class="modal-overlay" id="modal-edit-pa">
@@ -503,32 +554,99 @@ body.pa-focus #pa-focus-exit { display: flex; }
   </div>
 </div>
 
-{# ── Template baris siswa ───────────────────────────────────────────────── #}
-<template id="line-template">
-  <div class="pa-line-row" style="border:1px solid var(--border); border-radius:6px; padding:.75rem; margin-bottom:.5rem; position:relative">
-    <button type="button" onclick="removeLine(this)" style="position:absolute; top:.5rem; right:.5rem; background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:1rem">✕</button>
-    <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:.5rem; margin-bottom:.5rem">
-      <div class="form-group" style="margin:0; position:relative">
-        <label>Nama Siswa</label>
-        <input type="text" class="siswa-search-input" placeholder="Cari nama..." autocomplete="off">
-        <input type="hidden" class="siswa-id-input">
-        <div class="siswa-suggestions" style="display:none; position:absolute; background:#fff; border:1px solid var(--border); border-radius:4px; z-index:100; max-height:200px; overflow-y:auto; width:280px; top:100%"></div>
-      </div>
-      <div class="form-group" style="margin:0"><label>Jenis Bayar</label>
-        <select class="jenis-bayar-input"><option value="">-- Pilih --</option>{% for c in cat1 %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
-      </div>
-      <div class="form-group" style="margin:0"><label>Semester</label>
-        <select class="semester-input"><option value="">-- Pilih --</option>{% for c in cat2_sem %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
-      </div>
+{# ── Template baris pembayaran (payline) ─────────────────────────────────── #}
+<template id="payline-template">
+  <div class="payline-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;align-items:end;margin-bottom:.35rem;padding:.4rem .5rem;background:#f8fafc;border:1px solid var(--border);border-radius:5px">
+    <div class="form-group" style="margin:0"><label style="font-size:.75rem">Jenis Bayar</label>
+      <select class="pl-jenis-bayar">
+        <option value="">-- Pilih --</option>
+        {% for c in cat1 %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
     </div>
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:.5rem">
-      <div class="form-group" style="margin:0"><label>Tahun Ajaran</label><input type="text" class="tahun-ajaran-input" placeholder="2024/2025"></div>
-      <div class="form-group" style="margin:0"><label>IPK Sem Sblmnya</label><input type="number" class="ipk-input" step="0.01" min="0" max="4" readonly style="background:var(--bg-muted)"></div>
-      <div class="form-group" style="margin:0"><label>Jumlah (Rp)</label><input type="number" class="jumlah-input" placeholder="0" min="0"></div>
+    <div class="form-group" style="margin:0"><label style="font-size:.75rem">Semester</label>
+      <select class="pl-semester">
+        <option value="">-- Pilih --</option>
+        {% for c in cat2_sem %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
     </div>
-    <div class="siswa-info" style="font-size:.75rem; color:var(--text-muted); margin-top:.4rem"></div>
+    <div class="form-group" style="margin:0"><label style="font-size:.75rem">Jumlah (Rp)</label>
+      <input type="number" class="pl-jumlah" placeholder="0" min="0">
+    </div>
+    <button type="button" onclick="this.closest('.payline-row').remove()"
+            style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;padding:.2rem .4rem;margin-bottom:.15rem;align-self:flex-end" title="Hapus baris">✕</button>
   </div>
 </template>
+
+{# ── Modal: Quick Edit Siswa ────────────────────────────────────────────── #}
+<div class="modal-overlay" id="modal-etfpa-edit-siswa">
+  <div class="modal" style="width:min(700px,95vw);max-height:90vh;overflow-y:auto">
+    <div class="modal-header" style="position:sticky;top:0;background:#fff;z-index:10;border-bottom:1px solid #e5e7eb;padding-bottom:.625rem">
+      <span class="modal-title" id="etfpa-esiswa-title">Update Data Siswa</span>
+      <button class="modal-close" onclick="closeModal('modal-etfpa-edit-siswa')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem">
+      <div class="form-group"><label>Code Siswa</label>
+        <input type="text" id="etfpa-esiswa-code" readonly style="background:#f3f4f6;font-weight:700;font-family:monospace"></div>
+      <div class="form-group"><label>Nama Lengkap</label>
+        <input type="text" id="etfpa-esiswa-nama" placeholder="Nama lengkap"></div>
+      <div class="form-group"><label>Jenjang</label>
+        <select id="etfpa-esiswa-jenjang">
+          {% for j in jenjang %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group"><label>Angkatan (tahun)</label>
+        <input type="number" id="etfpa-esiswa-angkatan" placeholder="2025" min="2000" max="2099"></div>
+      <div class="form-group"><label>Program</label>
+        <select id="etfpa-esiswa-program">
+          {% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group"><label>Status</label>
+        <select id="etfpa-esiswa-status">
+          {% for s in status_siswa %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select></div>
+      <div class="form-group"><label>Prodi</label>
+        <input type="text" id="etfpa-esiswa-prodi" placeholder="Teknik Informatika"></div>
+      <div class="form-group"><label>Angkatan Kuliah</label>
+        <input type="text" id="etfpa-esiswa-angkatan_kuliah" placeholder="2022"></div>
+      <div class="form-group"><label>Fakultas</label>
+        <input type="text" id="etfpa-esiswa-fakultas"></div>
+      <div class="form-group"><label>Universitas</label>
+        <input type="text" id="etfpa-esiswa-universitas"></div>
+      <div class="form-group"><label>Bank</label>
+        <input type="text" id="etfpa-esiswa-bank"></div>
+      <div class="form-group"><label>No. Rekening</label>
+        <input type="text" id="etfpa-esiswa-norek"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Nama Rekening</label>
+        <input type="text" id="etfpa-esiswa-namarek"></div>
+    </div>
+    <div style="margin-top:.75rem">
+      <div style="font-weight:600;font-size:.875rem;margin-bottom:.5rem;color:var(--text-muted)">IPK Pendidikan per Semester</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:.75rem">
+        {% for i in range(1,11) %}
+        <div class="form-group" style="margin:0">
+          <label style="font-size:.75rem">Sem {{ i }}</label>
+          <input type="number" id="etfpa-esiswa-ipk-sem{{ i }}" step="0.01" min="0" max="4" placeholder="0.00">
+        </div>
+        {% endfor %}
+      </div>
+      <div style="font-weight:600;font-size:.875rem;margin-bottom:.5rem;color:var(--text-muted)">IPK Penelitian</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem">
+        {% for i in range(1,4) %}
+        <div class="form-group" style="margin:0">
+          <label style="font-size:.75rem">Tahap {{ i }}</label>
+          <input type="number" id="etfpa-esiswa-ipk-pen{{ i }}" step="0.01" min="0" max="4" placeholder="0.00">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="form-group"><label>Catatan</label><textarea id="etfpa-esiswa-catatan" rows="2"></textarea></div>
+    <div class="form-group"><label>Catatan Payment</label>
+      <textarea id="etfpa-esiswa-catatan_payment" rows="2" placeholder="Catatan review payment..."></textarea></div>
+    <div style="display:flex;gap:.75rem;margin-top:.75rem;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('modal-etfpa-edit-siswa')">Batal</button>
+      <button class="btn btn-primary" onclick="etfpaSimpanSiswa()">Simpan Update</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -594,6 +712,7 @@ function statusFilterChanged(el) {
 }
 
 function applyFilters() {
+  if (!document.getElementById("f-nama")) return;
   const nama     = document.getElementById("f-nama").value.toLowerCase().trim();
   const jenjang  = document.getElementById("f-jenjang").value;
   const program  = document.getElementById("f-program").value;
@@ -630,7 +749,17 @@ function resetFilters() {
   url.searchParams.delete("sf");
   window.location.href = url.toString();
 }
-window.addEventListener("DOMContentLoaded", applyFilters);
+window.addEventListener("DOMContentLoaded", () => {
+  applyFilters();
+  setupCreateSiswaSearch();
+  // Init Input tab form
+  const paylinesCont = document.getElementById('pa-paylines-container');
+  if (paylinesCont) {
+    const tglInp = document.getElementById('pa-tgl-app');
+    if (tglInp) tglInp.value = new Date().toISOString().slice(0, 10);
+    addPayLine();
+  }
+});
 
 // ─── Checkbox & selection ─────────────────────────────────────────────────────
 function toggleAll(chk) {
@@ -782,86 +911,193 @@ async function bulkSetStatusHeader() {
   await doBulkUpdate("status", status);
 }
 
-// ─── Autocomplete ─────────────────────────────────────────────────────────────
-function setupAutocomplete(row) {
-  const searchInput = row.querySelector(".siswa-search-input");
-  const idInput     = row.querySelector(".siswa-id-input");
-  const suggestions = row.querySelector(".siswa-suggestions");
-  const ipkInput    = row.querySelector(".ipk-input");
-  const infoDiv     = row.querySelector(".siswa-info");
+// ─── IPK helpers ─────────────────────────────────────────────────────────────
+function _etfpaLastSemNum(s) {
+  for (let i = 10; i >= 1; i--) {
+    if (parseFloat(s[`ipk_sem${i}`]) > 0) return i;
+  }
+  return 0;
+}
+
+// Update IPK section in create modal (single siswa at top)
+function _etfpaUpdateCreateIpk(s) {
+  const semNum = _etfpaLastSemNum(s);
+  const ipkVal = semNum ? parseFloat(s[`ipk_sem${semNum}`]) : 0;
+  const ipkHid = document.getElementById('pa-siswa-ipk');
+  const badge  = document.getElementById('pa-siswa-ipk-badge');
+  const warn   = document.getElementById('pa-siswa-ipk-warn');
+  const strip  = document.getElementById('pa-siswa-ipk-strip');
+  const editBtn= document.getElementById('pa-siswa-edit-btn');
+  if (ipkHid) ipkHid.value = ipkVal;
+  if (badge)  badge.textContent  = semNum ? `Sem ${semNum}: ${ipkVal.toFixed(2)}` : 'IPK: —';
+  if (warn)   warn.style.display = semNum ? 'none' : 'inline';
+  if (strip)  strip.style.display= 'flex';
+  if (editBtn) {
+    const hasIpk = semNum > 0;
+    editBtn.textContent = hasIpk ? '✏ Update Siswa' : '✏ Input IPK Siswa';
+    editBtn.style.background = hasIpk ? '#f0fdf4' : '#fef2f2';
+    editBtn.style.color      = hasIpk ? '#15803d' : '#dc2626';
+    editBtn.style.borderColor= hasIpk ? '#86efac' : '#fca5a5';
+    editBtn.onclick = () => {
+      const code = document.getElementById('pa-siswa-code').value;
+      if (!code) return;
+      etfpaOpenEditSiswa(code, () => {
+        apiFetch(`/beasiswa/siswa/${code}`).then(r=>r.json()).then(d=>{
+          if (d.ok) _etfpaUpdateCreateIpk(d.data);
+        }).catch(()=>{});
+      });
+    };
+  }
+}
+
+// ─── Create modal: siswa search ───────────────────────────────────────────────
+function setupCreateSiswaSearch() {
+  const searchInp = document.getElementById('pa-siswa-search');
+  const idInp     = document.getElementById('pa-siswa-id');
+  const codeInp   = document.getElementById('pa-siswa-code');
+  const infoDiv   = document.getElementById('pa-siswa-info');
+  const sugg      = document.getElementById('pa-siswa-sugg');
+  if (!searchInp) return;
   let debounce;
-  searchInput.addEventListener("input", () => {
+  searchInp.addEventListener('input', () => {
     clearTimeout(debounce);
-    const q = searchInput.value.trim();
-    if (q.length < 2) { suggestions.style.display = "none"; return; }
+    const q = searchInp.value.trim();
+    if (q.length < 2) { sugg.style.display = 'none'; return; }
     debounce = setTimeout(async () => {
       const resp = await apiFetch(`/etf-payment-application/siswa-search?q=${encodeURIComponent(q)}&tab=${ACTIVE_TAB}`);
       const data = await resp.json();
-      suggestions.innerHTML = "";
-      if (!data.length) { suggestions.style.display = "none"; return; }
+      sugg.innerHTML = '';
+      if (!data.length) { sugg.style.display = 'none'; return; }
       data.forEach(s => {
-        const item = document.createElement("div");
-        item.style.cssText = "padding:.4rem .6rem; cursor:pointer; font-size:.8rem; border-bottom:1px solid var(--border)";
+        const item = document.createElement('div');
+        item.style.cssText = 'padding:.4rem .6rem;cursor:pointer;font-size:.8rem;border-bottom:1px solid var(--border)';
         item.textContent = `${s.nama} (${s.code}) — ${s.jenjang} ${s.angkatan}`;
         item.onmousedown = () => {
-          searchInput.value   = s.nama;
-          idInput.value       = s.id;
-          ipkInput.value      = s.ipk_terakhir || 0;
-          infoDiv.textContent = `${s.universitas || ''} | ${s.program || ''} | ${s.fakultas || ''} | Status: ${s.status}`;
-          suggestions.style.display = "none";
+          searchInp.value = s.nama;
+          idInp.value     = s.id;
+          codeInp.value   = s.code;
+          if (infoDiv) infoDiv.textContent = `${s.universitas||''} | ${s.program||''} | ${s.fakultas||''} | Status: ${s.status}`;
+          sugg.style.display = 'none';
+          apiFetch(`/beasiswa/siswa/${s.code}`).then(r=>r.json()).then(d=>{
+            if (d.ok) _etfpaUpdateCreateIpk(d.data);
+          }).catch(()=>{});
         };
-        suggestions.appendChild(item);
+        sugg.appendChild(item);
       });
-      suggestions.style.display = "block";
+      sugg.style.display = 'block';
     }, 300);
   });
-  searchInput.addEventListener("blur", () => setTimeout(() => { suggestions.style.display = "none"; }, 200));
+  searchInp.addEventListener('blur', () => setTimeout(() => { sugg.style.display = 'none'; }, 200));
 }
-function addLine() {
-  const tpl = document.getElementById("line-template").content.cloneNode(true);
-  const container = document.getElementById("pa-lines-container");
-  container.appendChild(tpl);
-  setupAutocomplete(container.lastElementChild);
+
+let _etfpaEditCode = '', _etfpaEditCb = null;
+
+async function etfpaOpenEditSiswa(code, onSaved) {
+  const res = await apiFetch(`/beasiswa/siswa/${code}`);
+  if (!res) return;
+  const d = await res.json();
+  if (!d.ok) { showToast('Gagal memuat data siswa.', 'error'); return; }
+  const s = d.data;
+  _etfpaEditCode = code;
+  _etfpaEditCb = onSaved || null;
+  document.getElementById('etfpa-esiswa-title').textContent = `Update Data Siswa — ${code}`;
+  ['code','nama','jenjang','angkatan','program','status','prodi','angkatan_kuliah',
+   'fakultas','universitas','bank','norek','namarek','catatan','catatan_payment'].forEach(k => {
+    const el = document.getElementById(`etfpa-esiswa-${k}`);
+    if (el) el.value = s[k] ?? '';
+  });
+  for (let i = 1; i <= 10; i++) {
+    const el = document.getElementById(`etfpa-esiswa-ipk-sem${i}`);
+    if (el) el.value = s[`ipk_sem${i}`] || '';
+  }
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`etfpa-esiswa-ipk-pen${i}`);
+    if (el) el.value = s[`ipk_pen${i}`] || '';
+  }
+  openModal('modal-etfpa-edit-siswa');
 }
-function removeLine(btn) { btn.closest(".pa-line-row").remove(); }
-function openCreateModal() {
-  document.getElementById("pa-lines-container").innerHTML = "";
-  document.getElementById("pa-tgl-app").value    = new Date().toISOString().slice(0, 10);
-  document.getElementById("pa-tgl-surat").value  = "";
-  document.getElementById("pa-keterangan").value = "";
-  document.getElementById("pa-doc-recv").value   = "";
-  document.getElementById("pa-recv-pa").value    = "";
-  addLine();
-  openModal("modal-buat-pa");
+
+async function etfpaSimpanSiswa() {
+  if (!await confirmModal(`Update data siswa ${_etfpaEditCode}?`, { confirmText: 'Update' })) return;
+  const payload = {};
+  ['nama','jenjang','angkatan','program','status','prodi','angkatan_kuliah',
+   'fakultas','universitas','bank','norek','namarek','catatan','catatan_payment'].forEach(k => {
+    const el = document.getElementById(`etfpa-esiswa-${k}`);
+    if (el) payload[k] = k === 'angkatan' ? (parseInt(el.value) || null) : el.value;
+  });
+  for (let i = 1; i <= 10; i++) {
+    const el = document.getElementById(`etfpa-esiswa-ipk-sem${i}`);
+    payload[`ipk_sem${i}`] = el ? (parseFloat(el.value) || 0) : 0;
+  }
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`etfpa-esiswa-ipk-pen${i}`);
+    payload[`ipk_pen${i}`] = el ? (parseFloat(el.value) || 0) : 0;
+  }
+  const res = await apiFetch(`/beasiswa/siswa/${_etfpaEditCode}/update`, { method: 'POST', body: JSON.stringify(payload) });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    closeModal('modal-etfpa-edit-siswa');
+    if (_etfpaEditCb) _etfpaEditCb();
+  }
+}
+function addPayLine() {
+  const tpl = document.getElementById('payline-template').content.cloneNode(true);
+  document.getElementById('pa-paylines-container').appendChild(tpl);
 }
 
 // ─── Create ───────────────────────────────────────────────────────────────────
 async function submitPA() {
-  const tglApp = document.getElementById("pa-tgl-app").value;
-  if (!tglApp) { showToast("Tgl Payment Application wajib diisi.", "error"); return; }
-  const rows = document.querySelectorAll("#pa-lines-container .pa-line-row");
-  if (!rows.length) { showToast("Minimal 1 siswa harus ditambahkan.", "error"); return; }
-  if (!await confirmModal("Simpan Payment Application baru ini?")) return;
+  const selectedTab = document.querySelector('input[name="pa-company-type"]:checked')?.value || 'agri';
+  const siswaId = document.getElementById('pa-siswa-id').value;
+  if (!siswaId) { showToast('Pilih siswa terlebih dahulu.', 'error'); return; }
+  const tglApp = document.getElementById('pa-tgl-app').value;
+  if (!tglApp) { showToast('Tgl Payment Application wajib diisi.', 'error'); return; }
+  const ipkVal  = parseFloat(document.getElementById('pa-siswa-ipk').value) || 0;
+  const payRows = document.querySelectorAll('#pa-paylines-container .payline-row');
+  if (!payRows.length) { showToast('Minimal 1 baris pembayaran harus diisi.', 'error'); return; }
+  if (!await confirmModal(`Simpan PA baru ke tab <strong>${selectedTab.toUpperCase()}</strong>?`)) return;
   const lines = [];
-  for (const row of rows) {
-    const sid = row.querySelector(".siswa-id-input").value;
-    if (!sid) { showToast("Pilih siswa untuk semua baris.", "error"); return; }
+  for (const row of payRows) {
     lines.push({
-      student_id:         parseInt(sid),
-      jenis_pembayaran:   row.querySelector(".jenis-bayar-input").value,
-      semester:           row.querySelector(".semester-input").value,
-      tahun_ajaran:       row.querySelector(".tahun-ajaran-input").value,
-      ipk_sem_sebelumnya: parseFloat(row.querySelector(".ipk-input").value) || 0,
-      jumlah_pembayaran:  parseInt(row.querySelector(".jumlah-input").value) || 0,
+      student_id:         parseInt(siswaId),
+      jenis_pembayaran:   row.querySelector('.pl-jenis-bayar').value,
+      semester:           row.querySelector('.pl-semester').value,
+      tahun_ajaran:       '',
+      ipk_sem_sebelumnya: ipkVal,
+      jumlah_pembayaran:  parseInt(row.querySelector('.pl-jumlah').value) || 0,
     });
   }
-  const resp = await apiFetch(`/etf-payment-application/create?tab=${ACTIVE_TAB}`, {
-    method: "POST",
-    body: JSON.stringify({ tgl_payment_application: tglApp, tgl_surat_pengajuan: document.getElementById("pa-tgl-surat").value, keterangan: document.getElementById("pa-keterangan").value, doc_received_by_educ: document.getElementById("pa-doc-recv").value, received_pa_from_educ: document.getElementById("pa-recv-pa").value, lines })
+  const resp = await apiFetch(`/etf-payment-application/create?tab=${selectedTab}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      tgl_payment_application: tglApp,
+      tgl_surat_pengajuan:     document.getElementById('pa-tgl-surat').value,
+      keterangan:              document.getElementById('pa-keterangan').value,
+      doc_received_by_educ:    document.getElementById('pa-doc-recv').value,
+      received_pa_from_educ:   document.getElementById('pa-recv-pa').value,
+      lines,
+    })
   });
   const data = await resp.json();
-  showToast(data.pesan, data.ok ? "success" : "error");
-  if (data.ok) { closeModal("modal-buat-pa"); setTimeout(() => location.reload(), 800); }
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) { setTimeout(() => { window.location.href = `?tab=${selectedTab}`; }, 800); }
+}
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+async function deletePa(paId, paNumber) {
+  if (!await confirmModal(
+    `Hapus PA "<strong>${paNumber}</strong>" beserta seluruh baris siswanya secara permanen?`,
+    { type: 'danger', confirmText: 'Hapus' }
+  )) return;
+  const res = await apiFetch(`/etf-payment-application/${paId}/delete?tab=${ACTIVE_TAB}`, { method: 'POST' });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    document.querySelectorAll(`#pa-table tbody tr[data-pa-id="${paId}"]`).forEach(r => r.remove());
+  }
 }
 
 // ─── Edit ─────────────────────────────────────────────────────────────────────

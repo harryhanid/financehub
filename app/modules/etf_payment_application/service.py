@@ -474,3 +474,35 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
     if new_status == "on_process" and nomor_pam and not row["nomor_pam"]:
         msg = f"PA pindah ke On Process. Nomor PAM: {nomor_pam}"
     return {"ok": True, "pesan": msg, "nomor_pam": nomor_pam}
+
+
+def delete_pa(pa_id: int, company_id: int, tab: str = "agri") -> dict:
+    pa_tbl, lines_tbl, *_ = _tbls(tab)
+    conn = get_conn()
+    pa = conn.execute(
+        f"SELECT id, pa_number FROM {pa_tbl} WHERE id=? AND company_id=?",
+        (pa_id, company_id)
+    ).fetchone()
+    if not pa:
+        conn.close()
+        return {"ok": False, "pesan": "PA tidak ditemukan."}
+
+    linked = conn.execute(
+        f"""SELECT COUNT(*) FROM payment_beasiswa pb
+            JOIN {lines_tbl} l ON l.id = pb.etf_pa_line_id
+            WHERE l.pa_id=?""",
+        (pa_id,)
+    ).fetchone()[0]
+    if linked:
+        conn.close()
+        return {
+            "ok": False,
+            "pesan": f"PA ini tidak dapat dihapus — sudah terhubung ke {linked} record payment. "
+                     "Hapus payment terkait terlebih dahulu di modul Payment Memo.",
+        }
+
+    conn.execute(f"DELETE FROM {lines_tbl} WHERE pa_id=?", (pa_id,))
+    conn.execute(f"DELETE FROM {pa_tbl} WHERE id=? AND company_id=?", (pa_id, company_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"PA {pa['pa_number']} berhasil dihapus."}

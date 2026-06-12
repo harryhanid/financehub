@@ -68,6 +68,9 @@ def index():
         pam_approved_by_2=config.PAM_APPROVED_BY_2,
         siswa_list=get_siswa_list(company_id),
         vendor_list=get_vendors(),
+        jenjang=config.JENJANG,
+        program=config.PROGRAM,
+        status_siswa=config.STATUS_SISWA,
         **_ctx()
     )
 
