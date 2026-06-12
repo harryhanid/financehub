@@ -1728,3 +1728,31 @@ def export_sml_excel(search: str = "", bulan: str = "", tahun: str = "") -> byte
                "approval_1", "approval_2", "kirim_aspiro", "paid", "status"]
     widths  = [18, 14, 28, 14, 22, 14, 12, 12, 14, 12, 12, 12, 12, 10]
     return _make_xlsx("PAM SML", headers, fields, rows, widths)
+
+
+def export_sla_excel(company_id: int, source: str = "AGRI", paid_only: bool = True,
+                     pam: str = None, nama: str = None) -> bytes:
+    from modules.payment_memo.service import get_days_of_pam
+    result = get_days_of_pam(company_id, source, paid_only, pam, nama, limit=9999, offset=0)
+    rows    = result["rows"]
+    headers = ["Siswa Code", "Nama Siswa", "PAM NO", "Cat 1", "Cat 2",
+               "Perusahaan", "Pillar", "Amount", "Tanggal",
+               "Tgl Pengajuan", "Tgl Receive", "Tgl PA", "Tgl Final",
+               "tgl_retur", "tgl_final6", "tgl_proses",
+               "tgl_HT_AGRI", "tgl_Yurike_AGRI", "tgl_Aditya_AGRI",
+               "tgl_Pedy_AGRI", "tgl_C2_AGRI", "tgl_MSIG_AGRI", "tgl_Paid_AGRI",
+               "tgl_A-GS_APP", "tgl_A-HJK_APP", "tgl_ASPIRO_APP", "tgl_Paid_APP"]
+    fields  = ["siswa_code", "nama", "pam_no", "cat1", "cat2",
+               "perusahaan", "pillar", "amount", "tanggal",
+               "tgl_pengajuan", "tgl_receive", "tgl_pa", "tgl_final",
+               "tgl_retur", "tgl_final6", "tgl_proses",
+               "tgl_HT_AGRI", "tgl_Yurike_AGRI", "tgl_Aditya_AGRI",
+               "tgl_Pedy_AGRI", "tgl_C2_AGRI", "tgl_MSIG_AGRI", "tgl_Paid_AGRI",
+               "tgl_A-GS_APP", "tgl_A-HJK_APP", "tgl_ASPIRO_APP", "tgl_Paid_APP"]
+    widths  = [12, 22, 22, 14, 14, 16, 12, 14, 12,
+               12, 12, 12, 12,
+               12, 12, 12,
+               14, 14, 14,
+               12, 12, 12, 12,
+               12, 12, 12, 12]
+    return _make_xlsx("SLA", headers, fields, rows, widths)

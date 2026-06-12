@@ -25,7 +25,7 @@ from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
     export_pam_pdf_custom, export_pam_excel_custom,
     export_open_pam_excel, export_pam_tab_excel, export_fiori_excel,
-    export_sml_excel,
+    export_sml_excel, export_sla_excel,
 )
 from datetime import datetime
 import config, io
@@ -434,6 +434,26 @@ def export_sml_route():
     tahun  = request.args.get("tahun",  "").strip()
     xls   = export_sml_excel(search, bulan, tahun)
     fname = f"PAM_SML_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        io.BytesIO(xls),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=fname,
+        as_attachment=True,
+    )
+
+
+@bp.route("/export/sla")
+@jwt_html_required
+def export_sla_route():
+    company_id = session.get("company_id")
+    if not company_id:
+        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
+    source    = request.args.get("source", "AGRI").strip().upper()
+    paid_only = request.args.get("paid_only", "1") == "1"
+    pam  = request.args.get("pam",  "").strip() or None
+    nama = request.args.get("nama", "").strip() or None
+    xls  = export_sla_excel(company_id, source, paid_only, pam, nama)
+    fname = f"PAM_SLA_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     return send_file(
         io.BytesIO(xls),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

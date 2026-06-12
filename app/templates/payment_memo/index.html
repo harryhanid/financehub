@@ -276,6 +276,7 @@
       <div style="display:flex;align-items:center;gap:8px;padding-bottom:1px">
         <button class="btn btn-success btn-sm" onclick="_dopFetchCurrent()">🔍 Cari</button>
         <button class="btn btn-secondary btn-sm" onclick="dopClearSearch()">Bersihkan</button>
+        <button class="btn btn-success btn-sm" onclick="exportSlaExcel()">&#8595; Export Excel</button>
         <button id="dop-update-btn" class="btn btn-primary btn-sm" onclick="dopBulkUpdate()" disabled style="opacity:.5">Update Terpilih (0)</button>
         <span id="dop-info" style="font-size:12px;color:var(--sl-500)"></span>
       </div>
@@ -3332,6 +3333,19 @@ function exportSmlExcel() {
   if (search) url.searchParams.set('search', search);
   if (bulan)  url.searchParams.set('bulan',  bulan);
   if (tahun)  url.searchParams.set('tahun',  tahun);
+  window.location.href = url.toString();
+}
+
+function exportSlaExcel() {
+  const url      = new URL('/payment-memo/export/sla', window.location.origin);
+  const source   = document.querySelector('.dop-src-btn.dop-src-active')?.dataset.src || 'AGRI';
+  const paidOnly = document.getElementById('dop-paid-only')?.checked ? '1' : '0';
+  const pam  = (document.getElementById('dop-s-pam')?.value  || '').trim();
+  const nama = (document.getElementById('dop-s-nama')?.value || '').trim();
+  url.searchParams.set('source',    source);
+  url.searchParams.set('paid_only', paidOnly);
+  if (pam)  url.searchParams.set('pam',  pam);
+  if (nama) url.searchParams.set('nama', nama);
   window.location.href = url.toString();
 }
 </script>
