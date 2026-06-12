@@ -488,6 +488,7 @@
       </select>
       <button id="sml-update-btn" class="btn btn-primary btn-sm" onclick="smlBulkUpdate()" disabled style="opacity:.5">Update Terpilih (0)</button>
       <button class="btn btn-secondary btn-sm" onclick="smlClearDates()">Reset Tanggal</button>
+      <button class="btn btn-success btn-sm" onclick="exportSmlExcel()">&#8595; Export Excel</button>
       <span id="sml-count" style="font-size:11px;color:#6b7280"></span>
     </div>
     <!-- Chip tags — selected rows persisten lintas search -->
@@ -3317,6 +3318,17 @@ function exportFioriExcel() {
   const search = (document.getElementById('fiori-search')?.value || '').trim();
   const bulan  = document.getElementById('fiori-filter-bulan')?.value || '';
   const tahun  = document.getElementById('fiori-filter-tahun')?.value || '';
+  if (search) url.searchParams.set('search', search);
+  if (bulan)  url.searchParams.set('bulan',  bulan);
+  if (tahun)  url.searchParams.set('tahun',  tahun);
+  window.location.href = url.toString();
+}
+
+function exportSmlExcel() {
+  const url    = new URL('/payment-memo/export/sml', window.location.origin);
+  const search = (document.getElementById('sml-search')?.value || '').trim();
+  const bulan  = document.getElementById('sml-filter-bulan')?.value || '';
+  const tahun  = document.getElementById('sml-filter-tahun')?.value || '';
   if (search) url.searchParams.set('search', search);
   if (bulan)  url.searchParams.set('bulan',  bulan);
   if (tahun)  url.searchParams.set('tahun',  tahun);

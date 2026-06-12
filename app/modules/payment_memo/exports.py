@@ -1715,3 +1715,16 @@ def export_fiori_excel(search: str = "", bulan: str = "", tahun: str = "") -> by
                "approval_1", "approval_2", "kirim_aspiro", "paid", "status"]
     widths  = [18, 14, 28, 14, 22, 14, 12, 12, 14, 12, 12, 12, 12, 10]
     return _make_xlsx("PAM APP", headers, fields, rows, widths)
+
+
+def export_sml_excel(search: str = "", bulan: str = "", tahun: str = "") -> bytes:
+    from modules.payment_memo.service import get_sml_list
+    rows    = get_sml_list(search, bulan, tahun)
+    headers = ["NO PA", "Category", "Keterangan", "Cat 1", "Nama Vendor",
+               "Total (Rp)", "Terima Doc", "Input Aspiro", "Verifikasi Tax",
+               "Approval 1", "Approval 2", "Kirim Aspiro", "Paid", "Status"]
+    fields  = ["no_pa", "category", "keterangan", "categori_1", "nama_vendor",
+               "total", "terima_document", "input_aspiro", "verifikasi_tax",
+               "approval_1", "approval_2", "kirim_aspiro", "paid", "status"]
+    widths  = [18, 14, 28, 14, 22, 14, 12, 12, 14, 12, 12, 12, 12, 10]
+    return _make_xlsx("PAM SML", headers, fields, rows, widths)

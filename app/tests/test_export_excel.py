@@ -92,3 +92,28 @@ def test_export_fiori_empty_returns_xlsx():
     result = export_fiori_excel(search="zzz_no_match_at_all")
     assert isinstance(result, bytes)
     assert result[:2] == b'PK'
+
+
+def test_export_sml_returns_xlsx():
+    from modules.payment_memo.exports import export_sml_excel
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO sml_pa (company_id, pa_number, no_pa, category, keterangan,
+           categori_1, nama_vendor, total, terima_document, approval_1, status,
+           created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (COMPANY_ID, "SML/2026/0001", "SML/2026/0001", "Vendor", "Keterangan B",
+         "Cat1", "PT Vendor Y", 3000000, "2026-05-01", "2026-05-10", "open",
+         "2026-05-01T00:00:00")
+    )
+    conn.commit(); conn.close()
+    result = export_sml_excel(search="", bulan="05", tahun="2026")
+    assert isinstance(result, bytes)
+    assert result[:2] == b'PK'
+
+
+def test_export_sml_empty_returns_xlsx():
+    from modules.payment_memo.exports import export_sml_excel
+    result = export_sml_excel(search="zzz_no_match_at_all")
+    assert isinstance(result, bytes)
+    assert result[:2] == b'PK'

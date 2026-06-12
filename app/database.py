@@ -491,6 +491,32 @@ def migrate_db():
         except Exception:
             pass
 
+    # sml_pa vendor payment tracking columns (for payment memo SML tab)
+    for _col in [
+        "no_pa TEXT",
+        "category TEXT",
+        "categori_1 TEXT",
+        "nomor_vendor TEXT",
+        "nama_vendor TEXT",
+        "mata_uang TEXT DEFAULT 'IDR'",
+        "dpp INTEGER DEFAULT 0",
+        "ppn INTEGER DEFAULT 0",
+        "total INTEGER DEFAULT 0",
+        "terima_document TEXT",
+        "input_aspiro TEXT",
+        "verifikasi_tax TEXT",
+        "approval_1 TEXT",
+        "approval_2 TEXT",
+        "approval_3 TEXT",
+        "kirim_aspiro TEXT",
+        "paid TEXT",
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE sml_pa ADD COLUMN {_col}")
+            conn.commit()
+        except Exception:
+            pass
+
     # sml_pa_lines table
     try:
         conn.execute(

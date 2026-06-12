@@ -25,6 +25,7 @@ from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
     export_pam_pdf_custom, export_pam_excel_custom,
     export_open_pam_excel, export_pam_tab_excel, export_fiori_excel,
+    export_sml_excel,
 )
 from datetime import datetime
 import config, io
@@ -417,6 +418,22 @@ def export_fiori_route():
     tahun  = request.args.get("tahun",  "").strip()
     xls   = export_fiori_excel(search, bulan, tahun)
     fname = f"PAM_APP_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        io.BytesIO(xls),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=fname,
+        as_attachment=True,
+    )
+
+
+@bp.route("/export/sml")
+@jwt_html_required
+def export_sml_route():
+    search = request.args.get("search", "").strip()
+    bulan  = request.args.get("bulan",  "").strip()
+    tahun  = request.args.get("tahun",  "").strip()
+    xls   = export_sml_excel(search, bulan, tahun)
+    fname = f"PAM_SML_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     return send_file(
         io.BytesIO(xls),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
