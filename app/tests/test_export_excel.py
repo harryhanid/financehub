@@ -131,3 +131,10 @@ def test_export_application_returns_xlsx():
     result = export_application_excel(COMPANY_ID, month=None, year=None)
     assert isinstance(result, bytes)
     assert result[:2] == b'PK'
+
+
+def test_export_pa_excel_returns_xlsx():
+    from modules.etf_payment_application.service import export_pa_excel
+    result = export_pa_excel(COMPANY_ID, tab="agri")
+    assert isinstance(result, bytes)
+    assert result[:2] == b'PK'

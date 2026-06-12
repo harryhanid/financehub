@@ -121,8 +121,17 @@ def lines(pa_id):
 @jwt_html_required
 def export_excel():
     company_id = session.get("company_id")
-    tab = _tab()
-    data = export_pa_excel(company_id, tab)
+    tab      = _tab()
+    sf       = request.args.get("sf",       "").strip()
+    nama     = request.args.get("nama",     "").strip()
+    jenjang  = request.args.get("jenjang",  "").strip()
+    program  = request.args.get("program",  "").strip()
+    angkatan = request.args.get("angkatan", "").strip()
+    jenis    = request.args.get("jenis",    "").strip()
+    pam      = request.args.get("pam",      "").strip()
+    bulan_pa = request.args.get("bulan_pa", "").strip()
+    tahun_pa = request.args.get("tahun_pa", "").strip()
+    data = export_pa_excel(company_id, tab, sf, nama, jenjang, program, angkatan, jenis, pam, bulan_pa, tahun_pa)
     from datetime import datetime
     fname = f"{tab.upper()}_PA_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     return Response(

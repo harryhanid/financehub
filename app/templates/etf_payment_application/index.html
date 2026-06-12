@@ -195,7 +195,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
       Full Screen
     </button>
-    <a href="/etf-payment-application/export-excel?tab={{ active_tab }}" class="btn btn-secondary">↓ Export Excel</a>
+    <button class="btn btn-secondary" onclick="exportETFExcel()">↓ Export Excel</button>
   </div>
 </div>
 
@@ -927,6 +927,31 @@ async function saveEdit() {
   const data = await resp.json();
   showToast(data.pesan, data.ok ? "success" : "error");
   if (data.ok) { closeModal("modal-edit-pa"); setTimeout(() => location.reload(), 800); }
+}
+
+function exportETFExcel() {
+  const url      = new URL('/etf-payment-application/export-excel', window.location.origin);
+  const tab      = new URLSearchParams(window.location.search).get('tab') || 'agri';
+  const sf       = document.getElementById('f-status')?.value   || '';
+  const nama     = (document.getElementById('f-nama')?.value    || '').trim();
+  const jenjang  = document.getElementById('f-jenjang')?.value  || '';
+  const program  = document.getElementById('f-program')?.value  || '';
+  const angkatan = document.getElementById('f-angkatan')?.value || '';
+  const jenis    = document.getElementById('f-jenis')?.value    || '';
+  const pam      = (document.getElementById('f-pam')?.value     || '').trim();
+  const bulanPa  = document.getElementById('f-bulan-pa')?.value || '';
+  const tahunPa  = document.getElementById('f-tahun-pa')?.value || '';
+  url.searchParams.set('tab', tab);
+  if (sf)       url.searchParams.set('sf',       sf);
+  if (nama)     url.searchParams.set('nama',     nama);
+  if (jenjang)  url.searchParams.set('jenjang',  jenjang);
+  if (program)  url.searchParams.set('program',  program);
+  if (angkatan) url.searchParams.set('angkatan', angkatan);
+  if (jenis)    url.searchParams.set('jenis',    jenis);
+  if (pam)      url.searchParams.set('pam',      pam);
+  if (bulanPa)  url.searchParams.set('bulan_pa', bulanPa);
+  if (tahunPa)  url.searchParams.set('tahun_pa', tahunPa);
+  window.location.href = url.toString();
 }
 </script>
 {% endblock %}

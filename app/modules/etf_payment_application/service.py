@@ -89,7 +89,10 @@ def get_pa_list(company_id: int, tab: str = "agri") -> list:
     return [dict(r) for r in rows]
 
 
-def get_pa_flat(company_id: int, tab: str = "agri", status_filter: str = "") -> list:
+def get_pa_flat(company_id: int, tab: str = "agri", status_filter: str = "",
+                nama: str = "", jenjang: str = "", program: str = "",
+                angkatan: str = "", jenis: str = "", pam: str = "",
+                bulan_pa: str = "", tahun_pa: str = "") -> list:
     pa_tbl, lines_tbl, *_ = _tbls(tab)
     conn = get_conn()
     extra_where = ""
@@ -99,6 +102,30 @@ def get_pa_flat(company_id: int, tab: str = "agri", status_filter: str = "") -> 
     elif status_filter:
         extra_where = " AND LOWER(p.status)=?"
         params.append(status_filter.lower())
+    if nama:
+        extra_where += " AND LOWER(s.nama) LIKE ?"
+        params.append(f"%{nama.lower()}%")
+    if jenjang:
+        extra_where += " AND s.jenjang=?"
+        params.append(jenjang)
+    if program:
+        extra_where += " AND s.program=?"
+        params.append(program)
+    if angkatan:
+        extra_where += " AND s.angkatan=?"
+        params.append(angkatan)
+    if jenis:
+        extra_where += " AND l.jenis_pembayaran=?"
+        params.append(jenis)
+    if pam:
+        extra_where += " AND p.nomor_pam LIKE ?"
+        params.append(f"%{pam}%")
+    if bulan_pa:
+        extra_where += " AND strftime('%m', p.tgl_payment_application)=?"
+        params.append(bulan_pa.zfill(2))
+    if tahun_pa:
+        extra_where += " AND strftime('%Y', p.tgl_payment_application)=?"
+        params.append(tahun_pa)
     rows = conn.execute(
         f"""SELECT
                   s.code             AS student_code,
@@ -210,12 +237,15 @@ def get_draft_lines_for_siswa(company_id: int, siswa_id: int, tab: str = "agri")
     return [dict(r) for r in rows]
 
 
-def export_pa_excel(company_id: int, tab: str = "agri") -> bytes:
+def export_pa_excel(company_id: int, tab: str = "agri",
+                    sf: str = "", nama: str = "", jenjang: str = "",
+                    program: str = "", angkatan: str = "", jenis: str = "",
+                    pam: str = "", bulan_pa: str = "", tahun_pa: str = "") -> bytes:
     import io
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
-    rows = get_pa_flat(company_id, tab)
+    rows = get_pa_flat(company_id, tab, sf, nama, jenjang, program, angkatan, jenis, pam, bulan_pa, tahun_pa)
     tab_label = tab.upper()
 
     wb = openpyxl.Workbook()
