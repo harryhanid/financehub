@@ -3219,5 +3219,16 @@ function exportPamTabExcel() {
   if (source) url.searchParams.set('source', source);
   window.location.href = url.toString();
 }
+
+function exportFioriExcel() {
+  const url    = new URL('/payment-memo/export/fiori', window.location.origin);
+  const search = (document.getElementById('fiori-search')?.value || '').trim();
+  const bulan  = document.getElementById('fiori-filter-bulan')?.value || '';
+  const tahun  = document.getElementById('fiori-filter-tahun')?.value || '';
+  if (search) url.searchParams.set('search', search);
+  if (bulan)  url.searchParams.set('bulan',  bulan);
+  if (tahun)  url.searchParams.set('tahun',  tahun);
+  window.location.href = url.toString();
+}
 </script>
 {% endblock %}

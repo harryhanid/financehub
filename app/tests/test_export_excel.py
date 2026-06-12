@@ -67,3 +67,21 @@ def test_export_pam_tab_returns_xlsx():
     conn.commit(); conn.close()
     result = export_pam_tab_excel(COMPANY_ID, search="", bulan="05", tahun="2026", source="agri")
     assert isinstance(result, bytes) and result[:2] == b'PK'
+
+
+def test_export_fiori_returns_xlsx():
+    from modules.payment_memo.exports import export_fiori_excel
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO fiori_pa
+           (no_pa, category, keterangan, categori_1, nama_vendor, total,
+            terima_document, input_aspiro, verifikasi_tax, approval_1, approval_2,
+            kirim_aspiro, paid, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        ("PA-APP-001", "Vendor", "Keterangan A", "Cat1", "PT Vendor ABC", 5000000,
+         "2026-05-10", "2026-05-11", "2026-05-12", "2026-05-13", "2026-05-14",
+         "2026-05-15", "2026-05-16", "open")
+    )
+    conn.commit(); conn.close()
+    result = export_fiori_excel(search="", bulan="05", tahun="2026")
+    assert isinstance(result, bytes) and result[:2] == b'PK'

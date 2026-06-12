@@ -656,6 +656,31 @@ def migrate_db():
         except Exception:
             pass
 
+    # fiori_pa table — APP (FIORI) PAM tracking
+    try:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS fiori_pa (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                no_pa            TEXT,
+                category         TEXT,
+                keterangan       TEXT,
+                categori_1       TEXT,
+                nama_vendor      TEXT,
+                total            REAL DEFAULT 0,
+                terima_document  TEXT,
+                input_aspiro     TEXT,
+                verifikasi_tax   TEXT,
+                approval_1       TEXT,
+                approval_2       TEXT,
+                kirim_aspiro     TEXT,
+                paid             TEXT,
+                status           TEXT DEFAULT 'open',
+                created_at       TEXT DEFAULT CURRENT_TIMESTAMP)"""
+        )
+        conn.commit()
+    except Exception:
+        pass
+
     conn.close()
 
 

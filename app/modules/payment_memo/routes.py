@@ -24,7 +24,7 @@ from modules.payment_memo.service import (
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
     export_pam_pdf_custom, export_pam_excel_custom,
-    export_open_pam_excel, export_pam_tab_excel,
+    export_open_pam_excel, export_pam_tab_excel, export_fiori_excel,
 )
 from datetime import datetime
 import config, io
@@ -401,6 +401,25 @@ def export_pam_tab_route():
     source = request.args.get("source", "").strip()
     xls   = export_pam_tab_excel(company_id, search, bulan, tahun, source)
     fname = f"PAM_AGRI_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        io.BytesIO(xls),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=fname,
+        as_attachment=True,
+    )
+
+
+@bp.route("/export/fiori")
+@jwt_html_required
+def export_fiori_route():
+    company_id = session.get("company_id")
+    if not company_id:
+        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
+    search = request.args.get("search", "").strip()
+    bulan  = request.args.get("bulan",  "").strip()
+    tahun  = request.args.get("tahun",  "").strip()
+    xls   = export_fiori_excel(search, bulan, tahun)
+    fname = f"PAM_APP_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     return send_file(
         io.BytesIO(xls),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
