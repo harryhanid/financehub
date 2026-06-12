@@ -1,10 +1,13 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session
+import io
+from datetime import datetime
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, send_file
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.payment_application.service import (
     get_applications, create_application, update_actual_payment
 )
 from modules.payment_memo.service import get_memo_list
+from modules.payment_application.exports import export_application_excel
 
 bp = Blueprint("payment_application", __name__, url_prefix="/payment-application")
 
@@ -74,3 +77,21 @@ def update_payment(app_id):
         return jsonify({"ok": False, "pesan": "Format tanggal tidak valid (YYYY-MM-DD)."}), 400
     result = update_actual_payment(app_id, actual_date, company_id=session.get("company_id", 0))
     return jsonify(result)
+
+
+@bp.route("/export")
+@jwt_html_required
+def export_route():
+    company_id = session.get("company_id")
+    if not company_id:
+        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
+    month = request.args.get("month", type=int)
+    year  = request.args.get("year",  type=int)
+    xls   = export_application_excel(company_id, month, year)
+    fname = f"Payment_Application_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(
+        io.BytesIO(xls),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=fname,
+        as_attachment=True,
+    )

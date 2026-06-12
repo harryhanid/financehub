@@ -124,3 +124,10 @@ def test_export_sla_returns_xlsx():
     result = export_sla_excel(company_id=COMPANY_ID, source="AGRI", paid_only=False, pam=None, nama=None)
     assert isinstance(result, bytes)
     assert result[:2] == b'PK'
+
+
+def test_export_application_returns_xlsx():
+    from modules.payment_application.exports import export_application_excel
+    result = export_application_excel(COMPANY_ID, month=None, year=None)
+    assert isinstance(result, bytes)
+    assert result[:2] == b'PK'

@@ -68,6 +68,7 @@
     <a href="?" class="btn btn-secondary btn-sm pa-filter-reset">Reset</a>
     {% endif %}
   </form>
+  <button class="btn btn-success btn-sm" onclick="exportPaExcel()">&#8595; Export Excel</button>
 </div>
 
 <div class="table-wrap" style="overflow-x:auto; width:100%;">
@@ -212,6 +213,15 @@ async function saveActualPayment() {
   const data = await resp.json();
   showToast(data.pesan, data.ok ? "success" : "error");
   if (data.ok) { closeModal("modal-update-payment"); setTimeout(() => location.reload(), 800); }
+}
+
+function exportPaExcel() {
+  const url   = new URL('/payment-application/export', window.location.origin);
+  const month = document.querySelector('select[name="month"]')?.value || '';
+  const year  = document.querySelector('select[name="year"]')?.value  || '';
+  if (month) url.searchParams.set('month', month);
+  if (year)  url.searchParams.set('year',  year);
+  window.location.href = url.toString();
 }
 </script>
 {% endblock %}
