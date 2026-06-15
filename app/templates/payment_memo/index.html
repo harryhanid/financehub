@@ -2593,6 +2593,16 @@ function dmRenderForm(p) {
     _dmPayments.map(pb => (pb.nama || pb.siswa_code || '').trim()).filter(Boolean)
   )].join(', ') || 'Terlampir';
 
+  const bankAccountNames = [...new Set(
+    _dmPayments.map(pb => (pb.namarek || '').trim()).filter(Boolean)
+  )].join(', ') || 'Terlampir';
+  const bankNames = [...new Set(
+    _dmPayments.map(pb => (pb.bank || '').trim()).filter(Boolean)
+  )].join(', ') || 'Terlampir';
+  const bankAccountNos = [...new Set(
+    _dmPayments.map(pb => (pb.norek || '').trim()).filter(Boolean)
+  )].join(', ') || 'Terlampir';
+
   return `
   <div style="border:1px solid #94a3b8;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;max-width:860px">
     <div style="background:#1e3a5f;color:#fff;text-align:center;font-size:14px;font-weight:900;padding:10px;letter-spacing:2px;border-bottom:3px solid #f59e0b">PAYMENT APPROVAL MEMO</div>
@@ -2632,9 +2642,9 @@ function dmRenderForm(p) {
       </div>
     </div>
     ${sectionH('Vendor Bank Account Details')}
-    ${field('Bank Account Name',   inp('dm-f-bank-name', 'Terlampir'))}
-    ${field('Bank Name',           inp('dm-f-bank',      'Terlampir'))}
-    ${field('Bank Account Number', inp('dm-f-bank-no',   'Terlampir'))}
+    ${field('Bank Account Name',   inp('dm-f-bank-name', bankAccountNames))}
+    ${field('Bank Name',           inp('dm-f-bank',      bankNames))}
+    ${field('Bank Account Number', inp('dm-f-bank-no',   bankAccountNos))}
     <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #e2e8f0">
       <div style="padding:8px 10px;border-right:1px solid #e2e8f0">
         <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Request by</div>
