@@ -548,6 +548,8 @@ def sml_cancel(record_id):
 def pam_by_pillar(pillar):
     """Return pam_records + lines for the given pillar (AGRI/APP/LAND/SETF)."""
     company_id = session.get("company_id")
+    if not company_id:
+        return jsonify({"ok": False, "pesan": "Company belum dipilih."}), 400
     search     = request.args.get("search", "").strip()
     bulan      = request.args.get("bulan", "").strip()
     tahun      = request.args.get("tahun", "").strip()
@@ -563,6 +565,11 @@ def update_pam_lines(pam_id):
     data       = request.get_json(force=True) or {}
     pillar     = data.pop("pillar", "").upper()
     result     = upsert_pam_lines(pam_id, pillar, data, company_id)
+    if not result.get("ok"):
+        pesan = result.get("pesan", "")
+        if "tidak ditemukan" in pesan.lower():
+            return jsonify(result), 404
+        return jsonify(result), 400
     return jsonify(result)
 
 
