@@ -8,6 +8,9 @@
 .dm-inp[type=number]{text-align:right}
 .dm-inp[type=date]{font-size:10px}
 .dm-cb{width:14px;height:14px;cursor:pointer;accent-color:#1e3a5f;flex-shrink:0}
+/* Pillar tabs — scrollable table with frozen header */
+.pillar-table-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 220px)}
+.pillar-table-wrap .thead-primary th{position:sticky;top:0;z-index:3}
 </style>
 {% endblock %}
 
@@ -202,9 +205,25 @@
         <option value="2025">2025</option><option value="2026">2026</option>
         <option value="2027">2027</option>
       </select>
+      <select id="pam-filter-status" onchange="loadPAMDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+        <option value="">Semua Status</option>
+        <option value="open">Open</option>
+        <option value="on_process">On Process</option>
+        <option value="complete">Complete</option>
+      </select>
+      <select id="pam-filter-source" onchange="loadPAMDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+        <option value="">Semua Source</option>
+        <option value="beasiswa">Beasiswa</option>
+        <option value="etf">ETF</option>
+        <option value="tagihan">Tagihan</option>
+        <option value="sponsor">Sponsor</option>
+        <option value="others">Others</option>
+      </select>
       <button class="btn btn-success btn-sm" onclick="exportPamTabExcel()">↓ Export Excel</button>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="pillar-table-wrap">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead class="thead-primary">
           <tr>
@@ -415,10 +434,26 @@
         <option value="2024">2024</option><option value="2025">2025</option>
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
+      <select id="fiori-filter-status" onchange="loadFIORIDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+        <option value="">Semua Status</option>
+        <option value="open">Open</option>
+        <option value="on_process">On Process</option>
+        <option value="complete">Complete</option>
+      </select>
+      <select id="fiori-filter-source" onchange="loadFIORIDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+        <option value="">Semua Source</option>
+        <option value="beasiswa">Beasiswa</option>
+        <option value="etf">ETF</option>
+        <option value="tagihan">Tagihan</option>
+        <option value="sponsor">Sponsor</option>
+        <option value="others">Others</option>
+      </select>
       <button class="btn btn-success btn-sm" onclick="exportFioriExcel()">&#8595; Export Excel</button>
       <span id="fiori-count" style="font-size:11px;color:#6b7280"></span>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="pillar-table-wrap">
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
@@ -478,10 +513,26 @@
         <option value="2024">2024</option><option value="2025">2025</option>
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
+      <select id="sml-filter-status" onchange="loadSMLDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+        <option value="">Semua Status</option>
+        <option value="open">Open</option>
+        <option value="on_process">On Process</option>
+        <option value="complete">Complete</option>
+      </select>
+      <select id="sml-filter-source" onchange="loadSMLDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+        <option value="">Semua Source</option>
+        <option value="beasiswa">Beasiswa</option>
+        <option value="etf">ETF</option>
+        <option value="tagihan">Tagihan</option>
+        <option value="sponsor">Sponsor</option>
+        <option value="others">Others</option>
+      </select>
       <button class="btn btn-success btn-sm" onclick="exportSmlExcel()">&#8595; Export Excel</button>
       <span id="sml-count" style="font-size:11px;color:#6b7280"></span>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="pillar-table-wrap">
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
@@ -541,9 +592,25 @@
         <option value="2024">2024</option><option value="2025">2025</option>
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
+      <select id="setf-filter-status" onchange="loadSETFDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+        <option value="">Semua Status</option>
+        <option value="open">Open</option>
+        <option value="on_process">On Process</option>
+        <option value="complete">Complete</option>
+      </select>
+      <select id="setf-filter-source" onchange="loadSETFDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+        <option value="">Semua Source</option>
+        <option value="beasiswa">Beasiswa</option>
+        <option value="etf">ETF</option>
+        <option value="tagihan">Tagihan</option>
+        <option value="sponsor">Sponsor</option>
+        <option value="others">Others</option>
+      </select>
       <span id="setf-count" style="font-size:11px;color:#6b7280"></span>
     </div>
-    <div style="overflow-x:auto;">
+    <div class="pillar-table-wrap">
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
@@ -1000,11 +1067,13 @@ let _smlDebounce;
 function loadSMLDebounced() { clearTimeout(_smlDebounce); _smlDebounce = setTimeout(loadSML, 300); }
 
 async function loadSML() {
-  const search = (document.getElementById('sml-search')?.value || '').trim();
-  const bulan  = (document.getElementById('sml-filter-bulan')?.value || '');
-  const tahun  = (document.getElementById('sml-filter-tahun')?.value || '');
-  const params = new URLSearchParams({ search, bulan, tahun });
-  const res    = await apiFetch('/payment-memo/by-pillar/LAND?' + params);
+  const search  = (document.getElementById('sml-search')?.value || '').trim();
+  const bulan   = (document.getElementById('sml-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('sml-filter-tahun')?.value || '');
+  const status  = (document.getElementById('sml-filter-status')?.value || '');
+  const source  = (document.getElementById('sml-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const res     = await apiFetch('/payment-memo/by-pillar/LAND?' + params);
   if (!res) return;
   const data   = await res.json();
   const tbody  = document.getElementById('sml-tbody');
@@ -1225,11 +1294,13 @@ async function smlCancel(id) {
 let _setfDebounce;
 function loadSETFDebounced() { clearTimeout(_setfDebounce); _setfDebounce = setTimeout(loadSETF, 300); }
 async function loadSETF() {
-  const search = (document.getElementById('setf-search')?.value || '').trim();
-  const bulan  = (document.getElementById('setf-filter-bulan')?.value || '');
-  const tahun  = (document.getElementById('setf-filter-tahun')?.value || '');
-  const params = new URLSearchParams({ search, bulan, tahun });
-  const res    = await apiFetch('/payment-memo/by-pillar/SETF?' + params);
+  const search  = (document.getElementById('setf-search')?.value || '').trim();
+  const bulan   = (document.getElementById('setf-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('setf-filter-tahun')?.value || '');
+  const status  = (document.getElementById('setf-filter-status')?.value || '');
+  const source  = (document.getElementById('setf-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const res     = await apiFetch('/payment-memo/by-pillar/SETF?' + params);
   if (!res) return;
   const data   = await res.json();
   const tbody  = document.getElementById('setf-tbody');
@@ -1278,11 +1349,13 @@ let _fioriDebounce;
 function loadFIORIDebounced() { clearTimeout(_fioriDebounce); _fioriDebounce = setTimeout(loadFIORI, 300); }
 
 async function loadFIORI() {
-  const search = (document.getElementById('fiori-search')?.value || '').trim();
-  const bulan  = (document.getElementById('fiori-filter-bulan')?.value || '');
-  const tahun  = (document.getElementById('fiori-filter-tahun')?.value || '');
-  const params = new URLSearchParams({ search, bulan, tahun });
-  const res    = await apiFetch('/payment-memo/by-pillar/APP?' + params);
+  const search  = (document.getElementById('fiori-search')?.value || '').trim();
+  const bulan   = (document.getElementById('fiori-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('fiori-filter-tahun')?.value || '');
+  const status  = (document.getElementById('fiori-filter-status')?.value || '');
+  const source  = (document.getElementById('fiori-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const res     = await apiFetch('/payment-memo/by-pillar/APP?' + params);
   if (!res) return;
   const data   = await res.json();
   const tbody  = document.getElementById('fiori-tbody');
@@ -1698,11 +1771,13 @@ let _pamDebounce;
 function loadPAMDebounced() { clearTimeout(_pamDebounce); _pamDebounce = setTimeout(loadPAM, 300); }
 async function loadPAM() {
   await loadCOA();
-  const search = (document.getElementById('pam-search')?.value || '').trim();
-  const bulan  = (document.getElementById('pam-filter-bulan')?.value || '');
-  const tahun  = (document.getElementById('pam-filter-tahun')?.value || '');
-  const params = new URLSearchParams({ search, bulan, tahun });
-  const res    = await apiFetch('/payment-memo/by-pillar/AGRI?' + params);
+  const search  = (document.getElementById('pam-search')?.value || '').trim();
+  const bulan   = (document.getElementById('pam-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('pam-filter-tahun')?.value || '');
+  const status  = (document.getElementById('pam-filter-status')?.value || '');
+  const source  = (document.getElementById('pam-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const res     = await apiFetch('/payment-memo/by-pillar/AGRI?' + params);
   if (!res) return;
   const data   = await res.json();
   const tbody  = document.getElementById('pam-tbody');

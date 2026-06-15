@@ -553,7 +553,9 @@ def pam_by_pillar(pillar):
     search     = request.args.get("search", "").strip()
     bulan      = request.args.get("bulan", "").strip()
     tahun      = request.args.get("tahun", "").strip()
-    rows       = get_pam_by_pillar(company_id, pillar.upper(), search, bulan, tahun)
+    status     = request.args.get("status", "").strip()
+    source     = request.args.get("source", "").strip()
+    rows       = get_pam_by_pillar(company_id, pillar.upper(), search, bulan, tahun, status, source)
     return jsonify({"ok": True, "rows": rows})
 
 

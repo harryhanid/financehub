@@ -244,7 +244,8 @@ _IPAY_PAM_PREFIX = {
 
 
 def get_pam_by_pillar(company_id: int, pillar: str,
-                      search: str = "", bulan: str = "", tahun: str = "") -> list:
+                      search: str = "", bulan: str = "", tahun: str = "",
+                      status: str = "", source: str = "") -> list:
     """Return pam_records LEFT JOIN {pillar}_pam_lines filtered by pillar."""
     if pillar not in _VALID_PILLARS:
         return []
@@ -271,6 +272,12 @@ def get_pam_by_pillar(company_id: int, pillar: str,
     if tahun:
         sql    += " AND strftime('%Y', pr.pam_date) = ?"
         params += [tahun]
+    if status:
+        sql    += " AND pr.status = ?"
+        params += [status]
+    if source:
+        sql    += " AND pr.source = ?"
+        params += [source]
     sql += " ORDER BY pr.pam_date DESC"
     conn = get_conn()
     rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
