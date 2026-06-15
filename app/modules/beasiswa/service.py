@@ -324,92 +324,116 @@ def add_payment_batch(company_id: int, siswa_code: str, tanggal: str,
     return {"ok": True, "pesan": f"{saved} payment berhasil disimpan (status: open).", "saved": saved}
 
 
-def add_payment_multi(company_id: int, company_code: str, tanggal: str,
-                      pillar: str, perusahaan: str, rows: list) -> dict:
-    conn  = get_conn()
+def insert_payment_rows(conn, company_id: int, company_code: str,
+                        tanggal: str, pillar: str, perusahaan: str,
+                        rows: list) -> dict:
+    """Insert payment_beasiswa rows and update linked PA status → on_process.
+
+    Caller owns conn (no commit, no close here). Does NOT create pam_record.
+    Returns {"ok": bool, "payment_ids": list, "total": float, "pa_line_ids": list}.
+    """
     saved = 0
     payment_ids: list = []
     total = 0.0
 
-    try:
-        for row in rows:
-            try:
-                amount = float(str(row.get("amount", 0)).replace(",", ""))
-            except (ValueError, TypeError):
-                amount = 0
-            if amount <= 0:
-                continue
+    for row in rows:
+        try:
+            amount = float(str(row.get("amount", 0)).replace(",", ""))
+        except (ValueError, TypeError):
+            amount = 0
+        if amount <= 0:
+            continue
 
-            # Validate rekam_medis required for By Medical
-            if row.get("cat1") == "By Medical" and row.get("cat2") in _CAT2_MEDICAL:
-                rm = row.get("rekam_medis") or {}
-                if not rm.get("kelas") or not rm.get("rumah_sakit") or \
-                   not rm.get("diagnosa") or not rm.get("spesialisasi"):
-                    conn.close()
-                    return {"ok": False,
-                            "pesan": "Data rekam medis wajib diisi (kelas, rumah sakit, diagnosa, spesialisasi).",
-                            "saved": 0}
+        if row.get("cat1") == "By Medical" and row.get("cat2") in _CAT2_MEDICAL:
+            rm = row.get("rekam_medis") or {}
+            if not rm.get("kelas") or not rm.get("rumah_sakit") or \
+               not rm.get("diagnosa") or not rm.get("spesialisasi"):
+                return {"ok": False,
+                        "pesan": "Data rekam medis wajib diisi (kelas, rumah sakit, diagnosa, spesialisasi).",
+                        "payment_ids": [], "total": 0.0, "pa_line_ids": []}
 
-            siswa_code = (row.get("siswa_code") or "").strip()
-            etf_pa_line_id = row.get("etf_pa_line_id") or None
-            cur = conn.execute(
-                """INSERT INTO payment_beasiswa
-                   (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,
-                    tgl_pengajuan,tgl_receive,tgl_pa,tgl_final,cat3,cat4,etf_pa_line_id,status)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'open')""",
-                (company_id, siswa_code,
-                 row.get("cat1", ""), row.get("cat2", ""),
-                 tanggal, amount, pillar, perusahaan,
-                 row.get("tgl_pengajuan", ""), row.get("tgl_receive", ""),
-                 row.get("tgl_pa", ""),   row.get("tgl_final", ""),
-                 row.get("cat3", ""),     row.get("cat4", ""),
-                 etf_pa_line_id)
+        siswa_code     = (row.get("siswa_code") or "").strip()
+        etf_pa_line_id = row.get("etf_pa_line_id") or None
+        cur = conn.execute(
+            """INSERT INTO payment_beasiswa
+               (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,
+                tgl_pengajuan,tgl_receive,tgl_pa,tgl_final,cat3,cat4,etf_pa_line_id,status)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'open')""",
+            (company_id, siswa_code,
+             row.get("cat1", ""), row.get("cat2", ""),
+             tanggal, amount, pillar, perusahaan,
+             row.get("tgl_pengajuan", ""), row.get("tgl_receive", ""),
+             row.get("tgl_pa", ""),        row.get("tgl_final", ""),
+             row.get("cat3", ""),          row.get("cat4", ""),
+             etf_pa_line_id)
+        )
+        payment_ids.append(cur.lastrowid)
+        total += amount
+        saved += 1
+
+        if row.get("cat1") == "By Medical" and row.get("cat2") in _CAT2_MEDICAL:
+            rm = row.get("rekam_medis", {})
+            conn.execute(
+                """INSERT INTO rekam_medis
+                   (company_id, payment_id, siswa_code, kelas, rumah_sakit,
+                    diagnosa, spesialisasi, catatan)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (company_id, cur.lastrowid, siswa_code,
+                 rm.get("kelas", ""),    rm.get("rumah_sakit", ""),
+                 rm.get("diagnosa", ""), rm.get("spesialisasi", ""),
+                 rm.get("catatan", "") or None)
             )
-            payment_ids.append(cur.lastrowid)
-            total += amount
-            saved += 1
 
-            # Insert rekam_medis for By Medical rows
-            if row.get("cat1") == "By Medical" and row.get("cat2") in _CAT2_MEDICAL:
-                rm = row.get("rekam_medis", {})
-                conn.execute(
-                    """INSERT INTO rekam_medis
-                       (company_id, payment_id, siswa_code, kelas, rumah_sakit,
-                        diagnosa, spesialisasi, catatan)
-                       VALUES (?,?,?,?,?,?,?,?)""",
-                    (company_id, cur.lastrowid, siswa_code,
-                     rm.get("kelas", ""),    rm.get("rumah_sakit", ""),
-                     rm.get("diagnosa", ""), rm.get("spesialisasi", ""),
-                     rm.get("catatan", "") or None)
-                )
+    if saved == 0:
+        return {"ok": False, "pesan": "Tidak ada item dengan amount > 0.",
+                "payment_ids": [], "total": 0.0, "pa_line_ids": []}
 
-        if saved == 0:
-            conn.close()
-            return {"ok": False, "pesan": "Tidak ada item dengan amount > 0.", "saved": 0}
+    pa_line_ids = [
+        row.get("etf_pa_line_id")
+        for row in rows
+        if row.get("etf_pa_line_id") and
+           float(str(row.get("amount", 0)).replace(",", "") or 0) > 0
+    ]
+    if pa_line_ids:
+        ph = ",".join("?" * len(pa_line_ids))
+        ts_op = _ts()
+        for lines_tbl, pa_tbl in [
+            ("etf_pa_lines", "etf_pa"),
+            ("app_pa_lines", "app_pa"),
+            ("sml_pa_lines", "sml_pa"),
+        ]:
+            conn.execute(
+                f"""UPDATE {pa_tbl} SET status = 'on_process', updated_at = ?
+                    WHERE id IN (
+                        SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})
+                    ) AND company_id = ? AND status = 'open'""",
+                [ts_op] + pa_line_ids + [company_id]
+            )
 
-        # Update etf_pa status → on_process untuk PA yang di-referensi
-        pa_line_ids = [
-            row.get("etf_pa_line_id")
-            for row in rows
-            if row.get("etf_pa_line_id") and float(str(row.get("amount", 0)).replace(",", "") or 0) > 0
-        ]
-        if pa_line_ids:
-            ph = ",".join("?" * len(pa_line_ids))
-            ts_op = _ts()
-            for lines_tbl, pa_tbl in [
-                ("etf_pa_lines", "etf_pa"),
-                ("app_pa_lines", "app_pa"),
-                ("sml_pa_lines", "sml_pa"),
-            ]:
-                conn.execute(
-                    f"""UPDATE {pa_tbl} SET status = 'on_process', updated_at = ?
-                        WHERE id IN (
-                            SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})
-                        ) AND company_id = ? AND status = 'open'""",
-                    [ts_op] + pa_line_ids + [company_id]
-                )
+    return {
+        "ok":         True,
+        "pesan":      f"{saved} payment berhasil disimpan.",
+        "payment_ids": payment_ids,
+        "total":       total,
+        "pa_line_ids": pa_line_ids,
+    }
 
-        # Collect student names for keterangan
+
+def add_payment_multi(company_id: int, company_code: str, tanggal: str,
+                      pillar: str, perusahaan: str, rows: list) -> dict:
+    conn = get_conn()
+    try:
+        ins = insert_payment_rows(conn, company_id, company_code,
+                                  tanggal, pillar, perusahaan, rows)
+        if not ins["ok"]:
+            return ins
+
+        payment_ids  = ins["payment_ids"]
+        total        = ins["total"]
+        pa_line_ids  = ins["pa_line_ids"]
+        saved        = len(payment_ids)
+
+        # Collect student names for auto keterangan
         unique_codes = list({
             (row.get("siswa_code") or "").strip()
             for row in rows
@@ -417,9 +441,9 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
         })
         name_rows = []
         if unique_codes:
-            placeholders = ",".join("?" * len(unique_codes))
+            ph = ",".join("?" * len(unique_codes))
             name_rows = conn.execute(
-                f"SELECT nama FROM siswa WHERE company_id=? AND code IN ({placeholders})",
+                f"SELECT nama FROM siswa WHERE company_id=? AND code IN ({ph})",
                 [company_id] + unique_codes,
             ).fetchall()
         keterangan = ", ".join(r["nama"] for r in name_rows) if name_rows else ""
@@ -432,7 +456,6 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
             "payment_ids":  payment_ids,
         })
 
-        # Fill nomor_pam in all linked PA tables
         if pa_line_ids and pam_no:
             ph = ",".join("?" * len(pa_line_ids))
             ts_pam = _ts()

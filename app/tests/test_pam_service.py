@@ -419,3 +419,23 @@ def test_bulk_update_dates_wrong_company_not_updated():
     r = conn2.execute("SELECT tgl_receive FROM payment_beasiswa WHERE id=?", (row_id,)).fetchone()
     conn2.close()
     assert r["tgl_receive"] == "2026-04-01"   # unchanged
+
+
+def test_insert_payment_rows_returns_ids_and_total():
+    from modules.beasiswa.service import insert_payment_rows
+    conn = get_conn()
+    rows = [
+        {"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+         "amount": 5_000_000},
+        {"siswa_code": "S002", "cat1": "By Pendidikan", "cat2": "Semester 2",
+         "amount": 3_000_000},
+    ]
+    result = insert_payment_rows(conn, COMPANY_ID, COMPANY_CODE,
+                                  "2026-06-15", "ETF", "PT. ABC", rows)
+    conn.commit()
+    assert result["ok"] is True
+    assert len(result["payment_ids"]) == 2
+    assert result["total"] == 8_000_000
+    count = conn.execute("SELECT COUNT(*) FROM pam_records").fetchone()[0]
+    conn.close()
+    assert count == 0
