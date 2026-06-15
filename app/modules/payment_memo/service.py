@@ -231,6 +231,7 @@ _PILLAR_LINES_TABLE = {
     "SETF": "setf_pam_lines",
 }
 _VALID_PILLARS = set(_PILLAR_LINES_TABLE)
+_JENJANG_SORT = {"S3": 0, "S2": 1, "S1": 2}
 
 
 # Tab → pam_prefix mapping (mirrors etf_payment_application._TAB_CFG)
@@ -672,19 +673,32 @@ def get_pam_detail(pam_id: int, company_id: int) -> dict | None:
 
 
 def get_pam_payments(pam_no: str, company_id: int) -> list:
+    from collections import defaultdict
     conn = get_conn()
     rows = [dict(r) for r in conn.execute(
         """SELECT pb.id, pb.siswa_code, pb.cat1, pb.cat2,
                   pb.amount, pb.tanggal,
-                  s.nama, s.bank, s.norek, s.namarek
+                  s.nama, s.bank, s.norek, s.namarek, s.jenjang
            FROM payment_beasiswa pb
            LEFT JOIN siswa s
              ON s.company_id = pb.company_id AND s.code = pb.siswa_code
-           WHERE pb.pam = ? AND pb.company_id = ?
-           ORDER BY pb.id""",
+           WHERE pb.pam = ? AND pb.company_id = ?""",
         (pam_no, company_id)
     ).fetchall()]
     conn.close()
+    if not rows:
+        return rows
+    totals: dict = defaultdict(float)
+    jenjang_of: dict = {}
+    for r in rows:
+        code = r.get("siswa_code") or ""
+        totals[code] += float(r.get("amount") or 0)
+        if code not in jenjang_of:
+            jenjang_of[code] = (r.get("jenjang") or "").upper()
+    rows.sort(key=lambda r: (
+        _JENJANG_SORT.get(jenjang_of.get(r.get("siswa_code") or "", ""), 99),
+        -totals.get(r.get("siswa_code") or "", 0.0),
+    ))
     return rows
 
 
