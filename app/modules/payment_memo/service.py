@@ -224,6 +224,15 @@ def _add_one_month(date_str: str) -> str:
         return date_str
 
 
+_VALID_PILLARS = {"AGRI", "APP", "LAND", "SETF"}
+_PILLAR_LINES_TABLE = {
+    "AGRI": "agri_pam_lines",
+    "APP":  "app_pam_lines",
+    "LAND": "land_pam_lines",
+    "SETF": "setf_pam_lines",
+}
+
+
 # Tab → pam_prefix mapping (mirrors etf_payment_application._TAB_CFG)
 _IPAY_PAM_PREFIX = {
     "agri":  "ETF",
@@ -231,6 +240,80 @@ _IPAY_PAM_PREFIX = {
     "sml":   "SML",
     "setf":  "SETF",
 }
+
+
+def get_pam_by_pillar(company_id: int, pillar: str,
+                      search: str = "", bulan: str = "", tahun: str = "") -> list:
+    """Return pam_records LEFT JOIN {pillar}_pam_lines filtered by pillar."""
+    if pillar not in _VALID_PILLARS:
+        return []
+    tbl = _PILLAR_LINES_TABLE[pillar]
+    sql = f"""
+        SELECT pr.*,
+               pl.id         AS lines_id,
+               pl.no_vendor, pl.nama_vendor,
+               pl.tgl_terima_doc, pl.tgl_proses, pl.tgl_verifikasi_tax,
+               pl.tgl_approval_1, pl.tgl_approval_2, pl.tgl_approval_3,
+               pl.tgl_kirim
+        FROM pam_records pr
+        LEFT JOIN {tbl} pl ON pl.pam_id = pr.id
+        WHERE pr.company_id = ? AND pr.pillar = ?
+    """
+    params = [company_id, pillar]
+    if search:
+        q       = f"%{search}%"
+        sql    += " AND (pr.pam_no LIKE ? OR pr.pt LIKE ? OR pr.keterangan LIKE ?)"
+        params += [q, q, q]
+    if bulan:
+        sql    += " AND strftime('%m', pr.pam_date) = ?"
+        params += [bulan.zfill(2)]
+    if tahun:
+        sql    += " AND strftime('%Y', pr.pam_date) = ?"
+        params += [tahun]
+    sql += " ORDER BY pr.pam_date DESC"
+    conn = get_conn()
+    rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
+    conn.close()
+    return rows
+
+
+def upsert_pam_lines(pam_id: int, pillar: str, data: dict, company_id: int) -> dict:
+    """Insert or update one lines row for the given pam_id and pillar."""
+    if pillar not in _VALID_PILLARS:
+        return {"ok": False, "pesan": f"Pillar tidak valid: {pillar}"}
+    tbl = _PILLAR_LINES_TABLE[pillar]
+    ALLOWED = {"no_vendor", "nama_vendor", "tgl_terima_doc", "tgl_proses",
+               "tgl_verifikasi_tax", "tgl_approval_1", "tgl_approval_2",
+               "tgl_approval_3", "tgl_kirim"}
+    fields = {k: v for k, v in data.items() if k in ALLOWED}
+    if not fields:
+        return {"ok": False, "pesan": "Tidak ada field yang valid."}
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT id FROM pam_records WHERE id=? AND company_id=?",
+        (pam_id, company_id)
+    ).fetchone()
+    if not pam:
+        conn.close()
+        return {"ok": False, "pesan": "PAM tidak ditemukan."}
+    existing = conn.execute(
+        f"SELECT id FROM {tbl} WHERE pam_id=?", (pam_id,)
+    ).fetchone()
+    now = _ts()
+    if existing:
+        set_clause = ", ".join(f"{k}=?" for k in fields)
+        vals       = list(fields.values()) + [now, pam_id]
+        conn.execute(
+            f"UPDATE {tbl} SET {set_clause}, updated_at=? WHERE pam_id=?", vals
+        )
+    else:
+        cols = ", ".join(["pam_id"] + list(fields.keys()) + ["created_at"])
+        ph   = ", ".join(["?"] * (len(fields) + 2))
+        vals = [pam_id] + list(fields.values()) + [now]
+        conn.execute(f"INSERT INTO {tbl} ({cols}) VALUES ({ph})", vals)
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 
 def get_next_pam_no(company_id: int, company_code: str,
