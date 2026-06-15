@@ -224,13 +224,13 @@ def _add_one_month(date_str: str) -> str:
         return date_str
 
 
-_VALID_PILLARS = {"AGRI", "APP", "LAND", "SETF"}
 _PILLAR_LINES_TABLE = {
     "AGRI": "agri_pam_lines",
     "APP":  "app_pam_lines",
     "LAND": "land_pam_lines",
     "SETF": "setf_pam_lines",
 }
+_VALID_PILLARS = set(_PILLAR_LINES_TABLE)
 
 
 # Tab → pam_prefix mapping (mirrors etf_payment_application._TAB_CFG)
@@ -290,8 +290,8 @@ def upsert_pam_lines(pam_id: int, pillar: str, data: dict, company_id: int) -> d
         return {"ok": False, "pesan": "Tidak ada field yang valid."}
     conn = get_conn()
     pam = conn.execute(
-        "SELECT id FROM pam_records WHERE id=? AND company_id=?",
-        (pam_id, company_id)
+        "SELECT id FROM pam_records WHERE id=? AND company_id=? AND pillar=?",
+        (pam_id, company_id, pillar)
     ).fetchone()
     if not pam:
         conn.close()
