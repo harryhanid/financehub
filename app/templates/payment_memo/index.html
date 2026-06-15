@@ -3082,7 +3082,7 @@ function ipayValidatePamNo() {
     if (btn) btn.disabled = false;
   } else {
     pamEl.style.borderColor = "#dc2626";
-    if (hint) { hint.style.display = "block"; hint.textContent = "Format: PAM-054-AGRI-06-2026"; }
+    if (hint) { hint.style.display = "block"; hint.textContent = "Format: PAM-054-ETF-06-2026"; }
     if (btn) btn.disabled = true;
   }
 }
@@ -3502,20 +3502,20 @@ async function ipaySavePa() {
   if (badge && badge.style.display !== "none") {
     const saveBtn = document.getElementById("ipay-save-btn");
     if (saveBtn) saveBtn.disabled = true;
-    const chkRes = await apiFetch(`/payment-memo/pam/check?pam_no=${encodeURIComponent(pam_no)}`);
-    if (chkRes) {
-      const chk = await chkRes.json();
-      if (chk.exists) {
-        const hint  = document.getElementById("ipay-pam-hint");
-        const pamEl = document.getElementById("ipay-pam-full");
-        const btn   = document.getElementById("ipay-save-btn");
-        if (pamEl) pamEl.style.borderColor = "#dc2626";
-        if (hint)  { hint.style.display = "block"; hint.textContent = "PAM ini sudah terdaftar"; }
-        if (btn)   btn.disabled = true;
-        showToast("No. PAM sudah terdaftar.", "error"); return;
+    try {
+      const chkRes = await apiFetch(`/payment-memo/pam/check?pam_no=${encodeURIComponent(pam_no)}`);
+      if (chkRes) {
+        const chk = await chkRes.json();
+        if (chk.exists) {
+          const hint  = document.getElementById("ipay-pam-hint");
+          const pamEl = document.getElementById("ipay-pam-full");
+          if (pamEl) pamEl.style.borderColor = "#dc2626";
+          if (hint)  { hint.style.display = "block"; hint.textContent = "PAM ini sudah terdaftar"; }
+          if (saveBtn) saveBtn.disabled = true;
+          showToast("No. PAM sudah terdaftar.", "error"); return;
+        }
       }
-      if (saveBtn) saveBtn.disabled = false;
-    } else {
+    } finally {
       if (saveBtn) saveBtn.disabled = false;
     }
   }
