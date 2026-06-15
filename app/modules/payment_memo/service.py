@@ -716,7 +716,8 @@ def get_pam_payments_detail(pam_no: str, company_id: int) -> list:
                WHEN 'S2' THEN 2
                WHEN 'S1' THEN 3
                ELSE 99
-           END, pb.siswa_code, pb.id""",
+           END, pb.siswa_code, pb.id
+           -- approximate pre-sort only; Python sort below is authoritative""",
         (pam_no, company_id)
     ).fetchall()]
     if not pay_rows:
