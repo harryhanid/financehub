@@ -1257,6 +1257,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
     _C    = Alignment(horizontal="center", vertical="center", wrap_text=True)
     _CN   = Alignment(horizontal="center", vertical="center", wrap_text=False)
     _L    = Alignment(horizontal="left",   vertical="center")
+    _WL   = Alignment(horizontal="left",   vertical="center", wrap_text=True)
     _R    = Alignment(horizontal="right",  vertical="center")
 
     def _bold(sz=11): return Font(bold=True,  size=sz)
@@ -1293,7 +1294,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
 
     ws.merge_cells("L4:N4")
     _set("B4", "PAM No.",                              align=_L)
-    _set("E4", ":")
+    _set("E4", ":", align=_C)
     _set("F4", pam_no,                                 align=_L)
     _set("L4", "Cost Center",                          align=_R)
     _set("O4", ":",                                    align=_R)
@@ -1303,7 +1304,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
     ws.merge_cells("L5:N5")
     ws.merge_cells("P5:Q5")
     _set("B5", "Date",                                 align=_L)
-    _set("E5", ":")
+    _set("E5", ":", align=_C)
     _set("F5", pam_date,                               align=_L)
     ws["F5"].number_format = '[$-421]dd\\ mmmm\\ yyyy;@'
     _set("L5", "GL Account",                          align=_R)
@@ -1312,18 +1313,18 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
 
     ws.merge_cells("L6:N6")
     _set("B6", "Requestor's Name   ",                  align=_L)
-    _set("E6", ":")
+    _set("E6", ":", align=_C)
     _set("F6", data.get("requestors_name", ""),       align=_L)
     _set("L6", "SO / SC",                              align=_R)
     _set("O6", ":",                                    align=_R)
     _set("P6", data.get("so_sc", ""),                 align=_L)
 
     _set("B7", "Department",                           align=_L)
-    _set("E7", ":")
+    _set("E7", ":", align=_C)
     _set("F7", data.get("department", "-"),           align=_L)
 
     _set("B8", "Company",                              align=_L)
-    _set("E8", ":")
+    _set("E8", ":", align=_C)
     _set("F8", data.get("pt", ""),                    align=_L)
 
     _set("B10", "Bussiness Unit ",                     align=_L)
@@ -1363,23 +1364,23 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
 
     ws.merge_cells("I19:Q19")
     _set("G19", "Vendor Name",                         align=_R)
-    _set("H19", ":",                                    align=_R)
-    _set("I19", data.get("vendor_name", "Terlampir"),  align=_L)
+    _set("H19", ":",                                    align=_C)
+    _set("I19", data.get("vendor_name", "Terlampir"),  align=_WL)
 
     ws.merge_cells("I20:Q20")
     _set("G20", "Invoice/ Memorandum Number",          align=_R)
-    _set("H20", ":",                                    align=_R)
+    _set("H20", ":",                                    align=_C)
     _set("I20", data.get("invoice_memo_no", "-"),      align=_L)
 
     ws.merge_cells("I21:L21")
     _set("G21", "Invoice Amount",                      align=_R)
-    _set("H21", ":",                                    align=_R)
+    _set("H21", ":",                                    align=_C)
     _set("I21", float(data.get("total_amount", 0) or 0), align=_C)
     ws["I21"].number_format = '_("Rp"* #,##0_);_("Rp"* \\(#,##0\\);_("Rp"* "-"_);_(@_)'
 
     ws.merge_cells("I22:O22")
     _set("G22", "Expected Due Date",                   align=_R)
-    _set("H22", ":",                                    align=_R)
+    _set("H22", ":",                                    align=_C)
     _set("I22", due_date,                              align=_L)
     ws["I22"].number_format = '[$-421]dd\\ mmmm\\ yyyy;@'
 
@@ -1388,17 +1389,17 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
 
     ws.merge_cells("I25:Q25")
     _set("D25", "Bank Account Name ",                  align=_L)
-    _set("H25", ":")
-    _set("I25", data.get("bank_account_name", "Terlampir"), align=_L)
+    _set("H25", ":", align=_C)
+    _set("I25", data.get("bank_account_name", "Terlampir"), align=_WL)
 
     ws.merge_cells("I26:Q26")
     _set("D26", "Bank Name ",                          align=_L)
-    _set("H26", ":")
-    _set("I26", data.get("bank_name", "Terlampir"),   align=_L)
+    _set("H26", ":", align=_C)
+    _set("I26", data.get("bank_name", "Terlampir"),   align=_WL)
 
     ws.merge_cells("I27:Q27")
     _set("D27", "Bank Account Number",                 align=_L)
-    _set("H27", ":")
+    _set("H27", ":", align=_C)
     _set("I27", data.get("bank_account_no", "Terlampir"), align=_L)
 
     ws.merge_cells("I28:Q28")
