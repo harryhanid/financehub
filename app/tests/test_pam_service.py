@@ -439,3 +439,37 @@ def test_insert_payment_rows_returns_ids_and_total():
     count = conn.execute("SELECT COUNT(*) FROM pam_records").fetchone()[0]
     conn.close()
     assert count == 0
+
+
+def test_save_pa_payment_creates_single_pam_record_with_correct_total():
+    from modules.payment_memo.service import save_pa_payment
+    rows = [
+        {"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+         "amount": 5_000_000},
+        {"siswa_code": "S002", "cat1": "By Pendidikan", "cat2": "Semester 2",
+         "amount": 3_000_000},
+    ]
+    result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab":        "agri",
+        "tanggal":    "2026-06-15",
+        "pam_no":     "PAM-001-ETF-06-2026",
+        "keterangan": "Test PAM",
+        "perusahaan": "PT. ABC",
+        "pillar":     "ETF",
+        "rows":       rows,
+    })
+    assert result["ok"] is True
+    conn = get_conn()
+    records = conn.execute(
+        "SELECT * FROM pam_records WHERE company_id=?", (COMPANY_ID,)
+    ).fetchall()
+    conn.close()
+    assert len(records) == 1
+    assert records[0]["pam_no"]       == "PAM-001-ETF-06-2026"
+    assert records[0]["total_amount"] == 8_000_000
+
+
+def test_get_next_pam_no_land_prefix():
+    from modules.payment_memo.service import get_next_pam_no
+    pam_no = get_next_pam_no(COMPANY_ID, COMPANY_CODE, "sml", "2026-06-15")
+    assert pam_no == "PAM-001-LAND-06-2026"

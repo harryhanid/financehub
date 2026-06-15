@@ -238,7 +238,7 @@ _JENJANG_SORT = {"S3": 0, "S2": 1, "S1": 2}
 _IPAY_PAM_PREFIX = {
     "agri":  "ETF",
     "app":   "APP",
-    "sml":   "SML",
+    "sml":   "LAND",
     "setf":  "SETF",
 }
 
@@ -336,12 +336,12 @@ def get_next_pam_no(company_id: int, company_code: str,
 def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
     """
     Unified save for Input PA (AGRI/APP/SML/SETF):
-    1. Create payment_beasiswa rows via add_payment_multi
-    2. Link rows to pam_no
-    3. Create pam_records entry
+    1. Insert payment_beasiswa rows via insert_payment_rows (no pam_record)
+    2. Link rows to user-provided pam_no
+    3. Create exactly one pam_records entry with correct total
     4. Update PA header: nomor_pam + status='on_process'
     """
-    from modules.beasiswa.service import add_payment_multi
+    from modules.beasiswa.service import insert_payment_rows
     from modules.etf_payment_application.service import _TAB_CFG
 
     tab        = (data.get("tab") or "agri").lower()
@@ -359,19 +359,19 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
 
     pa_tbl, lines_tbl, _, _ = _TAB_CFG.get(tab, _TAB_CFG["agri"])
 
-    # 1. Create payment_beasiswa rows
-    bsw_result = add_payment_multi(
-        company_id, company_code, tanggal, pillar, perusahaan, rows
-    )
-    if not bsw_result.get("ok"):
-        return bsw_result
-
-    payment_ids = bsw_result.get("payment_ids", [])
-    total       = float(bsw_result.get("total", 0))
-
     conn = get_conn()
     try:
-        # 2. Link payment_beasiswa rows to pam_no
+        # 1. Insert payment rows — does NOT create pam_record
+        ins = insert_payment_rows(conn, company_id, company_code,
+                                  tanggal, pillar, perusahaan, rows)
+        if not ins.get("ok"):
+            conn.close()
+            return ins
+
+        payment_ids = ins["payment_ids"]
+        total       = ins["total"]
+
+        # 2. Link payment_beasiswa rows to user pam_no
         if payment_ids:
             ph = ",".join("?" * len(payment_ids))
             conn.execute(
@@ -379,7 +379,7 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
                 [pam_no] + list(payment_ids)
             )
 
-        # 3. Create pam_records
+        # 3. Create exactly one pam_records entry
         due_date = _add_one_month(tanggal)
         conn.execute(
             """INSERT INTO pam_records
@@ -391,7 +391,7 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
              total, due_date, f"etf_{tab}", _ts())
         )
 
-        # 4. Update PA: nomor_pam + status='on_process' for linked PA headers
+        # 4. Update PA: nomor_pam + status='on_process'
         line_ids = [r.get("etf_pa_line_id") for r in rows
                     if r.get("etf_pa_line_id")]
         if line_ids:
