@@ -711,7 +711,12 @@ def get_pam_payments_detail(pam_no: str, company_id: int) -> list:
            FROM payment_beasiswa pb
            LEFT JOIN siswa s ON s.company_id = pb.company_id AND s.code = pb.siswa_code
            WHERE pb.pam = ? AND pb.company_id = ?
-           ORDER BY pb.siswa_code, pb.id""",
+           ORDER BY CASE s.jenjang
+               WHEN 'S3' THEN 1
+               WHEN 'S2' THEN 2
+               WHEN 'S1' THEN 3
+               ELSE 99
+           END, pb.siswa_code, pb.id""",
         (pam_no, company_id)
     ).fetchall()]
     if not pay_rows:
@@ -783,6 +788,12 @@ def get_pam_payments_detail(pam_no: str, company_id: int) -> list:
             "sisa_penelitian": float(b.get("bud_r") or 0) - float(p.get("paid_r") or 0),
             "rows": rows,
         })
+    result.sort(key=lambda x: (
+        _JENJANG_SORT.get((x.get("jenjang") or "").upper(), 99),
+        -float(x.get("total_pembayaran") or 0),
+    ))
+    for i, item in enumerate(result, 1):
+        item["no"] = i
     return result
 
 

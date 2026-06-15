@@ -95,3 +95,44 @@ def test_get_pam_payments_empty(monkeypatch, tmp_path):
 
     rows = svc.get_pam_payments("PAM-NOTEXIST", 1)
     assert rows == []
+
+
+# ── get_pam_payments_detail ───────────────────────────────────────────────────
+
+def test_get_pam_payments_detail_sorted_by_jenjang(monkeypatch, tmp_path):
+    """
+    result list harus diurutkan: S3 dulu, S2, lalu S1 (total DESC dalam S1), lalu lainnya.
+    """
+    db = str(tmp_path / "t.db")
+    _make_db(db)
+    from app.modules.payment_memo import service as svc
+    monkeypatch.setattr(svc, "get_conn", _fake_conn_factory(db))
+
+    result = svc.get_pam_payments_detail("PAM-001", 1)
+
+    codes = [r["siswa_code"] for r in result]
+    assert codes == ["S3A", "S2A", "S1B", "S1A", "SMA"]
+
+
+def test_get_pam_payments_detail_no_renumbered(monkeypatch, tmp_path):
+    """Field 'no' harus 1,2,3,4,5 sesuai urutan jenjang, bukan urutan DB."""
+    db = str(tmp_path / "t.db")
+    _make_db(db)
+    from app.modules.payment_memo import service as svc
+    monkeypatch.setattr(svc, "get_conn", _fake_conn_factory(db))
+
+    result = svc.get_pam_payments_detail("PAM-001", 1)
+
+    nos = [r["no"] for r in result]
+    assert nos == [1, 2, 3, 4, 5]
+
+
+def test_get_pam_payments_detail_empty(monkeypatch, tmp_path):
+    """PAM yang tidak ada returns list kosong."""
+    db = str(tmp_path / "t.db")
+    _make_db(db)
+    from app.modules.payment_memo import service as svc
+    monkeypatch.setattr(svc, "get_conn", _fake_conn_factory(db))
+
+    result = svc.get_pam_payments_detail("PAM-NOTEXIST", 1)
+    assert result == []
