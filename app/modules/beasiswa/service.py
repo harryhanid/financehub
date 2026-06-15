@@ -332,6 +332,22 @@ def insert_payment_rows(conn, company_id: int, company_code: str,
     Caller owns conn (no commit, no close here). Does NOT create pam_record.
     Returns {"ok": bool, "payment_ids": list, "total": float, "pa_line_ids": list}.
     """
+    # Pre-flight: validate all medical rows before any INSERT
+    for row in rows:
+        try:
+            amount = float(str(row.get("amount", 0)).replace(",", ""))
+        except (ValueError, TypeError):
+            amount = 0
+        if amount <= 0:
+            continue
+        if row.get("cat1") == "By Medical" and row.get("cat2") in _CAT2_MEDICAL:
+            rm = row.get("rekam_medis") or {}
+            if not rm.get("kelas") or not rm.get("rumah_sakit") or \
+               not rm.get("diagnosa") or not rm.get("spesialisasi"):
+                return {"ok": False,
+                        "pesan": "Data rekam medis wajib diisi (kelas, rumah sakit, diagnosa, spesialisasi).",
+                        "payment_ids": [], "total": 0.0, "pa_line_ids": []}
+
     saved = 0
     payment_ids: list = []
     total = 0.0
@@ -343,14 +359,6 @@ def insert_payment_rows(conn, company_id: int, company_code: str,
             amount = 0
         if amount <= 0:
             continue
-
-        if row.get("cat1") == "By Medical" and row.get("cat2") in _CAT2_MEDICAL:
-            rm = row.get("rekam_medis") or {}
-            if not rm.get("kelas") or not rm.get("rumah_sakit") or \
-               not rm.get("diagnosa") or not rm.get("spesialisasi"):
-                return {"ok": False,
-                        "pesan": "Data rekam medis wajib diisi (kelas, rumah sakit, diagnosa, spesialisasi).",
-                        "payment_ids": [], "total": 0.0, "pa_line_ids": []}
 
         siswa_code     = (row.get("siswa_code") or "").strip()
         etf_pa_line_id = row.get("etf_pa_line_id") or None
