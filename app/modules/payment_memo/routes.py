@@ -20,6 +20,7 @@ from modules.payment_memo.service import (
     update_sml_status, cancel_sml_record,
     get_open_etf_pa_for_pam, create_pam_from_etf_pa, set_pam_tanggal_bayar_agri,
     get_next_pam_no, save_pa_payment, check_pam_no_exists,
+    get_pam_by_pillar, upsert_pam_lines,
 )
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
@@ -538,6 +539,31 @@ def sml_status(record_id):
 @jwt_html_required
 def sml_cancel(record_id):
     return jsonify(cancel_sml_record(record_id))
+
+
+# ── PAM by-pillar endpoints (standardized) ──────────────────────────────────
+
+@bp.route("/by-pillar/<pillar>")
+@jwt_html_required
+def pam_by_pillar(pillar):
+    """Return pam_records + lines for the given pillar (AGRI/APP/LAND/SETF)."""
+    company_id = session.get("company_id")
+    search     = request.args.get("search", "").strip()
+    bulan      = request.args.get("bulan", "").strip()
+    tahun      = request.args.get("tahun", "").strip()
+    rows       = get_pam_by_pillar(company_id, pillar.upper(), search, bulan, tahun)
+    return jsonify({"ok": True, "rows": rows})
+
+
+@bp.route("/pam/<int:pam_id>/lines", methods=["PATCH"])
+@jwt_html_required
+def update_pam_lines(pam_id):
+    """Upsert lines row (U-AC columns) for a single PAM record."""
+    company_id = session.get("company_id")
+    data       = request.get_json(force=True) or {}
+    pillar     = data.pop("pillar", "").upper()
+    result     = upsert_pam_lines(pam_id, pillar, data, company_id)
+    return jsonify(result)
 
 
 @bp.route("/fiori/<int:record_id>/detail")
