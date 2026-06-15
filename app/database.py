@@ -670,6 +670,49 @@ def migrate_db():
         except Exception:
             pass
 
+    # pam_records — add standardization columns (mata_uang, dpp, ppn, pillar)
+    for col_def in [
+        "mata_uang TEXT DEFAULT 'IDR'",
+        "dpp       INTEGER DEFAULT 0",
+        "ppn       INTEGER DEFAULT 0",
+        "pillar    TEXT",
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE pam_records ADD COLUMN {col_def}")
+            conn.commit()
+        except Exception:
+            pass
+
+    # pam lines tables per pillar (all identical schema initially)
+    _PAM_LINES_DDL = """
+        CREATE TABLE IF NOT EXISTS {tbl} (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            pam_id             INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
+            no_vendor          TEXT,
+            nama_vendor        TEXT,
+            tgl_terima_doc     TEXT,
+            tgl_proses         TEXT,
+            tgl_verifikasi_tax TEXT,
+            tgl_approval_1     TEXT,
+            tgl_approval_2     TEXT,
+            tgl_approval_3     TEXT,
+            tgl_kirim          TEXT,
+            created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at         TEXT
+        )"""
+    for tbl in ["agri_pam_lines", "app_pam_lines", "land_pam_lines", "setf_pam_lines"]:
+        try:
+            conn.execute(_PAM_LINES_DDL.format(tbl=tbl))
+            conn.commit()
+        except Exception:
+            pass
+    for tbl in ["agri_pam_lines", "app_pam_lines", "land_pam_lines", "setf_pam_lines"]:
+        try:
+            conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{tbl}_pam ON {tbl}(pam_id)")
+            conn.commit()
+        except Exception:
+            pass
+
     # Normalize PA status values to lowercase (fix Title Case legacy data)
     # Old data may have 'Open', 'Complete', 'On_Process' from before the lowercase refactor
     for pa_tbl in ["etf_pa", "app_pa", "sml_pa"]:
