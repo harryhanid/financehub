@@ -1426,6 +1426,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
 
     # ── Sheet 2: Rangkuman PAM (Book8 format) ─────────────────────────────────
     ws2 = wb.create_sheet("Rangkuman PAM")
+    _RP_FMT = '_-"Rp"* #,##0_-;\\-"Rp"* #,##0_-;_-"Rp"* "-"_-;_-@_-'
 
     # Column widths matching Book8
     for _c2, _w2 in [("A", 2.77), ("B", 10.30), ("C", 1.15), ("D", 37.84),
@@ -1556,7 +1557,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
         ws2.cell(row, 8, amt).font       = fn2
         ws2.cell(row, 8).alignment = Alignment(horizontal="center", vertical="center")
         ws2.cell(row, 8).border    = Border(left=_t2, right=_t2, top=_t2, bottom=_t2)
-        ws2.cell(row, 8).number_format = '#,##0'
+        ws2.cell(row, 8).number_format = _RP_FMT
 
     def _write_tot2(row, total_val, label="Total", sz=12, thick_top=False):
         ws2.merge_cells(f"B{row}:F{row}")
@@ -1572,7 +1573,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
         ws2.cell(row, 8).alignment = Alignment(horizontal="center", vertical="center")
         ws2.cell(row, 8).border    = Border(left=_t2, right=_t2, bottom=_t2,
                                              top=(_k2 if thick_top else _t2))
-        ws2.cell(row, 8).number_format = '#,##0'
+        ws2.cell(row, 8).number_format = _RP_FMT
 
     # ── Section 1: individual / student payments ──────────────────────────────
     _cur2 = 6
@@ -1619,7 +1620,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
         ws2.cell(_cur2, 8, _grand2).font      = _fg
         ws2.cell(_cur2, 8).alignment = Alignment(horizontal="center", vertical="center")
         ws2.cell(_cur2, 8).border    = Border(left=_t2, right=_t2, top=_t2, bottom=_t2)
-        ws2.cell(_cur2, 8).number_format = '#,##0'
+        ws2.cell(_cur2, 8).number_format = _RP_FMT
 
     # ── Sheet 3: Detail PAM (Book9 format) ──────────────────────────────────
     company_id = int(data.get("company_id") or 0)

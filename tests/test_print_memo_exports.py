@@ -63,3 +63,18 @@ def test_excel_pam_new_vendor_bank_wrap_text(monkeypatch):
     assert ws["I19"].alignment.wrap_text is True, "I19 vendor name: wrap_text harus True"
     assert ws["I25"].alignment.wrap_text is True, "I25 bank account name: wrap_text harus True"
     assert ws["I26"].alignment.wrap_text is True, "I26 bank name: wrap_text harus True"
+
+
+def test_rangkuman_rp_accounting_format(monkeypatch):
+    """Amount cells di Rangkuman PAM harus pakai Rp Accounting number format."""
+    from app.modules.payment_memo import exports
+    monkeypatch.setattr(exports, "get_pam_payments_detail", lambda *a: [])
+
+    result = exports.export_pam_excel_custom(_data(), _payments())
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    ws2 = wb["Rangkuman PAM"]
+
+    # Data row 1 at row 8 (header at rows 6-7), col 8 = amount
+    assert ws2.cell(8, 8).number_format == _RP_FMT, "data row: bukan Rp Accounting format"
+    # Total row at row 10 (2 data rows + total)
+    assert ws2.cell(10, 8).number_format == _RP_FMT, "total row: bukan Rp Accounting format"
