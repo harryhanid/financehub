@@ -232,6 +232,75 @@ CREATE TABLE IF NOT EXISTS etf_pa_lines (
 CREATE INDEX IF NOT EXISTS idx_etf_pa_company    ON etf_pa(company_id);
 CREATE INDEX IF NOT EXISTS idx_etf_pa_lines_pa   ON etf_pa_lines(pa_id);
 CREATE INDEX IF NOT EXISTS idx_etf_pa_lines_sid  ON etf_pa_lines(student_id);
+
+CREATE TABLE IF NOT EXISTS agri_pam_lines (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    pam_id             INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
+    no_vendor          TEXT,
+    nama_vendor        TEXT,
+    tgl_terima_doc     TEXT,
+    tgl_proses         TEXT,
+    tgl_verifikasi_tax TEXT,
+    tgl_approval_1     TEXT,
+    tgl_approval_2     TEXT,
+    tgl_approval_3     TEXT,
+    tgl_kirim          TEXT,
+    created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS app_pam_lines (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    pam_id             INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
+    no_vendor          TEXT,
+    nama_vendor        TEXT,
+    tgl_terima_doc     TEXT,
+    tgl_proses         TEXT,
+    tgl_verifikasi_tax TEXT,
+    tgl_approval_1     TEXT,
+    tgl_approval_2     TEXT,
+    tgl_approval_3     TEXT,
+    tgl_kirim          TEXT,
+    created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS land_pam_lines (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    pam_id             INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
+    no_vendor          TEXT,
+    nama_vendor        TEXT,
+    tgl_terima_doc     TEXT,
+    tgl_proses         TEXT,
+    tgl_verifikasi_tax TEXT,
+    tgl_approval_1     TEXT,
+    tgl_approval_2     TEXT,
+    tgl_approval_3     TEXT,
+    tgl_kirim          TEXT,
+    created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS setf_pam_lines (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    pam_id             INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
+    no_vendor          TEXT,
+    nama_vendor        TEXT,
+    tgl_terima_doc     TEXT,
+    tgl_proses         TEXT,
+    tgl_verifikasi_tax TEXT,
+    tgl_approval_1     TEXT,
+    tgl_approval_2     TEXT,
+    tgl_approval_3     TEXT,
+    tgl_kirim          TEXT,
+    created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_agri_pam_lines_pam ON agri_pam_lines(pam_id);
+CREATE INDEX IF NOT EXISTS idx_app_pam_lines_pam  ON app_pam_lines(pam_id);
+CREATE INDEX IF NOT EXISTS idx_land_pam_lines_pam ON land_pam_lines(pam_id);
+CREATE INDEX IF NOT EXISTS idx_setf_pam_lines_pam ON setf_pam_lines(pam_id);
 """
 
 VENDOR_SEED = [
