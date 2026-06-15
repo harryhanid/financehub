@@ -107,3 +107,38 @@ def test_detail_sheet_rp_accounting_format():
     assert ws.cell(7, 11).number_format == _RP_FMT, "pendidikan: bukan Rp Accounting"
     # Grand total row 8, col 14
     assert ws.cell(8, 14).number_format == _RP_FMT, "grand total: bukan Rp Accounting"
+
+
+def test_pdf_detail_has_12_columns():
+    """PDF Detail PAM table harus punya 12 kolom (tambah Jenjang Studi, sebelumnya 11)."""
+    from app.modules.payment_memo.exports import _build_detail_pdf_table
+
+    detail = [{
+        "no": 1, "siswa_code": "S001", "nama": "Budi",
+        "jenjang": "S2", "total_pembayaran": 5_000_000.0,
+        "sisa_pendidikan": 0.0, "sisa_tunjangan": 0.0, "sisa_penelitian": 0.0,
+        "norek": "111",
+        "rows": [{"keterangan": "By Pendidikan",
+                  "pendidikan": 5_000_000.0, "tunjangan": 0.0, "penelitian": 0.0}],
+    }]
+
+    table = _build_detail_pdf_table(detail)
+    assert len(table._colWidths) == 12, f"Expected 12 cols, got {len(table._colWidths)}"
+
+
+def test_pdf_detail_data_row_has_12_cells():
+    """Setiap data row harus punya 12 cell (sama dengan jumlah kolom)."""
+    from app.modules.payment_memo.exports import _build_detail_pdf_table
+
+    detail = [{
+        "no": 1, "siswa_code": "S001", "nama": "Budi",
+        "jenjang": "S1", "total_pembayaran": 3_000_000.0,
+        "sisa_pendidikan": 0.0, "sisa_tunjangan": 0.0, "sisa_penelitian": 0.0,
+        "norek": "222",
+        "rows": [{"keterangan": "By Pendidikan",
+                  "pendidikan": 3_000_000.0, "tunjangan": 0.0, "penelitian": 0.0}],
+    }]
+
+    table = _build_detail_pdf_table(detail)
+    # Row 0 = header, row 1 = first data row
+    assert len(table._cellvalues[1]) == 12, f"Expected 12 cells in data row, got {len(table._cellvalues[1])}"

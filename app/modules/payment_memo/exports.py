@@ -261,11 +261,11 @@ def _build_detail_pdf_table(detail: list) -> Table:
     _s7c = _style("d7c", fontSize=7, alignment=1,
                   textColor=colors.HexColor("#1e293b"))
 
-    col_w = [0.6*cm, 3.8*cm, 3.2*cm, 2.4*cm, 2.4*cm, 2.4*cm,
+    col_w = [0.6*cm, 3.0*cm, 1.5*cm, 3.2*cm, 2.4*cm, 2.4*cm, 2.4*cm,
              2.5*cm, 3.0*cm, 1.8*cm, 1.8*cm, 1.8*cm]
 
     hdrs = [_p(h, _s7h) for h in [
-        "No", "Nama Siswa", "Keterangan",
+        "No", "Nama Siswa", "Jenjang\nStudi", "Keterangan",
         "By\nPend", "By\nTunj", "By\nRiset",
         "Total\nPbyran", "No. Rekening",
         "Sisa\nPend", "Sisa\nTunj", "Sisa\nRiset",
@@ -281,6 +281,7 @@ def _build_detail_pdf_table(detail: list) -> Table:
             rows.append([
                 _p(str(siswa["no"]) if first else "", _s7c),
                 _p((siswa.get("nama") or siswa.get("siswa_code") or "") if first else "", _s7),
+                _p((siswa.get("jenjang") or "") if first else "", _s7c),
                 _p(pr.get("keterangan") or "", _s7),
                 _p(f"{pr['pendidikan']:,.0f}" if pr.get("pendidikan") else "", _s7r),
                 _p(f"{pr['tunjangan']:,.0f}"  if pr.get("tunjangan")  else "", _s7r),
@@ -292,7 +293,7 @@ def _build_detail_pdf_table(detail: list) -> Table:
                 _p(f"{siswa['sisa_penelitian']:,.0f}" if first else "", _s7r),
             ])
 
-    rows.append([_p("", _s7)] * 6 + [
+    rows.append([_p("", _s7)] * 7 + [
         _p(f"{grand_total:,.0f}",
            _style("gtv7", fontName="Helvetica-Bold", fontSize=7, alignment=2,
                   textColor=colors.HexColor("#1e293b"))),
@@ -307,8 +308,9 @@ def _build_detail_pdf_table(detail: list) -> Table:
         ("FONTNAME",      (0, -1),(-1, -1), "Helvetica-Bold"),
         ("LINEABOVE",     (0, -1),(-1, -1), 1.2, _BLUE),
         ("ALIGN",         (0, 0), (0, -1),  "CENTER"),
-        ("ALIGN",         (3, 0), (6, -1),  "RIGHT"),
-        ("ALIGN",         (8, 0), (10, -1), "RIGHT"),
+        ("ALIGN",         (2, 0), (2, -1),  "CENTER"),
+        ("ALIGN",         (4, 0), (7, -1),  "RIGHT"),
+        ("ALIGN",         (9, 0), (11, -1), "RIGHT"),
         ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING",    (0, 0), (-1, -1), 2),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
