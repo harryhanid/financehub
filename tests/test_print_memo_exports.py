@@ -78,3 +78,32 @@ def test_rangkuman_rp_accounting_format(monkeypatch):
     assert ws2.cell(8, 8).number_format == _RP_FMT, "data row: bukan Rp Accounting format"
     # Total row at row 10 (2 data rows + total)
     assert ws2.cell(10, 8).number_format == _RP_FMT, "total row: bukan Rp Accounting format"
+
+
+def test_detail_sheet_rp_accounting_format():
+    """Amount cells di Detail PAM sheet harus pakai Rp Accounting format."""
+    import openpyxl as _xl
+    from app.modules.payment_memo.exports import _build_detail_sheet
+
+    wb = _xl.Workbook()
+    ws = wb.active
+    pam = {"pam_no": "PAM-TEST", "pam_date": "2026-06-15",
+           "cost_center": "CC", "gl_account": "GL"}
+    detail = [{
+        "no": 1, "siswa_code": "S001", "nama": "Budi", "angkatan": "2020",
+        "jenjang": "S1", "program": "Teknik", "universitas": "UI",
+        "fakultas": "FT", "bank": "BNI", "norek": "111", "namarek": "Budi",
+        "total_pembayaran": 3_000_000.0, "sisa_pendidikan": 0.0,
+        "sisa_tunjangan": 0.0, "sisa_penelitian": 0.0,
+        "rows": [{"keterangan": "By Pendidikan",
+                  "pendidikan": 3_000_000.0, "tunjangan": 0.0, "penelitian": 0.0}],
+    }]
+
+    _build_detail_sheet(ws, pam, detail)
+
+    # Data row dimulai row 7, col 14 = total_pembayaran
+    assert ws.cell(7, 14).number_format == _RP_FMT, "total_pembayaran: bukan Rp Accounting"
+    # Col 11 = pendidikan amount
+    assert ws.cell(7, 11).number_format == _RP_FMT, "pendidikan: bukan Rp Accounting"
+    # Grand total row 8, col 14
+    assert ws.cell(8, 14).number_format == _RP_FMT, "grand total: bukan Rp Accounting"

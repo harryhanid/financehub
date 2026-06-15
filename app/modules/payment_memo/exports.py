@@ -560,7 +560,7 @@ def _build_detail_sheet(ws, pam: dict, detail: list) -> None:
     _thin = Side(style="thin")
     _bdr  = Border(left=_thin, right=_thin, top=_thin, bottom=_thin)
     _hf   = PatternFill("solid", fgColor="D9D9D9")
-    _nfmt = '#,##0'
+    _nfmt = '_-"Rp"* #,##0_-;\\-"Rp"* #,##0_-;_-"Rp"* "-"_-;_-@_-'
 
     def _s(r, c, val=None, bold=False, sz=10, ha="general", va="center",
            fill=None, bdr=None, fmt=None):
