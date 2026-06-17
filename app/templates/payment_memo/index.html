@@ -94,7 +94,7 @@
   <div class="tab-panel" id="tab-input-payment">
     {# ── Panel Beasiswa (existing) ── #}
     <div id="ipay-panel-beasiswa">
-    <div style="display:grid;grid-template-columns:140px 160px minmax(220px,1fr) 200px;gap:.75rem;margin-bottom:.5rem;align-items:end;max-width:900px">
+    <div style="display:grid;grid-template-columns:120px 150px 160px minmax(200px,1fr) 180px;gap:.75rem;margin-bottom:.5rem;align-items:end;max-width:980px">
       <div class="form-group" style="margin:0">
         <label>Tipe PAM</label>
         <select id="ipay-type" onchange="ipayOnTypeChange()"
@@ -103,6 +103,15 @@
           <option value="app">APP</option>
           <option value="sml">LAND</option>
           <option value="setf">SETF</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Transaksi</label>
+        <select id="ipay-tx" onchange="ipayOnTxChange()"
+                style="width:100%;border:1.5px solid #10b981;color:#065f46;font-weight:700;background:#ecfdf5">
+          {% for tx in transaksi_types %}
+          <option value="{{ tx|lower|replace(' ','_') }}">{{ tx }}</option>
+          {% endfor %}
         </select>
       </div>
       <div class="form-group" style="margin:0">
@@ -221,7 +230,7 @@
         <option value="sponsor">Sponsor</option>
         <option value="others">Others</option>
       </select>
-      <button class="btn btn-success btn-sm" onclick="exportPamTabExcel()">↓ Export Excel</button>
+      <button class="btn btn-success btn-sm" onclick="exportPillarExcel('AGRI')">↓ Export Excel</button>
     </div>
     <div class="pillar-table-wrap">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -450,7 +459,7 @@
         <option value="sponsor">Sponsor</option>
         <option value="others">Others</option>
       </select>
-      <button class="btn btn-success btn-sm" onclick="exportFioriExcel()">&#8595; Export Excel</button>
+      <button class="btn btn-success btn-sm" onclick="exportPillarExcel('APP')">&#8595; Export Excel</button>
       <span id="fiori-count" style="font-size:11px;color:#6b7280"></span>
     </div>
     <div class="pillar-table-wrap">
@@ -529,7 +538,7 @@
         <option value="sponsor">Sponsor</option>
         <option value="others">Others</option>
       </select>
-      <button class="btn btn-success btn-sm" onclick="exportSmlExcel()">&#8595; Export Excel</button>
+      <button class="btn btn-success btn-sm" onclick="exportPillarExcel('LAND')">&#8595; Export Excel</button>
       <span id="sml-count" style="font-size:11px;color:#6b7280"></span>
     </div>
     <div class="pillar-table-wrap">
@@ -608,6 +617,7 @@
         <option value="sponsor">Sponsor</option>
         <option value="others">Others</option>
       </select>
+      <button class="btn btn-success btn-sm" onclick="exportPillarExcel('SETF')">&#8595; Export Excel</button>
       <span id="setf-count" style="font-size:11px;color:#6b7280"></span>
     </div>
     <div class="pillar-table-wrap">
@@ -3020,6 +3030,8 @@ function _ipayBuildPickerRow(tr, candidates) {
 let _ipayRowId = 0;
 
 function ipayReset() {
+  const txEl = document.getElementById("ipay-tx");
+  if (txEl) { txEl.value = "beasiswa"; ipayOnTxChange(); }
   document.querySelectorAll("[data-ipaysugg]").forEach(el => el.remove());
   document.getElementById("ipay-tgl").value = new Date().toISOString().slice(0, 10);
   document.getElementById("ipay-pam-full").value = "";
@@ -3119,6 +3131,25 @@ function ipayOnTypeChange() {
   const saveBtn = document.getElementById("ipay-save-btn");
   if (saveBtn) saveBtn.textContent = `\u{1F4BE} Simpan PAM ${lbl}`;
   ipayReset();
+}
+
+function ipayOnTxChange() {
+  const tx = document.getElementById("ipay-tx")?.value || "beasiswa";
+  const panels = {
+    "beasiswa":    "#ipay-panel-beasiswa",
+    "klaim_medis": "#ipay-panel-klaim",
+    "tagihan":     "#ipay-panel-others",
+    "etf":         "#ipay-panel-others",
+    "sponsor":     "#ipay-panel-others",
+    "others":      "#ipay-panel-others",
+  };
+  ["#ipay-panel-beasiswa","#ipay-panel-klaim","#ipay-panel-others"].forEach(id => {
+    const el = document.querySelector(id);
+    if (el) el.style.display = "none";
+  });
+  const target = panels[tx] || "#ipay-panel-beasiswa";
+  const el = document.querySelector(target);
+  if (el) el.style.display = "";
 }
 
 async function ipayFetchNextPamNo() {
@@ -3700,36 +3731,20 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(tglEl && !tglEl.value) tglEl.value = new Date().toISOString().slice(0,10);
 });
 
-function exportPamTabExcel() {
+function exportPillarExcel(pillar) {
+  const prefix = { AGRI: 'pam', APP: 'fiori', LAND: 'sml', SETF: 'setf' }[pillar] || 'pam';
   const url    = new URL('/payment-memo/export/pam', window.location.origin);
-  const search = (document.getElementById('pam-search')?.value || '').trim();
-  const bulan  = document.getElementById('pam-filter-bulan')?.value || '';
-  const tahun  = document.getElementById('pam-filter-tahun')?.value || '';
+  url.searchParams.set('pillar', pillar);
+  const search = (document.getElementById(prefix + '-search')?.value || '').trim();
+  const bulan  = document.getElementById(prefix + '-filter-bulan')?.value || '';
+  const tahun  = document.getElementById(prefix + '-filter-tahun')?.value || '';
+  const status = document.getElementById(prefix + '-filter-status')?.value || '';
+  const source = document.getElementById(prefix + '-filter-source')?.value || '';
   if (search) url.searchParams.set('search', search);
   if (bulan)  url.searchParams.set('bulan',  bulan);
   if (tahun)  url.searchParams.set('tahun',  tahun);
-  window.location.href = url.toString();
-}
-
-function exportFioriExcel() {
-  const url    = new URL('/payment-memo/export/fiori', window.location.origin);
-  const search = (document.getElementById('fiori-search')?.value || '').trim();
-  const bulan  = document.getElementById('fiori-filter-bulan')?.value || '';
-  const tahun  = document.getElementById('fiori-filter-tahun')?.value || '';
-  if (search) url.searchParams.set('search', search);
-  if (bulan)  url.searchParams.set('bulan',  bulan);
-  if (tahun)  url.searchParams.set('tahun',  tahun);
-  window.location.href = url.toString();
-}
-
-function exportSmlExcel() {
-  const url    = new URL('/payment-memo/export/sml', window.location.origin);
-  const search = (document.getElementById('sml-search')?.value || '').trim();
-  const bulan  = document.getElementById('sml-filter-bulan')?.value || '';
-  const tahun  = document.getElementById('sml-filter-tahun')?.value || '';
-  if (search) url.searchParams.set('search', search);
-  if (bulan)  url.searchParams.set('bulan',  bulan);
-  if (tahun)  url.searchParams.set('tahun',  tahun);
+  if (status) url.searchParams.set('status', status);
+  if (source) url.searchParams.set('source', source);
   window.location.href = url.toString();
 }
 
