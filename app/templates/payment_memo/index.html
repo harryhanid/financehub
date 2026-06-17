@@ -227,6 +227,52 @@
   </div>
 </div>{# end ipay-panel-klaim #}
 
+{# ── Panel Others (Tagihan / ETF / Sponsor / Others) ── #}
+<div id="ipay-panel-others" style="display:none">
+  <div style="max-width:700px;padding:8px 0">
+    <div style="display:grid;grid-template-columns:1fr 120px;gap:12px;margin-bottom:12px">
+      <div class="form-group" style="margin:0">
+        <label>Keterangan <span style="color:#ef4444">*</span></label>
+        <input type="text" id="others-keterangan" class="dm-inp"
+               placeholder="Keterangan transaksi..."
+               style="border:none;border-bottom:1.5px solid #93c5fd;background:#f0f9ff">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Mata Uang</label>
+        <select id="others-mataUang"
+                style="width:100%;border:1px solid #d1d5db;border-radius:4px;padding:5px 6px;font-size:12px;font-weight:700">
+          <option value="IDR">IDR</option>
+          <option value="USD">USD</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div class="form-group" style="margin:0">
+        <label>DPP <span style="color:#ef4444">*</span></label>
+        <input type="number" id="others-dpp" class="dm-inp" placeholder="0"
+               min="0" oninput="othersCalcTotal()"
+               style="text-align:right">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>PPN</label>
+        <input type="number" id="others-ppn" class="dm-inp" placeholder="0"
+               min="0" oninput="othersCalcTotal()"
+               style="text-align:right">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Total <span style="font-size:.65rem;font-weight:400">(DPP+PPN)</span></label>
+        <div id="others-total"
+             style="border-bottom:2px solid #1d4ed8;padding:4px 6px;font-size:14px;font-weight:700;color:#1d4ed8;text-align:right;background:#eff6ff;border-radius:2px">
+          Rp 0
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
+    <button id="others-save-btn" class="btn btn-primary" onclick="ipaySaveOthers()">💾 Simpan PAM</button>
+  </div>
+</div>{# end ipay-panel-others #}
+
   </div>
 
   <!-- PAM Records Tab -->
@@ -3079,6 +3125,7 @@ function ipayReset() {
   if (el) el.textContent = "Rp 0";
   _ipayRowId = 0;
   if (typeof klaimReset === "function") klaimReset();
+  if (typeof othersReset === "function") othersReset();
   ipayFetchNextPamNo();
 }
 
@@ -3918,6 +3965,70 @@ async function ipaySaveKlaim() {
   const data = await res.json();
   showToast(data.pesan, data.ok ? "success" : "error");
   if (data.ok) { klaimReset(); ipayReset(); document.querySelector('[data-tab="tab-pam"]')?.click(); }
+}
+
+// ── Others Panel ──────────────────────────────────────────────────────────
+function othersCalcTotal() {
+  const dpp = parseFloat(document.getElementById("others-dpp")?.value) || 0;
+  const ppn = parseFloat(document.getElementById("others-ppn")?.value) || 0;
+  const total = dpp + ppn;
+  const el = document.getElementById("others-total");
+  if (el) el.textContent = "Rp " + total.toLocaleString("id-ID");
+}
+
+function othersReset() {
+  ["others-keterangan","others-dpp","others-ppn"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  const total = document.getElementById("others-total");
+  if (total) total.textContent = "Rp 0";
+  const mu = document.getElementById("others-mataUang");
+  if (mu) mu.value = "IDR";
+}
+
+async function ipaySaveOthers() {
+  if (!await confirmModal("Simpan PAM ini?")) return;
+
+  const type       = document.getElementById("ipay-type")?.value || "agri";
+  const tx         = document.getElementById("ipay-tx")?.value || "tagihan";
+  const tanggal    = document.getElementById("ipay-tgl").value;
+  const pam_no     = document.getElementById("ipay-pam-full").value.trim();
+  const keterangan = document.getElementById("others-keterangan")?.value.trim() || "";
+  const pillar     = document.getElementById("ipay-pillar").value;
+  const perusahaan = document.getElementById("ipay-perusahaan").value;
+  const mata_uang  = document.getElementById("others-mataUang")?.value || "IDR";
+  const dpp        = parseFloat(document.getElementById("others-dpp")?.value) || 0;
+  const ppn        = parseFloat(document.getElementById("others-ppn")?.value) || 0;
+
+  if (!tanggal || !pam_no || pam_no === "Memuat...") {
+    showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
+  }
+  if (!keterangan) { showToast("Keterangan wajib diisi.", "error"); return; }
+  if (dpp <= 0)    { showToast("DPP harus lebih dari 0.", "error"); return; }
+
+  const btn = document.getElementById("others-save-btn");
+  if (btn) btn.disabled = true;
+  let res;
+  try {
+    res = await apiFetch("/payment-memo/ipay/save-others", {
+      method: "POST",
+      body: JSON.stringify({
+        tab: type, transaksi: tx, tanggal, pam_no,
+        keterangan, perusahaan, pillar, mata_uang, dpp, ppn
+      })
+    });
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) {
+    othersReset();
+    ipayReset();
+    document.querySelector('[data-tab="tab-pam"]')?.click();
+  }
 }
 
 // ── Input Klaim tab ────────────────────────────────────────────────────────────
