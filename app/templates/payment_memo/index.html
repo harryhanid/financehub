@@ -188,6 +188,44 @@
     </div>
     </div>{# end ipay-panel-beasiswa #}
 
+{# ── Panel Klaim Medis ── #}
+<div id="ipay-panel-klaim" style="display:none">
+  <div class="table-wrap">
+    <table id="klaim-table" style="min-width:1100px">
+      <thead>
+        <tr>
+          <th style="min-width:180px">Siswa</th>
+          <th style="min-width:100px">Cat2</th>
+          <th style="min-width:90px">Kelas</th>
+          <th style="min-width:130px">Rumah Sakit</th>
+          <th style="min-width:130px">Diagnosa</th>
+          <th style="min-width:140px">Spesialisasi</th>
+          <th style="min-width:140px">Cat3</th>
+          <th style="min-width:120px">Amount</th>
+          <th style="min-width:110px">Sisa Budget</th>
+          <th style="min-width:110px">Tanggal</th>
+          <th style="width:32px"></th>
+        </tr>
+      </thead>
+      <tbody id="klaim-tbody">
+        <tr id="klaim-empty-row">
+          <td colspan="11" style="text-align:center;color:var(--text-muted)">Klik + Tambah Siswa untuk mulai input.</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="7" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem">Total Amount:</td>
+          <td id="klaim-total-amt" class="num-right" style="font-weight:700;color:#1a56db;white-space:nowrap">Rp 0</td>
+          <td colspan="3"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
+    <button class="btn btn-secondary btn-sm" onclick="klaimAddSiswa()">+ Tambah Siswa</button>
+    <button id="klaim-save-btn" class="btn btn-primary" onclick="ipaySaveKlaim()">💾 Simpan PAM Klaim Medis</button>
+  </div>
+</div>{# end ipay-panel-klaim #}
 
   </div>
 
@@ -974,16 +1012,10 @@ const PAM_APPROVED_BY_2 = {{ pam_approved_by_2 | tojson }};
 const VENDOR_LIST = {{ vendor_list | tojson }};
 const SISWA_LIST  = {{ siswa_list | tojson }};
 const COMPANY_CODE = "{{ company_code }}";
-const KELAS_MEDICAL = [
-  "Rawat Jalan", "Emergency", "Basic/Kelas 3", "Standard/Kelas 2",
-  "Deluxe/Kelas 1", "VIP", "VVIP", "SVIP"
-];
-const SPESIALISASI_LIST = [
-  "Internal Medicine", "Cardiology", "Orthopaedy", "Obstetric & Gynaecology",
-  "Pediatrics", "Pulmonology", "Neurology", "Neurosurgeon", "General Surgery",
-  "ENT", "Dermatovenerology", "Psychiatry", "Opthalmology", "Plastic Surgery",
-  "General Practionist", "Dentistry"
-];
+const CAT3_MEDICAL         = {{ cat3_medical | tojson }};
+const KELAS_MEDICAL        = {{ kelas_medical | tojson }};
+const SPESIALISASI_MEDICAL = {{ spesialisasi_medical | tojson }};
+const SPESIALISASI_LIST = SPESIALISASI_MEDICAL;
 
 function esc(s) {
   const d = document.createElement('div');
@@ -3046,6 +3078,7 @@ function ipayReset() {
   const el = document.getElementById("ipay-total-amt");
   if (el) el.textContent = "Rp 0";
   _ipayRowId = 0;
+  if (typeof klaimReset === "function") klaimReset();
   ipayFetchNextPamNo();
 }
 
@@ -3587,6 +3620,304 @@ async function ipaySavePa() {
     if (filterEl) filterEl.value = type;
     document.querySelector('[data-tab="tab-pam"]')?.click();
   }
+}
+
+// ── Klaim Medis Panel ──────────────────────────────────────────────────────
+let _klaimRid = 0;
+
+function _klaimMkSelect(opts, placeholder) {
+  const sel = document.createElement("select");
+  sel.style.cssText = "font-size:10px;width:100%;border:1px solid #d1d5db;border-radius:3px;padding:2px 4px";
+  if (placeholder) {
+    const ph = document.createElement("option");
+    ph.value = ""; ph.textContent = placeholder; ph.disabled = true; ph.selected = true;
+    sel.appendChild(ph);
+  }
+  opts.forEach(o => {
+    const opt = document.createElement("option");
+    opt.value = o; opt.textContent = o;
+    sel.appendChild(opt);
+  });
+  return sel;
+}
+
+function _klaimMkInput(type, placeholder) {
+  const inp = document.createElement("input");
+  inp.type = type; inp.placeholder = placeholder || "";
+  inp.className = "dm-inp";
+  if (type === "number") inp.min = "0";
+  return inp;
+}
+
+function _klaimUpdateTotal() {
+  const tbody = document.getElementById("klaim-tbody");
+  let total = 0;
+  tbody.querySelectorAll("input.klaim-amt").forEach(inp => {
+    total += parseFloat(inp.value) || 0;
+  });
+  document.getElementById("klaim-total-amt").textContent =
+    "Rp " + total.toLocaleString("id-ID");
+}
+
+async function _klaimFetchSiswabudget(code) {
+  try {
+    const res = await apiFetch(`/payment-memo/ipay/siswa-medical?search=${encodeURIComponent(code)}`);
+    if (!res) return null;
+    const data = await res.json();
+    const found = (data.rows || []).find(r => r.code === code);
+    if (!found) return null;
+    return (found.medical_budget || 0) - (found.spent_amount || 0);
+  } catch { return null; }
+}
+
+function klaimAddSiswa() {
+  const tbody = document.getElementById("klaim-tbody");
+  const emptyRow = document.getElementById("klaim-empty-row");
+  if (emptyRow) emptyRow.remove();
+
+  const rid = ++_klaimRid;
+
+  const tr = document.createElement("tr");
+  tr.dataset.klaimRid = rid;
+  tr.dataset.klaimType = "siswa";
+  tr.style.cssText = "background:#fff;border-bottom:1px solid #e2e8f0";
+
+  // Siswa autocomplete
+  const tdSiswa = document.createElement("td");
+  tdSiswa.style.cssText = "padding:4px 7px;position:relative";
+  const inpSiswaSearch = document.createElement("input");
+  inpSiswaSearch.type = "text"; inpSiswaSearch.placeholder = "Cari siswa...";
+  inpSiswaSearch.className = "dm-inp";
+  const inpSiswaCode = document.createElement("input"); inpSiswaCode.type = "hidden";
+  const sugg = document.createElement("div");
+  sugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)";
+
+  inpSiswaSearch.oninput = async function() {
+    const q = this.value.trim();
+    if (q.length < 1) { sugg.style.display = "none"; return; }
+    const res = await apiFetch(`/payment-memo/ipay/siswa-medical?search=${encodeURIComponent(q)}`);
+    if (!res) return;
+    const data = await res.json();
+    sugg.innerHTML = "";
+    (data.rows || []).forEach(s => {
+      const d = document.createElement("div");
+      d.style.cssText = "padding:5px 8px;cursor:pointer;font-size:11px;border-bottom:1px solid #f3f4f6";
+      d.textContent = `${s.nama} (${s.code})`;
+      d.onmousedown = async () => {
+        inpSiswaSearch.value = `${s.nama} / ${s.code}`;
+        inpSiswaCode.value = s.code;
+        tr.dataset.siswaCode = s.code;
+        sugg.style.display = "none";
+        const sisa = await _klaimFetchSiswabudget(s.code);
+        const budgetEl = tr.querySelector(".klaim-budget");
+        if (budgetEl) {
+          budgetEl.textContent = sisa !== null ? "Rp " + sisa.toLocaleString("id-ID") : "-";
+        }
+      };
+      sugg.appendChild(d);
+    });
+    sugg.style.display = data.rows?.length ? "block" : "none";
+    const rect = inpSiswaSearch.getBoundingClientRect();
+    sugg.style.left  = rect.left + "px";
+    sugg.style.top   = (rect.bottom + 2) + "px";
+    sugg.style.width = Math.max(200, rect.width) + "px";
+  };
+  inpSiswaSearch.onblur = () => setTimeout(() => { sugg.style.display = "none"; }, 200);
+  tdSiswa.appendChild(inpSiswaSearch);
+  tdSiswa.appendChild(inpSiswaCode);
+  document.body.appendChild(sugg);
+  tr._siswaCode = inpSiswaCode;
+  tr._siswaSugg = sugg;
+
+  const tdCat2 = document.createElement("td"); tdCat2.style.padding = "4px 7px";
+  const selCat2 = _klaimMkSelect(["Rawat Inap","Rawat Jalan"], "Pilih...");
+  tdCat2.appendChild(selCat2); tr._cat2 = selCat2;
+
+  const tdKelas = document.createElement("td"); tdKelas.style.padding = "4px 7px";
+  const selKelas = _klaimMkSelect(KELAS_MEDICAL, "Kelas...");
+  tdKelas.appendChild(selKelas); tr._kelas = selKelas;
+
+  const tdRS = document.createElement("td"); tdRS.style.padding = "4px 7px";
+  const inpRS = _klaimMkInput("text", "Rumah Sakit...");
+  tdRS.appendChild(inpRS); tr._rs = inpRS;
+
+  const tdDx = document.createElement("td"); tdDx.style.padding = "4px 7px";
+  const inpDx = _klaimMkInput("text", "Diagnosa...");
+  tdDx.appendChild(inpDx); tr._dx = inpDx;
+
+  const tdSpes = document.createElement("td"); tdSpes.style.padding = "4px 7px";
+  const selSpes = _klaimMkSelect(SPESIALISASI_MEDICAL, "Spesialisasi...");
+  tdSpes.appendChild(selSpes); tr._spes = selSpes;
+
+  const tdCat3 = document.createElement("td"); tdCat3.style.padding = "4px 7px";
+  const selCat3 = _klaimMkSelect(CAT3_MEDICAL, "Cat3...");
+  tdCat3.appendChild(selCat3); tr._cat3 = selCat3;
+
+  const tdAmt = document.createElement("td"); tdAmt.style.padding = "4px 7px";
+  const inpAmt = _klaimMkInput("number", "0");
+  inpAmt.className += " klaim-amt"; inpAmt.oninput = _klaimUpdateTotal;
+  tdAmt.appendChild(inpAmt); tr._amt = inpAmt;
+
+  const tdBudget = document.createElement("td");
+  tdBudget.style.cssText = "padding:4px 7px;text-align:right;color:#10b981;font-size:10px;font-weight:600";
+  tdBudget.className = "klaim-budget"; tdBudget.textContent = "-";
+
+  const tdTgl = document.createElement("td"); tdTgl.style.padding = "4px 7px";
+  const inpTgl = _klaimMkInput("date", "");
+  inpTgl.value = document.getElementById("ipay-tgl")?.value || "";
+  tdTgl.appendChild(inpTgl); tr._tgl = inpTgl;
+
+  const tdDel = document.createElement("td"); tdDel.style.cssText = "padding:4px 7px;text-align:center";
+  const btnDel = document.createElement("button");
+  btnDel.textContent = "✕"; btnDel.className = "btn btn-danger btn-sm";
+  btnDel.onclick = () => klaimRemoveSiswaGroup(rid);
+  tdDel.appendChild(btnDel);
+
+  tr.append(tdSiswa, tdCat2, tdKelas, tdRS, tdDx, tdSpes, tdCat3, tdAmt, tdBudget, tdTgl, tdDel);
+  tbody.appendChild(tr);
+
+  // Add Cat3 button row
+  const trBtn = document.createElement("tr");
+  trBtn.dataset.klaimRid = rid; trBtn.dataset.klaimType = "addcat3";
+  trBtn.style.cssText = "background:#f0fdf4;border-bottom:2px solid #6ee7b7";
+  const tdBtn = document.createElement("td"); tdBtn.colSpan = 11; tdBtn.style.padding = "3px 7px";
+  const btnAddCat3 = document.createElement("button");
+  btnAddCat3.className = "btn btn-secondary btn-sm";
+  btnAddCat3.style.cssText = "border:1px dashed #10b981;color:#059669;background:none;font-size:9px";
+  btnAddCat3.textContent = "+ cat3 tambahan";
+  btnAddCat3.onclick = () => klaimAddCat3Row(rid, tr);
+  tdBtn.appendChild(btnAddCat3); trBtn.appendChild(tdBtn);
+  tbody.appendChild(trBtn);
+}
+
+function klaimAddCat3Row(rid, siswaRow) {
+  const tbody = document.getElementById("klaim-tbody");
+  const btnRow = tbody.querySelector(`tr[data-klaim-rid="${rid}"][data-klaim-type="addcat3"]`);
+
+  const tr = document.createElement("tr");
+  tr.dataset.klaimRid = rid; tr.dataset.klaimType = "cat3";
+  tr.style.cssText = "background:#eff6ff;border-bottom:1px solid #dbeafe";
+
+  const tdLabel = document.createElement("td");
+  tdLabel.colSpan = 6; tdLabel.style.cssText = "padding:4px 7px;color:#94a3b8;font-size:9px;font-style:italic";
+  tdLabel.textContent = "↳ cat3 tambahan";
+
+  const tdCat3 = document.createElement("td"); tdCat3.style.padding = "4px 7px";
+  const selCat3 = _klaimMkSelect(CAT3_MEDICAL, "Cat3...");
+  tdCat3.appendChild(selCat3); tr._cat3 = selCat3;
+
+  const tdAmt = document.createElement("td"); tdAmt.style.padding = "4px 7px";
+  const inpAmt = _klaimMkInput("number", "0");
+  inpAmt.className += " klaim-amt"; inpAmt.oninput = _klaimUpdateTotal;
+  tdAmt.appendChild(inpAmt); tr._amt = inpAmt;
+
+  const tdBudget = document.createElement("td"); tdBudget.style.padding = "4px 7px";
+
+  const tdTgl = document.createElement("td"); tdTgl.style.padding = "4px 7px";
+  const inpTgl = _klaimMkInput("date", "");
+  inpTgl.value = document.getElementById("ipay-tgl")?.value || "";
+  tdTgl.appendChild(inpTgl); tr._tgl = inpTgl;
+
+  const tdDel = document.createElement("td"); tdDel.style.cssText = "padding:4px 7px;text-align:center";
+  const btnDel = document.createElement("button");
+  btnDel.textContent = "✕"; btnDel.className = "btn btn-danger btn-sm";
+  btnDel.onclick = () => { tr.remove(); _klaimUpdateTotal(); };
+  tdDel.appendChild(btnDel);
+
+  tr.append(tdLabel, tdCat3, tdAmt, tdBudget, tdTgl, tdDel);
+  tbody.insertBefore(tr, btnRow);
+}
+
+function klaimRemoveSiswaGroup(rid) {
+  document.querySelectorAll(`tr[data-klaim-rid="${rid}"]`).forEach(r => r.remove());
+  _klaimUpdateTotal();
+  if (!document.getElementById("klaim-tbody").querySelector("tr[data-klaim-rid]")) {
+    const empty = document.createElement("tr");
+    empty.id = "klaim-empty-row";
+    empty.innerHTML = '<td colspan="11" style="text-align:center;color:var(--text-muted)">Klik + Tambah Siswa untuk mulai input.</td>';
+    document.getElementById("klaim-tbody").appendChild(empty);
+  }
+}
+
+function klaimReset() {
+  const tbody = document.getElementById("klaim-tbody");
+  tbody.innerHTML = '<tr id="klaim-empty-row"><td colspan="11" style="text-align:center;color:var(--text-muted)">Klik + Tambah Siswa untuk mulai input.</td></tr>';
+  _klaimRid = 0;
+  _klaimUpdateTotal();
+}
+
+async function ipaySaveKlaim() {
+  if (!await confirmModal("Simpan PAM Klaim Medis ini?")) return;
+
+  const type       = document.getElementById("ipay-type")?.value || "agri";
+  const tanggal    = document.getElementById("ipay-tgl").value;
+  const pam_no     = document.getElementById("ipay-pam-full").value.trim();
+  const keterangan = document.getElementById("ipay-catatan")?.value.trim() || "";
+  const pillar     = document.getElementById("ipay-pillar").value;
+  const perusahaan = document.getElementById("ipay-perusahaan").value;
+
+  if (!tanggal || !pam_no || pam_no === "Memuat...") {
+    showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
+  }
+  if (!perusahaan) { showToast("Perusahaan wajib diisi.", "error"); return; }
+
+  const tbody = document.getElementById("klaim-tbody");
+  const siswaRows = [...tbody.querySelectorAll("tr[data-klaim-type='siswa']")];
+  if (!siswaRows.length) { showToast("Minimal 1 siswa.", "error"); return; }
+
+  const rows = [];
+  for (const siswaRow of siswaRows) {
+    const siswa_code = siswaRow.dataset.siswaCode || siswaRow._siswaCode?.value || "";
+    if (!siswa_code) { showToast("Semua baris harus memilih siswa.", "error"); return; }
+
+    const rid = siswaRow.dataset.klaimRid;
+    const cat3Items = [];
+    const firstAmt = parseFloat(siswaRow._amt?.value) || 0;
+    if (firstAmt > 0) {
+      cat3Items.push({
+        cat3:    siswaRow._cat3?.value || "",
+        amount:  firstAmt,
+        tanggal: siswaRow._tgl?.value || tanggal,
+      });
+    }
+    tbody.querySelectorAll(`tr[data-klaim-rid="${rid}"][data-klaim-type="cat3"]`).forEach(sub => {
+      const amt = parseFloat(sub._amt?.value) || 0;
+      if (amt > 0) {
+        cat3Items.push({
+          cat3:    sub._cat3?.value || "",
+          amount:  amt,
+          tanggal: sub._tgl?.value || tanggal,
+        });
+      }
+    });
+    if (!cat3Items.length) { showToast(`Siswa ${siswa_code} harus ada minimal 1 cat3 dengan amount > 0.`, "error"); return; }
+
+    rows.push({
+      siswa_code,
+      cat2:         siswaRow._cat2?.value || "",
+      kelas:        siswaRow._kelas?.value || "",
+      rumah_sakit:  siswaRow._rs?.value || "",
+      diagnosa:     siswaRow._dx?.value || "",
+      spesialisasi: siswaRow._spes?.value || "",
+      cat3_items:   cat3Items,
+    });
+  }
+
+  const btn = document.getElementById("klaim-save-btn");
+  if (btn) btn.disabled = true;
+  let res;
+  try {
+    res = await apiFetch("/payment-memo/ipay/save-klaim", {
+      method: "POST",
+      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
+    });
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) { klaimReset(); ipayReset(); document.querySelector('[data-tab="tab-pam"]')?.click(); }
 }
 
 // ── Input Klaim tab ────────────────────────────────────────────────────────────
