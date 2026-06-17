@@ -4,7 +4,7 @@ import config
 config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_finance_hub.db")
 
 from database import init_db, get_conn
-from modules.payment_memo.service import get_siswa_medical
+from modules.payment_memo.service import get_siswa_medical, save_klaim_payment
 
 COMPANY_ID = 2
 
@@ -44,3 +44,99 @@ def test_get_siswa_medical_includes_budget_amount():
     rows = get_siswa_medical(COMPANY_ID)
     assert rows[0]["medical_budget"] == 5000000
     assert rows[0]["spent_amount"] == 0
+
+
+def test_save_klaim_missing_pam_no():
+    result = save_klaim_payment(COMPANY_ID, "ETF", {
+        "pam_no": "", "tanggal": "2026-06-17", "rows": []
+    })
+    assert result["ok"] is False
+    assert "PAM" in result["pesan"]
+
+
+def test_save_klaim_empty_rows():
+    result = save_klaim_payment(COMPANY_ID, "ETF", {
+        "pam_no": "PAM-001-ETF-06-2026", "tanggal": "2026-06-17", "rows": []
+    })
+    assert result["ok"] is False
+
+
+def test_save_klaim_row_without_cat3():
+    result = save_klaim_payment(COMPANY_ID, "ETF", {
+        "pam_no": "PAM-001-ETF-06-2026",
+        "tanggal": "2026-06-17",
+        "pillar": "AGRI",
+        "perusahaan": "RS Siloam",
+        "rows": [{"siswa_code": "M001", "cat2": "Rawat Inap",
+                  "kelas": "VIP", "rumah_sakit": "RS A", "diagnosa": "Flu",
+                  "spesialisasi": "General Practitioner",
+                  "cat3_items": []}]
+    })
+    assert result["ok"] is False
+
+
+def _klaim_payload():
+    return {
+        "tab": "agri",
+        "tanggal": "2026-06-17",
+        "pam_no": "PAM-001-ETF-06-2026",
+        "perusahaan": "RS Siloam",
+        "keterangan": "Klaim medis Juni",
+        "pillar": "AGRI",
+        "rows": [
+            {
+                "siswa_code": "M001",
+                "cat2": "Rawat Inap",
+                "kelas": "VIP",
+                "rumah_sakit": "RS Siloam",
+                "diagnosa": "Demam Typoid",
+                "spesialisasi": "General Practitioner",
+                "cat3_items": [
+                    {"cat3": "Kamar", "amount": 3000000, "tanggal": "2026-06-10"},
+                    {"cat3": "Obat",  "amount":  500000, "tanggal": "2026-06-10"},
+                ],
+            }
+        ],
+    }
+
+
+def test_save_klaim_success_creates_pam_record():
+    # M001 already inserted by clean_db fixture
+    result = save_klaim_payment(COMPANY_ID, "ETF", _klaim_payload())
+    assert result["ok"] is True, result.get("pesan")
+
+    conn = get_conn()
+    pam = conn.execute("SELECT * FROM pam_records WHERE pam_no=?",
+                       ("PAM-001-ETF-06-2026",)).fetchone()
+    assert pam is not None
+    assert pam["total_amount"] == 3500000
+    assert pam["source"] == "klaim_medis"
+    conn.close()
+
+
+def test_save_klaim_success_creates_payment_beasiswa():
+    save_klaim_payment(COMPANY_ID, "ETF", _klaim_payload())
+
+    conn = get_conn()
+    pb = conn.execute("SELECT * FROM payment_beasiswa WHERE siswa_code=?", ("M001",)).fetchone()
+    assert pb is not None
+    assert pb["cat1"] == "By Medical"
+    assert pb["cat2"] == "Rawat Inap"
+    assert pb["amount"] == 3500000
+    assert pb["pam"] == "PAM-001-ETF-06-2026"
+    conn.close()
+
+
+def test_save_klaim_success_creates_klaim_medical_rows():
+    save_klaim_payment(COMPANY_ID, "ETF", _klaim_payload())
+
+    conn = get_conn()
+    items = conn.execute("SELECT * FROM klaim_medical WHERE siswa_code=? ORDER BY id",
+                         ("M001",)).fetchall()
+    assert len(items) == 2
+    assert items[0]["perawatan"] == "Kamar"
+    assert items[0]["amount"] == 3000000
+    assert items[1]["perawatan"] == "Obat"
+    assert items[0]["kelas"] == "VIP"
+    assert items[0]["rumah_sakit"] == "RS Siloam"
+    conn.close()

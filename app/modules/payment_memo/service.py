@@ -362,6 +362,85 @@ def get_siswa_medical(company_id: int, search: str = "") -> list:
     return rows
 
 
+def save_klaim_payment(company_id: int, company_code: str, data: dict) -> dict:
+    tanggal    = data.get("tanggal") or _ts()[:10]
+    pam_no     = (data.get("pam_no") or "").strip()
+    keterangan = data.get("keterangan") or ""
+    perusahaan = data.get("perusahaan") or ""
+    pillar     = data.get("pillar") or ""
+    rows       = data.get("rows") or []
+
+    if not pam_no:
+        return {"ok": False, "pesan": "No. PAM wajib diisi."}
+    if not rows:
+        return {"ok": False, "pesan": "Minimal 1 baris siswa."}
+
+    for row in rows:
+        if not (row.get("cat3_items") and
+                any(float(i.get("amount", 0)) > 0 for i in row["cat3_items"])):
+            return {"ok": False,
+                    "pesan": f"Siswa {row.get('siswa_code', '?')} harus memiliki minimal 1 cat3 dengan amount > 0."}
+
+    conn = get_conn()
+    try:
+        grand_total = 0.0
+        for row in rows:
+            siswa_code   = (row.get("siswa_code") or "").strip()
+            cat2         = row.get("cat2") or ""
+            kelas        = row.get("kelas") or ""
+            rumah_sakit  = row.get("rumah_sakit") or ""
+            diagnosa     = row.get("diagnosa") or ""
+            spesialisasi = row.get("spesialisasi") or ""
+            cat3_items   = [i for i in row.get("cat3_items", [])
+                            if float(i.get("amount", 0)) > 0]
+            row_total    = sum(float(i["amount"]) for i in cat3_items)
+
+            cur = conn.execute(
+                """INSERT INTO payment_beasiswa
+                   (company_id, siswa_code, cat1, cat2, tanggal, amount,
+                    pillar, perusahaan, pam, status)
+                   VALUES (?,?,?,?,?,?,?,?,?,'open')""",
+                (company_id, siswa_code, "By Medical", cat2, tanggal,
+                 row_total, pillar, perusahaan, pam_no)
+            )
+            pb_id = cur.lastrowid
+
+            for item in cat3_items:
+                conn.execute(
+                    """INSERT INTO klaim_medical
+                       (company_id, siswa_code, pam, tanggal, amount, perawatan,
+                        kelas, rumah_sakit, diagnosa, spesialisasi,
+                        pillar, perusahaan, payment_id, created_at)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (company_id, siswa_code, pam_no,
+                     item.get("tanggal") or tanggal,
+                     float(item["amount"]),
+                     item.get("cat3") or "",
+                     kelas, rumah_sakit, diagnosa, spesialisasi,
+                     pillar, perusahaan, pb_id, _ts())
+                )
+            grand_total += row_total
+
+        due_date = _add_one_month(tanggal)
+        conn.execute(
+            """INSERT INTO pam_records
+               (company_id, pam_no, pam_date, requestors_name, keterangan,
+                total_amount, due_date, pillar, source, status, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (company_id, pam_no, tanggal,
+             company_code, keterangan,
+             grand_total, due_date, pillar, "klaim_medis", "open", _ts())
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return {"ok": False, "pesan": f"Gagal menyimpan: {e}"}
+
+    conn.close()
+    return {"ok": True, "pesan": f"PAM Klaim Medis {pam_no} berhasil dibuat.", "pam_no": pam_no}
+
+
 def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
     """
     Unified save for Input PA (AGRI/APP/SML/SETF):
