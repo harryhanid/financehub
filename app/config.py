@@ -5,11 +5,24 @@ import secrets
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH  = os.path.join(BASE_DIR, "finance_hub.db")
 
-JWT_SECRET       = os.environ.get("FH_JWT_SECRET", secrets.token_hex(32))
+def _load_or_create_secret(env_var: str, filename: str) -> str:
+    val = os.environ.get(env_var)
+    if val:
+        return val
+    path = os.path.join(BASE_DIR, filename)
+    if os.path.exists(path):
+        with open(path) as f:
+            return f.read().strip()
+    new = secrets.token_hex(32)
+    with open(path, "w") as f:
+        f.write(new)
+    return new
+
+JWT_SECRET       = _load_or_create_secret("FH_JWT_SECRET", ".jwt_secret")
 JWT_ACCESS_HOURS = 1
 JWT_REFRESH_DAYS = 7
 
-FLASK_SECRET = os.environ.get("FH_SECRET", secrets.token_hex(32))
+FLASK_SECRET = _load_or_create_secret("FH_SECRET", ".flask_secret")
 
 ADMIN_DEFAULT_PASSWORD = "Admin@123"
 
@@ -51,6 +64,22 @@ CAT2_SEM = [
     "By Buku dan Seragam", "By Kursus Bahasa Mandarin",
     "By Kursus Matematika",
 ]
+
+CAT3_MEDICAL = [
+    "Alkes", "Kamar", "Konsultasi dan Visit", "Laboratorium",
+    "Obat", "Radiologi", "Sewa Alat Rumah Sakit", "Tindakan Dokter",
+]
+
+KELAS_MEDICAL = ["Basic", "Deluxe", "Emergency", "Rawat Jalan", "Standard", "VIP", "VVIP", "SVIP"]
+
+SPESIALISASI_MEDICAL = [
+    "Internal Medicine", "Cardiology", "Orthopaedy", "Obstetric & Gynaecology",
+    "Pediatrics", "Pulmonology", "Neurology", "Neurosurgeon", "General Surgery",
+    "ENT", "Dermatovenerology", "Psychiatry", "Opthalmology", "Plastic Surgery",
+    "General Practitioner", "Dentistry",
+]
+
+TRANSAKSI_TYPES = ["Beasiswa", "Klaim Medis", "Tagihan", "ETF", "Sponsor", "Others"]
 
 KODE_JENJANG = {
     "S1": "1", "S2": "2", "S3": "3",
