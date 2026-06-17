@@ -3,7 +3,6 @@ Import script: sync perubahan dari Excel → SQLite (PAM AGRI + Open PAM).
 
 Usage:
     python tmp_import_excel.py           # dry-run — lihat diff, tidak ada yang berubah
-    python tmp_import_excel.py --apply   # apply perubahan ke SQLite
 
 File Excel dikonfigurasi di konstanta PAM_AGRI_FILE dan OPEN_PAM_FILE di bawah.
 """
@@ -171,22 +170,8 @@ def match_open_pam(excel_rows: list[dict], db_rows: list[dict]) -> dict:
 
 # ── Load functions ──────────────────────────────────────────────────────────────
 
-def load_pam_agri_excel(filepath: str) -> list[dict]:
-    """Baca sheet pertama PAM AGRI Excel, return list of dicts."""
-    import openpyxl
-    wb = openpyxl.load_workbook(filepath, data_only=True)
-    ws = wb.active
-    headers = [c.value for c in ws[1]]
-    rows = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        if all(v is None for v in row):
-            continue  # skip fully blank rows
-        rows.append(dict(zip(headers, row)))
-    return rows
-
-
-def load_open_pam_excel(filepath: str) -> list[dict]:
-    """Baca sheet pertama Open PAM Excel, return list of dicts."""
+def _load_excel(filepath: str) -> list[dict]:
+    """Baca sheet pertama Excel, return list of dicts. Skip fully blank rows."""
     import openpyxl
     wb = openpyxl.load_workbook(filepath, data_only=True)
     ws = wb.active
@@ -199,15 +184,26 @@ def load_open_pam_excel(filepath: str) -> list[dict]:
     return rows
 
 
+def load_pam_agri_excel(filepath: str) -> list[dict]:
+    """Baca PAM AGRI Excel file."""
+    return _load_excel(filepath)
+
+
+def load_open_pam_excel(filepath: str) -> list[dict]:
+    """Baca Open PAM Excel file."""
+    return _load_excel(filepath)
+
+
 def fetch_pam_agri_db(company_id: int) -> list[dict]:
     """Ambil semua pam_records dari DB untuk company_id ini."""
     conn = get_conn()
-    rows = [dict(r) for r in conn.execute(
-        "SELECT id, pam_no, pam_date, total_amount, status, tanggal_bayar "
-        "FROM pam_records WHERE company_id=?", (company_id,)
-    ).fetchall()]
-    conn.close()
-    return rows
+    try:
+        return [dict(r) for r in conn.execute(
+            "SELECT id, pam_no, pam_date, total_amount, status, tanggal_bayar "
+            "FROM pam_records WHERE company_id=?", (company_id,)
+        ).fetchall()]
+    finally:
+        conn.close()
 
 
 def fetch_open_pam_db(company_id: int) -> list[dict]:
@@ -215,12 +211,13 @@ def fetch_open_pam_db(company_id: int) -> list[dict]:
     Filter status='open' karena Open PAM export hanya mengeksport record open.
     """
     conn = get_conn()
-    rows = [dict(r) for r in conn.execute(
-        "SELECT id, siswa_code, cat1, cat2, tanggal, amount, pam, perusahaan, status "
-        "FROM payment_beasiswa WHERE company_id=? AND status='open'", (company_id,)
-    ).fetchall()]
-    conn.close()
-    return rows
+    try:
+        return [dict(r) for r in conn.execute(
+            "SELECT id, siswa_code, cat1, cat2, tanggal, amount, pam, perusahaan, status "
+            "FROM payment_beasiswa WHERE company_id=? AND status='open'", (company_id,)
+        ).fetchall()]
+    finally:
+        conn.close()
 
 
 # ── Diff output ─────────────────────────────────────────────────────────────────
