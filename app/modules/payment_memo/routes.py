@@ -21,6 +21,7 @@ from modules.payment_memo.service import (
     get_open_etf_pa_for_pam, create_pam_from_etf_pa, set_pam_tanggal_bayar_agri,
     get_next_pam_no, save_pa_payment, check_pam_no_exists,
     get_pam_by_pillar, upsert_pam_lines,
+    get_siswa_medical, save_klaim_payment, save_others_payment,
 )
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
@@ -72,6 +73,10 @@ def index():
         jenjang=config.JENJANG,
         program=config.PROGRAM,
         status_siswa=config.STATUS_SISWA,
+        cat3_medical=config.CAT3_MEDICAL,
+        kelas_medical=config.KELAS_MEDICAL,
+        spesialisasi_medical=config.SPESIALISASI_MEDICAL,
+        transaksi_types=config.TRANSAKSI_TYPES,
         **_ctx()
     )
 
@@ -404,8 +409,10 @@ def export_pam_tab_route():
     bulan  = request.args.get("bulan",  "").strip()
     tahun  = request.args.get("tahun",  "").strip()
     source = request.args.get("source", "").strip()
-    xls   = export_pam_tab_excel(company_id, search, bulan, tahun, source)
-    fname = f"PAM_AGRI_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    pillar = request.args.get("pillar", "AGRI").strip().upper()
+    status = request.args.get("status", "").strip()
+    xls   = export_pam_tab_excel(company_id, search, bulan, tahun, source, pillar, status)
+    fname = f"PAM_{pillar}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     return send_file(
         io.BytesIO(xls),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -651,4 +658,33 @@ def ipay_save_pa():
     company_id   = session.get("company_id", 0)
     company_code = session.get("company_code", "ETF")
     result = save_pa_payment(company_id, company_code, data)
+    return jsonify(result)
+
+
+@bp.route("/ipay/siswa-medical")
+@jwt_html_required
+def ipay_siswa_medical():
+    company_id = session.get("company_id", 0)
+    search     = request.args.get("search", "")
+    rows       = get_siswa_medical(company_id, search)
+    return jsonify({"ok": True, "rows": rows})
+
+
+@bp.route("/ipay/save-klaim", methods=["POST"])
+@jwt_html_required
+def ipay_save_klaim():
+    data         = request.get_json(force=True) or {}
+    company_id   = session.get("company_id", 0)
+    company_code = session.get("company_code", "ETF")
+    result = save_klaim_payment(company_id, company_code, data)
+    return jsonify(result)
+
+
+@bp.route("/ipay/save-others", methods=["POST"])
+@jwt_html_required
+def ipay_save_others():
+    data         = request.get_json(force=True) or {}
+    company_id   = session.get("company_id", 0)
+    company_code = session.get("company_code", "ETF")
+    result = save_others_payment(company_id, company_code, data)
     return jsonify(result)
