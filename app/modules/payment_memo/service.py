@@ -441,6 +441,53 @@ def save_klaim_payment(company_id: int, company_code: str, data: dict) -> dict:
     return {"ok": True, "pesan": f"PAM Klaim Medis {pam_no} berhasil dibuat.", "pam_no": pam_no}
 
 
+def save_others_payment(company_id: int, company_code: str, data: dict) -> dict:
+    pam_no     = (data.get("pam_no") or "").strip()
+    keterangan = (data.get("keterangan") or "").strip()
+    tanggal    = data.get("tanggal") or _ts()[:10]
+    perusahaan = data.get("perusahaan") or ""
+    pillar     = data.get("pillar") or ""
+    transaksi  = (data.get("transaksi") or "others").lower()
+    mata_uang  = data.get("mata_uang") or "IDR"
+
+    try:
+        dpp = float(data.get("dpp") or 0)
+        ppn = float(data.get("ppn") or 0)
+    except (ValueError, TypeError):
+        dpp, ppn = 0.0, 0.0
+
+    if not pam_no:
+        return {"ok": False, "pesan": "No. PAM wajib diisi."}
+    if not keterangan:
+        return {"ok": False, "pesan": "Keterangan wajib diisi."}
+    if dpp <= 0:
+        return {"ok": False, "pesan": "DPP harus lebih dari 0."}
+
+    total    = dpp + ppn
+    due_date = _add_one_month(tanggal)
+    conn     = get_conn()
+    try:
+        conn.execute(
+            """INSERT INTO pam_records
+               (company_id, pam_no, pam_date, requestors_name, keterangan,
+                total_amount, due_date, pillar, source, pt,
+                mata_uang, dpp, ppn, status, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (company_id, pam_no, tanggal,
+             company_code, keterangan,
+             total, due_date, pillar, transaksi, perusahaan,
+             mata_uang, dpp, ppn, "open", _ts())
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return {"ok": False, "pesan": f"Gagal menyimpan: {e}"}
+
+    conn.close()
+    return {"ok": True, "pesan": f"PAM {pam_no} berhasil dibuat.", "pam_no": pam_no}
+
+
 def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
     """
     Unified save for Input PA (AGRI/APP/SML/SETF):

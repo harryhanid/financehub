@@ -4,7 +4,7 @@ import config
 config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_finance_hub.db")
 
 from database import init_db, get_conn
-from modules.payment_memo.service import get_siswa_medical, save_klaim_payment
+from modules.payment_memo.service import get_siswa_medical, save_klaim_payment, save_others_payment
 
 COMPANY_ID = 2
 
@@ -139,4 +139,72 @@ def test_save_klaim_success_creates_klaim_medical_rows():
     assert items[1]["perawatan"] == "Obat"
     assert items[0]["kelas"] == "VIP"
     assert items[0]["rumah_sakit"] == "RS Siloam"
+    conn.close()
+
+
+def test_save_others_missing_pam_no():
+    result = save_others_payment(COMPANY_ID, "ETF", {
+        "pam_no": "", "keterangan": "test", "dpp": 1000000
+    })
+    assert result["ok"] is False
+    assert "PAM" in result["pesan"]
+
+
+def test_save_others_missing_keterangan():
+    result = save_others_payment(COMPANY_ID, "ETF", {
+        "pam_no": "PAM-002-ETF-06-2026", "keterangan": "", "dpp": 1000000
+    })
+    assert result["ok"] is False
+    assert "Keterangan" in result["pesan"]
+
+
+def test_save_others_zero_dpp():
+    result = save_others_payment(COMPANY_ID, "ETF", {
+        "pam_no": "PAM-002-ETF-06-2026", "keterangan": "Tagihan listrik", "dpp": 0
+    })
+    assert result["ok"] is False
+
+
+def test_save_others_success_creates_pam_record():
+    result = save_others_payment(COMPANY_ID, "ETF", {
+        "tab": "agri",
+        "pam_no": "PAM-002-ETF-06-2026",
+        "tanggal": "2026-06-17",
+        "perusahaan": "PT Telkom",
+        "keterangan": "Tagihan internet",
+        "pillar": "AGRI",
+        "transaksi": "tagihan",
+        "mata_uang": "IDR",
+        "dpp": 5000000,
+        "ppn": 550000,
+    })
+    assert result["ok"] is True, result.get("pesan")
+
+    conn = get_conn()
+    pam = conn.execute("SELECT * FROM pam_records WHERE pam_no=?",
+                       ("PAM-002-ETF-06-2026",)).fetchone()
+    assert pam is not None
+    assert pam["source"] == "tagihan"
+    assert pam["dpp"] == 5000000
+    assert pam["ppn"] == 550000
+    assert pam["total_amount"] == 5550000
+    assert pam["mata_uang"] == "IDR"
+    assert pam["pt"] == "PT Telkom"
+    conn.close()
+
+
+def test_save_others_no_payment_beasiswa():
+    save_others_payment(COMPANY_ID, "ETF", {
+        "pam_no": "PAM-002-ETF-06-2026",
+        "tanggal": "2026-06-17",
+        "keterangan": "Tagihan internet",
+        "pillar": "AGRI",
+        "transaksi": "tagihan",
+        "mata_uang": "IDR",
+        "dpp": 5000000,
+        "ppn": 550000,
+    })
+    conn = get_conn()
+    count = conn.execute("SELECT COUNT(*) FROM payment_beasiswa").fetchone()[0]
+    assert count == 0
     conn.close()
