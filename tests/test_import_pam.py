@@ -66,6 +66,9 @@ def test_normalize_amount_int():
 def test_normalize_amount_invalid_string():
     assert normalize_amount("not a number") == 0.0
 
+def test_normalize_amount_nan():
+    assert normalize_amount(float('nan')) == 0.0
+
 
 # ── match_pam_agri ─────────────────────────────────────────────────────────────
 

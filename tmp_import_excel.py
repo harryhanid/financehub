@@ -9,6 +9,7 @@ File Excel dikonfigurasi di konstanta PAM_AGRI_FILE dan OPEN_PAM_FILE di bawah.
 """
 import sys
 import os
+import math
 import shutil
 import argparse
 from datetime import datetime, date
@@ -17,7 +18,6 @@ from datetime import datetime, date
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 _APP  = os.path.join(_ROOT, "app")
 sys.path.insert(0, _APP)
-os.chdir(_APP)
 
 from database import get_conn  # noqa: E402
 
@@ -41,11 +41,12 @@ def normalize_date(val) -> str | None:
 
 
 def normalize_amount(val) -> float:
-    """Return float, 0.0 jika tidak valid."""
+    """Return float, 0.0 jika tidak valid atau NaN."""
     if val is None:
         return 0.0
     try:
-        return float(val)
+        result = float(val)
+        return 0.0 if math.isnan(result) else result
     except (TypeError, ValueError):
         return 0.0
 
@@ -133,9 +134,14 @@ def match_open_pam(excel_rows: list[dict], db_rows: list[dict]) -> dict:
             "skips":   [excel_row],             # di Excel tapi tidak ada match di DB
         }
     """
-    db_by_key   = {}
+    db_by_key = {}
     for r in db_rows:
         k = _pb_key(r["siswa_code"], r["cat1"], r["cat2"], r["tanggal"], r["amount"])
+        if k in db_by_key:
+            raise ValueError(
+                f"Duplicate composite key in DB: siswa_code={r['siswa_code']}, "
+                f"tanggal={r['tanggal']}, amount={r['amount']}"
+            )
         db_by_key[k] = r
 
     updates, skips = [], []
