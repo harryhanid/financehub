@@ -321,16 +321,34 @@ def apply_pam_agri(result: dict, company_id: int) -> bool:
             conn.close()
 
     # 2. RENAME: cascade via update_pam_and_application
+    # Note: update_pam_and_application does not update `status` (not in _PAM_FIELDS),
+    # so status changes on rename rows are applied with a separate direct UPDATE.
     for db, ex in result["renames"]:
         new_pno = (ex.get("PAM No") or "").strip()
         new_st  = (ex.get("Status") or "").strip()
         new_tgl = normalize_date(ex.get("Tgl Paid"))
-        pam_data = {"pam_no": new_pno, "status": new_st}
+        pam_data = {"pam_no": new_pno}
         if new_tgl:
             pam_data["tanggal_bayar"] = new_tgl
         res = update_pam_and_application(db["id"], pam_data, {}, company_id)
         if res.get("ok"):
             print(f"  ✓ RENAME {db['pam_no']} → {new_pno}")
+            # Apply status separately (not handled by update_pam_and_application)
+            if new_st and new_st != (db.get("status") or "").strip():
+                conn2 = get_conn()
+                try:
+                    conn2.execute(
+                        "UPDATE pam_records SET status=?, updated_at=? WHERE id=?",
+                        (new_st, _ts(), db["id"])
+                    )
+                    conn2.commit()
+                    print(f"    ✓ status updated: {db['status']} → {new_st}")
+                except Exception as e:
+                    conn2.rollback()
+                    had_errors = True
+                    print(f"    ✗ status update GAGAL: {e}")
+                finally:
+                    conn2.close()
         else:
             had_errors = True
             print(f"  ✗ RENAME GAGAL {db['pam_no']}: {res.get('pesan')}")
