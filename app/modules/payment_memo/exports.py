@@ -1,7 +1,7 @@
 """PAM export helpers — PDF (ReportLab) and Excel (openpyxl)."""
 import io
 import config
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
@@ -15,6 +15,47 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from modules.payment_memo.service import get_pam_detail, get_pam_payments, get_pam_payments_detail
+
+_HOLIDAYS_2026 = {
+    date(2026, 1,  1), date(2026, 1, 16), date(2026, 2, 17),
+    date(2026, 3, 19), date(2026, 3, 21), date(2026, 3, 22),
+    date(2026, 4,  3), date(2026, 4,  5),
+    date(2026, 5,  1), date(2026, 5, 14), date(2026, 5, 27), date(2026, 5, 31),
+    date(2026, 6,  1), date(2026, 6, 16),
+    date(2026, 8, 17), date(2026, 8, 25),
+    date(2026, 12, 25),
+}
+
+
+def _workday(start, n: int = 8):
+    """WORKDAY(start, n) — skip weekends and HOLIDAYS_2026."""
+    if isinstance(start, datetime):
+        d = start.date()
+    elif isinstance(start, date):
+        d = start
+    else:
+        try:
+            d = datetime.strptime(str(start)[:10], "%Y-%m-%d").date()
+        except Exception:
+            return start
+    while n > 0:
+        d += timedelta(days=1)
+        if d.weekday() < 5 and d not in _HOLIDAYS_2026:
+            n -= 1
+    return datetime(d.year, d.month, d.day)
+
+
+def _calc_approved_by_2(total_amount) -> str:
+    try:
+        amt = float(total_amount or 0)
+    except (ValueError, TypeError):
+        amt = 0.0
+    if amt <= 50_000_000:
+        return "Santi Suryani"
+    elif amt <= 1_000_000_000:
+        return "Tenti Kidjo"
+    return "Pedy Harianto"
+
 
 _BLUE   = colors.HexColor("#1e3a5f")
 _GOLD   = colors.HexColor("#f59e0b")
@@ -77,7 +118,7 @@ def _terlampir():
 
 def _build_pam_table(pam: dict, approved_by_1: str, approved_by_2: str) -> Table:
     pam_date    = _fmt_date(pam.get("pam_date", ""))
-    due_date    = _fmt_date(pam.get("due_date", ""))
+    due_date    = _fmt_date(_workday(pam.get("pam_date", "")))
     invoice_amt = _fmt_rp(pam.get("total_amount", 0))
 
     data = [
@@ -178,7 +219,7 @@ def _build_signature_table(requestors_name: str,
 
 def _build_pam_table_custom(data: dict) -> Table:
     pam_date    = _fmt_date(data.get("pam_date", ""))
-    due_date    = _fmt_date(data.get("due_date", ""))
+    due_date    = _fmt_date(_workday(data.get("pam_date", "")))
     invoice_amt = _fmt_rp(data.get("total_amount", 0))
 
     def _cb(val):
@@ -337,7 +378,7 @@ def _group_payments_by_siswa(payments: list) -> list:
 
 def export_pam_pdf_custom(data: dict, payments: list) -> bytes:
     approved_by_1 = data.get("approved_by_1") or config.PAM_APPROVED_BY_1
-    approved_by_2 = data.get("approved_by_2") or config.PAM_APPROVED_BY_2
+    approved_by_2 = _calc_approved_by_2(data.get("total_amount", 0))
     pam_no        = data.get("pam_no", "")
 
     buf = io.BytesIO()
@@ -460,7 +501,7 @@ def export_pam_pdf(pam_id: int, company_id: int,
         raise ValueError("PAM record tidak ditemukan.")
 
     approved_by_1 = approved_by_1 or config.PAM_APPROVED_BY_1
-    approved_by_2 = approved_by_2 or config.PAM_APPROVED_BY_2
+    approved_by_2 = _calc_approved_by_2(pam.get("total_amount", 0))
     pam_no        = pam["pam_no"]
     payments      = get_pam_payments(pam_no, company_id)
 
@@ -633,14 +674,14 @@ def _build_detail_sheet(ws, pam: dict, detail: list) -> None:
     ws.row_dimensions[3].height = 15.9
 
     _s(2, 2, "NO.",    bold=True, sz=12, ha="left", va="top")
-    _s(2, 4, ":",      bold=True, sz=12)
+    _s(2, 4, ":",      bold=True, sz=12, ha="center")
     _s(2, 5, pam.get("pam_no", ""), sz=12, ha="left", va="top")
     _s(2, 9, "COST CENTER",  bold=True, sz=12, ha="left")
-    _s(2, 10, ":",     bold=True, sz=12)
+    _s(2, 10, ":",     bold=True, sz=12, ha="center")
     _s(2, 11, pam.get("cost_center", ""), bold=True, sz=12, ha="left")
 
     _s(3, 2, "TANGGAL", bold=True, sz=12, ha="left")
-    _s(3, 4, ":",        bold=True, sz=12)
+    _s(3, 4, ":",        bold=True, sz=12, ha="center")
     try:
         dv = _dt.strptime(pam.get("pam_date", "")[:10], "%Y-%m-%d")
         c3 = _s(3, 5, dv, bold=True, sz=12, ha="left")
@@ -648,7 +689,7 @@ def _build_detail_sheet(ws, pam: dict, detail: list) -> None:
     except Exception:
         _s(3, 5, pam.get("pam_date", ""), bold=True, sz=12, ha="left")
     _s(3, 9, "GL ACCOUNT",  bold=True, sz=12, ha="left")
-    _s(3, 10, ":",           bold=True, sz=12)
+    _s(3, 10, ":",           bold=True, sz=12, ha="center")
     _s(3, 11, pam.get("gl_account", ""), bold=True, sz=12, ha="left")
 
     # ── 2-row column headers (rows 5-6) ──────────────────────────────────────
@@ -657,16 +698,14 @@ def _build_detail_sheet(ws, pam: dict, detail: list) -> None:
 
     for merge_str, val in [
         ("B5:B6", "NO"), ("C5:D6", "NAMA SISWA"), ("E5:E6", "ANGKATAN"),
+        ("F5:F6", "JENJANG STUDI"), ("G5:G6", "PROGRAM ETF"),
+        ("H5:H6", "PERGURUAN TINGGI"), ("I5:I6", "PROGRAM STUDI"),
         ("J5:J6", "KETERANGAN"), ("K5:M5", "PEMBAYARAN"),
         ("P5:P6", "BANK"), ("R5:T5", "SISA SALDO"),
     ]:
         _merge_hdr(merge_str, val)
 
     for r, c, val in [
-        (5, 6, "JENJANG"),   (6, 6, "STUDI"),
-        (5, 7, "PROGRAM"),   (6, 7, "ETF"),
-        (5, 8, "PERGURUAN"), (6, 8, "TINGGI"),
-        (5, 9, "PROGRAM"),   (6, 9, "STUDI"),
         (6, 11, "PENDIDIKAN"), (6, 12, "TUNJANGAN"), (6, 13, "PENELITIAN"),
         (5, 14, "TOTAL"),    (6, 14, "PEMBAYARAN"),
         (5, 15, "NAMA"),     (6, 15, "REKENING"),
@@ -790,7 +829,7 @@ def export_pam_excel(pam_id: int, company_id: int,
         raise ValueError("PAM record tidak ditemukan.")
 
     approved_by_1 = approved_by_1 or config.PAM_APPROVED_BY_1
-    approved_by_2 = approved_by_2 or config.PAM_APPROVED_BY_2
+    approved_by_2 = _calc_approved_by_2(pam.get("total_amount", 0))
     pam_no        = pam["pam_no"]
     payments      = get_pam_payments(pam_no, company_id)
 
@@ -811,7 +850,9 @@ def export_pam_excel(pam_id: int, company_id: int,
     ws.row_dimensions[11].height = 16.5
     ws.row_dimensions[12].height = 11.25
     ws.row_dimensions[19].height = 17.25
-    ws.row_dimensions[25].height = 15.0
+    ws.row_dimensions[25].height = 40.0
+    ws.row_dimensions[26].height = 40.0
+    ws.row_dimensions[27].height = 40.0
 
     _thin      = Side(style="thin")
     _box       = Border(left=_thin, right=_thin, top=_thin, bottom=_thin)
@@ -819,6 +860,7 @@ def export_pam_excel(pam_id: int, company_id: int,
     _C         = Alignment(horizontal="center", vertical="center", wrap_text=True)
     _CN        = Alignment(horizontal="center", vertical="center", wrap_text=False)
     _L         = Alignment(horizontal="left",   vertical="center")
+    _WL        = Alignment(horizontal="left",   vertical="center", wrap_text=True)
     _R         = Alignment(horizontal="right",  vertical="center")
 
     def _bold(sz=11): return Font(bold=True,  size=sz)
@@ -849,7 +891,7 @@ def export_pam_excel(pam_id: int, company_id: int,
         except: return s or ""
 
     pam_date = _dt_val(pam.get("pam_date", ""))
-    due_date = _dt_val(pam.get("due_date", ""))
+    due_date = _workday(pam.get("pam_date", ""))
 
     # Row 1 — title
     ws.merge_cells("A1:Q1")
@@ -962,17 +1004,17 @@ def export_pam_excel(pam_id: int, company_id: int,
     ws.merge_cells("I25:Q25")
     _set("D25", "Bank Account Name ",      align=_L)
     _set("H25", ":")
-    _set("I25", "Terlampir",               align=_L)
+    _set("I25", "Terlampir",               align=_WL)
 
     ws.merge_cells("I26:Q26")
     _set("D26", "Bank Name ",              align=_L)
     _set("H26", ":")
-    _set("I26", "Terlampir",               align=_L)
+    _set("I26", "Terlampir",               align=_WL)
 
     ws.merge_cells("I27:Q27")
     _set("D27", "Bank Account Number",     align=_L)
     _set("H27", ":")
-    _set("I27", "Terlampir",               align=_L)
+    _set("I27", "Terlampir",               align=_WL)
 
     # Row 28 — separator
     ws.merge_cells("I28:Q28")
@@ -1236,7 +1278,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
     from datetime import datetime as _dt
 
     approved_by_1 = data.get("approved_by_1") or config.PAM_APPROVED_BY_1
-    approved_by_2 = data.get("approved_by_2") or config.PAM_APPROVED_BY_2
+    approved_by_2 = _calc_approved_by_2(data.get("total_amount", 0))
     pam_no = data.get("pam_no", "")
 
     wb = openpyxl.Workbook()
@@ -1252,7 +1294,9 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
     ws.row_dimensions[11].height = 16.5
     ws.row_dimensions[12].height = 11.25
     ws.row_dimensions[19].height = 17.25
-    ws.row_dimensions[25].height = 15.0
+    ws.row_dimensions[25].height = 40.0
+    ws.row_dimensions[26].height = 40.0
+    ws.row_dimensions[27].height = 40.0
 
     _thin = Side(style="thin")
     _box  = Border(left=_thin, right=_thin, top=_thin, bottom=_thin)
@@ -1288,7 +1332,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
         except: return s or ""
 
     pam_date = _dt_val(data.get("pam_date", ""))
-    due_date = _dt_val(data.get("due_date", ""))
+    due_date = _workday(data.get("pam_date", ""))
 
     ws.merge_cells("A1:Q1")
     _set("A1", "PAYMENT APPROVAL MEMO", font=_bold(11), align=_C)
