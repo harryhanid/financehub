@@ -473,3 +473,92 @@ def test_get_next_pam_no_land_prefix():
     from modules.payment_memo.service import get_next_pam_no
     pam_no = get_next_pam_no(COMPANY_ID, COMPANY_CODE, "sml", "2026-06-15")
     assert pam_no == "PAM-001-LAND-06-2026"
+
+
+def test_save_pa_payment_sets_pillar_on_pam_records():
+    """Bug: pillar missing from pam_records INSERT → record not visible in pillar tab."""
+    from modules.payment_memo.service import save_pa_payment
+    result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab":        "app",
+        "tanggal":    "2026-06-15",
+        "pam_no":     "PAM-001-APP-06-2026",
+        "keterangan": "Test pillar",
+        "perusahaan": "PT. APP",
+        "pillar":     "APP",
+        "rows":       [{"siswa_code": "S001", "cat1": "By Pendidikan",
+                        "cat2": "Semester 1", "amount": 2_000_000}],
+    })
+    assert result["ok"] is True, result.get("pesan")
+    conn = get_conn()
+    rec = conn.execute(
+        "SELECT pillar FROM pam_records WHERE company_id=? AND pam_no=?",
+        (COMPANY_ID, "PAM-001-APP-06-2026")
+    ).fetchone()
+    conn.close()
+    assert rec is not None
+    assert rec["pillar"] == "APP", f"Expected 'APP', got {rec['pillar']!r}"
+
+
+def test_save_pa_payment_sets_source_beasiswa():
+    """Bug: source was 'etf_app' / 'etf_agri' — should be 'beasiswa' for iPay beasiswa flow."""
+    from modules.payment_memo.service import save_pa_payment
+    for tab, pillar in [("agri", "AGRI"), ("app", "APP"), ("sml", "LAND"), ("setf", "SETF")]:
+        result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+            "tab":        tab,
+            "tanggal":    "2026-06-15",
+            "pam_no":     f"PAM-001-{pillar}-06-2026",
+            "keterangan": f"Test {tab}",
+            "perusahaan": "PT. Test",
+            "pillar":     pillar,
+            "rows":       [{"siswa_code": "S001", "cat1": "By Pendidikan",
+                            "cat2": "Semester 1", "amount": 1_000_000}],
+        })
+        assert result["ok"] is True, f"tab={tab}: {result.get('pesan')}"
+        conn = get_conn()
+        rec = conn.execute(
+            "SELECT source FROM pam_records WHERE company_id=? AND pam_no=?",
+            (COMPANY_ID, f"PAM-001-{pillar}-06-2026")
+        ).fetchone()
+        conn.close()
+        assert rec["source"] == "beasiswa", f"tab={tab}: expected 'beasiswa', got {rec['source']!r}"
+
+
+def test_set_paid_cascades_to_payment_beasiswa():
+    """Lifecycle: setting tanggal_bayar on a beasiswa PAM must complete payment_beasiswa too."""
+    from modules.payment_memo.service import save_pa_payment, set_pam_tanggal_bayar_agri
+    result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab":        "app",
+        "tanggal":    "2026-06-10",
+        "pam_no":     "PAM-001-APP-06-2026",
+        "keterangan": "cascade test",
+        "perusahaan": "PT. X",
+        "pillar":     "APP",
+        "rows":       [{"siswa_code": "S001", "cat1": "By Pendidikan",
+                        "cat2": "Semester 1", "amount": 5_000_000}],
+    })
+    assert result["ok"] is True
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT id FROM pam_records WHERE company_id=? AND pam_no=?",
+        (COMPANY_ID, "PAM-001-APP-06-2026")
+    ).fetchone()
+    conn.close()
+    pam_id = pam["id"]
+
+    paid = set_pam_tanggal_bayar_agri(pam_id, "2026-06-20", COMPANY_ID)
+    assert paid["ok"] is True
+
+    conn = get_conn()
+    pb = conn.execute(
+        "SELECT status FROM payment_beasiswa WHERE pam=? AND company_id=?",
+        ("PAM-001-APP-06-2026", COMPANY_ID)
+    ).fetchone()
+    pr = conn.execute(
+        "SELECT status, tanggal_bayar FROM pam_records WHERE id=?", (pam_id,)
+    ).fetchone()
+    conn.close()
+
+    assert pr["status"] == "complete"
+    assert pr["tanggal_bayar"] == "2026-06-20"
+    assert pb is not None, "payment_beasiswa row not found"
+    assert pb["status"] == "complete", f"Expected complete, got {pb['status']!r}"

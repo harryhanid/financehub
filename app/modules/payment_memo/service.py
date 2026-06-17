@@ -384,11 +384,11 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
         conn.execute(
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
-                total_amount, due_date, source, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,'open',?)""",
+                total_amount, due_date, pillar, source, status, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,'open',?)""",
             (company_id, pam_no, tanggal,
              company_code, keterangan,
-             total, due_date, f"etf_{tab}", _ts())
+             total, due_date, pillar, "beasiswa", _ts())
         )
 
         # 4. Update PA: nomor_pam + status='on_process'
@@ -1523,8 +1523,9 @@ def create_pam_from_etf_pa(company_id: int, company_code: str,
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, gl_account, cost_center, pt,
-            requestors_name, keterangan, total_amount, due_date, status, source, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,'open','etf_agri',?)""",
+            requestors_name, keterangan, total_amount, due_date, pillar,
+            status, source, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'AGRI','open','etf_agri',?)""",
         (company_id, pam_no, pam_date,
          config.PAM_DEFAULT_GL if hasattr(config, 'PAM_DEFAULT_GL') else "",
          "", company_code,
@@ -1569,17 +1570,49 @@ def set_pam_tanggal_bayar_agri(pam_id: int, tanggal_bayar: str, company_id: int)
         (tanggal_bayar, ts, pam_id)
     )
 
-    # 2. Cascade ke etf_pa jika source='etf_agri'
-    if pam.get("source") == "etf_agri":
+    pam_no = pam["pam_no"]
+    source = pam.get("source") or ""
+
+    # 2. Cascade ke etf_pa jika source='etf_agri' (PA-only AGRI flow, no payment_beasiswa)
+    if source == "etf_agri":
         conn.execute(
             """UPDATE etf_pa SET tanggal_bayar=?, status='complete', updated_at=?
                WHERE nomor_pam=? AND company_id=?""",
-            (tanggal_bayar, ts, pam["pam_no"], company_id)
+            (tanggal_bayar, ts, pam_no, company_id)
         )
+
+    # 3. Cascade ke payment_beasiswa + PA tables untuk beasiswa iPay flow
+    else:
+        conn.execute(
+            "UPDATE payment_beasiswa SET status='complete' WHERE pam=? AND company_id=?",
+            (pam_no, company_id)
+        )
+        line_ids = [
+            r[0] for r in conn.execute(
+                "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa "
+                "WHERE pam=? AND company_id=? AND etf_pa_line_id IS NOT NULL",
+                (pam_no, company_id)
+            ).fetchall()
+        ]
+        if line_ids:
+            ph = ",".join("?" * len(line_ids))
+            for lines_tbl, pa_tbl in [
+                ("etf_pa_lines",  "etf_pa"),
+                ("app_pa_lines",  "app_pa"),
+                ("sml_pa_lines",  "sml_pa"),
+                ("setf_pa_lines", "setf_pa"),
+            ]:
+                conn.execute(
+                    f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status='complete', updated_at=?
+                        WHERE id IN (
+                            SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})
+                        ) AND company_id=?""",
+                    [tanggal_bayar, ts] + line_ids + [company_id]
+                )
 
     conn.commit()
     conn.close()
-    return {"ok": True, "pesan": f"Tgl Paid disimpan, PAM selesai."}
+    return {"ok": True, "pesan": "Tgl Paid disimpan, PAM selesai."}
 
 
 def check_pam_no_exists(company_id: int, pam_no: str) -> dict:

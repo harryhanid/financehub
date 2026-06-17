@@ -206,14 +206,14 @@
         <option value="2027">2027</option>
       </select>
       <select id="pam-filter-status" onchange="loadPAMDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
         <option value="complete">Complete</option>
       </select>
       <select id="pam-filter-source" onchange="loadPAMDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
         <option value="">Semua Source</option>
         <option value="beasiswa">Beasiswa</option>
         <option value="etf">ETF</option>
@@ -435,14 +435,14 @@
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
       <select id="fiori-filter-status" onchange="loadFIORIDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
         <option value="complete">Complete</option>
       </select>
       <select id="fiori-filter-source" onchange="loadFIORIDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
         <option value="">Semua Source</option>
         <option value="beasiswa">Beasiswa</option>
         <option value="etf">ETF</option>
@@ -514,14 +514,14 @@
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
       <select id="sml-filter-status" onchange="loadSMLDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
         <option value="complete">Complete</option>
       </select>
       <select id="sml-filter-source" onchange="loadSMLDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
         <option value="">Semua Source</option>
         <option value="beasiswa">Beasiswa</option>
         <option value="etf">ETF</option>
@@ -593,14 +593,14 @@
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
       <select id="setf-filter-status" onchange="loadSETFDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
         <option value="complete">Complete</option>
       </select>
       <select id="setf-filter-source" onchange="loadSETFDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
         <option value="">Semua Source</option>
         <option value="beasiswa">Beasiswa</option>
         <option value="etf">ETF</option>
@@ -1737,8 +1737,7 @@ function _aksiCell(r) {
     btns += _btn('Revert', 'btn-ghost', `updatePAMStatus(${r.id},'open')`);
   btns += _btn('Edit', 'btn-primary', `openEditPAM(${r.id})`);
   btns += `<a href="/payment-memo/pam/${r.id}/export/excel" class="btn btn-sm btn-success">Excel</a>`;
-  // AGRI PAM: Set Paid button dengan date picker inline
-  if (r.source === 'etf_agri' && r.status !== 'complete') {
+  if (r.status !== 'complete') {
     btns += `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:4px">
       <input type="date" id="paid-date-${r.id}"
              style="font-size:.7rem;padding:1px 4px;border:1px solid #93c5fd;border-radius:3px;width:120px"
