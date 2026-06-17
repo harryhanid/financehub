@@ -333,6 +333,35 @@ def get_next_pam_no(company_id: int, company_code: str,
     return generate_pam_number(company_id, prefix, year, month)
 
 
+def get_siswa_medical(company_id: int, search: str = "") -> list:
+    sql = """
+        SELECT s.code, s.nama,
+               b.pillar AS pillar,
+               SUM(b.amount) AS medical_budget,
+               COALESCE((
+                   SELECT SUM(pb.amount)
+                   FROM payment_beasiswa pb
+                   WHERE pb.siswa_code = s.code
+                     AND pb.company_id = s.company_id
+                     AND pb.cat1 = 'By Medical'
+               ), 0) AS spent_amount
+        FROM siswa s
+        JOIN budget_beasiswa b ON b.siswa_code = s.code
+                               AND b.company_id = s.company_id
+                               AND b.cat1 = 'By Medical'
+        WHERE s.company_id = ?
+    """
+    params: list = [company_id]
+    if search:
+        sql    += " AND (s.nama LIKE ? OR s.code LIKE ?)"
+        params += [f"%{search}%", f"%{search}%"]
+    sql += " GROUP BY s.code, s.nama, b.pillar ORDER BY s.nama"
+    conn = get_conn()
+    rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
+    conn.close()
+    return rows
+
+
 def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
     """
     Unified save for Input PA (AGRI/APP/SML/SETF):
@@ -471,9 +500,13 @@ def create_pam_record(conn, company_id: int, company_code: str,
 
 
 def get_pam_list(company_id: int, search: str = "", bulan: str = "",
-                 tahun: str = "", source: str = "") -> list:
+                 tahun: str = "", source: str = "", pillar: str = "",
+                 status: str = "") -> list:
     sql    = "SELECT * FROM pam_records WHERE company_id=?"
     params = [company_id]
+    if pillar:
+        sql    += " AND pillar=?"
+        params += [pillar.upper()]
     if search:
         q       = f"%{search}%"
         sql    += " AND (pam_no LIKE ? OR pt LIKE ? OR keterangan LIKE ?)"
@@ -487,6 +520,9 @@ def get_pam_list(company_id: int, search: str = "", bulan: str = "",
     if source:
         sql    += " AND source LIKE ?"
         params += [f"etf_{source}%"]
+    if status:
+        sql    += " AND status=?"
+        params += [status]
     sql += " ORDER BY created_at DESC"
     conn = get_conn()
     rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
