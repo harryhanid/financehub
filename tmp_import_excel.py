@@ -3,6 +3,7 @@ Import script: sync perubahan dari Excel → SQLite (PAM AGRI + Open PAM).
 
 Usage:
     python tmp_import_excel.py           # dry-run — lihat diff, tidak ada yang berubah
+    python tmp_import_excel.py --apply   # apply semua perubahan ke SQLite (backup otomatis)
 
 File Excel dikonfigurasi di konstanta PAM_AGRI_FILE dan OPEN_PAM_FILE di bawah.
 """
@@ -25,6 +26,21 @@ PAM_AGRI_FILE = r"C:\Users\25010160\Downloads\PAM_AGRI_20260617_1111.xlsx"
 OPEN_PAM_FILE = r"C:\Users\25010160\Downloads\Open_PAM_20260617_1111.xlsx"
 DB_PATH       = os.path.join(_APP, "finance_hub.db")
 COMPANY_ID    = 2   # ETF company_id di DB
+
+
+# ── Utilities ───────────────────────────────────────────────────────────────────
+
+def _ts() -> str:
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+def backup_db() -> str:
+    """Copy DB ke file backup dengan timestamp, return path backup."""
+    ts  = _ts()
+    bak = DB_PATH + f".bak_import_{ts}"
+    shutil.copy2(DB_PATH, bak)
+    print(f"[BACKUP] {bak}")
+    return bak
 
 
 # ── Normalize helpers ───────────────────────────────────────────────────────────
@@ -274,9 +290,107 @@ def print_diff(pam_result: dict, open_result: dict, dry_run: bool = True) -> Non
     print(sep)
 
 
-# ── Temp main for smoke test (will be replaced in Task 4) ──────────────────────
+# ── Apply functions ─────────────────────────────────────────────────────────────
+
+def apply_pam_agri(result: dict, company_id: int) -> None:
+    """Apply updates, renames, deletes ke pam_records."""
+    from modules.payment_memo.service import (
+        cancel_pam_record, update_pam_and_application
+    )
+
+    # 1. UPDATE: status + tanggal_bayar via direct SQL (batch)
+    if result["updates"]:
+        conn = get_conn()
+        try:
+            for db, ex in result["updates"]:
+                new_status = (ex.get("Status") or "").strip()
+                new_tgl    = normalize_date(ex.get("Tgl Paid"))
+                conn.execute(
+                    "UPDATE pam_records SET status=?, tanggal_bayar=? "
+                    "WHERE id=?",
+                    (new_status, new_tgl, db["id"])
+                )
+            conn.commit()
+            print(f"  ✓ {len(result['updates'])} pam_records di-UPDATE")
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    # 2. RENAME: cascade via update_pam_and_application
+    for db, ex in result["renames"]:
+        new_pno = (ex.get("PAM No") or "").strip()
+        new_st  = (ex.get("Status") or "").strip()
+        new_tgl = normalize_date(ex.get("Tgl Paid"))
+        pam_data = {"pam_no": new_pno, "status": new_st}
+        if new_tgl:
+            pam_data["tanggal_bayar"] = new_tgl
+        res = update_pam_and_application(db["id"], pam_data, {}, company_id)
+        if res.get("ok"):
+            print(f"  ✓ RENAME {db['pam_no']} → {new_pno}")
+        else:
+            print(f"  ✗ RENAME GAGAL {db['pam_no']}: {res.get('pesan')}")
+
+    # 3. DELETE: cascade via cancel_pam_record
+    for db in result["deletes"]:
+        res = cancel_pam_record(db["id"], company_id)
+        if res.get("ok"):
+            print(f"  ✓ DELETE {db['pam_no']}")
+        else:
+            print(f"  ✗ DELETE GAGAL {db['pam_no']}: {res.get('pesan')}")
+
+    # 4. SKIP: warning only
+    for ex in result["skips"]:
+        print(f"  ⚠ SKIP {ex.get('PAM No','?')} — tidak ada match di DB, handle manual")
+
+
+def apply_open_pam(result: dict, company_id: int) -> None:
+    """Apply updates dan deletes ke payment_beasiswa dalam satu transaction."""
+    if not result["updates"] and not result["deletes"]:
+        print("  (tidak ada perubahan pada payment_beasiswa)")
+        return
+
+    conn = get_conn()
+    try:
+        for db, ex in result["updates"]:
+            new_pam = (ex.get("PAM No")     or "").strip() or None
+            new_per = (ex.get("Perusahaan") or "").strip() or None
+            new_st  = (ex.get("Status")     or "").strip()
+            conn.execute(
+                "UPDATE payment_beasiswa SET pam=?, perusahaan=?, status=? WHERE id=?",
+                (new_pam, new_per, new_st, db["id"])
+            )
+        for db in result["deletes"]:
+            conn.execute(
+                "DELETE FROM payment_beasiswa WHERE id=? AND company_id=?",
+                (db["id"], company_id)
+            )
+        conn.commit()
+        print(f"  ✓ {len(result['updates'])} payment_beasiswa di-UPDATE")
+        print(f"  ✓ {len(result['deletes'])} payment_beasiswa di-DELETE")
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    for ex in result["skips"]:
+        print(f"  ⚠ SKIP {ex.get('Code','?')} | {ex.get('Kategori 2','?')} "
+              f"— tidak ada match, handle manual")
+
+
+# ── Main ────────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Import perubahan Excel → SQLite (PAM AGRI + Open PAM)"
+    )
+    parser.add_argument("--apply", action="store_true",
+                        help="Apply perubahan ke DB (default: dry-run)")
+    args = parser.parse_args()
+    dry_run = not args.apply
+
     print("Membaca Excel files...")
     ex_pam  = load_pam_agri_excel(PAM_AGRI_FILE)
     ex_open = load_open_pam_excel(OPEN_PAM_FILE)
@@ -293,7 +407,15 @@ def main() -> None:
     pam_result  = match_pam_agri(ex_pam, db_pam)
     open_result = match_open_pam(ex_open, db_open)
 
-    print_diff(pam_result, open_result, dry_run=True)
+    print_diff(pam_result, open_result, dry_run=dry_run)
+
+    if not dry_run:
+        backup_db()
+        print("\nApplying pam_records...")
+        apply_pam_agri(pam_result, COMPANY_ID)
+        print("\nApplying payment_beasiswa...")
+        apply_open_pam(open_result, COMPANY_ID)
+        print("\nSelesai.")
 
 
 if __name__ == "__main__":
