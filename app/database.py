@@ -180,6 +180,12 @@ CREATE TABLE IF NOT EXISTS pam_records (
     total_amount    REAL DEFAULT 0,
     due_date        TEXT,
     status          TEXT DEFAULT 'open',
+    source          TEXT,
+    pillar          TEXT,
+    mata_uang       TEXT DEFAULT 'IDR',
+    dpp             REAL DEFAULT 0,
+    ppn             REAL DEFAULT 0,
+    tanggal_bayar   TEXT,
     created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at      TEXT
 );
