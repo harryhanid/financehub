@@ -292,11 +292,12 @@ def print_diff(pam_result: dict, open_result: dict, dry_run: bool = True) -> Non
 
 # ── Apply functions ─────────────────────────────────────────────────────────────
 
-def apply_pam_agri(result: dict, company_id: int) -> None:
-    """Apply updates, renames, deletes ke pam_records."""
+def apply_pam_agri(result: dict, company_id: int) -> bool:
+    """Apply updates, renames, deletes ke pam_records. Returns False if any operation failed."""
     from modules.payment_memo.service import (
         cancel_pam_record, update_pam_and_application
     )
+    had_errors = False
 
     # 1. UPDATE: status + tanggal_bayar via direct SQL (batch)
     if result["updates"]:
@@ -306,15 +307,16 @@ def apply_pam_agri(result: dict, company_id: int) -> None:
                 new_status = (ex.get("Status") or "").strip()
                 new_tgl    = normalize_date(ex.get("Tgl Paid"))
                 conn.execute(
-                    "UPDATE pam_records SET status=?, tanggal_bayar=? "
+                    "UPDATE pam_records SET status=?, tanggal_bayar=?, updated_at=? "
                     "WHERE id=?",
-                    (new_status, new_tgl, db["id"])
+                    (new_status, new_tgl, _ts(), db["id"])
                 )
             conn.commit()
             print(f"  ✓ {len(result['updates'])} pam_records di-UPDATE")
-        except Exception:
+        except Exception as e:
             conn.rollback()
-            raise
+            had_errors = True
+            print(f"  ✗ UPDATE GAGAL: {e}")
         finally:
             conn.close()
 
@@ -330,6 +332,7 @@ def apply_pam_agri(result: dict, company_id: int) -> None:
         if res.get("ok"):
             print(f"  ✓ RENAME {db['pam_no']} → {new_pno}")
         else:
+            had_errors = True
             print(f"  ✗ RENAME GAGAL {db['pam_no']}: {res.get('pesan')}")
 
     # 3. DELETE: cascade via cancel_pam_record
@@ -338,11 +341,14 @@ def apply_pam_agri(result: dict, company_id: int) -> None:
         if res.get("ok"):
             print(f"  ✓ DELETE {db['pam_no']}")
         else:
+            had_errors = True
             print(f"  ✗ DELETE GAGAL {db['pam_no']}: {res.get('pesan')}")
 
     # 4. SKIP: warning only
     for ex in result["skips"]:
         print(f"  ⚠ SKIP {ex.get('PAM No','?')} — tidak ada match di DB, handle manual")
+
+    return not had_errors
 
 
 def apply_open_pam(result: dict, company_id: int) -> None:
@@ -410,12 +416,18 @@ def main() -> None:
     print_diff(pam_result, open_result, dry_run=dry_run)
 
     if not dry_run:
+        confirm = input("\nLanjutkan apply ke DB? [y/N] ").strip().lower()
+        if confirm != "y":
+            print("Dibatalkan.")
+            return
         backup_db()
         print("\nApplying pam_records...")
-        apply_pam_agri(pam_result, COMPANY_ID)
+        ok1 = apply_pam_agri(pam_result, COMPANY_ID)
         print("\nApplying payment_beasiswa...")
         apply_open_pam(open_result, COMPANY_ID)
         print("\nSelesai.")
+        if not ok1:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
