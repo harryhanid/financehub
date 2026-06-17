@@ -43,9 +43,9 @@ def index():
     sf = ""
     pa_rows = []
     if tab != "input":
-        sf = request.args.get("sf", "active").lower()
+        sf = request.args.get("sf", "").lower()
         if sf not in ("open", "on_process", "complete", "active", ""):
-            sf = "active"
+            sf = ""
         pa_rows = get_pa_flat(company_id, tab, sf)
     return render_template(
         "etf_payment_application/index.html",
