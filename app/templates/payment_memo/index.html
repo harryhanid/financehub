@@ -92,8 +92,7 @@
 
   <!-- TAB INPUT PAYMENT -->
   <div class="tab-panel" id="tab-input-payment">
-    {# ── Panel Beasiswa (existing) ── #}
-    <div id="ipay-panel-beasiswa">
+    {# ── Shared header (always visible for all transaksi types) ── #}
     <div style="display:grid;grid-template-columns:120px 150px 160px minmax(200px,1fr) 180px;gap:.75rem;margin-bottom:.5rem;align-items:end;max-width:980px">
       <div class="form-group" style="margin:0">
         <label>Tipe PAM</label>
@@ -152,6 +151,8 @@
                style="border:1px solid #93c5fd;background:#fafeff">
       </div>
     </div>
+    {# ── Panel Beasiswa (existing) ── #}
+    <div id="ipay-panel-beasiswa">
     <div class="table-wrap">
       <table id="ipay-table" style="min-width:1200px">
         <thead>
