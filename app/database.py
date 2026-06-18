@@ -535,32 +535,6 @@ def migrate_db():
     except Exception as e:
         print(f"[migrate] etf_pa UNIQUE drop: {e}")
 
-    # pa_summary view
-    try:
-        conn.executescript("""
-            DROP VIEW IF EXISTS pa_summary;
-            CREATE VIEW pa_summary AS
-            SELECT
-                e.company_id,
-                e.pa_number,
-                GROUP_CONCAT(DISTINCT e.tgl_payment_application) AS tgl_payment_application,
-                GROUP_CONCAT(DISTINCT e.nomor_pam)               AS nomor_pam,
-                GROUP_CONCAT(DISTINCT s.nama)                    AS nama_student,
-                GROUP_CONCAT(DISTINCT l.jenis_pembayaran)        AS jenis_pembayaran,
-                GROUP_CONCAT(DISTINCT l.semester)                AS semester,
-                SUM(l.jumlah_pembayaran)                         AS jumlah_pembayaran,
-                GROUP_CONCAT(DISTINCT e.status)                  AS status,
-                GROUP_CONCAT(DISTINCT e.tanggal_bayar)           AS tanggal_bayar,
-                GROUP_CONCAT(DISTINCT e.keterangan)              AS keterangan
-            FROM etf_pa e
-            LEFT JOIN etf_pa_lines l ON l.pa_id = e.id
-            LEFT JOIN siswa s ON s.id = l.student_id
-            GROUP BY e.company_id, e.pa_number;
-        """)
-        conn.commit()
-    except Exception as e:
-        print(f"[migrate] pa_summary view: {e}")
-
     # etf_pa_lines table
     try:
         conn.execute(
@@ -589,6 +563,32 @@ def migrate_db():
         except Exception:
             pass
     conn.commit()
+
+    # pa_summary view
+    try:
+        conn.executescript("""
+            DROP VIEW IF EXISTS pa_summary;
+            CREATE VIEW pa_summary AS
+            SELECT
+                e.company_id,
+                e.pa_number,
+                GROUP_CONCAT(DISTINCT e.tgl_payment_application) AS tgl_payment_application,
+                GROUP_CONCAT(DISTINCT e.nomor_pam)               AS nomor_pam,
+                GROUP_CONCAT(DISTINCT s.nama)                    AS nama_student,
+                GROUP_CONCAT(DISTINCT l.jenis_pembayaran)        AS jenis_pembayaran,
+                GROUP_CONCAT(DISTINCT l.semester)                AS semester,
+                SUM(l.jumlah_pembayaran)                         AS jumlah_pembayaran,
+                GROUP_CONCAT(DISTINCT e.status)                  AS status,
+                GROUP_CONCAT(DISTINCT e.tanggal_bayar)           AS tanggal_bayar,
+                GROUP_CONCAT(DISTINCT e.keterangan)              AS keterangan
+            FROM etf_pa e
+            LEFT JOIN etf_pa_lines l ON l.pa_id = e.id
+            LEFT JOIN siswa s ON s.id = l.student_id
+            GROUP BY e.company_id, e.pa_number;
+        """)
+        conn.commit()
+    except Exception as e:
+        print(f"[migrate] pa_summary view: {e}")
 
     # sml_pa table — student-based PA (same schema as etf_pa/app_pa)
     try:
