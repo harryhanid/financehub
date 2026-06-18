@@ -491,9 +491,32 @@ body.pa-focus #pa-focus-exit { display: flex; }
 </div>
 {% elif active_tab == 'summary' %}
 {# ── Summary Tab ───────────────────────────────────────────── #}
-<div style="margin-top:.5rem">
+
+{# Filter bar #}
+<div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; margin-bottom:.75rem; padding:.65rem .75rem; background:var(--bg-muted,#f8f9fa); border-radius:6px; border:1px solid var(--border)">
+  <div class="form-group" style="margin:0; width:200px">
+    <label style="font-size:.72rem; font-weight:600">Cari Nama Student</label>
+    <input type="text" id="sf-nama" placeholder="Ketik nama..." oninput="renderSummary()" style="font-size:.82rem">
+  </div>
+  <div class="form-group" style="margin:0; width:120px">
+    <label style="font-size:.72rem; font-weight:600">Status</label>
+    <select id="sf-status" onchange="renderSummary()" style="font-size:.82rem">
+      <option value="">Semua</option>
+      <option value="open">Open</option>
+      <option value="on_process">On Process</option>
+      <option value="complete">Complete</option>
+    </select>
+  </div>
+  <div class="form-group" style="margin:0; width:140px">
+    <label style="font-size:.72rem; font-weight:600">Tgl PA (Bulan)</label>
+    <input type="month" id="sf-tgl-pa" onchange="renderSummary()" style="font-size:.82rem">
+  </div>
+  <button class="btn btn-secondary" onclick="document.getElementById('sf-nama').value=''; document.getElementById('sf-status').value=''; document.getElementById('sf-tgl-pa').value=''; renderSummary();" style="font-size:.8rem; align-self:flex-end">Reset</button>
+</div>
+
+<div style="margin-top:.25rem">
   <div id="summary-loading" style="text-align:center; padding:2rem; color:var(--text-muted)">Memuat data summary...</div>
-  <div id="summary-wrap" style="display:none; overflow-x:auto; max-height:calc(100vh - 180px); overflow-y:auto">
+  <div id="summary-wrap" style="display:none; overflow-x:auto; max-height:calc(100vh - 230px); overflow-y:auto">
     <table id="summary-table" style="width:100%; border-collapse:collapse; font-size:.8rem">
       <thead>
         <tr style="background:var(--bg-muted); position:sticky; top:0; z-index:2">
@@ -517,28 +540,46 @@ body.pa-focus #pa-focus-exit { display: flex; }
 </div>
 
 <script>
-(function loadSummary() {
+(function() {
+  let _summaryRows = [];
+
+  window.renderSummary = function() {
+    const nama   = (document.getElementById('sf-nama').value   || '').toLowerCase().trim();
+    const status = (document.getElementById('sf-status').value || '').toLowerCase().trim();
+    const tglPA  = (document.getElementById('sf-tgl-pa').value || '').trim(); // "YYYY-MM"
+
+    const filtered = _summaryRows.filter(r => {
+      if (nama   && !(r.nama_student            || '').toLowerCase().includes(nama))   return false;
+      if (status && !(r.status                  || '').toLowerCase().includes(status)) return false;
+      if (tglPA  && !(r.tgl_payment_application || '').includes(tglPA))                return false;
+      return true;
+    });
+
+    const tbody = document.getElementById('summary-tbody');
+    tbody.innerHTML = filtered.map((r, i) => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:.4rem .6rem; color:var(--text-muted)">${i+1}</td>
+        <td style="padding:.4rem .6rem; font-weight:600; white-space:nowrap">${r.pa_number || ''}</td>
+        <td style="padding:.4rem .6rem; white-space:nowrap">${r.tgl_payment_application || '-'}</td>
+        <td style="padding:.4rem .6rem">${r.nomor_pam || '-'}</td>
+        <td style="padding:.4rem .6rem">${r.nama_student || '-'}</td>
+        <td style="padding:.4rem .6rem">${r.jenis_pembayaran || '-'}</td>
+        <td style="padding:.4rem .6rem">${r.semester || '-'}</td>
+        <td style="padding:.4rem .6rem; text-align:right; font-variant-numeric:tabular-nums">${(r.jumlah_pembayaran||0).toLocaleString('id-ID')}</td>
+        <td style="padding:.4rem .6rem">${r.status || '-'}</td>
+        <td style="padding:.4rem .6rem; white-space:nowrap">${r.tanggal_bayar || '-'}</td>
+        <td style="padding:.4rem .6rem">${r.keterangan || '-'}</td>
+      </tr>`).join('');
+    document.getElementById('summary-count').textContent = `${filtered.length} PA Number${filtered.length < _summaryRows.length ? ' (dari ' + _summaryRows.length + ')' : ''}`;
+  };
+
   fetch('/etf-payment-application/summary-data')
     .then(r => r.json())
     .then(rows => {
-      const tbody = document.getElementById('summary-tbody');
-      tbody.innerHTML = rows.map((r, i) => `
-        <tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:.4rem .6rem; color:var(--text-muted)">${i+1}</td>
-          <td style="padding:.4rem .6rem; font-weight:600; white-space:nowrap">${r.pa_number || ''}</td>
-          <td style="padding:.4rem .6rem; white-space:nowrap">${r.tgl_payment_application || '-'}</td>
-          <td style="padding:.4rem .6rem">${r.nomor_pam || '-'}</td>
-          <td style="padding:.4rem .6rem">${r.nama_student || '-'}</td>
-          <td style="padding:.4rem .6rem">${r.jenis_pembayaran || '-'}</td>
-          <td style="padding:.4rem .6rem">${r.semester || '-'}</td>
-          <td style="padding:.4rem .6rem; text-align:right; font-variant-numeric:tabular-nums">${(r.jumlah_pembayaran||0).toLocaleString('id-ID')}</td>
-          <td style="padding:.4rem .6rem">${r.status || '-'}</td>
-          <td style="padding:.4rem .6rem; white-space:nowrap">${r.tanggal_bayar || '-'}</td>
-          <td style="padding:.4rem .6rem">${r.keterangan || '-'}</td>
-        </tr>`).join('');
+      _summaryRows = rows;
       document.getElementById('summary-loading').style.display = 'none';
       document.getElementById('summary-wrap').style.display = 'block';
-      document.getElementById('summary-count').textContent = `${rows.length} PA Number`;
+      renderSummary();
     })
     .catch(err => {
       document.getElementById('summary-loading').textContent = 'Gagal memuat data: ' + err.message;
