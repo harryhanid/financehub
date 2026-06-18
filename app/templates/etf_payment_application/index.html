@@ -176,8 +176,8 @@ body.pa-focus #pa-focus-exit { display: flex; }
     <h1 style="font-size:1.25rem; font-weight:700; margin-bottom:.5rem">ETF Payment Application — {{ company_name }}</h1>
     {# ── Tab navigation ── #}
     <div style="display:flex; gap:0; border:1px solid var(--border); border-radius:6px; overflow:hidden; width:fit-content">
-      {% for t, label in [('input','Input'),('agri','AGRI'),('app','APP'),('sml','SML'),('setf','SETF')] %}
-      <a href="?tab={{ t }}"
+      {% for t, label in [('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF'),('summary','Summary')] %}
+      <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
          style="padding:.35rem .9rem; font-size:.8rem; font-weight:600; text-decoration:none; white-space:nowrap;
                 {% if active_tab == t %}background:var(--primary,#3b82f6); color:#fff;
                 {% else %}background:var(--bg-muted,#f1f3f5); color:var(--text-muted);{% endif %}
@@ -186,7 +186,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
       {% endfor %}
     </div>
   </div>
-  {% if active_tab != 'input' %}
+  {% if active_tab not in ('input', 'summary') %}
   <div style="display:flex; gap:.5rem; align-self:flex-end">
     <button id="pa-focus-btn" class="btn btn-secondary" onclick="enterFocusMode()" title="Sembunyikan filter & navbar (geser tabel untuk otomatis)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
@@ -198,7 +198,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
 </div>
 
 {# ── Filter + bulk bar: only on data tabs ────────────────────────────────── #}
-{% if active_tab != 'input' %}
+{% if active_tab not in ('input', 'summary') %}
 <div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; margin-bottom:.75rem; padding:.65rem .75rem; background:var(--bg-muted,#f8f9fa); border-radius:6px; border:1px solid var(--border)">
   <div class="form-group" style="margin:0; width:160px">
     <label style="font-size:.72rem; font-weight:600">Cari Nama PB</label>
@@ -313,7 +313,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
   <div style="margin-bottom:1rem; padding:.65rem .85rem; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px">
     <div style="font-size:.8rem; font-weight:700; color:#0369a1; margin-bottom:.45rem">Pilih Jenis PA *</div>
     <div style="display:flex; gap:1.25rem; flex-wrap:wrap">
-      {% for t, lbl in [('agri','AGRI'),('app','APP'),('sml','SML'),('setf','SETF')] %}
+      {% for t, lbl in [('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
       <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
         <input type="radio" name="pa-company-type" value="{{ t }}" {% if loop.first %}checked{% endif %} style="width:15px;height:15px;accent-color:#1d4ed8">
         {{ lbl }}
@@ -370,7 +370,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
     <button class="btn btn-primary" onclick="submitPA()">Simpan PA</button>
   </div>
 </div>
-{% else %}{# data tabs: AGRI / APP / SML / SETF #}
+{% elif active_tab not in ('input', 'summary') %}{# data tabs: AGRI / APP / SML / SETF #}
 {% if active_tab == 'setf' and not pa_rows %}
 <div style="margin:2rem auto;max-width:500px;text-align:center;padding:2rem;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text-muted)">
   <div style="font-size:2rem;margin-bottom:.5rem">📋</div>
@@ -489,6 +489,63 @@ body.pa-focus #pa-focus-exit { display: flex; }
     </tbody>
   </table>
 </div>
+{% elif active_tab == 'summary' %}
+{# ── Summary Tab ───────────────────────────────────────────── #}
+<div style="margin-top:.5rem">
+  <div id="summary-loading" style="text-align:center; padding:2rem; color:var(--text-muted)">Memuat data summary...</div>
+  <div id="summary-wrap" style="display:none; overflow-x:auto; max-height:calc(100vh - 180px); overflow-y:auto">
+    <table id="summary-table" style="width:100%; border-collapse:collapse; font-size:.8rem">
+      <thead>
+        <tr style="background:var(--bg-muted); position:sticky; top:0; z-index:2">
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">#</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">PA Number</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Tgl PA</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Nomor PAM</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Nama Student</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Jenis Pembayaran</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Semester</th>
+          <th style="padding:.5rem .6rem; text-align:right; white-space:nowrap; border-bottom:2px solid var(--border)">Total (IDR)</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Status</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Tgl Bayar</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Keterangan</th>
+        </tr>
+      </thead>
+      <tbody id="summary-tbody"></tbody>
+    </table>
+  </div>
+  <div id="summary-count" style="margin-top:.4rem; font-size:.75rem; color:var(--text-muted)"></div>
+</div>
+
+<script>
+(function loadSummary() {
+  fetch('/etf-payment-application/summary-data')
+    .then(r => r.json())
+    .then(rows => {
+      const tbody = document.getElementById('summary-tbody');
+      tbody.innerHTML = rows.map((r, i) => `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:.4rem .6rem; color:var(--text-muted)">${i+1}</td>
+          <td style="padding:.4rem .6rem; font-weight:600; white-space:nowrap">${r.pa_number || ''}</td>
+          <td style="padding:.4rem .6rem; white-space:nowrap">${r.tgl_payment_application || '-'}</td>
+          <td style="padding:.4rem .6rem">${r.nomor_pam || '-'}</td>
+          <td style="padding:.4rem .6rem">${r.nama_student || '-'}</td>
+          <td style="padding:.4rem .6rem">${r.jenis_pembayaran || '-'}</td>
+          <td style="padding:.4rem .6rem">${r.semester || '-'}</td>
+          <td style="padding:.4rem .6rem; text-align:right; font-variant-numeric:tabular-nums">${(r.jumlah_pembayaran||0).toLocaleString('id-ID')}</td>
+          <td style="padding:.4rem .6rem">${r.status || '-'}</td>
+          <td style="padding:.4rem .6rem; white-space:nowrap">${r.tanggal_bayar || '-'}</td>
+          <td style="padding:.4rem .6rem">${r.keterangan || '-'}</td>
+        </tr>`).join('');
+      document.getElementById('summary-loading').style.display = 'none';
+      document.getElementById('summary-wrap').style.display = 'block';
+      document.getElementById('summary-count').textContent = `${rows.length} PA Number`;
+    })
+    .catch(err => {
+      document.getElementById('summary-loading').textContent = 'Gagal memuat data: ' + err.message;
+    });
+})();
+</script>
+
 {% endif %}{# end input/data tab conditional #}
 
 {# ── Modal Edit PA ──────────────────────────────────────────────────────── #}
@@ -706,8 +763,7 @@ function applyFiltersDebounced() {
 
 function statusFilterChanged(el) {
   const url = new URL(window.location);
-  if (el.value) url.searchParams.set("sf", el.value);
-  else url.searchParams.delete("sf");
+  url.searchParams.set("sf", el.value);
   window.location.href = url.toString();
 }
 
@@ -829,7 +885,8 @@ function removePaChip(paId) {
   updateBulkBar();
 }
 function selectedPaIds() {
-  return [...document.querySelectorAll(".row-chk:checked")].map(c => parseInt(c.value));
+  const raw = [...document.querySelectorAll(".row-chk:checked")].map(c => parseInt(c.value));
+  return [...new Set(raw)];
 }
 function visiblePaIds() {
   return [...document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none'])")].map(tr => parseInt(tr.dataset.paId));
@@ -1048,6 +1105,7 @@ function addPayLine() {
 }
 
 // ─── Create ───────────────────────────────────────────────────────────────────
+const _TAB_LABEL = { agri: 'AGRI', app: 'APP', sml: 'LAND', setf: 'SETF' };
 async function submitPA() {
   const selectedTab = document.querySelector('input[name="pa-company-type"]:checked')?.value || 'agri';
   const siswaId = document.getElementById('pa-siswa-id').value;
@@ -1057,7 +1115,7 @@ async function submitPA() {
   const ipkVal  = parseFloat(document.getElementById('pa-siswa-ipk').value) || 0;
   const payRows = document.querySelectorAll('#pa-paylines-container .payline-row');
   if (!payRows.length) { showToast('Minimal 1 baris pembayaran harus diisi.', 'error'); return; }
-  if (!await confirmModal(`Simpan PA baru ke tab <strong>${selectedTab.toUpperCase()}</strong>?`)) return;
+  if (!await confirmModal(`Simpan PA baru ke tab <strong>${_TAB_LABEL[selectedTab] || selectedTab.toUpperCase()}</strong>?`)) return;
   const lines = [];
   for (const row of payRows) {
     lines.push({
