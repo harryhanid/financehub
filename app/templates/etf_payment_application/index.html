@@ -507,11 +507,15 @@ body.pa-focus #pa-focus-exit { display: flex; }
       <option value="complete">Complete</option>
     </select>
   </div>
-  <div class="form-group" style="margin:0; width:140px">
-    <label style="font-size:.72rem; font-weight:600">Tgl PA (Bulan)</label>
-    <input type="month" id="sf-tgl-pa" onchange="renderSummary()" style="font-size:.82rem">
+  <div class="form-group" style="margin:0; width:100px">
+    <label style="font-size:.72rem; font-weight:600">Tahun PA</label>
+    <input type="number" id="sf-tahun-pa" min="2000" max="2099" placeholder="2026" oninput="renderSummary()" style="font-size:.82rem">
   </div>
-  <button class="btn btn-secondary" onclick="document.getElementById('sf-nama').value=''; document.getElementById('sf-status').value=''; document.getElementById('sf-tgl-pa').value=''; renderSummary();" style="font-size:.8rem; align-self:flex-end">Reset</button>
+  <div class="form-group" style="margin:0; width:130px">
+    <label style="font-size:.72rem; font-weight:600">Bulan PA</label>
+    <input type="month" id="sf-bulan-pa" onchange="renderSummary()" style="font-size:.82rem">
+  </div>
+  <button class="btn btn-secondary" onclick="document.getElementById('sf-nama').value=''; document.getElementById('sf-status').value=''; document.getElementById('sf-tahun-pa').value=''; document.getElementById('sf-bulan-pa').value=''; renderSummary();" style="font-size:.8rem; align-self:flex-end">Reset</button>
 </div>
 
 <div style="margin-top:.25rem">
@@ -544,14 +548,16 @@ body.pa-focus #pa-focus-exit { display: flex; }
   let _summaryRows = [];
 
   window.renderSummary = function() {
-    const nama   = (document.getElementById('sf-nama').value   || '').toLowerCase().trim();
-    const status = (document.getElementById('sf-status').value || '').toLowerCase().trim();
-    const tglPA  = (document.getElementById('sf-tgl-pa').value || '').trim(); // "YYYY-MM"
+    const nama   = (document.getElementById('sf-nama').value     || '').toLowerCase().trim();
+    const status = (document.getElementById('sf-status').value   || '').toLowerCase().trim();
+    const tahun  = (document.getElementById('sf-tahun-pa').value || '').trim(); // "YYYY"
+    const bulan  = (document.getElementById('sf-bulan-pa').value || '').trim(); // "YYYY-MM"
 
     const filtered = _summaryRows.filter(r => {
       if (nama   && !(r.nama_student            || '').toLowerCase().includes(nama))   return false;
       if (status && !(r.status                  || '').toLowerCase().includes(status)) return false;
-      if (tglPA  && !(r.tgl_payment_application || '').includes(tglPA))                return false;
+      if (tahun  && !(r.tgl_payment_application || '').includes(tahun))                return false;
+      if (bulan  && !(r.tgl_payment_application || '').includes(bulan))                return false;
       return true;
     });
 
