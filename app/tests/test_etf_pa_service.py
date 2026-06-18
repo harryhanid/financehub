@@ -258,3 +258,66 @@ def test_get_draft_lines_excludes_draft():
     conn.close()
     lines = get_draft_lines_for_siswa(COMPANY_ID, sid)
     assert lines == [], "draft PA lines should be excluded"
+
+
+def test_etf_pa_allows_duplicate_pa_number():
+    """etf_pa should accept two rows with the same pa_number."""
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, nomor_pam, status, created_at) "
+        "VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/ETF/DUP/2026", "PAM-001", "complete", "2026-06-18")
+    )
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, nomor_pam, status, created_at) "
+        "VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/ETF/DUP/2026", "PAM-002", "complete", "2026-06-18")
+    )
+    conn.commit()
+    count = conn.execute(
+        "SELECT COUNT(*) FROM etf_pa WHERE pa_number='PA/ETF/DUP/2026'"
+    ).fetchone()[0]
+    conn.close()
+    assert count == 2
+
+
+def test_pa_summary_view_aggregates():
+    """pa_summary view sums jumlah_pembayaran and comma-separates nomor_pam."""
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, nomor_pam, tanggal_bayar, status, created_at) "
+        "VALUES (?,?,?,?,?,?)",
+        (COMPANY_ID, "PA/ETF/S/2026", "PAM-A", "2026-06-01", "complete", "2026-06-18")
+    )
+    pa_id1 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, nomor_pam, tanggal_bayar, status, created_at) "
+        "VALUES (?,?,?,?,?,?)",
+        (COMPANY_ID, "PA/ETF/S/2026", "PAM-B", "2026-06-02", "complete", "2026-06-18")
+    )
+    pa_id2 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+    sid = _student_id("1230001")
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, semester, jumlah_pembayaran) "
+        "VALUES (?,?,?,?,?)",
+        (pa_id1, sid, "By Pendidikan", "Semester 1", 5000000)
+    )
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, semester, jumlah_pembayaran) "
+        "VALUES (?,?,?,?,?)",
+        (pa_id2, sid, "By Tunjangan", "Semester 2", 3000000)
+    )
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT * FROM pa_summary WHERE pa_number='PA/ETF/S/2026' AND company_id=?",
+        (COMPANY_ID,)
+    ).fetchone()
+    conn.close()
+
+    assert row is not None
+    assert row["jumlah_pembayaran"] == 8000000
+    nomor_pam_vals = set(row["nomor_pam"].split(","))
+    assert "PAM-A" in nomor_pam_vals
+    assert "PAM-B" in nomor_pam_vals

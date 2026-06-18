@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS vendors (
 CREATE TABLE IF NOT EXISTS etf_pa (
     id                       INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id               INTEGER NOT NULL REFERENCES companies(id),
-    pa_number                TEXT UNIQUE NOT NULL,
+    pa_number                TEXT NOT NULL,
     tgl_payment_application  TEXT,
     tgl_surat_pengajuan      TEXT,
     doc_received_by_educ     TEXT,
@@ -238,6 +238,24 @@ CREATE TABLE IF NOT EXISTS etf_pa_lines (
 CREATE INDEX IF NOT EXISTS idx_etf_pa_company    ON etf_pa(company_id);
 CREATE INDEX IF NOT EXISTS idx_etf_pa_lines_pa   ON etf_pa_lines(pa_id);
 CREATE INDEX IF NOT EXISTS idx_etf_pa_lines_sid  ON etf_pa_lines(student_id);
+
+CREATE VIEW IF NOT EXISTS pa_summary AS
+SELECT
+    e.company_id,
+    e.pa_number,
+    GROUP_CONCAT(DISTINCT e.tgl_payment_application) AS tgl_payment_application,
+    GROUP_CONCAT(DISTINCT e.nomor_pam)               AS nomor_pam,
+    GROUP_CONCAT(DISTINCT s.nama)                    AS nama_student,
+    GROUP_CONCAT(DISTINCT l.jenis_pembayaran)        AS jenis_pembayaran,
+    GROUP_CONCAT(DISTINCT l.semester)                AS semester,
+    SUM(l.jumlah_pembayaran)                         AS jumlah_pembayaran,
+    GROUP_CONCAT(DISTINCT e.status)                  AS status,
+    GROUP_CONCAT(DISTINCT e.tanggal_bayar)           AS tanggal_bayar,
+    GROUP_CONCAT(DISTINCT e.keterangan)              AS keterangan
+FROM etf_pa e
+LEFT JOIN etf_pa_lines l ON l.pa_id = e.id
+LEFT JOIN siswa s ON s.id = l.student_id
+GROUP BY e.company_id, e.pa_number;
 
 CREATE TABLE IF NOT EXISTS agri_pam_lines (
     id                 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -457,32 +475,91 @@ def migrate_db():
     )
     conn.commit()
 
-    # etf_pa table
+    # etf_pa — drop UNIQUE constraint on pa_number (recreate table)
     try:
-        conn.execute(
-            """CREATE TABLE IF NOT EXISTS etf_pa (
-                id                       INTEGER PRIMARY KEY AUTOINCREMENT,
-                company_id               INTEGER NOT NULL,
-                pa_number                TEXT UNIQUE NOT NULL,
-                tgl_payment_application  TEXT,
-                tgl_surat_pengajuan      TEXT,
-                doc_received_by_educ     TEXT,
-                received_pa_from_educ    TEXT,
-                checked_by_fincon        TEXT,
-                approved_by_htj_1        TEXT,
-                send_pa_back_to_educ     TEXT,
-                pa_received_by_po_fin    TEXT,
-                approval_by_htj_2        TEXT,
-                nomor_pam                TEXT,
-                tanggal_bayar            TEXT,
-                keterangan               TEXT,
-                status                   TEXT NOT NULL DEFAULT 'draft',
-                created_at               TEXT NOT NULL,
-                updated_at               TEXT)"""
-        )
+        has_unique = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='etf_pa'"
+        ).fetchone()
+        if has_unique and "UNIQUE" in (has_unique[0] or ""):
+            conn.executescript("""
+                PRAGMA foreign_keys = OFF;
+                ALTER TABLE etf_pa RENAME TO etf_pa_old;
+                CREATE TABLE etf_pa (
+                    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+                    company_id               INTEGER NOT NULL REFERENCES companies(id),
+                    pa_number                TEXT NOT NULL,
+                    tgl_payment_application  TEXT,
+                    tgl_surat_pengajuan      TEXT,
+                    doc_received_by_educ     TEXT,
+                    received_pa_from_educ    TEXT,
+                    checked_by_fincon        TEXT,
+                    approved_by_htj_1        TEXT,
+                    send_pa_back_to_educ     TEXT,
+                    pa_received_by_po_fin    TEXT,
+                    approval_by_htj_2        TEXT,
+                    nomor_pam                TEXT,
+                    tanggal_bayar            TEXT,
+                    keterangan               TEXT,
+                    status                   TEXT NOT NULL DEFAULT 'draft',
+                    created_at               TEXT NOT NULL,
+                    updated_at               TEXT
+                );
+                INSERT INTO etf_pa SELECT * FROM etf_pa_old;
+                DROP TABLE etf_pa_old;
+                PRAGMA foreign_keys = ON;
+            """)
+            conn.commit()
+        else:
+            conn.execute(
+                """CREATE TABLE IF NOT EXISTS etf_pa (
+                    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+                    company_id               INTEGER NOT NULL REFERENCES companies(id),
+                    pa_number                TEXT NOT NULL,
+                    tgl_payment_application  TEXT,
+                    tgl_surat_pengajuan      TEXT,
+                    doc_received_by_educ     TEXT,
+                    received_pa_from_educ    TEXT,
+                    checked_by_fincon        TEXT,
+                    approved_by_htj_1        TEXT,
+                    send_pa_back_to_educ     TEXT,
+                    pa_received_by_po_fin    TEXT,
+                    approval_by_htj_2        TEXT,
+                    nomor_pam                TEXT,
+                    tanggal_bayar            TEXT,
+                    keterangan               TEXT,
+                    status                   TEXT NOT NULL DEFAULT 'draft',
+                    created_at               TEXT NOT NULL,
+                    updated_at               TEXT)"""
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"[migrate] etf_pa UNIQUE drop: {e}")
+
+    # pa_summary view
+    try:
+        conn.executescript("""
+            DROP VIEW IF EXISTS pa_summary;
+            CREATE VIEW pa_summary AS
+            SELECT
+                e.company_id,
+                e.pa_number,
+                GROUP_CONCAT(DISTINCT e.tgl_payment_application) AS tgl_payment_application,
+                GROUP_CONCAT(DISTINCT e.nomor_pam)               AS nomor_pam,
+                GROUP_CONCAT(DISTINCT s.nama)                    AS nama_student,
+                GROUP_CONCAT(DISTINCT l.jenis_pembayaran)        AS jenis_pembayaran,
+                GROUP_CONCAT(DISTINCT l.semester)                AS semester,
+                SUM(l.jumlah_pembayaran)                         AS jumlah_pembayaran,
+                GROUP_CONCAT(DISTINCT e.status)                  AS status,
+                GROUP_CONCAT(DISTINCT e.tanggal_bayar)           AS tanggal_bayar,
+                GROUP_CONCAT(DISTINCT e.keterangan)              AS keterangan
+            FROM etf_pa e
+            LEFT JOIN etf_pa_lines l ON l.pa_id = e.id
+            LEFT JOIN siswa s ON s.id = l.student_id
+            GROUP BY e.company_id, e.pa_number;
+        """)
         conn.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[migrate] pa_summary view: {e}")
 
     # etf_pa_lines table
     try:
