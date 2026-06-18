@@ -506,3 +506,13 @@ def delete_pa(pa_id: int, company_id: int, tab: str = "agri") -> dict:
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": f"PA {pa['pa_number']} berhasil dihapus."}
+
+
+def get_pa_summary(company_id: int) -> list:
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT * FROM pa_summary WHERE company_id=? ORDER BY pa_number",
+        (company_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

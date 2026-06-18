@@ -5,7 +5,7 @@ from auth.middleware import jwt_html_required
 from modules.etf_payment_application.service import (
     get_pa_list, get_pa_flat, get_pa_header, bulk_update_pa, export_pa_excel,
     create_pa, update_pa, delete_pa, get_pa_lines, get_siswa_autocomplete,
-    get_draft_siswa, get_draft_lines_for_siswa, VALID_TABS,
+    get_draft_siswa, get_draft_lines_for_siswa, get_pa_summary, VALID_TABS,
 )
 import config
 
@@ -26,10 +26,12 @@ def _ctx():
         return {}
 
 
-def _tab(allow_input: bool = False):
+def _tab(allow_input: bool = False, allow_summary: bool = False):
     t = request.args.get("tab", "agri").lower()
     if allow_input and t == "input":
         return "input"
+    if allow_summary and t == "summary":
+        return "summary"
     return t if t in VALID_TABS else "agri"
 
 
@@ -39,13 +41,13 @@ def index():
     if not session.get("company_id"):
         return redirect(url_for("dashboard.select_company"))
     company_id = session["company_id"]
-    tab = _tab(allow_input=True)
+    tab = _tab(allow_input=True, allow_summary=True)
     sf = ""
     pa_rows = []
-    if tab != "input":
-        sf = request.args.get("sf", "").lower()
+    if tab not in ("input", "summary"):
+        sf = request.args.get("sf", "active").lower()
         if sf not in ("open", "on_process", "complete", "active", ""):
-            sf = ""
+            sf = "active"
         pa_rows = get_pa_flat(company_id, tab, sf)
     return render_template(
         "etf_payment_application/index.html",
@@ -184,3 +186,10 @@ def header(pa_id):
     if not data:
         return jsonify({"ok": False}), 404
     return jsonify(data)
+
+
+@bp.route("/summary-data")
+@jwt_html_required
+def summary_data():
+    company_id = session.get("company_id")
+    return jsonify(get_pa_summary(company_id))
