@@ -338,13 +338,31 @@ def get_siswa_medical(company_id: int, search: str = "") -> list:
         SELECT s.code, s.nama,
                b.pillar AS pillar,
                SUM(b.amount) AS medical_budget,
+               SUM(CASE WHEN b.cat2='Rawat Inap'  THEN b.amount ELSE 0 END) AS budget_inap,
+               SUM(CASE WHEN b.cat2='Rawat Jalan' THEN b.amount ELSE 0 END) AS budget_jalan,
                COALESCE((
                    SELECT SUM(pb.amount)
                    FROM payment_beasiswa pb
                    WHERE pb.siswa_code = s.code
                      AND pb.company_id = s.company_id
                      AND pb.cat1 = 'By Medical'
-               ), 0) AS spent_amount
+               ), 0) AS spent_amount,
+               COALESCE((
+                   SELECT SUM(pb.amount)
+                   FROM payment_beasiswa pb
+                   WHERE pb.siswa_code = s.code
+                     AND pb.company_id = s.company_id
+                     AND pb.cat1 = 'By Medical'
+                     AND pb.cat2 = 'Rawat Inap'
+               ), 0) AS spent_inap,
+               COALESCE((
+                   SELECT SUM(pb.amount)
+                   FROM payment_beasiswa pb
+                   WHERE pb.siswa_code = s.code
+                     AND pb.company_id = s.company_id
+                     AND pb.cat1 = 'By Medical'
+                     AND pb.cat2 = 'Rawat Jalan'
+               ), 0) AS spent_jalan
         FROM siswa s
         JOIN budget_beasiswa b ON b.siswa_code = s.code
                                AND b.company_id = s.company_id
@@ -428,7 +446,7 @@ def save_klaim_payment(company_id: int, company_code: str, data: dict) -> dict:
                 total_amount, due_date, pillar, source, status, created_at)
                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (company_id, pam_no, tanggal,
-             company_code, keterangan,
+             config.PAM_DEFAULT_REQUESTOR, keterangan,
              grand_total, due_date, pillar, "klaim_medis", "open", _ts())
         )
         conn.commit()
@@ -474,7 +492,7 @@ def save_others_payment(company_id: int, company_code: str, data: dict) -> dict:
                 mata_uang, dpp, ppn, status, created_at)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (company_id, pam_no, tanggal,
-             company_code, keterangan,
+             config.PAM_DEFAULT_REQUESTOR, keterangan,
              total, due_date, pillar, transaksi, perusahaan,
              mata_uang, dpp, ppn, "open", _ts())
         )
@@ -535,15 +553,19 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
             )
 
         # 3. Create exactly one pam_records entry
-        due_date = _add_one_month(tanggal)
+        due_date    = _add_one_month(tanggal)
+        cost_center = config.COST_CENTER_MAP.get(perusahaan, "")
         conn.execute(
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
-                total_amount, due_date, pillar, source, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,'open',?)""",
+                total_amount, dpp, ppn, due_date, pillar, source,
+                pt, cost_center, status, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'open',?)""",
             (company_id, pam_no, tanggal,
-             company_code, keterangan,
-             total, due_date, pillar, "beasiswa", _ts())
+             config.PAM_DEFAULT_REQUESTOR, keterangan,
+             total, total, 0.0,
+             due_date, pillar, "beasiswa",
+             perusahaan, cost_center, _ts())
         )
 
         # 4. Update PA: nomor_pam + status='on_process'
@@ -605,18 +627,22 @@ def create_pam_record(conn, company_id: int, company_code: str,
     pam_no      = generate_pam_number(company_id, company_code, year, month, conn)
     due_date    = _add_one_month(pam_date)
     cost_center = config.COST_CENTER_MAP.get(data.get("pt", ""), "")
+    total       = float(data.get("total_amount", 0))
+    dpp         = float(data.get("dpp", total))
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, gl_account, cost_center, pt,
-            requestors_name, keterangan, total_amount, due_date, status, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,'open',?)""",
+            requestors_name, keterangan, total_amount, dpp, ppn,
+            due_date, pillar, source, status, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'open',?)""",
         (company_id, pam_no, pam_date,
          data.get("gl_account", config.PAM_DEFAULT_GL),
          cost_center, data.get("pt", ""),
          data.get("requestors_name", config.PAM_DEFAULT_REQUESTOR),
          data.get("keterangan", ""),
-         float(data.get("total_amount", 0)),
-         due_date, _ts())
+         total, dpp, 0.0,
+         due_date, data.get("pillar", ""), data.get("source", "beasiswa"),
+         _ts())
     )
     for pid in data.get("payment_ids", []):
         conn.execute(
@@ -751,6 +777,7 @@ def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
     if row["status"] != "open":
         conn.close()
         return {"ok": False, "pesan": "Hanya payment berstatus open yang bisa dihapus."}
+    conn.execute("DELETE FROM klaim_medical WHERE payment_id=? AND company_id=?", (payment_id, company_id))
     conn.execute("DELETE FROM payment_beasiswa WHERE id=? AND company_id=?", (payment_id, company_id))
     conn.commit()
     conn.close()
@@ -786,6 +813,7 @@ def cancel_pam_record(pam_id: int, company_id: int) -> dict:
         ).fetchall()
         line_ids = [r[0] for r in lines]
 
+        conn.execute("DELETE FROM klaim_medical WHERE pam=? AND company_id=?", (pam_no, company_id))
         conn.execute("DELETE FROM payment_beasiswa WHERE pam=? AND company_id=?", (pam_no, company_id))
         conn.execute("DELETE FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id))
 
@@ -1705,6 +1733,22 @@ def create_pam_from_etf_pa(company_id: int, company_code: str,
     conn.commit()
     conn.close()
     return {"ok": True, "pam_no": pam_no, "pesan": f"PAM {pam_no} berhasil dibuat dari {len(pa_ids)} PA."}
+
+
+def bulk_complete_pams(company_id: int, pams: list, tanggal_bayar: str) -> dict:
+    conn = get_conn()
+    success_count = 0
+    for pam_no in set(pams):
+        row = conn.execute("SELECT id FROM pam_records WHERE pam_no=? AND company_id=?", (pam_no, company_id)).fetchone()
+        if row:
+            # Re-use the existing cascade function
+            res = set_pam_tanggal_bayar_agri(row["id"], tanggal_bayar, company_id)
+            if res.get("ok"):
+                success_count += 1
+    conn.close()
+    if success_count > 0:
+        return {"ok": True, "pesan": f"Berhasil memproses {success_count} PAM menjadi complete."}
+    return {"ok": False, "pesan": "Tidak ada PAM yang berhasil di-update."}
 
 
 def set_pam_tanggal_bayar_agri(pam_id: int, tanggal_bayar: str, company_id: int) -> dict:

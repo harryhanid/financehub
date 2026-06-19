@@ -85,9 +85,11 @@
     </div>
     <div id="pam-memo-bar">
       <span class="pam-memo-count">0 PAM dipilih</span>
-      <span style="font-size:.85rem;opacity:.85">— centang PAM untuk buat memo</span>
+      <span style="font-size:.85rem;opacity:.85">— centang PAM untuk set tanggal paid</span>
+      <input type="date" id="open-pam-paid-date" class="dm-inp" style="max-width:150px; background:#fff; padding:.25rem; border-radius:.25rem; margin-left:auto" required>
+      <button class="btn btn-success btn-sm" onclick="submitOpenPamPaid()">Mark Complete</button>
       <button class="btn btn-secondary btn-sm"
-              style="background:#fff;color:#1e40af;border:none;margin-left:auto"
+              style="background:#fff;color:#1e40af;border:none;"
               onclick="document.getElementById('select-all-drafts').checked=false;toggleAllDrafts({checked:false})">
         Batal
       </button>
@@ -1109,6 +1111,42 @@ function updatePamMemoBar() {
   }
 }
 
+async function submitOpenPamPaid() {
+  var tglInput = document.getElementById('open-pam-paid-date');
+  var tanggalBayar = tglInput ? tglInput.value : '';
+  if (!tanggalBayar) {
+    alert("Silakan isi Tanggal Paid terlebih dahulu.");
+    return;
+  }
+  
+  var checked = document.querySelectorAll('.pam-check:checked');
+  if (checked.length === 0) return;
+  
+  var pams = [];
+  checked.forEach(function(cb) {
+    var pamKey = cb.dataset.pamKey;
+    if (pamKey && pamKey !== '__unassigned__') {
+      pams.push(pamKey);
+    }
+  });
+  
+  if (pams.length === 0) {
+    alert("Hanya data yang memiliki nomor PAM yang dapat di-mark complete.");
+    return;
+  }
+
+  if (!await confirmModal("Mark " + pams.length + " PAM sebagai Complete dengan tanggal " + tanggalBayar + "?", { confirmText: "Mark Complete" })) return;
+
+  const resp = await apiFetch("/payment-memo/open-pam/mark-complete", {
+    method: "POST",
+    body: JSON.stringify({ pams: pams, tanggal_bayar: tanggalBayar })
+  });
+  
+  if (resp && resp.ok) {
+    window.location.reload();
+  }
+}
+
 function groupDraftsByPAM(drafts) {
   const groups = {};
   const UNASSIGNED = '__unassigned__';
@@ -1134,7 +1172,7 @@ function buildKeterangan(items, max) {
 function getPillarFromPamNo(pamNo) {
   if (!pamNo || pamNo === '--') return null;
   var prefix = pamNo.split('/')[0].toUpperCase();
-  var map = { AGRI: 'agri', APP: 'app', LAND: 'land', SML: 'land', SETF: 'setf' };
+  var map = { AGRI: 'agri', APP: 'app', LAND: 'land', SML: 'land', SETF: 'setf', ETF: 'setf' };
   return map[prefix] || null;
 }
 

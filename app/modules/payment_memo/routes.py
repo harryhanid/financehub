@@ -22,6 +22,7 @@ from modules.payment_memo.service import (
     get_next_pam_no, save_pa_payment, check_pam_no_exists,
     get_pam_by_pillar, upsert_pam_lines,
     get_siswa_medical, save_klaim_payment, save_others_payment,
+    bulk_complete_pams,
 )
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
@@ -688,3 +689,16 @@ def ipay_save_others():
     company_code = session.get("company_code", "ETF")
     result = save_others_payment(company_id, company_code, data)
     return jsonify(result)
+
+@bp.route("/open-pam/mark-complete", methods=["POST"])
+@jwt_html_required
+def open_pam_mark_complete():
+    company_id = session.get("company_id")
+    data = request.get_json(force=True) or {}
+    pams = data.get("pams", [])
+    tanggal_bayar = data.get("tanggal_bayar", "")
+    
+    if not pams or not tanggal_bayar:
+        return jsonify({"ok": False, "pesan": "Pilih PAM dan isi Tanggal Paid."})
+        
+    return jsonify(bulk_complete_pams(company_id, pams, tanggal_bayar))
