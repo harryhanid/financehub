@@ -11,6 +11,31 @@
 /* Pillar tabs — scrollable table with frozen header */
 .pillar-table-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 220px)}
 .pillar-table-wrap .thead-primary th{position:sticky;top:0;z-index:3}
+/* ── Open PAM accordion ── */
+.pam-master-row { cursor: pointer; }
+.pam-master-row:hover { background: var(--hover-bg, #f8fafc); }
+.pam-detail-row { display: none; background: #f8fafc; }
+.pam-detail-row.expanded { display: table-row; }
+.pam-toggle { font-size: .75rem; color: var(--text-muted); margin-right: .25rem; user-select: none; }
+.badge-agri  { background: #fef3c7; color: #92400e; border: 1px solid #d97706; border-radius: .25rem; padding: .1rem .35rem; }
+.badge-app   { background: #ede9fe; color: #4c1d95; border: 1px solid #7c3aed; border-radius: .25rem; padding: .1rem .35rem; }
+.badge-land  { background: #d1fae5; color: #064e3b; border: 1px solid #059669; border-radius: .25rem; padding: .1rem .35rem; }
+.badge-setf  { background: #cffafe; color: #164e63; border: 1px solid #0891b2; border-radius: .25rem; padding: .1rem .35rem; }
+.pam-unassigned-row { background: #fef3c7 !important; }
+#pam-memo-bar {
+  display: none;
+  position: sticky;
+  bottom: 0;
+  background: #1e40af;
+  color: #fff;
+  padding: .6rem 1rem;
+  border-radius: .5rem .5rem 0 0;
+  margin-top: .75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+#pam-memo-bar.visible { display: flex; }
 </style>
 {% endblock %}
 
@@ -41,52 +66,31 @@
         <thead>
           <tr>
             <th><input type="checkbox" id="select-all-drafts" onchange="toggleAllDrafts(this)"></th>
-            <th>Code</th><th>Nama Siswa</th><th>Kategori</th><th>Tanggal</th>
-            <th>PAM No</th><th>Perusahaan</th><th class="num-right">Amount</th><th>Status</th>
-            <th>Aksi</th>
+            <th></th>
+            <th>PAM No</th>
+            <th>Pillar</th>
+            <th>Tanggal</th>
+            <th>Keterangan (Nama)</th>
+            <th class="num-right">Jml</th>
+            <th class="num-right">Total</th>
+            <th>Status</th>
           </tr>
         </thead>
-        <tbody>
-          {% for d in drafts %}
-          <tr>
-            <td><input type="checkbox" class="draft-check" data-id="{{ d.id }}"
-                data-desc="{{ d.cat1 }} / {{ d.cat2 }} -- {{ d.siswa_code }}"
-                data-amount="{{ d.amount }}"
-                data-vendor="{{ d.namarek or d.nama or '' }}"
-                data-bank="{{ (d.bank or '') + ' ' + (d.norek or '') }}"></td>
-            <td><code>{{ d.siswa_code }}</code></td>
-            <td>{{ d.nama or '--' }}</td>
-            <td>{{ d.cat1 }} / {{ d.cat2 }}</td>
-            <td>{{ d.tanggal }}</td>
-            <td><code style="font-size:.75rem">{{ d.pam or '--' }}</code></td>
-            <td>{{ d.perusahaan }}</td>
-            <td class="num-right">Rp {{ "{:,.0f}".format(d.amount) }}</td>
-            <td><span class="badge badge-gray">{{ d.status }}</span></td>
-            <td style="white-space:nowrap">
-              <button class="btn btn-secondary btn-sm" onclick="openEditDraft({{ d.id }})">Edit</button>
-              <button class="btn btn-danger btn-sm" onclick="deleteDraft({{ d.id }})">Hapus</button>
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="10"
-              style="text-align:center; color:var(--text-muted); padding:2rem">
-            Tidak ada payment draft.
+        <tbody id="open-pam-tbody">
+          <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem">
+            <span style="opacity:.5">Memuat…</span>
           </td></tr>
-          {% endfor %}
         </tbody>
-        {% if drafts %}
-        <tfoot>
-          <tr style="background:#f1f5f9; font-weight:700;">
-            <td colspan="7"
-                style="text-align:right; padding:.5rem .75rem;">Total Draft Payment</td>
-            <td class="num-right" style="padding:.5rem .75rem;">
-              Rp {{ "{:,.0f}".format(drafts | sum(attribute='amount')) }}
-            </td>
-            <td colspan="2"></td>
-          </tr>
-        </tfoot>
-        {% endif %}
       </table>
+    </div>
+    <div id="pam-memo-bar">
+      <span class="pam-memo-count">0 PAM dipilih</span>
+      <span style="font-size:.85rem;opacity:.85">— centang PAM untuk buat memo</span>
+      <button class="btn btn-secondary btn-sm"
+              style="background:#fff;color:#1e40af;border:none;margin-left:auto"
+              onclick="document.getElementById('select-all-drafts').checked=false;toggleAllDrafts({checked:false})">
+        Batal
+      </button>
     </div>
   </div>
 
@@ -1076,7 +1080,151 @@ function esc(s) {
 }
 
 function toggleAllDrafts(cb) {
-  document.querySelectorAll(".draft-check").forEach(c => { c.checked = cb.checked; });
+  document.querySelectorAll('.pam-check').forEach(function(pc) {
+    pc.checked = cb.checked;
+    var key = pc.dataset.pamKey;
+    document.querySelectorAll('.draft-check[data-pam-group="' + key + '"]')
+      .forEach(function(c) { c.checked = cb.checked; });
+  });
+  updatePamMemoBar();
+}
+
+function pamCbChange(pamCb) {
+  var key = pamCb.dataset.pamKey;
+  document.querySelectorAll('.draft-check[data-pam-group="' + key + '"]')
+    .forEach(function(c) { c.checked = pamCb.checked; });
+  updatePamMemoBar();
+}
+
+function updatePamMemoBar() {
+  var bar = document.getElementById('pam-memo-bar');
+  if (!bar) return;
+  var checked = document.querySelectorAll('.pam-check:checked');
+  var countEl = bar.querySelector('.pam-memo-count');
+  if (checked.length > 0) {
+    bar.classList.add('visible');
+    if (countEl) countEl.textContent = checked.length + ' PAM dipilih';
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+function groupDraftsByPAM(drafts) {
+  const groups = {};
+  const UNASSIGNED = '__unassigned__';
+  drafts.forEach(function(d) {
+    var key = (d.pam && d.pam !== '--') ? d.pam : UNASSIGNED;
+    if (!groups[key]) groups[key] = { pam: key, items: [], total: 0, minDate: d.tanggal };
+    groups[key].items.push(d);
+    groups[key].total += d.amount;
+    if (d.tanggal < groups[key].minDate) groups[key].minDate = d.tanggal;
+  });
+  var keys = Object.keys(groups).filter(function(k) { return k !== UNASSIGNED; }).sort();
+  if (groups[UNASSIGNED]) keys.push(UNASSIGNED);
+  return keys.map(function(k) { return groups[k]; });
+}
+
+function buildKeterangan(items, max) {
+  max = max || 3;
+  var names = items.map(function(d) { return d.nama || d.siswa_code || '--'; });
+  if (names.length <= max) return names.join(', ');
+  return names.slice(0, max).join(', ') + ' (+' + (names.length - max) + ' lagi)';
+}
+
+function getPillarFromPamNo(pamNo) {
+  if (!pamNo || pamNo === '--') return null;
+  var prefix = pamNo.split('/')[0].toUpperCase();
+  var map = { AGRI: 'agri', APP: 'app', LAND: 'land', SML: 'land', SETF: 'setf' };
+  return map[prefix] || null;
+}
+
+function togglePAMRow(key) {
+  var escaped = CSS.escape(key);
+  var detailRows = document.querySelectorAll('.pam-detail-row[data-pam-key="' + escaped + '"]');
+  var toggle = document.querySelector('.pam-toggle[data-pam-key="' + escaped + '"]');
+  var isOpen = detailRows.length > 0 && detailRows[0].classList.contains('expanded');
+  detailRows.forEach(function(r) { r.classList.toggle('expanded', !isOpen); });
+  if (toggle) toggle.textContent = isOpen ? '▶' : '▼';
+}
+
+function renderOpenPAM(drafts) {
+  var tbody = document.getElementById('open-pam-tbody');
+  if (!tbody) return;
+  if (!drafts || drafts.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem">Tidak ada payment draft.</td></tr>';
+    return;
+  }
+  var groups = groupDraftsByPAM(drafts);
+  var grandTotal = 0;
+  var html = '';
+
+  groups.forEach(function(g) {
+    var isUnassigned = g.pam === '__unassigned__';
+    var pamLabel = isUnassigned ? '— Belum di-assign —' : g.pam;
+    var pillar = isUnassigned ? null : getPillarFromPamNo(g.pam);
+    var badgeHtml = pillar
+      ? '<span class="badge badge-' + pillar + '" style="font-size:.7rem">' + pillar.toUpperCase() + '</span>'
+      : '<span class="badge badge-gray" style="font-size:.7rem">—</span>';
+    var keterangan = buildKeterangan(g.items, 3);
+    var masterClass = isUnassigned ? 'pam-master-row pam-unassigned-row' : 'pam-master-row';
+    var pamKeyAttr = esc(g.pam);
+
+    // Hidden per-item checkboxes keep memo-creation data in DOM
+    var hiddenChecks = g.items.map(function(d) {
+      return '<input type="checkbox" class="draft-check" style="display:none"' +
+        ' data-id="' + d.id + '"' +
+        ' data-desc="' + esc((d.cat1 || '') + ' / ' + (d.cat2 || '') + ' -- ' + (d.siswa_code || '')) + '"' +
+        ' data-amount="' + d.amount + '"' +
+        ' data-vendor="' + esc(d.namarek || d.nama || '') + '"' +
+        ' data-bank="' + esc((d.bank || '') + ' ' + (d.norek || '')) + '"' +
+        ' data-pam-group="' + pamKeyAttr + '">';
+    }).join('');
+
+    html += '<tr class="' + masterClass + '"' +
+      ' data-pam-key="' + pamKeyAttr + '"' +
+      ' onclick="togglePAMRow(this.dataset.pamKey)">' +
+      '<td>' +
+        '<input type="checkbox" class="pam-check"' +
+        ' data-pam-key="' + pamKeyAttr + '"' +
+        ' onclick="event.stopPropagation()" onchange="pamCbChange(this)">' +
+        hiddenChecks +
+      '</td>' +
+      '<td><span class="pam-toggle" data-pam-key="' + pamKeyAttr + '">▶</span></td>' +
+      '<td><code style="font-size:.8rem;color:#2563eb">' + esc(pamLabel) + '</code></td>' +
+      '<td>' + badgeHtml + '</td>' +
+      '<td>' + esc(g.minDate || '--') + '</td>' +
+      '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(buildKeterangan(g.items, 100)) + '">' + esc(keterangan) + '</td>' +
+      '<td style="text-align:center">' + g.items.length + '</td>' +
+      '<td class="num-right">' + fmtRupiah(g.total) + '</td>' +
+      '<td><span class="badge badge-gray" style="font-size:.75rem">Open</span></td>' +
+      '</tr>';
+    grandTotal += g.total;
+
+    // One detail row per item (hidden, expanded on toggle)
+    g.items.forEach(function(d) {
+      html += '<tr class="pam-detail-row" data-pam-key="' + pamKeyAttr + '">' +
+        '<td></td><td></td>' +
+        '<td><code style="font-size:.75rem">' + esc(d.siswa_code || '--') + '</code></td>' +
+        '<td>' + esc(d.nama || '--') + '</td>' +
+        '<td>' + esc((d.cat1 || '') + ' / ' + (d.cat2 || '')) + '</td>' +
+        '<td>' + esc(d.tanggal || '--') + '</td>' +
+        '<td></td>' +
+        '<td class="num-right">' + fmtRupiah(d.amount) + '</td>' +
+        '<td style="white-space:nowrap">' +
+          '<button class="btn btn-secondary btn-sm" onclick="openEditDraft(' + d.id + ');event.stopPropagation()">Edit</button> ' +
+          '<button class="btn btn-danger btn-sm" onclick="deleteDraft(' + d.id + ');event.stopPropagation()">Hapus</button>' +
+        '</td>' +
+        '</tr>';
+    });
+  });
+
+  // Grand total row
+  html += '<tr style="background:#f1f5f9;font-weight:700">' +
+    '<td colspan="7" style="text-align:right;padding:.5rem .75rem">Grand Total</td>' +
+    '<td class="num-right" style="padding:.5rem .75rem">' + fmtRupiah(grandTotal) + '</td>' +
+    '<td></td></tr>';
+
+  tbody.innerHTML = html;
 }
 
 async function changeStatus(memoId, newStatus) {
@@ -4208,5 +4356,7 @@ function exportSlaExcel() {
   if (nama) url.searchParams.set('nama', nama);
   window.location.href = url.toString();
 }
+// Render Open PAM accordion on page load
+renderOpenPAM(OPEN_PAM_DRAFTS);
 </script>
 {% endblock %}
