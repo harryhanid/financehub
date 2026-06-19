@@ -4,7 +4,7 @@ import datetime
 import traceback
 from modules.etf_payment_application.service import export_pa_excel
 
-BACKUP_ROOT = r"Y:\Seagate\Harry\8. Backup\2. Financehub"
+BACKUP_ROOT = r"Y:\Seagate\Harry\8. Backup\2. Financehub\2.1 Payment Application"
 
 def cleanup_old_backups(keep_days=5):
     """
