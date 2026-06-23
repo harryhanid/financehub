@@ -321,10 +321,78 @@ CREATE TABLE IF NOT EXISTS setf_pam_lines (
     updated_at         TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_agri_pam_lines_pam ON agri_pam_lines(pam_id);
-CREATE INDEX IF NOT EXISTS idx_app_pam_lines_pam  ON app_pam_lines(pam_id);
-CREATE INDEX IF NOT EXISTS idx_land_pam_lines_pam ON land_pam_lines(pam_id);
-CREATE INDEX IF NOT EXISTS idx_setf_pam_lines_pam ON setf_pam_lines(pam_id);
+CREATE TABLE IF NOT EXISTS energy_pam_lines (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    pam_id             INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
+    no_vendor          TEXT,
+    nama_vendor        TEXT,
+    tgl_terima_doc     TEXT,
+    tgl_proses         TEXT,
+    tgl_verifikasi_tax TEXT,
+    tgl_approval_1     TEXT,
+    tgl_approval_2     TEXT,
+    tgl_approval_3     TEXT,
+    tgl_kirim          TEXT,
+    created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS energy_pa (
+    id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id               INTEGER NOT NULL REFERENCES companies(id),
+    pa_number                TEXT UNIQUE NOT NULL,
+    tgl_payment_application  TEXT,
+    tgl_surat_pengajuan      TEXT,
+    doc_received_by_educ     TEXT,
+    received_pa_from_educ    TEXT,
+    checked_by_fincon        TEXT,
+    approved_by_htj_1        TEXT,
+    send_pa_back_to_educ     TEXT,
+    pa_received_by_po_fin    TEXT,
+    approval_by_htj_2        TEXT,
+    nomor_pam                TEXT,
+    tanggal_bayar            TEXT,
+    keterangan               TEXT,
+    no_pa                    TEXT,
+    category                 TEXT,
+    categori_1               TEXT,
+    nomor_vendor             TEXT,
+    nama_vendor              TEXT,
+    mata_uang                TEXT DEFAULT 'IDR',
+    dpp                      INTEGER DEFAULT 0,
+    ppn                      INTEGER DEFAULT 0,
+    total                    INTEGER DEFAULT 0,
+    terima_document          TEXT,
+    input_aspiro             TEXT,
+    verifikasi_tax           TEXT,
+    approval_1               TEXT,
+    approval_2               TEXT,
+    approval_3               TEXT,
+    kirim_aspiro             TEXT,
+    paid                     TEXT,
+    status                   TEXT NOT NULL DEFAULT 'open',
+    created_at               TEXT NOT NULL,
+    updated_at               TEXT
+);
+
+CREATE TABLE IF NOT EXISTS energy_pa_lines (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    pa_id                INTEGER NOT NULL REFERENCES energy_pa(id) ON DELETE CASCADE,
+    student_id           INTEGER NOT NULL REFERENCES siswa(id),
+    jenis_pembayaran     TEXT,
+    semester             TEXT,
+    tahun_ajaran         TEXT,
+    ipk_sem_sebelumnya   REAL,
+    jumlah_pembayaran    INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_agri_pam_lines_pam   ON agri_pam_lines(pam_id);
+CREATE INDEX IF NOT EXISTS idx_app_pam_lines_pam    ON app_pam_lines(pam_id);
+CREATE INDEX IF NOT EXISTS idx_land_pam_lines_pam   ON land_pam_lines(pam_id);
+CREATE INDEX IF NOT EXISTS idx_setf_pam_lines_pam   ON setf_pam_lines(pam_id);
+CREATE INDEX IF NOT EXISTS idx_energy_pam_lines_pam ON energy_pam_lines(pam_id);
+CREATE INDEX IF NOT EXISTS idx_energy_pa_company    ON energy_pa(company_id);
+CREATE INDEX IF NOT EXISTS idx_energy_pa_lines_pa   ON energy_pa_lines(pa_id);
 """
 
 VENDOR_SEED = [
@@ -372,7 +440,8 @@ def migrate_db():
                 "tgl_retur", "tgl_final6", "tgl_proses",
                 "tgl_HT_AGRI", "tgl_Yurike_AGRI", "tgl_Aditya_AGRI",
                 "tgl_Pedy_AGRI", "tgl_C2_AGRI", "tgl_MSIG_AGRI", "tgl_Paid_AGRI",
-                "tgl_A-GS_APP", "tgl_A-HJK_APP", "tgl_ASPIRO_APP", "tgl_Paid_APP"]:
+                "tgl_A-GS_APP", "tgl_A-HJK_APP", "tgl_ASPIRO_APP", "tgl_Paid_APP",
+                "tgl_Paid_LAND", "tgl_Paid_ENERGY", "tgl_Paid_SETF"]:
         try:
             conn.execute(f'ALTER TABLE payment_beasiswa ADD COLUMN "{col}" TEXT')
             conn.commit()
@@ -852,18 +921,90 @@ def migrate_db():
             created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at         TEXT
         )"""
-    for tbl in ["agri_pam_lines", "app_pam_lines", "land_pam_lines", "setf_pam_lines"]:
+    for tbl in ["agri_pam_lines", "app_pam_lines", "land_pam_lines", "setf_pam_lines", "energy_pam_lines"]:
         try:
             conn.execute(_PAM_LINES_DDL.format(tbl=tbl))
             conn.commit()
         except Exception:
             pass
-    for tbl in ["agri_pam_lines", "app_pam_lines", "land_pam_lines", "setf_pam_lines"]:
+    for tbl in ["agri_pam_lines", "app_pam_lines", "land_pam_lines", "setf_pam_lines", "energy_pam_lines"]:
         try:
             conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{tbl}_pam ON {tbl}(pam_id)")
             conn.commit()
         except Exception:
             pass
+
+    # energy_pa table
+    try:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS energy_pa (
+                id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_id               INTEGER NOT NULL REFERENCES companies(id),
+                pa_number                TEXT UNIQUE NOT NULL,
+                tgl_payment_application  TEXT,
+                tgl_surat_pengajuan      TEXT,
+                doc_received_by_educ     TEXT,
+                received_pa_from_educ    TEXT,
+                checked_by_fincon        TEXT,
+                approved_by_htj_1        TEXT,
+                send_pa_back_to_educ     TEXT,
+                pa_received_by_po_fin    TEXT,
+                approval_by_htj_2        TEXT,
+                nomor_pam                TEXT,
+                tanggal_bayar            TEXT,
+                keterangan               TEXT,
+                no_pa                    TEXT,
+                category                 TEXT,
+                categori_1               TEXT,
+                nomor_vendor             TEXT,
+                nama_vendor              TEXT,
+                mata_uang                TEXT DEFAULT 'IDR',
+                dpp                      INTEGER DEFAULT 0,
+                ppn                      INTEGER DEFAULT 0,
+                total                    INTEGER DEFAULT 0,
+                terima_document          TEXT,
+                input_aspiro             TEXT,
+                verifikasi_tax           TEXT,
+                approval_1               TEXT,
+                approval_2               TEXT,
+                approval_3               TEXT,
+                kirim_aspiro             TEXT,
+                paid                     TEXT,
+                status                   TEXT NOT NULL DEFAULT 'open',
+                created_at               TEXT NOT NULL,
+                updated_at               TEXT)"""
+        )
+        conn.commit()
+    except Exception:
+        pass
+
+    # energy_pa_lines table
+    try:
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS energy_pa_lines (
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                pa_id                INTEGER NOT NULL REFERENCES energy_pa(id) ON DELETE CASCADE,
+                student_id           INTEGER NOT NULL REFERENCES siswa(id),
+                jenis_pembayaran     TEXT,
+                semester             TEXT,
+                tahun_ajaran         TEXT,
+                ipk_sem_sebelumnya   REAL,
+                jumlah_pembayaran    INTEGER DEFAULT 0)"""
+        )
+        conn.commit()
+    except Exception:
+        pass
+
+    for idx_sql in [
+        "CREATE INDEX IF NOT EXISTS idx_energy_pa_company    ON energy_pa(company_id)",
+        "CREATE INDEX IF NOT EXISTS idx_energy_pa_lines_pa   ON energy_pa_lines(pa_id)",
+        "CREATE INDEX IF NOT EXISTS idx_energy_pa_lines_sid  ON energy_pa_lines(student_id)",
+    ]:
+        try:
+            conn.execute(idx_sql)
+        except Exception:
+            pass
+    conn.commit()
 
     # Normalize PA status values to lowercase (fix Title Case legacy data)
     # Old data may have 'Open', 'Complete', 'On_Process' from before the lowercase refactor

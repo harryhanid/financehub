@@ -206,3 +206,14 @@ def test_cancel_pam_reverts_sml_pa():
     conn.close()
     assert row["status"] == "open", f"sml_pa.status expected 'open', got '{row['status']}'"
     assert row["nomor_pam"] is None
+
+
+# ── schema tests ─────────────────────────────────────────────────────────────
+
+def test_payment_beasiswa_has_tgl_paid_columns():
+    conn = get_conn()
+    cols = [row[1] for row in conn.execute("PRAGMA table_info(payment_beasiswa)").fetchall()]
+    conn.close()
+    assert "tgl_Paid_LAND"   in cols, "Missing tgl_Paid_LAND in payment_beasiswa"
+    assert "tgl_Paid_ENERGY" in cols, "Missing tgl_Paid_ENERGY in payment_beasiswa"
+    assert "tgl_Paid_SETF"   in cols, "Missing tgl_Paid_SETF in payment_beasiswa"
