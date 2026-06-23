@@ -850,6 +850,7 @@ def cancel_pam_record(pam_id: int, company_id: int) -> dict:
                 ("app_pa_lines",    "app_pa"),
                 ("sml_pa_lines",    "sml_pa"),
                 ("energy_pa_lines", "energy_pa"),
+                ("setf_pa_lines",   "setf_pa"),
             ]:
                 pa_rows = conn.execute(
                     f"SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})",

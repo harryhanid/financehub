@@ -208,6 +208,40 @@ def test_cancel_pam_reverts_sml_pa():
     assert row["nomor_pam"] is None
 
 
+def test_cancel_pam_reverts_energy_pa():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pa_id, line_id = _insert_pa(conn, "energy_pa", "energy_pa_lines", "ENR", sid, "on_process")
+    pam_id, _ = _insert_pam_and_link(conn, "energy_pa", "energy_pa_lines", pa_id, line_id)
+    conn.close()
+
+    result = cancel_pam_record(pam_id, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    row = conn.execute("SELECT status, nomor_pam FROM energy_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert row["status"] == "open", f"energy_pa.status expected 'open', got '{row['status']}'"
+    assert row["nomor_pam"] is None
+
+
+def test_cancel_pam_reverts_setf_pa():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pa_id, line_id = _insert_pa(conn, "setf_pa", "setf_pa_lines", "SETF", sid, "on_process")
+    pam_id, _ = _insert_pam_and_link(conn, "setf_pa", "setf_pa_lines", pa_id, line_id)
+    conn.close()
+
+    result = cancel_pam_record(pam_id, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    row = conn.execute("SELECT status, nomor_pam FROM setf_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert row["status"] == "open", f"setf_pa.status expected 'open', got '{row['status']}'"
+    assert row["nomor_pam"] is None
+
+
 # ── set_pam_complete_cascade tests ───────────────────────────────────────────
 
 from modules.payment_memo.service import set_pam_complete_cascade
