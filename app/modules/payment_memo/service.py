@@ -30,16 +30,31 @@ def generate_memo_number(company_id: int, company_code: str, year: str) -> str:
 
 def get_draft_payments(company_id: int) -> list:
     conn = get_conn()
+    # Rows dari payment_beasiswa (beasiswa iPay / klaim medis flow)
     rows = [dict(r) for r in conn.execute(
-        """SELECT pb.*, s.nama, s.bank, s.norek, s.namarek
+        """SELECT pb.*, s.nama, s.bank, s.norek, s.namarek, 'beasiswa' AS _type
            FROM payment_beasiswa pb
            LEFT JOIN siswa s ON s.company_id = pb.company_id AND s.code = pb.siswa_code
            WHERE pb.company_id = ? AND pb.status = 'open'
            ORDER BY pb.tanggal DESC""",
         (company_id,)
     ).fetchall()]
+    # Rows dari pam_records untuk source others/tagihan/sponsor (tidak ada payment_beasiswa)
+    pr_rows = [dict(r) for r in conn.execute(
+        """SELECT
+               id, company_id, pam_no AS pam, pam_date AS tanggal,
+               total_amount AS amount, pillar, source, keterangan,
+               NULL AS siswa_code, NULL AS cat1, NULL AS cat2,
+               NULL AS nama, NULL AS bank, NULL AS norek, NULL AS namarek,
+               NULL AS etf_pa_line_id, 'pam_record' AS _type
+           FROM pam_records
+           WHERE company_id = ? AND source IN ('others', 'tagihan', 'sponsor')
+           AND status = 'open'
+           ORDER BY pam_date DESC""",
+        (company_id,)
+    ).fetchall()]
     conn.close()
-    return rows
+    return rows + pr_rows
 
 
 def create_memo(company_id: int, company_code: str, tanggal: str,
@@ -193,10 +208,11 @@ def set_memo_tanggal_bayar(memo_id: int, tanggal_bayar: str, company_id: int) ->
     if line_ids:
         ph = ",".join("?" * len(line_ids))
         for lines_tbl, pa_tbl in [
-            ("etf_pa_lines", "etf_pa"),
-            ("app_pa_lines", "app_pa"),
-            ("sml_pa_lines", "sml_pa"),
-            ("setf_pa_lines", "setf_pa"),
+            ("etf_pa_lines",    "etf_pa"),
+            ("app_pa_lines",    "app_pa"),
+            ("sml_pa_lines",    "sml_pa"),
+            ("energy_pa_lines", "energy_pa"),
+            ("setf_pa_lines",   "setf_pa"),
         ]:
             conn.execute(
                 f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status='complete', updated_at=?
@@ -225,12 +241,21 @@ def _add_one_month(date_str: str) -> str:
 
 
 _PILLAR_LINES_TABLE = {
-    "AGRI": "agri_pam_lines",
-    "APP":  "app_pam_lines",
-    "LAND": "land_pam_lines",
-    "SETF": "setf_pam_lines",
+    "AGRI":   "agri_pam_lines",
+    "APP":    "app_pam_lines",
+    "LAND":   "land_pam_lines",
+    "ENERGY": "energy_pam_lines",
+    "SETF":   "setf_pam_lines",
 }
 _VALID_PILLARS = set(_PILLAR_LINES_TABLE)
+
+_BEASISWA_PAID_COL = {
+    "AGRI":   "tgl_Paid_AGRI",
+    "APP":    "tgl_Paid_APP",
+    "LAND":   "tgl_Paid_LAND",
+    "ENERGY": "tgl_Paid_ENERGY",
+    "SETF":   "tgl_Paid_SETF",
+}
 _JENJANG_SORT = {"S3": 0, "S2": 1, "S1": 2}
 
 
@@ -821,9 +846,10 @@ def cancel_pam_record(pam_id: int, company_id: int) -> dict:
         if line_ids:
             ph = ",".join("?" * len(line_ids))
             for lines_tbl, pa_tbl in [
-                ("etf_pa_lines", "etf_pa"),
-                ("app_pa_lines", "app_pa"),
-                ("sml_pa_lines", "sml_pa"),
+                ("etf_pa_lines",    "etf_pa"),
+                ("app_pa_lines",    "app_pa"),
+                ("sml_pa_lines",    "sml_pa"),
+                ("energy_pa_lines", "energy_pa"),
             ]:
                 pa_rows = conn.execute(
                     f"SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})",
@@ -1604,6 +1630,80 @@ def bulk_update_sml_dates(ids: list, dates: dict) -> dict:
             "pesan": f"{updated} baris berhasil diperbarui."}
 
 
+def get_energy_list(search: str = "", bulan: str = "", tahun: str = "",
+                    status: str = "", source: str = "") -> list:
+    conn = get_conn()
+    sql  = "SELECT * FROM energy_pa WHERE 1=1"
+    params = []
+    if search:
+        sql += " AND (no_pa LIKE ? OR nama_vendor LIKE ? OR keterangan LIKE ?)"
+        like = f"%{search}%"
+        params += [like, like, like]
+    if bulan:
+        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        params += [f"%-{bulan}-%", f"%-{bulan}-%"]
+    if tahun:
+        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        params += [f"{tahun}-%", f"{tahun}-%"]
+    if status:
+        sql += " AND status = ?"
+        params += [status]
+    sql += " ORDER BY terima_document DESC, id DESC"
+    rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
+    conn.close()
+    return rows
+
+
+def update_energy_status(record_id: int, new_status: str) -> dict:
+    _ALLOWED = {"open", "on_process", "complete"}
+    if new_status not in _ALLOWED:
+        return {"ok": False, "pesan": "Status tidak valid."}
+    conn = get_conn()
+    r = conn.execute("SELECT id FROM energy_pa WHERE id=?", (record_id,)).fetchone()
+    if not r:
+        conn.close()
+        return {"ok": False, "pesan": "Record tidak ditemukan."}
+    conn.execute("UPDATE energy_pa SET status=? WHERE id=?", (new_status, record_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"Status diubah ke '{new_status}'."}
+
+
+def cancel_energy_record(record_id: int) -> dict:
+    conn = get_conn()
+    r = conn.execute("SELECT no_pa FROM energy_pa WHERE id=?", (record_id,)).fetchone()
+    if not r:
+        conn.close()
+        return {"ok": False, "pesan": "Record tidak ditemukan."}
+    conn.execute("DELETE FROM energy_pa WHERE id=?", (record_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"Record {r['no_pa']} dihapus."}
+
+
+def bulk_update_energy_dates(ids: list, dates: dict) -> dict:
+    _ALLOWED = {"terima_document", "input_aspiro", "verifikasi_tax",
+                "approval_1", "approval_2", "approval_3", "kirim_aspiro", "paid"}
+    fields = [(k, v) for k, v in dates.items() if k in _ALLOWED and v]
+    if not fields:
+        return {"ok": False, "pesan": "Tidak ada tanggal yang diisi."}
+    if not ids:
+        return {"ok": False, "pesan": "Tidak ada baris yang dipilih."}
+    set_clause   = ", ".join(f"{k}=?" for k, _ in fields)
+    vals         = [v for _, v in fields]
+    placeholders = ",".join("?" * len(ids))
+    conn = get_conn()
+    cur  = conn.execute(
+        f"UPDATE energy_pa SET {set_clause} WHERE id IN ({placeholders})",
+        vals + list(ids)
+    )
+    updated = cur.rowcount
+    conn.commit()
+    conn.close()
+    return {"ok": True, "updated": updated,
+            "pesan": f"{updated} baris berhasil diperbarui."}
+
+
 def get_fiori_detail(record_id: int) -> dict | None:
     conn = get_conn()
     r = conn.execute("SELECT * FROM fiori_pa WHERE id=?", (record_id,)).fetchone()
@@ -1741,8 +1841,7 @@ def bulk_complete_pams(company_id: int, pams: list, tanggal_bayar: str) -> dict:
     for pam_no in set(pams):
         row = conn.execute("SELECT id FROM pam_records WHERE pam_no=? AND company_id=?", (pam_no, company_id)).fetchone()
         if row:
-            # Re-use the existing cascade function
-            res = set_pam_tanggal_bayar_agri(row["id"], tanggal_bayar, company_id)
+            res = set_pam_complete_cascade(row["id"], tanggal_bayar, company_id)
             if res.get("ok"):
                 success_count += 1
     conn.close()
@@ -1751,16 +1850,17 @@ def bulk_complete_pams(company_id: int, pams: list, tanggal_bayar: str) -> dict:
     return {"ok": False, "pesan": "Tidak ada PAM yang berhasil di-update."}
 
 
-def set_pam_tanggal_bayar_agri(pam_id: int, tanggal_bayar: str, company_id: int) -> dict:
+def set_pam_complete_cascade(pam_id: int, tanggal_bayar: str, company_id: int) -> dict:
     """
-    Isi tanggal_bayar di pam_records (source='etf_agri') → status='paid',
-    cascade ke etf_pa: tanggal_bayar + status='complete'.
+    Set tanggal_bayar + status='complete' di pam_records, cascade ke tabel PA dan
+    payment_beasiswa sesuai source PAM (etf_agri → etf_pa via nomor_pam;
+    beasiswa/klaim/others → payment_beasiswa + semua PA tables via etf_pa_line_id).
     """
     if not tanggal_bayar:
         return {"ok": False, "pesan": "Tanggal bayar wajib diisi."}
     conn = get_conn()
     pam = conn.execute(
-        "SELECT id, pam_no, source FROM pam_records WHERE id=? AND company_id=?",
+        "SELECT id, pam_no, source, pillar FROM pam_records WHERE id=? AND company_id=?",
         (pam_id, company_id)
     ).fetchone()
     if not pam:
@@ -1789,10 +1889,19 @@ def set_pam_tanggal_bayar_agri(pam_id: int, tanggal_bayar: str, company_id: int)
 
     # 3. Cascade ke payment_beasiswa + PA tables untuk beasiswa iPay flow
     else:
-        conn.execute(
-            "UPDATE payment_beasiswa SET status='complete' WHERE pam=? AND company_id=?",
-            (pam_no, company_id)
-        )
+        pillar   = pam.get("pillar") or ""
+        paid_col = _BEASISWA_PAID_COL.get(pillar)
+        if paid_col:
+            conn.execute(
+                f'UPDATE payment_beasiswa SET status=\'complete\', "{paid_col}"=? '
+                f'WHERE pam=? AND company_id=?',
+                (tanggal_bayar, pam_no, company_id)
+            )
+        else:
+            conn.execute(
+                "UPDATE payment_beasiswa SET status='complete' WHERE pam=? AND company_id=?",
+                (pam_no, company_id)
+            )
         line_ids = [
             r[0] for r in conn.execute(
                 "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa "
@@ -1803,10 +1912,11 @@ def set_pam_tanggal_bayar_agri(pam_id: int, tanggal_bayar: str, company_id: int)
         if line_ids:
             ph = ",".join("?" * len(line_ids))
             for lines_tbl, pa_tbl in [
-                ("etf_pa_lines",  "etf_pa"),
-                ("app_pa_lines",  "app_pa"),
-                ("sml_pa_lines",  "sml_pa"),
-                ("setf_pa_lines", "setf_pa"),
+                ("etf_pa_lines",    "etf_pa"),
+                ("app_pa_lines",    "app_pa"),
+                ("sml_pa_lines",    "sml_pa"),
+                ("energy_pa_lines", "energy_pa"),
+                ("setf_pa_lines",   "setf_pa"),
             ]:
                 conn.execute(
                     f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status='complete', updated_at=?

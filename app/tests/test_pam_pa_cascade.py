@@ -208,6 +208,166 @@ def test_cancel_pam_reverts_sml_pa():
     assert row["nomor_pam"] is None
 
 
+# ── set_pam_complete_cascade tests ───────────────────────────────────────────
+
+from modules.payment_memo.service import set_pam_complete_cascade
+
+
+def _insert_pam_beasiswa(conn, pa_tbl, lines_tbl, pa_prefix, pillar, siswa_id):
+    """Buat PA header + line + pam_records(source='beasiswa', pillar=pillar) + payment_beasiswa linked."""
+    cur = conn.execute(
+        f"INSERT INTO {pa_tbl} (company_id, pa_number, tgl_payment_application, status, created_at)"
+        f" VALUES (?,?,?,?,?)",
+        (COMPANY_ID, f"PA/{pa_prefix}/001/2026", "2026-06-01", "on_process", _ts())
+    )
+    pa_id   = cur.lastrowid
+    cur2    = conn.execute(
+        f"INSERT INTO {lines_tbl} (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran)"
+        f" VALUES (?,?,?,?)",
+        (pa_id, siswa_id, "By Pendidikan", 5_000_000)
+    )
+    line_id = cur2.lastrowid
+
+    pam_no = f"PAM-{pa_prefix}-06-2026-001"
+    cur3 = conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, total_amount, pillar, source, status, created_at)
+           VALUES (?,?,?,?,?,'beasiswa','open',?)""",
+        (COMPANY_ID, pam_no, "2026-06-08", 5_000_000, pillar, _ts())
+    )
+    pam_id = cur3.lastrowid
+
+    conn.execute(
+        f"UPDATE {pa_tbl} SET nomor_pam=?, status='on_process' WHERE id=?",
+        (pam_no, pa_id)
+    )
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, pam, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'open')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 3",
+         "2026-06-01", 5_000_000, pillar, "PT. SMART Tbk", pam_no, line_id)
+    )
+    conn.commit()
+    return pam_id, pa_id
+
+
+def test_cascade_agri_beasiswa_sets_tgl_paid_agri():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pam_id, pa_id = _insert_pam_beasiswa(conn, "etf_pa", "etf_pa_lines", "ETF", "AGRI", sid)
+    conn.close()
+
+    result = set_pam_complete_cascade(pam_id, "2026-06-20", COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pb = conn.execute(
+        "SELECT status, tgl_Paid_AGRI FROM payment_beasiswa WHERE pam=?",
+        ("PAM-ETF-06-2026-001",)
+    ).fetchone()
+    pa = conn.execute("SELECT status, tanggal_bayar FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+
+    assert pb["status"] == "complete"
+    assert pb["tgl_Paid_AGRI"] == "2026-06-20"
+    assert pa["status"] == "complete"
+    assert pa["tanggal_bayar"] == "2026-06-20"
+
+
+def test_cascade_app_sets_tgl_paid_app():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pam_id, pa_id = _insert_pam_beasiswa(conn, "app_pa", "app_pa_lines", "APP", "APP", sid)
+    conn.close()
+
+    result = set_pam_complete_cascade(pam_id, "2026-06-20", COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pb = conn.execute(
+        "SELECT status, tgl_Paid_APP FROM payment_beasiswa WHERE pam=?",
+        ("PAM-APP-06-2026-001",)
+    ).fetchone()
+    pa = conn.execute("SELECT status, tanggal_bayar FROM app_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+
+    assert pb["status"] == "complete"
+    assert pb["tgl_Paid_APP"] == "2026-06-20"
+    assert pa["status"] == "complete"
+    assert pa["tanggal_bayar"] == "2026-06-20"
+
+
+def test_cascade_land_sets_tgl_paid_land():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pam_id, pa_id = _insert_pam_beasiswa(conn, "sml_pa", "sml_pa_lines", "SML", "LAND", sid)
+    conn.close()
+
+    result = set_pam_complete_cascade(pam_id, "2026-06-20", COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pb = conn.execute(
+        "SELECT status, tgl_Paid_LAND FROM payment_beasiswa WHERE pam=?",
+        ("PAM-SML-06-2026-001",)
+    ).fetchone()
+    pa = conn.execute("SELECT status, tanggal_bayar FROM sml_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+
+    assert pb["status"] == "complete"
+    assert pb["tgl_Paid_LAND"] == "2026-06-20"
+    assert pa["status"] == "complete"
+    assert pa["tanggal_bayar"] == "2026-06-20"
+
+
+def test_cascade_energy_sets_tgl_paid_energy():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pam_id, pa_id = _insert_pam_beasiswa(conn, "energy_pa", "energy_pa_lines", "ENR", "ENERGY", sid)
+    conn.close()
+
+    result = set_pam_complete_cascade(pam_id, "2026-06-20", COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pb = conn.execute(
+        "SELECT status, tgl_Paid_ENERGY FROM payment_beasiswa WHERE pam=?",
+        ("PAM-ENR-06-2026-001",)
+    ).fetchone()
+    pa = conn.execute("SELECT status, tanggal_bayar FROM energy_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+
+    assert pb["status"] == "complete"
+    assert pb["tgl_Paid_ENERGY"] == "2026-06-20"
+    assert pa["status"] == "complete"
+    assert pa["tanggal_bayar"] == "2026-06-20"
+
+
+def test_cascade_setf_sets_tgl_paid_setf():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pam_id, pa_id = _insert_pam_beasiswa(conn, "setf_pa", "setf_pa_lines", "SETF", "SETF", sid)
+    conn.close()
+
+    result = set_pam_complete_cascade(pam_id, "2026-06-20", COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pb = conn.execute(
+        "SELECT status, tgl_Paid_SETF FROM payment_beasiswa WHERE pam=?",
+        ("PAM-SETF-06-2026-001",)
+    ).fetchone()
+    pa = conn.execute("SELECT status, tanggal_bayar FROM setf_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+
+    assert pb["status"] == "complete"
+    assert pb["tgl_Paid_SETF"] == "2026-06-20"
+    assert pa["status"] == "complete"
+    assert pa["tanggal_bayar"] == "2026-06-20"
+
+
 # ── schema tests ─────────────────────────────────────────────────────────────
 
 def test_payment_beasiswa_has_tgl_paid_columns():
