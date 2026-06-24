@@ -1942,3 +1942,42 @@ def check_pam_no_exists(company_id: int, pam_no: str) -> dict:
     ).fetchone()
     conn.close()
     return {"ok": True, "exists": row is not None}
+
+
+def get_pam_beasiswa_lines(pam_id: int, company_id: int) -> list | None:
+    conn = get_conn()
+    pam_no_row = conn.execute(
+        "SELECT pam_no FROM pam_records WHERE id = ? AND company_id = ?",
+        (pam_id, company_id),
+    ).fetchone()
+    if not pam_no_row:
+        conn.close()
+        return None
+    pam_no = pam_no_row["pam_no"]
+    rows = [dict(r) for r in conn.execute(
+        """SELECT
+               pb.siswa_code,
+               s.nama,
+               pb.cat1,
+               pb.cat2,
+               pb.amount,
+               pb.tgl_pengajuan,
+               pb.tgl_receive,
+               pb.tgl_pa,
+               pb.tgl_final,
+               pb.SLA_Date_1_LL,
+               pb.SLA_Date_2_HT,
+               pb.SLA_Date_3_YK,
+               pb.SLA_Date_4_AK,
+               pb.SLA_Date_5_PD,
+               pb.SLA_Date_6_C2,
+               pb.SLA_Date_7_MSIG
+           FROM payment_beasiswa pb
+           LEFT JOIN siswa s
+                  ON s.company_id = pb.company_id AND s.code = pb.siswa_code
+           WHERE pb.pam = ? AND pb.company_id = ?
+           ORDER BY s.nama ASC""",
+        (pam_no, company_id),
+    ).fetchall()]
+    conn.close()
+    return rows
