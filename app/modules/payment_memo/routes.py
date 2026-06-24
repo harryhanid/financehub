@@ -18,8 +18,6 @@ from modules.payment_memo.service import (
     get_fiori_detail, update_fiori_record,
     get_sml_list, bulk_update_sml_dates,
     update_sml_status, cancel_sml_record,
-    get_energy_list, bulk_update_energy_dates,
-    update_energy_status, cancel_energy_record,
     get_open_etf_pa_for_pam, create_pam_from_etf_pa, set_pam_complete_cascade,
     get_next_pam_no, save_pa_payment, check_pam_no_exists,
     get_pam_by_pillar, upsert_pam_lines,
@@ -563,37 +561,6 @@ def sml_status(record_id):
 @jwt_html_required
 def sml_cancel(record_id):
     return jsonify(cancel_sml_record(record_id))
-
-
-@bp.route("/energy")
-@jwt_html_required
-def energy_list_route():
-    search = request.args.get("search", "").strip()
-    bulan  = request.args.get("bulan",  "").strip()
-    tahun  = request.args.get("tahun",  "").strip()
-    status = request.args.get("status", "").strip()
-    rows   = get_energy_list(search, bulan, tahun, status)
-    return jsonify({"ok": True, "rows": rows})
-
-
-@bp.route("/energy/bulk-update", methods=["POST"])
-@jwt_html_required
-def energy_bulk_update():
-    data  = request.get_json(force=True) or {}
-    return jsonify(bulk_update_energy_dates(data.get("ids", []), data.get("dates", {})))
-
-
-@bp.route("/energy/<int:record_id>/status", methods=["POST"])
-@jwt_html_required
-def energy_status(record_id):
-    data = request.get_json(force=True) or {}
-    return jsonify(update_energy_status(record_id, data.get("status", "")))
-
-
-@bp.route("/energy/<int:record_id>/cancel", methods=["POST"])
-@jwt_html_required
-def energy_cancel(record_id):
-    return jsonify(cancel_energy_record(record_id))
 
 
 # ── PAM by-pillar endpoints (standardized) ──────────────────────────────────
