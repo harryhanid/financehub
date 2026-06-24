@@ -2066,6 +2066,7 @@ async function loadPAM() {
     return;
   }
   _pamCache = {};
+  _pamBeasiswaCache = {};
   data.rows.forEach(r => { _pamCache[r.id] = r; });
   tbody.innerHTML = data.rows.map((r, i) => `
     <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
