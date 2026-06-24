@@ -328,6 +328,7 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead class="thead-primary">
           <tr>
+            <th style="width:28px;padding:4px"></th>
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">PAM No</th>
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl PAM</th>
             <th style="padding:8px 10px;text-align:left;">PT</th>
@@ -356,7 +357,7 @@
           </tr>
         </thead>
         <tbody id="pam-tbody">
-          <tr><td colspan="25" style="text-align:center;padding:20px;color:#6b7280;">
+          <tr><td colspan="26" style="text-align:center;padding:20px;color:#6b7280;">
             Memuat data...
           </td></tr>
         </tbody>
@@ -2061,13 +2062,16 @@ async function loadPAM() {
   const data   = await res.json();
   const tbody  = document.getElementById('pam-tbody');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:#6b7280;">Belum ada PAM record AGRI.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:#6b7280;">Belum ada PAM record AGRI.</td></tr>';
     return;
   }
   _pamCache = {};
   data.rows.forEach(r => { _pamCache[r.id] = r; });
   tbody.innerHTML = data.rows.map((r, i) => `
-    <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+    <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+      ${r.source === 'beasiswa'
+        ? `<td style="padding:4px;text-align:center"><span class="pam-toggle" style="cursor:pointer;font-size:.75rem" onclick="agriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span></td>`
+        : `<td style="text-align:center;color:#cbd5e1;font-size:11px;padding:4px">&#8212;</td>`}
       <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
       <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
@@ -2100,6 +2104,107 @@ async function loadPAM() {
     const cell = document.getElementById('gl-cell-' + r.id);
     if (cell) cell.appendChild(buildGLDropdown(r.id, r.gl_account));
   });
+}
+
+let _pamBeasiswaCache = {};
+
+function agriToggleExpand(toggleEl, pamId) {
+  const masterTr = toggleEl.closest('tr');
+  const existing = document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"]`);
+  if (existing.length) {
+    const nowHidden = existing[0].style.display === 'none';
+    existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
+    toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
+    return;
+  }
+  agriFetchBeasiswaLines(masterTr, toggleEl, pamId);
+}
+
+async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
+  if (_pamBeasiswaCache[pamId] === 'loading') return;
+  _pamBeasiswaCache[pamId] = 'loading';
+
+  const loadingTr = document.createElement('tr');
+  loadingTr.classList.add('agri-detail-rows');
+  loadingTr.dataset.pamId = pamId;
+  loadingTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  masterTr.insertAdjacentElement('afterend', loadingTr);
+
+  const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
+  loadingTr.remove();
+
+  if (!res) {
+    _pamBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('agri-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  const data = await res.json();
+  if (!data.ok) {
+    _pamBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('agri-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = `<td colspan="26" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  _pamBeasiswaCache[pamId] = data.rows;
+
+  if (!data.rows.length) {
+    const emptyTr = document.createElement('tr');
+    emptyTr.classList.add('agri-detail-rows');
+    emptyTr.dataset.pamId = pamId;
+    emptyTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    masterTr.insertAdjacentElement('afterend', emptyTr);
+    toggleEl.innerHTML = '&#9660;';
+    return;
+  }
+
+  const d = v => v
+    ? `<span style="color:#1e293b">${esc(String(v))}</span>`
+    : '<span style="color:#94a3b8">—</span>';
+  const lbl = t => `<span style="color:#64748b">${t}:</span> `;
+
+  [...data.rows].reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.classList.add('agri-detail-rows');
+    tr.dataset.pamId = pamId;
+    tr.style.background = '#f0f9ff';
+    tr.style.borderBottom = '1px solid #e2e8f0';
+    tr.innerHTML = `<td colspan="26" style="padding:4px 8px 4px 36px;font-size:11px;">
+      <div style="display:flex;gap:16px;align-items:center;margin-bottom:2px">
+        <span style="font-family:monospace;color:#94a3b8">${esc(r.siswa_code || '')}</span>
+        <span style="font-weight:600">${esc(r.nama || '—')}</span>
+        <span>${esc(r.cat1 || '')}</span>
+        <span>${esc(r.cat2 || '')}</span>
+        <span style="font-weight:700;color:#1a56db;margin-left:auto">${fmtRupiah(r.amount)}</span>
+      </div>
+      <div style="margin-bottom:2px">
+        ${lbl('Pengajuan')}${d(r.tgl_pengajuan)} &nbsp;&middot;&nbsp;
+        ${lbl('Receive')}${d(r.tgl_receive)} &nbsp;&middot;&nbsp;
+        ${lbl('PA')}${d(r.tgl_pa)} &nbsp;&middot;&nbsp;
+        ${lbl('Final')}${d(r.tgl_final)}
+      </div>
+      <div>
+        ${lbl('SLA1(LL)')}${d(r.SLA_Date_1_LL)} &nbsp;&middot;&nbsp;
+        ${lbl('SLA2(HT)')}${d(r.SLA_Date_2_HT)} &nbsp;&middot;&nbsp;
+        ${lbl('SLA3(YK)')}${d(r.SLA_Date_3_YK)} &nbsp;&middot;&nbsp;
+        ${lbl('SLA4(AK)')}${d(r.SLA_Date_4_AK)} &nbsp;&middot;&nbsp;
+        ${lbl('SLA5(PD)')}${d(r.SLA_Date_5_PD)} &nbsp;&middot;&nbsp;
+        ${lbl('SLA6(C2)')}${d(r.SLA_Date_6_C2)} &nbsp;&middot;&nbsp;
+        ${lbl('SLA7(MSIG)')}${d(r.SLA_Date_7_MSIG)}
+      </div>
+    </td>`;
+    masterTr.insertAdjacentElement('afterend', tr);
+  });
+
+  toggleEl.innerHTML = '&#9660;';
 }
 
 async function updatePAMStatus(pamId, newStatus) {
