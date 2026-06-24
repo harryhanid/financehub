@@ -447,6 +447,28 @@ def migrate_db():
             conn.commit()
         except Exception:
             pass
+    # ── SLA column rename/add/drop (2026-06-24) ───────────────────────────
+    with get_conn() as conn:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(payment_beasiswa)")}
+        renames = [
+            ("tgl_HT_AGRI",     "SLA_Date_2_HT"),
+            ("tgl_Yurike_AGRI", "SLA_Date_3_YK"),
+            ("tgl_Aditya_AGRI", "SLA_Date_4_AK"),
+            ("tgl_Pedy_AGRI",   "SLA_Date_5_PD"),
+            ("tgl_C2_AGRI",     "SLA_Date_6_C2"),
+            ("tgl_MSIG_AGRI",   "SLA_Date_7_MSIG"),
+        ]
+        for old, new in renames:
+            if old in cols and new not in cols:
+                conn.execute(f'ALTER TABLE payment_beasiswa RENAME COLUMN "{old}" TO "{new}"')
+            elif old in cols and new in cols:
+                # old col was re-added by ADD COLUMN loop after previous rename — drop the stale copy
+                conn.execute(f'ALTER TABLE payment_beasiswa DROP COLUMN "{old}"')
+        if "SLA_Date_1_LL" not in cols:
+            conn.execute('ALTER TABLE payment_beasiswa ADD COLUMN "SLA_Date_1_LL" TEXT')
+        if "tgl_Paid_AGRI" in cols:
+            conn.execute('ALTER TABLE payment_beasiswa DROP COLUMN "tgl_Paid_AGRI"')
+        conn.commit()
     try:
         conn.execute("ALTER TABLE payment_beasiswa ADD COLUMN etf_pa_line_id INTEGER REFERENCES etf_pa_lines(id)")
         conn.commit()

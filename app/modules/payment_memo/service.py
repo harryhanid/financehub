@@ -250,7 +250,6 @@ _PILLAR_LINES_TABLE = {
 _VALID_PILLARS = set(_PILLAR_LINES_TABLE)
 
 _BEASISWA_PAID_COL = {
-    "AGRI":   "tgl_Paid_AGRI",
     "APP":    "tgl_Paid_APP",
     "LAND":   "tgl_Paid_LAND",
     "ENERGY": "tgl_Paid_ENERGY",
@@ -1023,7 +1022,7 @@ def get_pam_payments_detail(pam_no: str, company_id: int) -> list:
 
 
 _SOURCE_MAP = {
-    "AGRI": {"pr_source": "etf_agri", "paid_col": "tgl_Paid_AGRI"},
+    "AGRI": {"pr_source": "etf_agri"},
     "APP":  {"pr_source": "etf_app",  "paid_col": "tgl_Paid_APP"},
 }
 
@@ -1039,7 +1038,7 @@ def get_days_of_pam(
 ) -> dict:
     src       = _SOURCE_MAP.get(source.upper(), _SOURCE_MAP["AGRI"])
     pr_source = src["pr_source"]
-    paid_col  = src["paid_col"]
+    paid_col  = src.get("paid_col")
 
     conditions = [
         "pb.company_id = ?",
@@ -1050,7 +1049,10 @@ def get_days_of_pam(
     params = [company_id, pr_source]
 
     if paid_only:
-        conditions.append(f'pb."{paid_col}" IS NULL')
+        if paid_col:
+            conditions.append(f'pb."{paid_col}" IS NULL')
+        else:
+            conditions.append("pr.tanggal_bayar IS NULL")
     if pam:
         conditions.append("pb.pam LIKE ?")
         params.append(f"%{pam}%")
@@ -1078,9 +1080,9 @@ def get_days_of_pam(
                   pb.tgl_pengajuan, pb.tgl_receive,
                   pb.tgl_pa, pb.tgl_final,
                   pb.tgl_retur, pb.tgl_final6, pb.tgl_proses,
-                  pb.tgl_HT_AGRI, pb.tgl_Yurike_AGRI, pb.tgl_Aditya_AGRI,
-                  pb.tgl_Pedy_AGRI, pb.tgl_C2_AGRI, pb.tgl_MSIG_AGRI,
-                  pb.tgl_Paid_AGRI,
+                  pb.SLA_Date_1_LL, pb.SLA_Date_2_HT, pb.SLA_Date_3_YK,
+                  pb.SLA_Date_4_AK, pb.SLA_Date_5_PD, pb.SLA_Date_6_C2,
+                  pb.SLA_Date_7_MSIG,
                   pb."tgl_A-GS_APP", pb."tgl_A-HJK_APP",
                   pb.tgl_ASPIRO_APP, pb.tgl_Paid_APP
            {base_from}
@@ -1116,8 +1118,8 @@ def bulk_update_dates(ids: list, dates: dict, company_id: int) -> dict:
     _ALLOWED = {
         "tanggal", "tgl_pengajuan", "tgl_receive", "tgl_pa", "tgl_final",
         "tgl_retur", "tgl_final6", "tgl_proses",
-        "tgl_HT_AGRI", "tgl_Yurike_AGRI", "tgl_Aditya_AGRI",
-        "tgl_Pedy_AGRI", "tgl_C2_AGRI", "tgl_MSIG_AGRI", "tgl_Paid_AGRI",
+        "SLA_Date_1_LL", "SLA_Date_2_HT", "SLA_Date_3_YK",
+        "SLA_Date_4_AK", "SLA_Date_5_PD", "SLA_Date_6_C2", "SLA_Date_7_MSIG",
         "tgl_A-GS_APP", "tgl_A-HJK_APP", "tgl_ASPIRO_APP", "tgl_Paid_APP",
     }
     fields = [(k, v) for k, v in dates.items() if k in _ALLOWED and v]

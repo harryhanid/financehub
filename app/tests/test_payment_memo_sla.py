@@ -35,8 +35,11 @@ def _seed(conn):
         (COMPANY_ID, "S001", "PAM-001-AGRI", "2026-01-01", 5000000, "open"))
     # AGRI paid
     conn.execute(
-        "INSERT INTO payment_beasiswa (company_id, siswa_code, pam, tanggal, amount, status, \"tgl_Paid_AGRI\") VALUES (?,?,?,?,?,?,?)",
-        (COMPANY_ID, "S002", "PAM-002-AGRI", "2026-01-02", 3000000, "open", "2026-02-01"))
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, pam, tanggal, amount, status) VALUES (?,?,?,?,?,?)",
+        (COMPANY_ID, "S002", "PAM-002-AGRI", "2026-01-02", 3000000, "open"))
+    conn.execute(
+        "UPDATE pam_records SET tanggal_bayar='2026-02-01' WHERE pam_no='PAM-002-AGRI' AND company_id=?",
+        (COMPANY_ID,))
     # APP unpaid
     conn.execute(
         "INSERT INTO payment_beasiswa (company_id, siswa_code, pam, tanggal, amount, status) VALUES (?,?,?,?,?,?)",

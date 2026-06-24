@@ -287,7 +287,7 @@ def _insert_pam_beasiswa(conn, pa_tbl, lines_tbl, pa_prefix, pillar, siswa_id):
     return pam_id, pa_id
 
 
-def test_cascade_agri_beasiswa_sets_tgl_paid_agri():
+def test_cascade_agri_beasiswa_sets_status_complete():
     conn = get_conn()
     sid = _insert_siswa(conn)
     pam_id, pa_id = _insert_pam_beasiswa(conn, "etf_pa", "etf_pa_lines", "ETF", "AGRI", sid)
@@ -298,14 +298,13 @@ def test_cascade_agri_beasiswa_sets_tgl_paid_agri():
 
     conn = get_conn()
     pb = conn.execute(
-        "SELECT status, tgl_Paid_AGRI FROM payment_beasiswa WHERE pam=?",
+        "SELECT status FROM payment_beasiswa WHERE pam=?",
         ("PAM-ETF-06-2026-001",)
     ).fetchone()
     pa = conn.execute("SELECT status, tanggal_bayar FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
     conn.close()
 
     assert pb["status"] == "complete"
-    assert pb["tgl_Paid_AGRI"] == "2026-06-20"
     assert pa["status"] == "complete"
     assert pa["tanggal_bayar"] == "2026-06-20"
 
