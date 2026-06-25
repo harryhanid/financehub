@@ -2067,9 +2067,10 @@ async function loadPAM() {
   }
   _pamCache = {};
   _pamBeasiswaCache = {};
+  _pamBeasiswaSelected = {};
   data.rows.forEach(r => { _pamCache[r.id] = r; });
   tbody.innerHTML = data.rows.map((r, i) => `
-    <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+    <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
       ${r.source === 'beasiswa'
         ? `<td style="padding:4px;text-align:center"><span class="pam-toggle" style="cursor:pointer;font-size:.75rem" onclick="agriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span></td>`
         : `<td style="text-align:center;color:#cbd5e1;font-size:11px;padding:4px">&#8212;</td>`}
@@ -2108,6 +2109,7 @@ async function loadPAM() {
 }
 
 let _pamBeasiswaCache = {};
+let _pamBeasiswaSelected = {}; // { pamId: Set<pbId> }
 
 function agriToggleExpand(toggleEl, pamId) {
   const masterTr = toggleEl.closest('tr');
@@ -2115,6 +2117,8 @@ function agriToggleExpand(toggleEl, pamId) {
   if (existing.length) {
     const nowHidden = existing[0].style.display === 'none';
     existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
+    const panel = document.querySelector(`.agri-edit-panel[data-pam-id="${pamId}"]`);
+    if (panel) panel.style.display = nowHidden ? '' : 'none';
     toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
     return;
   }
@@ -2178,8 +2182,11 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     tr.dataset.pamId = pamId;
     tr.style.background = '#f0f9ff';
     tr.style.borderBottom = '1px solid #e2e8f0';
-    tr.innerHTML = `<td colspan="26" style="padding:4px 8px 4px 36px;font-size:11px;">
+    tr.innerHTML = `<td colspan="26" style="padding:4px 8px 4px 12px;font-size:11px;">
       <div style="display:flex;gap:16px;align-items:center;margin-bottom:2px">
+        <input type="checkbox" data-pb-id="${r.id}"
+               style="margin-right:4px;cursor:pointer;vertical-align:middle;flex-shrink:0"
+               onchange="agriToggleCheckbox(${pamId}, ${r.id}, this.checked)">
         <span style="font-family:monospace;color:#94a3b8">${esc(r.siswa_code || '')}</span>
         <span style="font-weight:600">${esc(r.nama || '—')}</span>
         <span>${esc(r.cat1 || '')}</span>
@@ -2206,6 +2213,110 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   });
 
   toggleEl.innerHTML = '&#9660;';
+}
+
+function agriToggleCheckbox(pamId, pbId, checked) {
+  if (!_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId] = new Set();
+  if (checked) {
+    _pamBeasiswaSelected[pamId].add(pbId);
+  } else {
+    _pamBeasiswaSelected[pamId].delete(pbId);
+  }
+  agriRenderEditPanel(pamId);
+}
+
+function agriRenderEditPanel(pamId) {
+  const sel = _pamBeasiswaSelected[pamId];
+  const n   = sel ? sel.size : 0;
+  let panel = document.querySelector(`.agri-edit-panel[data-pam-id="${pamId}"]`);
+  if (n === 0) {
+    if (panel) panel.remove();
+    return;
+  }
+  if (!panel) {
+    const rows = [...document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"]`)];
+    const last = rows[rows.length - 1];
+    panel = document.createElement('tr');
+    panel.className = 'agri-edit-panel';
+    panel.dataset.pamId = pamId;
+    last.insertAdjacentElement('afterend', panel);
+  }
+  const SLA_FIELDS = [
+    { key: 'SLA_Date_1_LL',   label: 'LL'   },
+    { key: 'SLA_Date_2_HT',   label: 'HT'   },
+    { key: 'SLA_Date_3_YK',   label: 'YK'   },
+    { key: 'SLA_Date_4_AK',   label: 'AK'   },
+    { key: 'SLA_Date_5_PD',   label: 'PD'   },
+    { key: 'SLA_Date_6_C2',   label: 'C2'   },
+    { key: 'SLA_Date_7_MSIG', label: 'MSIG' },
+  ];
+  const inputs = SLA_FIELDS.map(f =>
+    `<label style="font-size:11px;color:#92400e;white-space:nowrap">${f.label}: ` +
+    `<input type="date" id="agri-sla-${f.key}-${pamId}" ` +
+    `style="font-size:11px;padding:2px 4px;border:1px solid #fbbf24;border-radius:3px"></label>`
+  ).join('');
+  panel.innerHTML =
+    `<td colspan="26" style="background:#fffbeb;border-top:1px solid #f59e0b;` +
+    `border-bottom:1px solid #f59e0b;padding:8px 16px">` +
+    `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">` +
+    `<span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">` +
+    `Edit SLA — ${n} siswa dipilih</span>` +
+    inputs +
+    `<button onclick="agriSaveSlaDates(${pamId})" ` +
+    `style="font-size:11px;padding:3px 10px;background:#f59e0b;border:none;` +
+    `border-radius:4px;cursor:pointer;color:#fff;font-weight:600">Simpan</button>` +
+    `<button onclick="agriClearSelection(${pamId})" ` +
+    `style="font-size:11px;padding:3px 10px;background:#e2e8f0;border:none;` +
+    `border-radius:4px;cursor:pointer;color:#64748b">Batal</button>` +
+    `</div></td>`;
+}
+
+async function agriSaveSlaDates(pamId) {
+  const sel = _pamBeasiswaSelected[pamId];
+  if (!sel || sel.size === 0) return;
+  const SLA_KEYS = [
+    'SLA_Date_1_LL', 'SLA_Date_2_HT', 'SLA_Date_3_YK', 'SLA_Date_4_AK',
+    'SLA_Date_5_PD', 'SLA_Date_6_C2', 'SLA_Date_7_MSIG',
+  ];
+  const dates = {};
+  for (const k of SLA_KEYS) {
+    const el = document.getElementById(`agri-sla-${k}-${pamId}`);
+    if (el && el.value) dates[k] = el.value;
+  }
+  if (Object.keys(dates).length === 0) {
+    alert('Isi minimal satu SLA date sebelum simpan.');
+    return;
+  }
+  const res = await apiFetch('/payment-memo/days-of-pam/bulk-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [...sel], dates }),
+  });
+  if (!res) {
+    alert('Gagal menyimpan: network error.');
+    return;
+  }
+  const data = await res.json();
+  if (!data.ok) {
+    alert('Gagal menyimpan: ' + (data.pesan || 'Error tidak diketahui.'));
+    return;
+  }
+  agriClearSelection(pamId);
+  delete _pamBeasiswaCache[pamId];
+  document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"]`).forEach(r => r.remove());
+  const masterTr = document.querySelector(`tr.pam-master-row[data-pam-id="${pamId}"]`);
+  const toggleEl = masterTr ? masterTr.querySelector('.pam-toggle') : null;
+  if (masterTr && toggleEl) {
+    toggleEl.innerHTML = '&#9658;';
+    agriFetchBeasiswaLines(masterTr, toggleEl, pamId);
+  }
+}
+
+function agriClearSelection(pamId) {
+  if (_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId].clear();
+  document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`)
+    .forEach(cb => { cb.checked = false; });
+  agriRenderEditPanel(pamId);
 }
 
 async function updatePAMStatus(pamId, newStatus) {
