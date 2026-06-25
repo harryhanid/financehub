@@ -11,6 +11,28 @@
 /* Pillar tabs — scrollable table with frozen header */
 .pillar-table-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 220px)}
 .pillar-table-wrap .thead-primary th{position:sticky;top:0;z-index:3}
+/* ── AGRI: frozen columns ─────────────────────────────────────────────── */
+/* border-collapse:separate required — collapse breaks position:sticky    */
+#pam-table{border-collapse:separate;border-spacing:0}
+#pam-table th.s0,#pam-table td.s0,
+#pam-table th.s1,#pam-table td.s1,
+#pam-table th.s2,#pam-table td.s2,
+#pam-table th.s3,#pam-table td.s3,
+#pam-table th.s4,#pam-table td.s4{position:sticky;z-index:2;background:#fff}
+#pam-table thead th.s0,#pam-table thead th.s1,
+#pam-table thead th.s2,#pam-table thead th.s3,
+#pam-table thead th.s4{background:var(--sl-800);z-index:4}
+#pam-table th.s0,#pam-table td.s0{left:0;width:52px;min-width:52px;max-width:52px}
+#pam-table th.s1,#pam-table td.s1{left:52px;min-width:155px}
+#pam-table th.s2,#pam-table td.s2{left:207px;min-width:90px}
+#pam-table th.s3,#pam-table td.s3{left:297px;min-width:90px}
+#pam-table th.s4,#pam-table td.s4{left:387px;min-width:100px;box-shadow:3px 0 5px -2px rgba(0,0,0,.12)}
+#pam-table tr.agri-detail-rows td.s0,#pam-table tr.agri-detail-rows td.s1,
+#pam-table tr.agri-detail-rows td.s2,#pam-table tr.agri-detail-rows td.s3,
+#pam-table tr.agri-detail-rows td.s4{background:#f0f9ff}
+#pam-table tbody tr:hover td.s0,#pam-table tbody tr:hover td.s1,
+#pam-table tbody tr:hover td.s2,#pam-table tbody tr:hover td.s3,
+#pam-table tbody tr:hover td.s4{background:#f1f5f9}
 /* ── Open PAM accordion ── */
 .pam-master-row { cursor: pointer; }
 .pam-master-row:hover { background: var(--hover-bg, #f8fafc); }
@@ -52,7 +74,6 @@
     <button class="tab-btn" data-tab="tab-fiori" onclick="loadFIORI()">APP</button>
     <button class="tab-btn" data-tab="tab-sml" onclick="loadSML()">LAND</button>
     <button class="tab-btn" data-tab="tab-setf" onclick="loadSETF()">SETF</button>
-    <button class="tab-btn" data-tab="tab-days-of-pam" onclick="dopTabOpened()">SLA</button>
     <button class="tab-btn" data-tab="tab-draft-memo">Print Memo</button>
   </div>
 
@@ -70,6 +91,7 @@
             <th>PAM No</th>
             <th>Pillar</th>
             <th>Tanggal</th>
+            <th>Due Date</th>
             <th>Keterangan (Nama)</th>
             <th class="num-right">Jml</th>
             <th class="num-right">Total</th>
@@ -77,7 +99,7 @@
           </tr>
         </thead>
         <tbody id="open-pam-tbody">
-          <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem">
+          <tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">
             <span style="opacity:.5">Memuat…</span>
           </td></tr>
         </tbody>
@@ -302,7 +324,7 @@
               style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:76px">
         <option value="">Tahun</option>
         <option value="2023">2023</option><option value="2024">2024</option>
-        <option value="2025">2025</option><option value="2026">2026</option>
+        <option value="2025">2025</option><option value="2026" selected>2026</option>
         <option value="2027">2027</option>
       </select>
       <select id="pam-filter-status" onchange="loadPAMDebounced()"
@@ -324,15 +346,40 @@
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('AGRI')">↓ Export Excel</button>
     </div>
+    <div id="agri-bulk-bar" style="display:none;align-items:center;flex-wrap:wrap;gap:8px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:7px 12px;margin-bottom:8px">
+      <!-- kiri: kontrol kolom + tanggal + aksi -->
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Kolom:</span>
+        <select id="agri-bulk-field" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;min-width:110px">
+          <option value="SLA_Date_1_LL">SLA1 — LL</option>
+          <option value="SLA_Date_2_HT">SLA2 — HT</option>
+          <option value="SLA_Date_3_YK">SLA3 — YK</option>
+          <option value="SLA_Date_4_AK">SLA4 — AK</option>
+          <option value="SLA_Date_5_PD">SLA5 — PD</option>
+          <option value="SLA_Date_6_C2">SLA6 — C2</option>
+          <option value="SLA_Date_7_MSIG">SLA7 — MSIG</option>
+        </select>
+        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Tanggal:</span>
+        <input type="date" id="agri-bulk-date" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;width:140px;box-sizing:border-box">
+        <button onclick="agriIsiTanggal()" style="font-size:11px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Simpan Tanggal</button>
+        <button onclick="agriHapusTanggal()" style="font-size:11px;padding:3px 11px;background:#dc2626;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Hapus Tanggal</button>
+        <button onclick="agriClearAll()" style="font-size:11px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;height:26px">✕ Batal</button>
+      </div>
+      <!-- pembatas -->
+      <div style="width:1px;background:#f59e0b;height:20px;flex-shrink:0"></div>
+      <!-- kanan: count + chips -->
+      <span id="agri-bulk-count" style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap;flex-shrink:0"></span>
+      <div id="agri-chips-row" style="display:flex;flex-wrap:wrap;gap:4px;min-width:0;flex:1"></div>
+    </div>
     <div class="pillar-table-wrap">
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table id="pam-table" style="width:100%;font-size:13px;">
         <thead class="thead-primary">
           <tr>
-            <th style="width:52px;padding:4px;position:sticky;left:0;z-index:4"></th>
-            <th style="width:155px;padding:8px 10px;text-align:left;white-space:nowrap;position:sticky;left:52px;z-index:4">PAM No</th>
-            <th style="width:90px;padding:8px 10px;text-align:left;white-space:nowrap;position:sticky;left:207px;z-index:4">Tgl PAM</th>
-            <th style="min-width:90px;padding:8px 10px;text-align:left;position:sticky;left:297px;z-index:4;box-shadow:3px 0 6px rgba(0,0,0,.12)">PT</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">Cost Center</th>
+            <th class="s0" style="padding:4px"></th>
+            <th class="s1" style="padding:8px 10px;text-align:left;white-space:nowrap">PAM No</th>
+            <th class="s2" style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl PAM</th>
+            <th class="s3" style="padding:8px 10px;text-align:left">PT</th>
+            <th class="s4" style="padding:8px 10px;text-align:left;white-space:nowrap">Cost Center</th>
             <th style="padding:8px 10px;min-width:220px;text-align:left;">GL Account</th>
             <th style="padding:8px 10px;text-align:left;">Requestor</th>
             <th style="padding:8px 10px;text-align:left;">Keterangan</th>
@@ -367,153 +414,7 @@
     </div>
   </div>
 
-  <!-- Days of PAM Tab -->
-  <div class="tab-panel" id="tab-days-of-pam">
-    <!-- Source toggle + paid-only -->
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #e5e7eb;flex-wrap:wrap">
-      <div id="dop-source-toggle" style="display:flex;gap:4px">
-        <button class="dop-src-btn dop-src-active" data-src="AGRI" onclick="dopSetSource('AGRI')"
-                style="padding:4px 12px;border:1px solid #2563eb;border-radius:20px;background:#2563eb;color:#fff;font-size:12px;font-weight:600;cursor:pointer">AGRI</button>
-        <button class="dop-src-btn" data-src="APP" onclick="dopSetSource('APP')"
-                style="padding:4px 12px;border:1px solid #d1d5db;border-radius:20px;background:#fff;color:#374151;font-size:12px;font-weight:600;cursor:pointer">APP</button>
-      </div>
-      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#374151;cursor:pointer;margin-left:8px">
-        <input type="checkbox" id="dop-paid-only" checked onchange="dopSetPaidOnly(this.checked)"
-               style="cursor:pointer">
-        Belum Paid saja
-      </label>
-      <span id="dop-count-label" style="font-size:11px;color:#6b7280;margin-left:auto"></span>
-    </div>
-    <!-- Search section: PAM No + Nama autocomplete -->
-    <div class="filter-bar">
-      <div class="filter-field">
-        <label>PAM No</label>
-        <input id="dop-s-pam" type="text" placeholder="Cari PAM No..." autocomplete="off"
-               style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"
-               oninput="dopSrchInput('pam')" onblur="dopSrchBlur('pam')">
-        <div id="dop-sugg-pam"
-             style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:210px;overflow-y:auto;z-index:900"></div>
-      </div>
-      <div class="filter-field">
-        <label>Nama Siswa</label>
-        <input id="dop-s-nama" type="text" placeholder="Cari Nama Siswa..." autocomplete="off"
-               style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px"
-               oninput="dopSrchInput('nama')" onblur="dopSrchBlur('nama')">
-        <div id="dop-sugg-nama"
-             style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);max-height:210px;overflow-y:auto;z-index:900"></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;padding-bottom:1px">
-        <button class="btn btn-success btn-sm" onclick="_dopFetchCurrent()">🔍 Cari</button>
-        <button class="btn btn-secondary btn-sm" onclick="dopClearSearch()">Bersihkan</button>
-        <button class="btn btn-success btn-sm" onclick="exportSlaExcel()">&#8595; Export Excel</button>
-        <button id="dop-update-btn" class="btn btn-primary btn-sm" onclick="dopBulkUpdate()" disabled style="opacity:.5">Update Terpilih (0)</button>
-        <span id="dop-info" style="font-size:12px;color:var(--sl-500)"></span>
-      </div>
-    </div>
-
-    <!-- Chip tags — selected rows persisten lintas search -->
-    <div id="dop-chips-row" style="display:none;padding:5px 10px;background:#eff6ff;border-bottom:1px solid #bfdbfe;display:none;align-items:center;gap:5px;flex-wrap:wrap"></div>
-
-    <!-- Table — secondary filters + date inputs in subheader -->
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead class="thead-primary">
-          <tr>
-            <th style="padding:7px 6px;text-align:center;width:32px">
-              <input type="checkbox" id="dop-select-all" onchange="dopToggleSelectAll(this)" title="Pilih semua terfilter">
-            </th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Siswa Code</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Nama Siswa</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">PAM NO</th>
-            <th style="padding:7px 8px;text-align:left">Cat 1</th>
-            <th style="padding:7px 8px;text-align:left">Cat 2</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Perusahaan</th>
-            <th style="padding:7px 8px;text-align:left">Pillar</th>
-            <th style="padding:7px 8px;text-align:right">Amount</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Tanggal</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Tgl Pengajuan</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Tgl Receive</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Tgl PA</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">Tgl Final</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_retur</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_final6</th>
-            <th style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_proses</th>
-            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">SLA_Date_1_LL</th>
-            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">SLA_Date_2_HT</th>
-            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">SLA_Date_3_YK</th>
-            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">SLA_Date_4_AK</th>
-            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">SLA_Date_5_PD</th>
-            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">SLA_Date_6_C2</th>
-            <th class="dop-col-agri" style="padding:7px 8px;text-align:left;white-space:nowrap">SLA_Date_7_MSIG</th>
-            <th class="dop-col-app" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_A-GS_APP</th>
-            <th class="dop-col-app" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_A-HJK_APP</th>
-            <th class="dop-col-app" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_ASPIRO_APP</th>
-            <th class="dop-col-app" style="padding:7px 8px;text-align:left;white-space:nowrap">tgl_Paid_APP</th>
-          </tr>
-          <tr class="thead-subfilter">
-            <td style="padding:3px 4px"></td>
-            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-code" type="text" placeholder="cari..."
-                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
-            <td style="padding:3px 4px"></td><!-- Nama — primary search above -->
-            <td style="padding:3px 4px"></td><!-- PAM NO — primary search above -->
-            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-cat1" type="text" placeholder="cari..."
-                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
-            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-cat2" type="text" placeholder="cari..."
-                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
-            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-perusahaan" type="text" placeholder="cari..."
-                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
-            <td style="padding:3px 4px"><input class="dop-filter" id="dop-f-pillar" type="text" placeholder="cari..."
-                style="width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #93c5fd;border-radius:4px;font-size:11px" oninput="dopFilter()"></td>
-            <td style="padding:3px 4px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-tanggal" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-pengajuan" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-receive" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-pa" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-final" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-retur" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-final6" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td style="padding:3px 4px"><input id="dop-d-proses" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-sla1-ll" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-sla2-ht" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-sla3-yk" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-sla4-ak" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-sla5-pd" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-sla6-c2" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-agri" style="padding:3px 4px"><input id="dop-d-sla7-msig" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-app" style="padding:3px 4px"><input id="dop-d-ags-app" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-app" style="padding:3px 4px"><input id="dop-d-ahjk-app" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-app" style="padding:3px 4px"><input id="dop-d-aspiro-app" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-            <td class="dop-col-app" style="padding:3px 4px"><input id="dop-d-paid-app" type="date"
-                style="width:100%;box-sizing:border-box;padding:3px 4px;border:1px solid #93c5fd;border-radius:4px;font-size:11px"></td>
-          </tr>
-        </thead>
-        <tbody id="dop-tbody" style="display:none">
-        </tbody>
-      </table>
-    </div>
-    <div id="dop-load-more-wrap" style="display:none;text-align:center;padding:10px">
-      <button id="dop-load-more" class="btn btn-secondary btn-sm" onclick="dopLoadMore()" style="font-size:12px">
-        Muat 100 lagi
-      </button>
-    </div>
+  <!-- APP Tab -->    </div>
   </div>
 
   <!-- APP Tab -->
@@ -1155,10 +1056,12 @@ function groupDraftsByPAM(drafts) {
   const UNASSIGNED = '__unassigned__';
   drafts.forEach(function(d) {
     var key = (d.pam && d.pam !== '--') ? d.pam : UNASSIGNED;
-    if (!groups[key]) groups[key] = { pam: key, items: [], total: 0, minDate: d.tanggal };
+    if (!groups[key]) groups[key] = { pam: key, items: [], total: 0, minDate: d.tanggal, pillar: d.pillar || null, dueDate: d.due_date || null };
     groups[key].items.push(d);
     groups[key].total += d.amount;
     if (d.tanggal < groups[key].minDate) groups[key].minDate = d.tanggal;
+    if (!groups[key].pillar && d.pillar) groups[key].pillar = d.pillar;
+    if (!groups[key].dueDate && d.due_date) groups[key].dueDate = d.due_date;
   });
   var keys = Object.keys(groups).filter(function(k) { return k !== UNASSIGNED; }).sort();
   if (groups[UNASSIGNED]) keys.push(UNASSIGNED);
@@ -1172,11 +1075,29 @@ function buildKeterangan(items, max) {
   return names.slice(0, max).join(', ') + ' (+' + (names.length - max) + ' lagi)';
 }
 
-function getPillarFromPamNo(pamNo) {
-  if (!pamNo || pamNo === '--') return null;
-  var prefix = pamNo.split('/')[0].toUpperCase();
-  var map = { AGRI: 'agri', APP: 'app', LAND: 'land', SML: 'land', SETF: 'setf', ETF: 'setf' };
-  return map[prefix] || null;
+function _pillarBadge(pillar) {
+  if (!pillar) return '<span style="color:#9ca3af">—</span>';
+  const map = {
+    AGRI:   'background:#fef3c7;color:#92400e;border:1px solid #d97706',
+    APP:    'background:#ede9fe;color:#4c1d95;border:1px solid #7c3aed',
+    LAND:   'background:#d1fae5;color:#064e3b;border:1px solid #059669',
+    SETF:   'background:#cffafe;color:#164e63;border:1px solid #0891b2',
+    ENERGY: 'background:#fee2e2;color:#991b1b;border:1px solid #ef4444',
+    SSMT:   'background:#f3f4f6;color:#374151;border:1px solid #9ca3af',
+  };
+  const p = pillar.toUpperCase();
+  const style = map[p] || 'background:#f3f4f6;color:#374151;border:1px solid #9ca3af';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;${style}">${p}</span>`;
+}
+
+function _dueDateBadge(dueDate) {
+  if (!dueDate) return '<span style="color:#9ca3af">—</span>';
+  const today = new Date().toISOString().slice(0, 10);
+  const isOverdue = dueDate < today;
+  const style = isOverdue
+    ? 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5'
+    : 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${dueDate}</span>`;
 }
 
 function togglePAMRow(key) {
@@ -1192,7 +1113,7 @@ function renderOpenPAM(drafts) {
   var tbody = document.getElementById('open-pam-tbody');
   if (!tbody) return;
   if (!drafts || drafts.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem">Tidak ada payment draft.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">Tidak ada payment draft.</td></tr>';
     return;
   }
   var groups = groupDraftsByPAM(drafts);
@@ -1202,10 +1123,7 @@ function renderOpenPAM(drafts) {
   groups.forEach(function(g) {
     var isUnassigned = g.pam === '__unassigned__';
     var pamLabel = isUnassigned ? '— Belum di-assign —' : g.pam;
-    var pillar = isUnassigned ? null : getPillarFromPamNo(g.pam);
-    var badgeHtml = pillar
-      ? '<span class="badge badge-' + pillar + '" style="font-size:.7rem">' + pillar.toUpperCase() + '</span>'
-      : '<span class="badge badge-gray" style="font-size:.7rem">—</span>';
+    var badgeHtml = _pillarBadge(isUnassigned ? null : g.pillar);
     var keterangan = buildKeterangan(g.items, 3);
     var masterClass = isUnassigned ? 'pam-master-row pam-unassigned-row' : 'pam-master-row';
     var pamKeyAttr = esc(g.pam);
@@ -1234,6 +1152,7 @@ function renderOpenPAM(drafts) {
       '<td><code style="font-size:.8rem;color:#2563eb">' + esc(pamLabel) + '</code></td>' +
       '<td>' + badgeHtml + '</td>' +
       '<td>' + esc(g.minDate || '--') + '</td>' +
+      '<td>' + _dueDateBadge(g.dueDate) + '</td>' +
       '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(buildKeterangan(g.items, 100)) + '">' + esc(keterangan) + '</td>' +
       '<td style="text-align:center">' + g.items.length + '</td>' +
       '<td class="num-right">' + fmtRupiah(g.total) + '</td>' +
@@ -1253,7 +1172,7 @@ function renderOpenPAM(drafts) {
         '<td class="num-right">' + fmtRupiah(d.amount) + '</td>' +
         '<td style="white-space:nowrap">' +
           '<button class="btn btn-secondary btn-sm" onclick="openEditDraft(' + d.id + ');event.stopPropagation()">Edit</button> ' +
-          '<button class="btn btn-danger btn-sm" onclick="deleteDraft(' + d.id + ');event.stopPropagation()">Hapus</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="removeStudentFromPAM(' + d.id + ', \'' + esc(d.nama || d.siswa_code || '') + '\');event.stopPropagation()">Hapus</button>' +
         '</td>' +
         '</tr>';
     });
@@ -1261,7 +1180,7 @@ function renderOpenPAM(drafts) {
 
   // Grand total row
   html += '<tr style="background:#f1f5f9;font-weight:700">' +
-    '<td colspan="7" style="text-align:right;padding:.5rem .75rem">Grand Total</td>' +
+    '<td colspan="8" style="text-align:right;padding:.5rem .75rem">Grand Total</td>' +
     '<td class="num-right" style="padding:.5rem .75rem">' + fmtRupiah(grandTotal) + '</td>' +
     '<td></td></tr>';
 
@@ -1960,9 +1879,22 @@ async function updateGL(pamId, glAccount) {
   }
 }
 
+function _slaDot(count, total) {
+  if (!total) return '<span style="color:#cbd5e1">—</span>';
+  const c = count || 0;
+  if (c >= total) return `<span title="Semua terisi (${c}/${total})" style="color:#16a34a;font-size:13px;line-height:1">●</span>`;
+  if (c > 0)      return `<span title="Sebagian terisi (${c}/${total})" style="color:#f59e0b;font-size:13px;line-height:1">●</span>`;
+  return `<span title="Belum terisi (0/${total})" style="color:#e5e7eb;font-size:13px;line-height:1">○</span>`;
+}
+
 function _statusBadge(status) {
-  const cls = { draft: 'badge-gray', approved: 'badge-green', paid: 'badge-blue' }[status] || 'badge-gray';
-  return `<span class="badge ${cls}">${esc(status)}</span>`;
+  const styles = {
+    open:       'background:#fef3c7;color:#92400e;border:1px solid #d97706',
+    on_process: 'background:#dbeafe;color:#1e40af;border:1px solid #3b82f6',
+    complete:   'background:#d1fae5;color:#065f46;border:1px solid #059669',
+  };
+  const st = styles[status] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${st}">${esc(status || '-')}</span>`;
 }
 
 // Inline-editable date cell for {pillar}_pam_lines
@@ -2013,24 +1945,10 @@ async function pamLineDateEdit(pamId, pillar, field, tdEl) {
 function _aksiCell(r) {
   const _btn = (label, cls, fn) =>
     `<button class="btn btn-sm ${cls}" onclick="${fn}">${label}</button>`;
-  let btns = '';
-  if (r.status === 'open')
-    btns += _btn('Process', 'btn-success', `updatePAMStatus(${r.id},'on_process')`);
-  else if (r.status === 'on_process')
-    btns += _btn('Revert', 'btn-ghost', `updatePAMStatus(${r.id},'open')`);
-  btns += _btn('Edit', 'btn-primary', `openEditPAM(${r.id})`);
-  btns += `<a href="/payment-memo/pam/${r.id}/export/excel" class="btn btn-sm btn-success">Excel</a>`;
-  if (r.status !== 'complete') {
-    btns += `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:4px">
-      <input type="date" id="paid-date-${r.id}"
-             style="font-size:.7rem;padding:1px 4px;border:1px solid #93c5fd;border-radius:3px;width:120px"
-             value="${new Date().toISOString().slice(0,10)}">
-      <button class="btn btn-sm" style="background:#10b981;color:#fff;border:none;padding:2px 7px;border-radius:3px;font-size:.7rem;cursor:pointer"
-              onclick="pamSetPaidAgri(${r.id})">Tgl Paid</button>
-    </span>`;
-  }
-  btns += _btn('Cancel', 'btn-danger', `cancelPAM(${r.id})`);
-  return `<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${btns}</div>`;
+  return `<div style="display:flex;gap:4px;align-items:center;">
+    ${_btn('Edit', 'btn-primary', `openEditPAM(${r.id})`)}
+    ${_btn('Cancel', 'btn-danger', `cancelPAM(${r.id})`)}
+  </div>`;
 }
 
 // ── PAM AGRI: Set Paid cascade ────────────────────────────────────────────────
@@ -2070,16 +1988,19 @@ async function loadPAM() {
   _pamCache = {};
   _pamBeasiswaCache = {};
   _pamBeasiswaSelected = {};
+  _pamPendingSelectAll = {};
+  agriUpdateBulkBar();
   data.rows.forEach(r => { _pamCache[r.id] = r; });
   tbody.innerHTML = data.rows.map((r, i) => `
-    <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+    <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};"
+      ${r.source === 'beasiswa' ? `onclick="agriToggleExpand(this.querySelector('.pam-toggle'),${r.id})"` : ''}>
       ${r.source === 'beasiswa'
-        ? `<td style="padding:4px 2px;text-align:center;white-space:nowrap;position:sticky;left:0;z-index:1;background:${i%2===0?'#fff':'#f8fafc'}"><input type="checkbox" id="pam-cb-${r.id}" style="cursor:pointer;vertical-align:middle" onchange="agriTogglePamSelect(${r.id},this.checked)"><span class="pam-toggle" style="cursor:pointer;font-size:.75rem;vertical-align:middle;margin-left:2px" onclick="agriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span></td>`
-        : `<td style="text-align:center;color:#cbd5e1;font-size:11px;padding:4px;position:sticky;left:0;z-index:1;background:${i%2===0?'#fff':'#f8fafc'}">&#8212;</td>`}
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;position:sticky;left:52px;z-index:1;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.pam_no)}</td>
-      <td style="padding:6px 8px;white-space:nowrap;position:sticky;left:207px;z-index:1;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.pam_date || '-')}</td>
-      <td style="padding:6px 8px;position:sticky;left:297px;z-index:1;background:${i%2===0?'#fff':'#f8fafc'};box-shadow:3px 0 6px rgba(0,0,0,.08)">${esc(r.pt || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+        ? `<td class="s0" style="padding:4px 2px;text-align:center;white-space:nowrap;background:${i%2===0?'#fff':'#f8fafc'}"><input type="checkbox" id="pam-cb-${r.id}" style="cursor:pointer;vertical-align:middle" onclick="event.stopPropagation()" onchange="agriTogglePamSelect(${r.id},this.checked)"><span class="pam-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:4px" onclick="agriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span></td>`
+        : `<td class="s0" style="text-align:center;color:#cbd5e1;font-size:11px;padding:4px;background:${i%2===0?'#fff':'#f8fafc'}">&#8212;</td>`}
+      <td class="s1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.pam_no)}</td>
+      <td class="s2" style="padding:6px 8px;white-space:nowrap;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.pam_date || '-')}</td>
+      <td class="s3" style="padding:6px 8px;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.pt || '-')}</td>
+      <td class="s4" style="padding:6px 8px;font-family:monospace;font-size:11px;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px" id="gl-cell-${r.id}"></td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
@@ -2091,17 +2012,17 @@ async function loadPAM() {
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
-      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_pengajuan, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_receive,   r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_pa,        r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_final,     r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla1, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla2, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla3, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla4, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla5, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla6, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla7, r.sub_total)}</td>
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -2122,8 +2043,6 @@ function agriToggleExpand(toggleEl, pamId) {
   if (existing.length) {
     const nowHidden = existing[0].style.display === 'none';
     existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
-    const panel = document.querySelector(`.agri-edit-panel[data-pam-id="${pamId}"]`);
-    if (panel) panel.style.display = nowHidden ? '' : 'none';
     toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
     return;
   }
@@ -2187,14 +2106,15 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     tr.style.background = '#f0f9ff';
     tr.style.borderBottom = '1px solid #e2e8f0';
     tr.innerHTML =
-      `<td style="padding:4px 2px;text-align:center;vertical-align:middle;position:sticky;left:0;z-index:1;background:#f0f9ff">` +
+      `<td class="s0" style="padding:4px 2px;text-align:center;vertical-align:middle">` +
         `<input type="checkbox" data-pb-id="${r.id}" style="cursor:pointer"` +
         ` onchange="agriToggleCheckbox(${pamId}, ${r.id}, this.checked)">` +
       `</td>` +
-      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle;position:sticky;left:52px;z-index:1;background:#f0f9ff">${esc(r.siswa_code || '')}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle;position:sticky;left:207px;z-index:1;background:#f0f9ff">${esc(r.nama || '—')}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;color:#64748b;vertical-align:middle;position:sticky;left:297px;z-index:1;background:#f0f9ff;box-shadow:3px 0 6px rgba(0,0,0,.06)">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td colspan="12" style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle">${fmtRupiah(r.amount)}</td>` +
+      `<td class="s1" style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td class="s2" style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td class="s3" style="padding:4px 8px;font-size:11px;color:#64748b;vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td class="s4" style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td colspan="11" style="padding:4px 8px;vertical-align:middle"></td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pengajuan)}</td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_receive)}</td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pa)}</td>` +
@@ -2216,7 +2136,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     if (!_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId] = new Set();
     document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`)
       .forEach(cb => { cb.checked = true; _pamBeasiswaSelected[pamId].add(parseInt(cb.dataset.pbId)); });
-    agriRenderEditPanel(pamId);
+    agriUpdateBulkBar();
     _syncPamCheckbox(pamId);
   }
 }
@@ -2228,7 +2148,7 @@ function agriToggleCheckbox(pamId, pbId, checked) {
   } else {
     _pamBeasiswaSelected[pamId].delete(pbId);
   }
-  agriRenderEditPanel(pamId);
+  agriUpdateBulkBar();
   _syncPamCheckbox(pamId);
 }
 
@@ -2243,106 +2163,111 @@ const _AGRI_SLA_OPTIONS = [
 ];
 // td index (0-based) per SLA field di sub-row
 const _AGRI_SLA_COL = {
-  SLA_Date_1_LL: 9, SLA_Date_2_HT: 10, SLA_Date_3_YK: 11,
-  SLA_Date_4_AK: 12, SLA_Date_5_PD: 13, SLA_Date_6_C2: 14,
-  SLA_Date_7_MSIG: 15,
+  SLA_Date_1_LL: 10, SLA_Date_2_HT: 11, SLA_Date_3_YK: 12,
+  SLA_Date_4_AK: 13, SLA_Date_5_PD: 14, SLA_Date_6_C2: 15,
+  SLA_Date_7_MSIG: 16,
+};
+// td index (0-based) per field di master row (untuk update dot badge)
+const _AGRI_MASTER_DOT_COL = {
+  tgl_pengajuan: 16, tgl_receive: 17, tgl_pa: 18, tgl_final: 19,
+  SLA_Date_1_LL: 20, SLA_Date_2_HT: 21, SLA_Date_3_YK: 22,
+  SLA_Date_4_AK: 23, SLA_Date_5_PD: 24, SLA_Date_6_C2: 25,
+  SLA_Date_7_MSIG: 26,
 };
 
-function _agriChipsHtml(pamId, sel) {
-  const rows = _pamBeasiswaCache[pamId];
-  if (!rows || !Array.isArray(rows)) return '';
-  return rows
-    .filter(r => sel.has(r.id))
-    .map(r => {
+function _agriUpdateMasterDot(pamId, field) {
+  const cached = _pamBeasiswaCache[pamId];
+  if (!Array.isArray(cached) || !cached.length) return;
+  const total    = cached.length;
+  const count    = cached.filter(r => r[field]).length;
+  const masterTr = document.querySelector(`#pam-tbody tr[data-pam-id="${pamId}"]:not(.agri-detail-rows)`);
+  if (!masterTr) return;
+  const dotCol = _AGRI_MASTER_DOT_COL[field];
+  if (dotCol === undefined) return;
+  const tds = masterTr.querySelectorAll('td');
+  if (tds[dotCol]) tds[dotCol].innerHTML = _slaDot(count, total);
+}
+
+function _agriAllChipsHtml() {
+  let html = '';
+  for (const [pamIdStr, sel] of Object.entries(_pamBeasiswaSelected)) {
+    if (!sel || sel.size === 0) continue;
+    const pamId = parseInt(pamIdStr);
+    const rows = _pamBeasiswaCache[pamId];
+    if (!rows || !Array.isArray(rows)) continue;
+    rows.filter(r => sel.has(r.id)).forEach(r => {
       const name = esc(r.nama || r.siswa_code || String(r.id));
-      return `<span style="background:#f59e0b;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;` +
-             `display:inline-flex;align-items:center;gap:3px;white-space:nowrap">` +
-             `${name}<span onclick="agriRemovePaChip(${pamId},${r.id})" ` +
-             `style="cursor:pointer;margin-left:3px;opacity:.85;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
-    }).join('');
-}
-
-function agriRenderEditPanel(pamId) {
-  const sel = _pamBeasiswaSelected[pamId];
-  const n   = sel ? sel.size : 0;
-  let panel = document.querySelector(`.agri-edit-panel[data-pam-id="${pamId}"]`);
-  if (n === 0) { if (panel) panel.remove(); return; }
-
-  if (panel) {
-    const countEl = panel.querySelector('[data-sla-count]');
-    if (countEl) countEl.textContent = `${n} siswa dipilih:`;
-    const chipsEl = panel.querySelector('[data-sla-chips]');
-    if (chipsEl) chipsEl.innerHTML = _agriChipsHtml(pamId, sel);
-    return;
+      html += `<span style="background:#f59e0b;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;` +
+              `display:inline-flex;align-items:center;gap:3px;white-space:nowrap">` +
+              `${name}<span onclick="agriRemovePaChip(${pamId},${r.id})" ` +
+              `style="cursor:pointer;margin-left:3px;opacity:.85;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+    });
   }
-
-  const detailRows = [...document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"]`)];
-  const last = detailRows[detailRows.length - 1];
-  panel = document.createElement('tr');
-  panel.className = 'agri-edit-panel';
-  panel.dataset.pamId = pamId;
-  last.insertAdjacentElement('afterend', panel);
-
-  const opts = _AGRI_SLA_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
-  panel.innerHTML =
-    `<td colspan="28" style="background:#fffbeb;border-top:1px solid #f59e0b;border-bottom:1px solid #f59e0b;padding:8px 16px">` +
-    `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px">` +
-    `<span data-sla-count style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">${n} siswa dipilih:</span>` +
-    `<span data-sla-chips style="display:flex;flex-wrap:wrap;gap:4px">${_agriChipsHtml(pamId, sel)}</span>` +
-    `</div>` +
-    `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">` +
-    `<label style="font-size:11px;color:#92400e;white-space:nowrap">Kolom: ` +
-    `<select id="agri-sla-field-${pamId}" style="font-size:11px;padding:2px 5px;border:1px solid #fbbf24;border-radius:3px;margin-left:4px">${opts}</select></label>` +
-    `<label style="font-size:11px;color:#92400e;white-space:nowrap">Tanggal: ` +
-    `<input type="date" id="agri-sla-date-${pamId}" style="font-size:11px;padding:2px 5px;border:1px solid #fbbf24;border-radius:3px;margin-left:4px"></label>` +
-    `<button onclick="agriIsiTanggal(${pamId})" ` +
-    `style="font-size:11px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600">Isi Tanggal</button>` +
-    `<button onclick="agriIsiHariIni(${pamId})" ` +
-    `style="font-size:11px;padding:3px 11px;background:#16a34a;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600">Hari Ini</button>` +
-    `<button onclick="agriClearSelection(${pamId})" ` +
-    `style="font-size:11px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;margin-left:auto">✕ Batal</button>` +
-    `</div></td>`;
+  return html;
 }
 
-async function agriIsiTanggal(pamId) {
-  const field = document.getElementById(`agri-sla-field-${pamId}`)?.value;
-  const date  = document.getElementById(`agri-sla-date-${pamId}`)?.value;
+function _agriTotalSelected() {
+  let n = 0;
+  for (const sel of Object.values(_pamBeasiswaSelected)) { if (sel) n += sel.size; }
+  return n;
+}
+
+function agriUpdateBulkBar() {
+  const bar = document.getElementById('agri-bulk-bar');
+  if (!bar) return;
+  const n = _agriTotalSelected();
+  if (n === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('agri-bulk-count').textContent = `${n} siswa dipilih:`;
+  document.getElementById('agri-chips-row').innerHTML = _agriAllChipsHtml();
+}
+
+async function agriIsiTanggal() {
+  const field = document.getElementById('agri-bulk-field')?.value;
+  const date  = document.getElementById('agri-bulk-date')?.value;
   if (!date) { showToast('Pilih tanggal terlebih dahulu.', 'error'); return; }
-  await _agriDoBulkUpdate(pamId, field, date);
+  await _agriDoBulkUpdate(field, date);
 }
 
-async function agriIsiHariIni(pamId) {
-  const field = document.getElementById(`agri-sla-field-${pamId}`)?.value;
-  const today = new Date().toISOString().slice(0, 10);
-  await _agriDoBulkUpdate(pamId, field, today);
+async function agriHapusTanggal() {
+  const field = document.getElementById('agri-bulk-field')?.value;
+  await _agriDoBulkUpdate(field, null);
 }
 
-async function _agriDoBulkUpdate(pamId, field, date) {
-  const sel = _pamBeasiswaSelected[pamId];
-  if (!sel || sel.size === 0) return;
+async function _agriDoBulkUpdate(field, date) {
+  const allIds = [];
+  for (const sel of Object.values(_pamBeasiswaSelected)) { if (sel) allIds.push(...sel); }
+  if (!allIds.length) return;
   const res = await apiFetch('/payment-memo/days-of-pam/bulk-update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: [...sel], dates: { [field]: date } }),
+    body: JSON.stringify({ ids: allIds, dates: { [field]: date } }),
   });
   if (!res) { showToast('Gagal: network error.', 'error'); return; }
   const data = await res.json();
   showToast(data.pesan, data.ok ? 'success' : 'error');
   if (!data.ok) return;
 
-  // Update sel DOM in-place
   const colIdx = _AGRI_SLA_COL[field];
-  if (colIdx !== undefined) {
-    sel.forEach(pbId => {
-      const cb = document.querySelector(`.agri-detail-rows[data-pam-id="${pamId}"] input[data-pb-id="${pbId}"]`);
-      if (!cb) return;
-      const tds = cb.closest('tr')?.querySelectorAll('td');
-      if (tds && tds[colIdx]) tds[colIdx].innerHTML = `<span style="color:#1e293b">${date}</span>`;
-    });
+  for (const [pamIdStr, sel] of Object.entries(_pamBeasiswaSelected)) {
+    if (!sel || sel.size === 0) continue;
+    const pamId = parseInt(pamIdStr);
+    if (colIdx !== undefined) {
+      sel.forEach(pbId => {
+        const cb = document.querySelector(`.agri-detail-rows[data-pam-id="${pamId}"] input[data-pb-id="${pbId}"]`);
+        if (!cb) return;
+        const tds = cb.closest('tr')?.querySelectorAll('td');
+        if (tds && tds[colIdx]) tds[colIdx].innerHTML = date
+          ? `<span style="color:#1e293b">${date}</span>`
+          : `<span style="color:#94a3b8">—</span>`;
+      });
+    }
+    const cached = _pamBeasiswaCache[pamId];
+    if (Array.isArray(cached)) {
+      cached.forEach(r => { if (sel.has(r.id)) r[field] = date; });
+      _agriUpdateMasterDot(pamId, field);
+    }
   }
-  // Update cache in-place
-  const cached = _pamBeasiswaCache[pamId];
-  if (Array.isArray(cached)) cached.forEach(r => { if (sel.has(r.id)) r[field] = date; });
 }
 
 function agriRemovePaChip(pamId, pbId) {
@@ -2351,12 +2276,16 @@ function agriRemovePaChip(pamId, pbId) {
   agriToggleCheckbox(pamId, pbId, false);
 }
 
-function agriClearSelection(pamId) {
-  if (_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId].clear();
-  document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`)
-    .forEach(cb => { cb.checked = false; });
-  agriRenderEditPanel(pamId);
-  _syncPamCheckbox(pamId);
+function agriClearAll() {
+  for (const [pamIdStr, sel] of Object.entries(_pamBeasiswaSelected)) {
+    if (!sel || sel.size === 0) continue;
+    const pamId = parseInt(pamIdStr);
+    sel.clear();
+    document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`)
+      .forEach(cb => { cb.checked = false; });
+    _syncPamCheckbox(pamId);
+  }
+  agriUpdateBulkBar();
 }
 
 function agriTogglePamSelect(pamId, checked) {
@@ -2369,12 +2298,13 @@ function agriTogglePamSelect(pamId, checked) {
       if (checked) _pamBeasiswaSelected[pamId].add(pbId);
       else _pamBeasiswaSelected[pamId].delete(pbId);
     });
-    agriRenderEditPanel(pamId);
+    agriUpdateBulkBar();
   } else if (checked) {
     _pamPendingSelectAll[pamId] = true;
-    const masterTr = document.querySelector(`tr.pam-master-row[data-pam-id="${pamId}"]`);
-    const toggleEl = masterTr ? masterTr.querySelector('.pam-toggle') : null;
-    if (masterTr && toggleEl) agriFetchBeasiswaLines(masterTr, toggleEl, pamId);
+  } else {
+    delete _pamPendingSelectAll[pamId];
+    if (_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId].clear();
+    agriUpdateBulkBar();
   }
 }
 
@@ -2546,480 +2476,34 @@ async function cancelPAM(pamId) {
   if (data.ok) loadPAM();
 }
 
-// ── Days of PAM ───────────────────────────────────────────────────────────────
-let _dopCandidates   = null;
-let _dopInitialized  = false;
-let _dopSource       = 'AGRI';
-let _dopPaidOnly     = true;
-let _dopOffset       = 0;
-let _dopTotal        = 0;
-const _dopSelected      = new Set();
-const _dopSelectionMeta = new Map();  // id → { nama, cat1 }
-
-function _dopReveal() {
-  const tb = document.getElementById('dop-tbody');
-  if (tb) tb.style.display = '';
-}
-
-function _dopHide() {
-  const tb = document.getElementById('dop-tbody');
-  if (tb) tb.style.display = 'none';
-}
-
-function _dopApplyColVis() {
-  document.querySelectorAll('.dop-col-agri').forEach(el => {
-    el.style.display = _dopSource === 'AGRI' ? '' : 'none';
-  });
-  document.querySelectorAll('.dop-col-app').forEach(el => {
-    el.style.display = _dopSource === 'APP' ? '' : 'none';
-  });
-}
-
-function _dopUpdateLoadMore(loaded, total) {
-  const wrap = document.getElementById('dop-load-more-wrap');
-  const btn  = document.getElementById('dop-load-more');
-  if (!wrap || !btn) return;
-  const remaining = total - loaded;
-  if (remaining > 0) {
-    btn.textContent = `Muat 100 lagi (masih ${remaining})`;
-    wrap.style.display = '';
-  } else {
-    wrap.style.display = 'none';
-  }
-}
-
-function dopSetSource(src) {
-  _dopSource = src;
-  _dopOffset = 0;
-  document.querySelectorAll('.dop-src-btn').forEach(btn => {
-    const isActive = btn.dataset.src === src;
-    btn.style.background  = isActive ? '#2563eb' : '#fff';
-    btn.style.color       = isActive ? '#fff' : '#374151';
-    btn.style.borderColor = isActive ? '#2563eb' : '#d1d5db';
-  });
-  _dopApplyColVis();
-  _dopFetch(false);
-}
-
-function dopSetPaidOnly(val) {
-  _dopPaidOnly = val;
-  _dopOffset   = 0;
-  _dopFetch(false);
-}
-
-function dopLoadMore() {
-  _dopFetch(true);
-}
-
-async function dopTabOpened() {
-  if (_dopInitialized) return;
-  _dopInitialized = true;
-  const cres = await apiFetch('/payment-memo/days-of-pam/candidates');
-  if (cres) { const cd = await cres.json(); if (cd.ok) _dopCandidates = cd.candidates; }
-  await _dopFetch(false);
-}
-
-function dopRenderRows(rows, append = false, total = 0) {
-  const tb = document.getElementById('dop-tbody');
-  if (!tb) return;
-
-  if (!append && !rows.length) {
-    const msg = _dopPaidOnly
-      ? `Tidak ada record ${_dopSource} yang belum paid.`
-      : `Tidak ada data untuk filter ini.`;
-    tb.innerHTML = `<tr><td colspan="28" style="padding:20px;text-align:center;color:#6b7280">${msg}</td></tr>`;
-    _dopReveal();
-    _dopUpdateInfo(0);
-    _dopUpdateLoadMore(0, total);
-    return;
-  }
-
-  const html = rows.map(r => {
-    const sel     = _dopSelected.has(r.id);
-    const rowBg   = sel ? 'background:#eff6ff;' : '';
-    const nameSt  = sel ? 'color:#1d4ed8;font-weight:600;' : '';
-    const eCode   = esc(r.siswa_code||'');
-    const eNama   = esc(r.nama||'-');
-    const ePam    = esc(r.pam_no||'');
-    const eCat1   = esc(r.cat1||'');
-    const eCat2   = esc(r.cat2||'');
-    const ePerus  = esc(r.perusahaan||'');
-    const ePillar = esc(r.pillar||'');
-    return `
-      <tr class="dop-row"
-          data-id="${r.id}"
-          data-code="${esc((r.siswa_code||'').toLowerCase())}"
-          data-nama="${esc((r.nama||'').toLowerCase())}"
-          data-pam="${esc((r.pam_no||'').toLowerCase())}"
-          data-cat1="${esc((r.cat1||'').toLowerCase())}"
-          data-cat2="${esc((r.cat2||'').toLowerCase())}"
-          data-perusahaan="${esc((r.perusahaan||'').toLowerCase())}"
-          data-pillar="${esc((r.pillar||'').toLowerCase())}"
-          style="border-bottom:1px solid #f1f5f9;${rowBg}">
-        <td style="padding:6px;text-align:center">
-          <input type="checkbox" class="dop-cb" data-id="${r.id}" ${sel ? 'checked' : ''} onchange="dopToggleCb(this)">
-        </td>
-        <td style="padding:6px 8px">${eCode}</td>
-        <td style="padding:6px 8px;${nameSt}">${eNama}</td>
-        <td style="padding:6px 8px;font-family:monospace;color:#1d4ed8">${ePam}</td>
-        <td style="padding:6px 8px">${eCat1}</td>
-        <td style="padding:6px 8px">${eCat2}</td>
-        <td style="padding:6px 8px">${ePerus}</td>
-        <td style="padding:6px 8px">${ePillar}</td>
-        <td style="padding:6px 8px;text-align:right">Rp ${new Intl.NumberFormat('id-ID').format(r.amount||0)}</td>
-        <td style="padding:6px 8px">${r.tanggal||''}</td>
-        <td style="padding:6px 8px">${r.tgl_pengajuan||''}</td>
-        <td style="padding:6px 8px">${r.tgl_receive||''}</td>
-        <td style="padding:6px 8px">${r.tgl_pa||''}</td>
-        <td style="padding:6px 8px">${r.tgl_final||''}</td>
-        <td style="padding:6px 8px">${r.tgl_retur||''}</td>
-        <td style="padding:6px 8px">${r.tgl_final6||''}</td>
-        <td style="padding:6px 8px">${r.tgl_proses||''}</td>
-        <td class="dop-col-agri" style="padding:6px 8px">${r.SLA_Date_1_LL||''}</td>
-        <td class="dop-col-agri" style="padding:6px 8px">${r.SLA_Date_2_HT||''}</td>
-        <td class="dop-col-agri" style="padding:6px 8px">${r.SLA_Date_3_YK||''}</td>
-        <td class="dop-col-agri" style="padding:6px 8px">${r.SLA_Date_4_AK||''}</td>
-        <td class="dop-col-agri" style="padding:6px 8px">${r.SLA_Date_5_PD||''}</td>
-        <td class="dop-col-agri" style="padding:6px 8px">${r.SLA_Date_6_C2||''}</td>
-        <td class="dop-col-agri" style="padding:6px 8px">${r.SLA_Date_7_MSIG||''}</td>
-        <td class="dop-col-app" style="padding:6px 8px">${r['tgl_A-GS_APP']||''}</td>
-        <td class="dop-col-app" style="padding:6px 8px">${r['tgl_A-HJK_APP']||''}</td>
-        <td class="dop-col-app" style="padding:6px 8px">${r.tgl_ASPIRO_APP||''}</td>
-        <td class="dop-col-app" style="padding:6px 8px">${r.tgl_Paid_APP||''}</td>
-      </tr>`;
-  }).join('');
-
-  if (append) {
-    tb.insertAdjacentHTML('beforeend', html);
-  } else {
-    tb.innerHTML = html;
-    const sa = document.getElementById('dop-select-all');
-    if (sa) sa.checked = false;
-  }
-
-  _dopApplyColVis();
-  _dopReveal();
-  const loaded = document.querySelectorAll('#dop-tbody .dop-row').length;
-  _dopUpdateInfo(loaded);
-  _dopUpdateLoadMore(loaded, total);
-  dopFilter();
-}
-
-async function _dopFetch(append = false) {
-  const pam  = (document.getElementById('dop-s-pam')?.value  || '').trim();
-  const nama = (document.getElementById('dop-s-nama')?.value || '').trim();
-  const currentOffset = append ? _dopOffset : 0;
-
-  const params = new URLSearchParams({
-    source:    _dopSource,
-    paid_only: _dopPaidOnly ? '1' : '0',
-    offset:    String(currentOffset),
-  });
-  if (pam)  params.set('pam',  pam);
-  if (nama) params.set('nama', nama);
-
-  if (!append) {
-    const tb = document.getElementById('dop-tbody');
-    if (tb) tb.innerHTML = '<tr><td colspan="28" style="padding:20px;text-align:center;color:#6b7280">Memuat data...</td></tr>';
-    _dopReveal();
-  }
-
-  const res = await apiFetch(`/payment-memo/days-of-pam/search?${params}`);
-  if (!res) return;
-  const data = await res.json();
-  if (!data.ok) { showToast(data.pesan || 'Gagal memuat data.', 'error'); return; }
-
-  _dopTotal = data.total;
-  if (append) _dopOffset += data.rows.length;
-  else        _dopOffset  = data.rows.length;
-
-  dopRenderRows(data.rows, append, data.total);
-}
-
-function _dopFetchCurrent() {
-  _dopOffset = 0;
-  _dopFetch(false);
-}
-
-function dopFilter() {
-  // Secondary client-side filter on already-rendered <tr> rows
-  const fCode  = (document.getElementById('dop-f-code')?.value       || '').trim().toLowerCase();
-  const fCat1  = (document.getElementById('dop-f-cat1')?.value       || '').trim().toLowerCase();
-  const fCat2  = (document.getElementById('dop-f-cat2')?.value       || '').trim().toLowerCase();
-  const fPersh = (document.getElementById('dop-f-perusahaan')?.value || '').trim().toLowerCase();
-  const fPill  = (document.getElementById('dop-f-pillar')?.value     || '').trim().toLowerCase();
-
-  let visible = 0;
-  document.querySelectorAll('#dop-tbody .dop-row').forEach(row => {
-    const match =
-      (!fCode  || row.dataset.code.includes(fCode))           &&
-      (!fCat1  || row.dataset.cat1.includes(fCat1))           &&
-      (!fCat2  || row.dataset.cat2.includes(fCat2))           &&
-      (!fPersh || row.dataset.perusahaan.includes(fPersh))    &&
-      (!fPill  || row.dataset.pillar.includes(fPill));
-    row.style.display = match ? '' : 'none';
-    if (match) visible++;
-    // uncheck hidden rows
-    if (!match) {
-      const cb = row.querySelector('.dop-cb');
-      if (cb && cb.checked) { cb.checked = false; _dopSelected.delete(parseInt(cb.dataset.id, 10)); }
-    }
-  });
-  _dopUpdateInfo(visible);
-}
-
-function dopSrchInput(type) {
-  const inp  = document.getElementById(type === 'pam' ? 'dop-s-pam' : 'dop-s-nama');
-  const sugg = document.getElementById(type === 'pam' ? 'dop-sugg-pam' : 'dop-sugg-nama');
-  const val  = inp.value.trim().toLowerCase();
-
-  if (!val || !_dopCandidates) { sugg.style.display = 'none'; return; }
-
-  const field = type === 'pam' ? 'pam_no' : 'nama';
-  const seen  = new Set();
-  const hits  = _dopCandidates.filter(r => {
-    const v = (r[field] || '').toLowerCase();
-    if (v.includes(val) && !seen.has(r[field])) { seen.add(r[field]); return true; }
-    return false;
-  }).slice(0, 12);
-
-  sugg.innerHTML = hits.length
-    ? hits.map(r => {
-        const v = type === 'pam' ? r.pam_no : r.nama;
-        const label = type === 'pam'
-          ? `<span style="font-family:monospace;font-size:12px">${r.pam_no}</span>`
-          : `<span style="font-size:12px">${r.nama}</span>&nbsp;<span style="color:#94a3b8;font-size:11px">(${r.siswa_code})</span>`;
-        return `<div onmousedown="dopPickSugg('${type}',${JSON.stringify(v).replace(/"/g,'&quot;')})"
-                     style="padding:7px 10px;cursor:pointer;border-bottom:1px solid #f8fafc"
-                     onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">${label}</div>`;
-      }).join('')
-    : `<div style="padding:7px 10px;font-size:12px;color:#9ca3af">Tidak ada hasil</div>`;
-
-  sugg.style.display = '';
-}
-
-function dopPickSugg(type, value) {
-  document.getElementById(type === 'pam' ? 'dop-s-pam' : 'dop-s-nama').value = value;
-  document.getElementById(type === 'pam' ? 'dop-sugg-pam' : 'dop-sugg-nama').style.display = 'none';
-  _dopFetchCurrent();
-}
-
-function dopSrchBlur(type) {
-  setTimeout(() => {
-    const el = document.getElementById(type === 'pam' ? 'dop-sugg-pam' : 'dop-sugg-nama');
-    if (el) el.style.display = 'none';
-  }, 200);
-}
-
-function dopClearSearch() {
-  ['dop-s-pam','dop-s-nama'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  document.querySelectorAll('.dop-filter').forEach(el => el.value = '');
-  _dopSelected.clear();
-  _dopSelectionMeta.clear();
-  const sa = document.getElementById('dop-select-all');
-  if (sa) sa.checked = false;
-  dopRenderChips();
-  _dopOffset = 0;
-  _dopFetch(false);
-}
-
-function dopToggleCb(cb) {
-  const id = parseInt(cb.dataset.id, 10);
-  const tr = cb.closest('tr');
-  if (cb.checked) {
-    _dopSelected.add(id);
-    if (tr) {
-      const nama = tr.cells[2] ? tr.cells[2].textContent.trim() : '';
-      const cat1 = tr.cells[4] ? tr.cells[4].textContent.trim() : '';
-      _dopSelectionMeta.set(id, { nama, cat1 });
-      tr.style.background = '#eff6ff';
-      if (tr.cells[2]) tr.cells[2].style.cssText = 'color:#1d4ed8;font-weight:600;padding:6px 8px';
-    }
-  } else {
-    _dopSelected.delete(id);
-    _dopSelectionMeta.delete(id);
-    if (tr) {
-      tr.style.background = '';
-      if (tr.cells[2]) tr.cells[2].style.cssText = 'padding:6px 8px';
-    }
-  }
-  _dopUpdateInfo();
-  dopRenderChips();
-}
-
-function dopToggleSelectAll(masterCb) {
-  document.querySelectorAll('#dop-tbody .dop-row').forEach(row => {
-    if (row.style.display === 'none') return;
-    const cb = row.querySelector('.dop-cb');
-    if (!cb) return;
-    cb.checked = masterCb.checked;
-    const id = parseInt(cb.dataset.id, 10);
-    if (masterCb.checked) {
-      _dopSelected.add(id);
-      const nama = row.cells[2] ? row.cells[2].textContent.trim() : '';
-      const cat1 = row.cells[4] ? row.cells[4].textContent.trim() : '';
-      _dopSelectionMeta.set(id, { nama, cat1 });
-      row.style.background = '#eff6ff';
-      if (row.cells[2]) row.cells[2].style.cssText = 'color:#1d4ed8;font-weight:600;padding:6px 8px';
-    } else {
-      _dopSelected.delete(id);
-      _dopSelectionMeta.delete(id);
-      row.style.background = '';
-      if (row.cells[2]) row.cells[2].style.cssText = 'padding:6px 8px';
-    }
-  });
-  _dopUpdateInfo();
-  dopRenderChips();
-}
-
-function _dopUpdateInfo(visibleOverride) {
-  const totalVisible = visibleOverride !== undefined
-    ? visibleOverride
-    : document.querySelectorAll('#dop-tbody .dop-row:not([style*="display: none"])').length;
-  const sel  = _dopSelected.size;
-  const info = document.getElementById('dop-info');
-  if (info) info.textContent = `${sel} dipilih | ${totalVisible} baris`;
-
-  const countLabel = document.getElementById('dop-count-label');
-  if (countLabel && _dopTotal > 0) {
-    const paidStr = _dopPaidOnly ? ' belum paid' : '';
-    countLabel.textContent = `Menampilkan ${_dopOffset} dari ${_dopTotal} record${paidStr} (${_dopSource})`;
-  } else if (countLabel) {
-    countLabel.textContent = '';
-  }
-
-  const btn = document.getElementById('dop-update-btn');
-  if (!btn) return;
-  btn.textContent = `Update Terpilih (${sel})`;
-  btn.disabled = sel === 0;
-  btn.style.opacity = sel === 0 ? '0.5' : '1';
-}
-
-function dopRenderChips() {
-  const row = document.getElementById('dop-chips-row');
-  if (!row) return;
-  if (_dopSelected.size === 0) { row.style.display = 'none'; return; }
-
-  const ids    = [..._dopSelected];
-  const LIMIT  = 5;
-  const hidden = ids.length > LIMIT + 1 ? ids.slice(LIMIT) : [];
-  const shown  = hidden.length ? ids.slice(0, LIMIT) : ids;
-
-  function chipHtml(id) {
-    const m = _dopSelectionMeta.get(id) || { nama: String(id), cat1: '' };
-    const cat = m.cat1 ? `<span style="font-size:9px;opacity:.65;margin-left:3px">${m.cat1}</span>` : '';
-    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">` +
-           `${m.nama}${cat}` +
-           `<span onclick="dopRemoveChip(${id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
-  }
-
-  let html = `<span style="font-size:10px;color:#1d4ed8;font-weight:700;white-space:nowrap;margin-right:2px">● Terpilih:</span>`;
-  html += shown.map(chipHtml).join('');
-
-  if (hidden.length) {
-    html += `<span id="dop-chips-expand" onclick="dopExpandChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
-    html += `<span id="dop-chips-hidden" style="display:none">` + hidden.map(chipHtml).join('') + `</span>`;
-  }
-
-  html += `<span onclick="dopClearAllChips()" style="font-size:10px;color:#dc2626;cursor:pointer;margin-left:6px;white-space:nowrap">Hapus semua</span>`;
-
-  row.innerHTML = html;
-  row.style.display = 'flex';
-}
-
-function dopExpandChips() {
-  const hidden = document.getElementById('dop-chips-hidden');
-  const btn    = document.getElementById('dop-chips-expand');
-  if (!hidden || !btn) return;
-  const expanded = hidden.style.display !== 'none';
-  hidden.style.display = expanded ? 'none' : 'contents';
-  const n = _dopSelected.size - 5;
-  btn.textContent = expanded ? `+${n} lagi ▾` : `▲ sembunyikan`;
-}
-
-function dopRemoveChip(id) {
-  _dopSelected.delete(id);
-  _dopSelectionMeta.delete(id);
-  const cb = document.querySelector(`#dop-tbody .dop-cb[data-id="${id}"]`);
-  if (cb) {
-    cb.checked = false;
-    const tr = cb.closest('tr');
-    if (tr) {
-      tr.style.background = '';
-      if (tr.cells[2]) tr.cells[2].style.cssText = 'padding:6px 8px';
-    }
-  }
-  _dopUpdateInfo();
-  dopRenderChips();
-}
-
-function dopClearAllChips() {
-  _dopSelected.clear();
-  _dopSelectionMeta.clear();
-  document.querySelectorAll('#dop-tbody .dop-cb').forEach(cb => {
-    cb.checked = false;
-    const tr = cb.closest('tr');
-    if (tr) {
-      tr.style.background = '';
-      if (tr.cells[2]) tr.cells[2].style.cssText = 'padding:6px 8px';
-    }
-  });
-  const sa = document.getElementById('dop-select-all');
-  if (sa) sa.checked = false;
-  _dopUpdateInfo();
-  dopRenderChips();
-}
-
-async function dopBulkUpdate() {
-  if (_dopSelected.size === 0) return;
-  if (!await confirmModal(`Update ${_dopSelected.size} record DOP terpilih?`, { confirmText: "Update" })) return;
-  const dates = {
-    tanggal:          document.getElementById('dop-d-tanggal').value,
-    tgl_pengajuan:    document.getElementById('dop-d-pengajuan').value,
-    tgl_receive:      document.getElementById('dop-d-receive').value,
-    tgl_pa:           document.getElementById('dop-d-pa').value,
-    tgl_final:        document.getElementById('dop-d-final').value,
-    tgl_retur:        document.getElementById('dop-d-retur').value,
-    tgl_final6:       document.getElementById('dop-d-final6').value,
-    tgl_proses:       document.getElementById('dop-d-proses').value,
-    SLA_Date_1_LL:    document.getElementById('dop-d-sla1-ll').value,
-    SLA_Date_2_HT:    document.getElementById('dop-d-sla2-ht').value,
-    SLA_Date_3_YK:    document.getElementById('dop-d-sla3-yk').value,
-    SLA_Date_4_AK:    document.getElementById('dop-d-sla4-ak').value,
-    SLA_Date_5_PD:    document.getElementById('dop-d-sla5-pd').value,
-    SLA_Date_6_C2:    document.getElementById('dop-d-sla6-c2').value,
-    SLA_Date_7_MSIG:  document.getElementById('dop-d-sla7-msig').value,
-    'tgl_A-GS_APP':   document.getElementById('dop-d-ags-app').value,
-    'tgl_A-HJK_APP':  document.getElementById('dop-d-ahjk-app').value,
-    tgl_ASPIRO_APP:   document.getElementById('dop-d-aspiro-app').value,
-    tgl_Paid_APP:     document.getElementById('dop-d-paid-app').value,
-  };
-  const hasDate = Object.values(dates).some(v => v);
-  if (!hasDate) { showToast('Isi minimal satu field tanggal.', 'error'); return; }
-
-  const res  = await apiFetch('/payment-memo/days-of-pam/bulk-update', {
+// ── Remove student from Open PAM ──────────────────────────────────────────────
+async function removeStudentFromPAM(paymentBeasiswaId, namaLabel) {
+  const label = namaLabel || 'siswa ini';
+  if (!await confirmModal(
+    'Hapus ' + label + ' dari PAM ini?\nData siswa ini akan dikeluarkan dan PA-nya dikembalikan ke Open.',
+    { type: 'danger', confirmText: 'Hapus Siswa' }
+  )) return;
+  const res = await apiFetch('/payment-memo/pam/remove-student', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: [..._dopSelected], dates })
+    body: JSON.stringify({ payment_beasiswa_id: paymentBeasiswaId })
   });
   if (!res) return;
   const data = await res.json();
   showToast(data.pesan, data.ok ? 'success' : 'error');
   if (data.ok) {
-    _dopSelected.clear();
-    _dopSelectionMeta.clear();
-    dopRenderChips();
-    _dopOffset = 0;
-    setTimeout(() => _dopFetch(false), 600);
+    if (typeof loadOpenPAM === 'function') {
+      loadOpenPAM();
+    } else {
+      setTimeout(() => location.reload(), 800);
+    }
   }
 }
+
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const pamBtn = document.querySelector('[data-tab="tab-pam"]');
   if (pamBtn) pamBtn.addEventListener('click', loadPAM);
-  const dopBtn = document.querySelector('[data-tab="tab-days-of-pam"]');
-  if (dopBtn) dopBtn.addEventListener('click', dopTabOpened);
   // Close cat2 panel on outside click
   document.addEventListener('click', e => {
     if (!e.target.closest('#edit-draft-cat2-display') && !e.target.closest('#edit-draft-cat2-panel')) {
@@ -4667,18 +4151,6 @@ function exportPillarExcel(pillar) {
   window.location.href = url.toString();
 }
 
-function exportSlaExcel() {
-  const url      = new URL('/payment-memo/export/sla', window.location.origin);
-  const source   = (typeof _dopSource !== 'undefined' ? _dopSource : null) || 'AGRI';
-  const paidOnly = document.getElementById('dop-paid-only')?.checked ? '1' : '0';
-  const pam  = (document.getElementById('dop-s-pam')?.value  || '').trim();
-  const nama = (document.getElementById('dop-s-nama')?.value || '').trim();
-  url.searchParams.set('source',    source);
-  url.searchParams.set('paid_only', paidOnly);
-  if (pam)  url.searchParams.set('pam',  pam);
-  if (nama) url.searchParams.set('nama', nama);
-  window.location.href = url.toString();
-}
 // Render Open PAM accordion on page load
 renderOpenPAM(OPEN_PAM_DRAFTS);
 </script>
