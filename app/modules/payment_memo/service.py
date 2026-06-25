@@ -30,20 +30,22 @@ def generate_memo_number(company_id: int, company_code: str, year: str) -> str:
 
 def get_draft_payments(company_id: int) -> list:
     conn = get_conn()
-    # Rows dari payment_beasiswa (beasiswa iPay / klaim medis flow)
+    # Rows dari payment_beasiswa — JOIN ke pam_records untuk pillar & due_date
     rows = [dict(r) for r in conn.execute(
-        """SELECT pb.*, s.nama, s.bank, s.norek, s.namarek, 'beasiswa' AS _type
+        """SELECT pb.*, s.nama, s.bank, s.norek, s.namarek, 'beasiswa' AS _type,
+                  pr.pillar, pr.due_date
            FROM payment_beasiswa pb
-           LEFT JOIN siswa s ON s.company_id = pb.company_id AND s.code = pb.siswa_code
+           LEFT JOIN siswa s  ON s.company_id  = pb.company_id AND s.code   = pb.siswa_code
+           LEFT JOIN pam_records pr ON pr.pam_no = pb.pam AND pr.company_id = pb.company_id
            WHERE pb.company_id = ? AND pb.status = 'open'
            ORDER BY pb.tanggal DESC""",
         (company_id,)
     ).fetchall()]
-    # Rows dari pam_records untuk source others/tagihan/sponsor (tidak ada payment_beasiswa)
+    # Rows dari pam_records untuk source others/tagihan/sponsor
     pr_rows = [dict(r) for r in conn.execute(
         """SELECT
                id, company_id, pam_no AS pam, pam_date AS tanggal,
-               total_amount AS amount, pillar, source, keterangan,
+               total_amount AS amount, pillar, source, keterangan, due_date,
                NULL AS siswa_code, NULL AS cat1, NULL AS cat2,
                NULL AS nama, NULL AS bank, NULL AS norek, NULL AS namarek,
                NULL AS etf_pa_line_id, 'pam_record' AS _type
@@ -280,12 +282,34 @@ def get_pam_by_pillar(company_id: int, pillar: str,
                pl.no_vendor, pl.nama_vendor,
                pl.tgl_terima_doc, pl.tgl_proses, pl.tgl_verifikasi_tax,
                pl.tgl_approval_1, pl.tgl_approval_2, pl.tgl_approval_3,
-               pl.tgl_kirim
+               pl.tgl_kirim,
+               sla.sub_total,
+               sla.cnt_tgl_pengajuan, sla.cnt_tgl_receive,
+               sla.cnt_tgl_pa,        sla.cnt_tgl_final,
+               sla.cnt_sla1, sla.cnt_sla2, sla.cnt_sla3,
+               sla.cnt_sla4, sla.cnt_sla5, sla.cnt_sla6, sla.cnt_sla7
         FROM pam_records pr
         LEFT JOIN {tbl} pl ON pl.pam_id = pr.id
+        LEFT JOIN (
+            SELECT pam,
+                   COUNT(*)                 AS sub_total,
+                   COUNT(tgl_pengajuan)     AS cnt_tgl_pengajuan,
+                   COUNT(tgl_receive)       AS cnt_tgl_receive,
+                   COUNT(tgl_pa)            AS cnt_tgl_pa,
+                   COUNT(tgl_final)         AS cnt_tgl_final,
+                   COUNT("SLA_Date_1_LL")   AS cnt_sla1,
+                   COUNT("SLA_Date_2_HT")   AS cnt_sla2,
+                   COUNT("SLA_Date_3_YK")   AS cnt_sla3,
+                   COUNT("SLA_Date_4_AK")   AS cnt_sla4,
+                   COUNT("SLA_Date_5_PD")   AS cnt_sla5,
+                   COUNT("SLA_Date_6_C2")   AS cnt_sla6,
+                   COUNT("SLA_Date_7_MSIG") AS cnt_sla7
+            FROM payment_beasiswa WHERE company_id = ?
+            GROUP BY pam
+        ) sla ON sla.pam = pr.pam_no
         WHERE pr.company_id = ? AND pr.pillar = ?
     """
-    params = [company_id, pillar]
+    params = [company_id, company_id, pillar]
     if search:
         q       = f"%{search}%"
         sql    += " AND (pr.pam_no LIKE ? OR pr.pt LIKE ? OR pr.keterangan LIKE ?)"
@@ -875,6 +899,100 @@ def cancel_pam_record(pam_id: int, company_id: int) -> dict:
     return {"ok": True, "pesan": f"PAM {pam_no} berhasil dihapus, PA terkait dikembalikan ke Open."}
 
 
+def remove_student_from_pam(payment_beasiswa_id: int, company_id: int) -> dict:
+    """Hapus satu siswa dari Open PAM dengan cascade:
+    1. DELETE payment_beasiswa row
+    2. Recalculate pam_records.total_amount (atau DELETE jika tidak ada sisa)
+    3. Revert etf_pa (dan pillar PA lain) jika tidak ada payment aktif tersisa
+    """
+    conn = get_conn()
+    now = _ts()
+
+    # 1. Ambil payment_beasiswa row
+    pb = conn.execute(
+        "SELECT id, pam, etf_pa_line_id, amount FROM payment_beasiswa WHERE id=? AND company_id=?",
+        (payment_beasiswa_id, company_id)
+    ).fetchone()
+    if not pb:
+        conn.close()
+        return {"ok": False, "pesan": "Payment tidak ditemukan."}
+
+    pam_no       = pb["pam"]
+    line_id      = pb["etf_pa_line_id"]
+
+    # 2. Validasi pam_records.status == 'open'
+    pam_rec = conn.execute(
+        "SELECT id, status FROM pam_records WHERE pam_no=? AND company_id=?",
+        (pam_no, company_id)
+    ).fetchone()
+    if not pam_rec:
+        conn.close()
+        return {"ok": False, "pesan": "PAM tidak ditemukan."}
+    if pam_rec["status"] != "open":
+        conn.close()
+        return {"ok": False, "pesan": "PAM sudah diproses, tidak dapat mengubah siswa."}
+
+    # 3. Hapus payment_beasiswa (dan klaim_medical jika ada)
+    conn.execute("DELETE FROM klaim_medical WHERE payment_id=? AND company_id=?",
+                 (payment_beasiswa_id, company_id))
+    conn.execute("DELETE FROM payment_beasiswa WHERE id=? AND company_id=?",
+                 (payment_beasiswa_id, company_id))
+
+    # 4. Hitung sisa rows untuk PAM ini
+    remaining_count = conn.execute(
+        "SELECT COUNT(*) FROM payment_beasiswa WHERE pam=? AND company_id=?",
+        (pam_no, company_id)
+    ).fetchone()[0]
+
+    if remaining_count == 0:
+        # Hapus pam_records jika sudah kosong
+        conn.execute("DELETE FROM pam_records WHERE pam_no=? AND company_id=?",
+                     (pam_no, company_id))
+    else:
+        # Recalculate total
+        new_total = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM payment_beasiswa WHERE pam=? AND company_id=?",
+            (pam_no, company_id)
+        ).fetchone()[0]
+        conn.execute(
+            "UPDATE pam_records SET total_amount=?, updated_at=? WHERE pam_no=? AND company_id=?",
+            (new_total, now, pam_no, company_id)
+        )
+
+    # 5. Revert PA entry jika tidak ada payment aktif tersisa
+    if line_id:
+        for lines_tbl, pa_tbl in [
+            ("etf_pa_lines",    "etf_pa"),
+            ("app_pa_lines",    "app_pa"),
+            ("sml_pa_lines",    "sml_pa"),
+            ("energy_pa_lines", "energy_pa"),
+            ("setf_pa_lines",   "setf_pa"),
+        ]:
+            pa_row = conn.execute(
+                f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (line_id,)
+            ).fetchone()
+            if not pa_row:
+                continue
+            pa_id = pa_row[0]
+            still_has_payment = conn.execute(
+                f"""SELECT COUNT(*) FROM payment_beasiswa pb
+                    JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
+                    WHERE el.pa_id=? AND pb.company_id=?""",
+                (pa_id, company_id)
+            ).fetchone()[0]
+            if still_has_payment == 0:
+                conn.execute(
+                    f"UPDATE {pa_tbl} SET status='open', nomor_pam=NULL, updated_at=? "
+                    f"WHERE id=? AND company_id=?",
+                    (now, pa_id, company_id)
+                )
+            break  # line_id hanya bisa ada di satu PA table
+
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Siswa berhasil dikeluarkan dari PAM."}
+
+
 def get_pam_detail(pam_id: int, company_id: int) -> dict | None:
     conn = get_conn()
     pam = conn.execute(
@@ -1122,9 +1240,9 @@ def bulk_update_dates(ids: list, dates: dict, company_id: int) -> dict:
         "SLA_Date_4_AK", "SLA_Date_5_PD", "SLA_Date_6_C2", "SLA_Date_7_MSIG",
         "tgl_A-GS_APP", "tgl_A-HJK_APP", "tgl_ASPIRO_APP", "tgl_Paid_APP",
     }
-    fields = [(k, v) for k, v in dates.items() if k in _ALLOWED and v]
+    fields = [(k, v if v else None) for k, v in dates.items() if k in _ALLOWED]
     if not fields:
-        return {"ok": False, "pesan": "Tidak ada tanggal yang diisi."}
+        return {"ok": False, "pesan": "Tidak ada field tanggal yang valid."}
     if not ids:
         return {"ok": False, "pesan": "Tidak ada baris yang dipilih."}
     # Quote column names to handle names containing hyphens (e.g. tgl_A-GS_APP)
