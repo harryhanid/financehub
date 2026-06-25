@@ -80,7 +80,12 @@
   <div class="tab-panel" id="tab-draft-pay">
     <div style="margin-bottom:1rem; display:flex; align-items:center; justify-content:space-between; gap:.5rem; flex-wrap:wrap">
       <span style="font-size:.875rem; color:var(--text-muted)">Daftar payment yang belum diproses (status Open).</span>
-      <a href="/payment-memo/export/open-pam" class="btn btn-success btn-sm">↓ Export Excel</a>
+      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+        <input type="text" id="open-pam-search" placeholder="Cari No. PAM / Keterangan…"
+               oninput="filterOpenPAM()"
+               style="padding:.3rem .6rem;border:1px solid #cbd5e1;border-radius:.375rem;font-size:.85rem;min-width:220px">
+        <a href="/payment-memo/export/open-pam" class="btn btn-success btn-sm">↓ Export Excel</a>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -1185,6 +1190,19 @@ function renderOpenPAM(drafts) {
     '<td></td></tr>';
 
   tbody.innerHTML = html;
+}
+
+function filterOpenPAM() {
+  var q = (document.getElementById('open-pam-search').value || '').trim().toLowerCase();
+  if (!q) { renderOpenPAM(OPEN_PAM_DRAFTS); return; }
+  var filtered = OPEN_PAM_DRAFTS.filter(function(d) {
+    return (d.pam        && d.pam.toLowerCase().includes(q))
+        || (d.nama       && d.nama.toLowerCase().includes(q))
+        || (d.siswa_code && d.siswa_code.toLowerCase().includes(q))
+        || (d.cat1       && d.cat1.toLowerCase().includes(q))
+        || (d.cat2       && d.cat2.toLowerCase().includes(q));
+  });
+  renderOpenPAM(filtered);
 }
 
 async function changeStatus(memoId, newStatus) {
