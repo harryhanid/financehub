@@ -2232,94 +2232,123 @@ function agriToggleCheckbox(pamId, pbId, checked) {
   _syncPamCheckbox(pamId);
 }
 
+const _AGRI_SLA_OPTIONS = [
+  { value: 'SLA_Date_1_LL',   label: 'SLA1 — LL'   },
+  { value: 'SLA_Date_2_HT',   label: 'SLA2 — HT'   },
+  { value: 'SLA_Date_3_YK',   label: 'SLA3 — YK'   },
+  { value: 'SLA_Date_4_AK',   label: 'SLA4 — AK'   },
+  { value: 'SLA_Date_5_PD',   label: 'SLA5 — PD'   },
+  { value: 'SLA_Date_6_C2',   label: 'SLA6 — C2'   },
+  { value: 'SLA_Date_7_MSIG', label: 'SLA7 — MSIG' },
+];
+// td index (0-based) per SLA field di sub-row
+const _AGRI_SLA_COL = {
+  SLA_Date_1_LL: 9, SLA_Date_2_HT: 10, SLA_Date_3_YK: 11,
+  SLA_Date_4_AK: 12, SLA_Date_5_PD: 13, SLA_Date_6_C2: 14,
+  SLA_Date_7_MSIG: 15,
+};
+
+function _agriChipsHtml(pamId, sel) {
+  const rows = _pamBeasiswaCache[pamId];
+  if (!rows || !Array.isArray(rows)) return '';
+  return rows
+    .filter(r => sel.has(r.id))
+    .map(r => {
+      const name = esc(r.nama || r.siswa_code || String(r.id));
+      return `<span style="background:#f59e0b;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;` +
+             `display:inline-flex;align-items:center;gap:3px;white-space:nowrap">` +
+             `${name}<span onclick="agriRemovePaChip(${pamId},${r.id})" ` +
+             `style="cursor:pointer;margin-left:3px;opacity:.85;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+    }).join('');
+}
+
 function agriRenderEditPanel(pamId) {
   const sel = _pamBeasiswaSelected[pamId];
   const n   = sel ? sel.size : 0;
   let panel = document.querySelector(`.agri-edit-panel[data-pam-id="${pamId}"]`);
-  if (n === 0) {
-    if (panel) panel.remove();
-    return;
-  }
+  if (n === 0) { if (panel) panel.remove(); return; }
+
   if (panel) {
     const countEl = panel.querySelector('[data-sla-count]');
-    if (countEl) countEl.textContent = `Edit SLA — ${n} siswa dipilih`;
+    if (countEl) countEl.textContent = `${n} siswa dipilih:`;
+    const chipsEl = panel.querySelector('[data-sla-chips]');
+    if (chipsEl) chipsEl.innerHTML = _agriChipsHtml(pamId, sel);
     return;
   }
-  const rows = [...document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"]`)];
-  const last = rows[rows.length - 1];
+
+  const detailRows = [...document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"]`)];
+  const last = detailRows[detailRows.length - 1];
   panel = document.createElement('tr');
   panel.className = 'agri-edit-panel';
   panel.dataset.pamId = pamId;
   last.insertAdjacentElement('afterend', panel);
-  const SLA_FIELDS = [
-    { key: 'SLA_Date_1_LL',   label: 'LL'   },
-    { key: 'SLA_Date_2_HT',   label: 'HT'   },
-    { key: 'SLA_Date_3_YK',   label: 'YK'   },
-    { key: 'SLA_Date_4_AK',   label: 'AK'   },
-    { key: 'SLA_Date_5_PD',   label: 'PD'   },
-    { key: 'SLA_Date_6_C2',   label: 'C2'   },
-    { key: 'SLA_Date_7_MSIG', label: 'MSIG' },
-  ];
-  const inputs = SLA_FIELDS.map(f =>
-    `<label style="font-size:11px;color:#92400e;white-space:nowrap">${f.label}: ` +
-    `<input type="date" id="agri-sla-${f.key}-${pamId}" ` +
-    `style="font-size:11px;padding:2px 4px;border:1px solid #fbbf24;border-radius:3px"></label>`
-  ).join('');
+
+  const opts = _AGRI_SLA_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
   panel.innerHTML =
-    `<td colspan="28" style="background:#fffbeb;border-top:1px solid #f59e0b;` +
-    `border-bottom:1px solid #f59e0b;padding:8px 16px">` +
-    `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">` +
-    `<span data-sla-count style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">` +
-    `Edit SLA — ${n} siswa dipilih</span>` +
-    inputs +
-    `<button onclick="agriSaveSlaDates(${pamId})" ` +
-    `style="font-size:11px;padding:3px 10px;background:#f59e0b;border:none;` +
-    `border-radius:4px;cursor:pointer;color:#fff;font-weight:600">Simpan</button>` +
+    `<td colspan="28" style="background:#fffbeb;border-top:1px solid #f59e0b;border-bottom:1px solid #f59e0b;padding:8px 16px">` +
+    `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px">` +
+    `<span data-sla-count style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">${n} siswa dipilih:</span>` +
+    `<span data-sla-chips style="display:flex;flex-wrap:wrap;gap:4px">${_agriChipsHtml(pamId, sel)}</span>` +
+    `</div>` +
+    `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">` +
+    `<label style="font-size:11px;color:#92400e;white-space:nowrap">Kolom: ` +
+    `<select id="agri-sla-field-${pamId}" style="font-size:11px;padding:2px 5px;border:1px solid #fbbf24;border-radius:3px;margin-left:4px">${opts}</select></label>` +
+    `<label style="font-size:11px;color:#92400e;white-space:nowrap">Tanggal: ` +
+    `<input type="date" id="agri-sla-date-${pamId}" style="font-size:11px;padding:2px 5px;border:1px solid #fbbf24;border-radius:3px;margin-left:4px"></label>` +
+    `<button onclick="agriIsiTanggal(${pamId})" ` +
+    `style="font-size:11px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600">Isi Tanggal</button>` +
+    `<button onclick="agriIsiHariIni(${pamId})" ` +
+    `style="font-size:11px;padding:3px 11px;background:#16a34a;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600">Hari Ini</button>` +
     `<button onclick="agriClearSelection(${pamId})" ` +
-    `style="font-size:11px;padding:3px 10px;background:#e2e8f0;border:none;` +
-    `border-radius:4px;cursor:pointer;color:#64748b">Batal</button>` +
+    `style="font-size:11px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;margin-left:auto">✕ Batal</button>` +
     `</div></td>`;
 }
 
-async function agriSaveSlaDates(pamId) {
+async function agriIsiTanggal(pamId) {
+  const field = document.getElementById(`agri-sla-field-${pamId}`)?.value;
+  const date  = document.getElementById(`agri-sla-date-${pamId}`)?.value;
+  if (!date) { showToast('Pilih tanggal terlebih dahulu.', 'error'); return; }
+  await _agriDoBulkUpdate(pamId, field, date);
+}
+
+async function agriIsiHariIni(pamId) {
+  const field = document.getElementById(`agri-sla-field-${pamId}`)?.value;
+  const today = new Date().toISOString().slice(0, 10);
+  await _agriDoBulkUpdate(pamId, field, today);
+}
+
+async function _agriDoBulkUpdate(pamId, field, date) {
   const sel = _pamBeasiswaSelected[pamId];
   if (!sel || sel.size === 0) return;
-  const SLA_KEYS = [
-    'SLA_Date_1_LL', 'SLA_Date_2_HT', 'SLA_Date_3_YK', 'SLA_Date_4_AK',
-    'SLA_Date_5_PD', 'SLA_Date_6_C2', 'SLA_Date_7_MSIG',
-  ];
-  const dates = {};
-  for (const k of SLA_KEYS) {
-    const el = document.getElementById(`agri-sla-${k}-${pamId}`);
-    if (el && el.value) dates[k] = el.value;
-  }
-  if (Object.keys(dates).length === 0) {
-    alert('Isi minimal satu SLA date sebelum simpan.');
-    return;
-  }
   const res = await apiFetch('/payment-memo/days-of-pam/bulk-update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: [...sel], dates }),
+    body: JSON.stringify({ ids: [...sel], dates: { [field]: date } }),
   });
-  if (!res) {
-    alert('Gagal menyimpan: network error.');
-    return;
-  }
+  if (!res) { showToast('Gagal: network error.', 'error'); return; }
   const data = await res.json();
-  if (!data.ok) {
-    alert('Gagal menyimpan: ' + (data.pesan || 'Error tidak diketahui.'));
-    return;
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (!data.ok) return;
+
+  // Update sel DOM in-place
+  const colIdx = _AGRI_SLA_COL[field];
+  if (colIdx !== undefined) {
+    sel.forEach(pbId => {
+      const cb = document.querySelector(`.agri-detail-rows[data-pam-id="${pamId}"] input[data-pb-id="${pbId}"]`);
+      if (!cb) return;
+      const tds = cb.closest('tr')?.querySelectorAll('td');
+      if (tds && tds[colIdx]) tds[colIdx].innerHTML = `<span style="color:#1e293b">${date}</span>`;
+    });
   }
-  agriClearSelection(pamId);
-  delete _pamBeasiswaCache[pamId];
-  document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"]`).forEach(r => r.remove());
-  const masterTr = document.querySelector(`tr.pam-master-row[data-pam-id="${pamId}"]`);
-  const toggleEl = masterTr ? masterTr.querySelector('.pam-toggle') : null;
-  if (masterTr && toggleEl) {
-    toggleEl.innerHTML = '&#9658;';
-    agriFetchBeasiswaLines(masterTr, toggleEl, pamId);
-  }
+  // Update cache in-place
+  const cached = _pamBeasiswaCache[pamId];
+  if (Array.isArray(cached)) cached.forEach(r => { if (sel.has(r.id)) r[field] = date; });
+}
+
+function agriRemovePaChip(pamId, pbId) {
+  const cb = document.querySelector(`.agri-detail-rows[data-pam-id="${pamId}"] input[data-pb-id="${pbId}"]`);
+  if (cb) cb.checked = false;
+  agriToggleCheckbox(pamId, pbId, false);
 }
 
 function agriClearSelection(pamId) {
