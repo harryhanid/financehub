@@ -328,10 +328,10 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead class="thead-primary">
           <tr>
-            <th style="width:28px;padding:4px"></th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">PAM No</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl PAM</th>
-            <th style="padding:8px 10px;text-align:left;">PT</th>
+            <th style="width:52px;padding:4px;position:sticky;left:0;z-index:4"></th>
+            <th style="width:155px;padding:8px 10px;text-align:left;white-space:nowrap;position:sticky;left:52px;z-index:4">PAM No</th>
+            <th style="width:90px;padding:8px 10px;text-align:left;white-space:nowrap;position:sticky;left:207px;z-index:4">Tgl PAM</th>
+            <th style="min-width:90px;padding:8px 10px;text-align:left;position:sticky;left:297px;z-index:4;box-shadow:3px 0 6px rgba(0,0,0,.12)">PT</th>
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">Cost Center</th>
             <th style="padding:8px 10px;min-width:220px;text-align:left;">GL Account</th>
             <th style="padding:8px 10px;text-align:left;">Requestor</th>
@@ -2074,11 +2074,11 @@ async function loadPAM() {
   tbody.innerHTML = data.rows.map((r, i) => `
     <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
       ${r.source === 'beasiswa'
-        ? `<td style="padding:4px;text-align:center"><span class="pam-toggle" style="cursor:pointer;font-size:.75rem" onclick="agriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span></td>`
-        : `<td style="text-align:center;color:#cbd5e1;font-size:11px;padding:4px">&#8212;</td>`}
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
-      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
-      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
+        ? `<td style="padding:4px 2px;text-align:center;white-space:nowrap;position:sticky;left:0;z-index:1;background:${i%2===0?'#fff':'#f8fafc'}"><input type="checkbox" id="pam-cb-${r.id}" style="cursor:pointer;vertical-align:middle" onchange="agriTogglePamSelect(${r.id},this.checked)"><span class="pam-toggle" style="cursor:pointer;font-size:.75rem;vertical-align:middle;margin-left:2px" onclick="agriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span></td>`
+        : `<td style="text-align:center;color:#cbd5e1;font-size:11px;padding:4px;position:sticky;left:0;z-index:1;background:${i%2===0?'#fff':'#f8fafc'}">&#8212;</td>`}
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;position:sticky;left:52px;z-index:1;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;white-space:nowrap;position:sticky;left:207px;z-index:1;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.pam_date || '-')}</td>
+      <td style="padding:6px 8px;position:sticky;left:297px;z-index:1;background:${i%2===0?'#fff':'#f8fafc'};box-shadow:3px 0 6px rgba(0,0,0,.08)">${esc(r.pt || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px" id="gl-cell-${r.id}"></td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
@@ -2114,6 +2114,7 @@ async function loadPAM() {
 
 let _pamBeasiswaCache = {};
 let _pamBeasiswaSelected = {}; // { pamId: Set<pbId> }
+let _pamPendingSelectAll = {}; // { pamId: true } saat PAM checkbox diklik sebelum expand
 
 function agriToggleExpand(toggleEl, pamId) {
   const masterTr = toggleEl.closest('tr');
@@ -2186,16 +2187,14 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     tr.style.background = '#f0f9ff';
     tr.style.borderBottom = '1px solid #e2e8f0';
     tr.innerHTML =
-      `<td style="padding:4px;text-align:center;vertical-align:middle">` +
+      `<td style="padding:4px 2px;text-align:center;vertical-align:middle;position:sticky;left:0;z-index:1;background:#f0f9ff">` +
         `<input type="checkbox" data-pb-id="${r.id}" style="cursor:pointer"` +
         ` onchange="agriToggleCheckbox(${pamId}, ${r.id}, this.checked)">` +
       `</td>` +
-      `<td colspan="15" style="padding:4px 8px;font-size:11px;vertical-align:middle">` +
-        `<span style="font-family:monospace;color:#94a3b8;font-size:10px">${esc(r.siswa_code || '')}</span>` +
-        `<span style="font-weight:600;margin-left:6px">${esc(r.nama || '—')}</span>` +
-        `<span style="color:#64748b;margin-left:6px">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</span>` +
-        `<span style="font-weight:700;color:#1a56db;margin-left:10px">${fmtRupiah(r.amount)}</span>` +
-      `</td>` +
+      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle;position:sticky;left:52px;z-index:1;background:#f0f9ff">${esc(r.siswa_code || '')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle;position:sticky;left:207px;z-index:1;background:#f0f9ff">${esc(r.nama || '—')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;color:#64748b;vertical-align:middle;position:sticky;left:297px;z-index:1;background:#f0f9ff;box-shadow:3px 0 6px rgba(0,0,0,.06)">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td colspan="12" style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle">${fmtRupiah(r.amount)}</td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pengajuan)}</td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_receive)}</td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pa)}</td>` +
@@ -2212,6 +2211,14 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   });
 
   toggleEl.innerHTML = '&#9660;';
+  if (_pamPendingSelectAll[pamId]) {
+    delete _pamPendingSelectAll[pamId];
+    if (!_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId] = new Set();
+    document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`)
+      .forEach(cb => { cb.checked = true; _pamBeasiswaSelected[pamId].add(parseInt(cb.dataset.pbId)); });
+    agriRenderEditPanel(pamId);
+    _syncPamCheckbox(pamId);
+  }
 }
 
 function agriToggleCheckbox(pamId, pbId, checked) {
@@ -2222,6 +2229,7 @@ function agriToggleCheckbox(pamId, pbId, checked) {
     _pamBeasiswaSelected[pamId].delete(pbId);
   }
   agriRenderEditPanel(pamId);
+  _syncPamCheckbox(pamId);
 }
 
 function agriRenderEditPanel(pamId) {
@@ -2319,6 +2327,35 @@ function agriClearSelection(pamId) {
   document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`)
     .forEach(cb => { cb.checked = false; });
   agriRenderEditPanel(pamId);
+  _syncPamCheckbox(pamId);
+}
+
+function agriTogglePamSelect(pamId, checked) {
+  const subCbs = document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`);
+  if (subCbs.length > 0) {
+    if (!_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId] = new Set();
+    subCbs.forEach(cb => {
+      cb.checked = checked;
+      const pbId = parseInt(cb.dataset.pbId);
+      if (checked) _pamBeasiswaSelected[pamId].add(pbId);
+      else _pamBeasiswaSelected[pamId].delete(pbId);
+    });
+    agriRenderEditPanel(pamId);
+  } else if (checked) {
+    _pamPendingSelectAll[pamId] = true;
+    const masterTr = document.querySelector(`tr.pam-master-row[data-pam-id="${pamId}"]`);
+    const toggleEl = masterTr ? masterTr.querySelector('.pam-toggle') : null;
+    if (masterTr && toggleEl) agriFetchBeasiswaLines(masterTr, toggleEl, pamId);
+  }
+}
+
+function _syncPamCheckbox(pamId) {
+  const pamCb = document.getElementById(`pam-cb-${pamId}`);
+  if (!pamCb) return;
+  const subCbs = [...document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`)];
+  const n = subCbs.length, checked = subCbs.filter(cb => cb.checked).length;
+  pamCb.indeterminate = checked > 0 && checked < n;
+  pamCb.checked = n > 0 && checked === n;
 }
 
 async function updatePAMStatus(pamId, newStatus) {
