@@ -974,6 +974,7 @@ def remove_student_from_pam(payment_beasiswa_id: int, company_id: int) -> dict:
             if not pa_row:
                 continue
             pa_id = pa_row[0]
+            # etf_pa_line_id is the single shared FK column across all pillars in payment_beasiswa
             still_has_payment = conn.execute(
                 f"""SELECT COUNT(*) FROM payment_beasiswa pb
                     JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
