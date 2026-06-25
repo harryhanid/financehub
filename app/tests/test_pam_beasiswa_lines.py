@@ -81,7 +81,7 @@ def test_returns_rows():
     amounts = {r["amount"] for r in rows}
     assert amounts == {5000000, 3000000}
     expected_keys = {
-        "siswa_code", "nama", "cat1", "cat2", "amount",
+        "id", "siswa_code", "nama", "cat1", "cat2", "amount",
         "tgl_pengajuan", "tgl_receive", "tgl_pa", "tgl_final",
         "SLA_Date_1_LL", "SLA_Date_2_HT", "SLA_Date_3_YK", "SLA_Date_4_AK",
         "SLA_Date_5_PD", "SLA_Date_6_C2", "SLA_Date_7_MSIG",
@@ -138,3 +138,13 @@ def test_ordered_by_nama():
     assert rows is not None and len(rows) == 2
     assert rows[0]["nama"] == "Andi Kurniawan"
     assert rows[1]["nama"] == "Zara Dewi"
+
+
+def test_returns_id_field():
+    """get_pam_beasiswa_lines harus return field id untuk payload bulk-update."""
+    conn = get_conn()
+    pam_id = _seed(conn)
+    rows = get_pam_beasiswa_lines(pam_id, COMPANY_ID)
+    assert rows is not None and len(rows) > 0
+    assert all("id" in r for r in rows)
+    assert all(isinstance(r["id"], int) for r in rows)

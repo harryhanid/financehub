@@ -1956,6 +1956,7 @@ def get_pam_beasiswa_lines(pam_id: int, company_id: int) -> list | None:
     pam_no = pam_no_row["pam_no"]
     rows = [dict(r) for r in conn.execute(
         """SELECT
+               pb.id,
                pb.siswa_code,
                s.nama,
                pb.cat1,
