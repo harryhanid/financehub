@@ -344,20 +344,22 @@
             <th style="padding:8px 10px;text-align:left;">Status</th>
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl Bayar</th>
             <th style="padding:8px 10px;text-align:left;">Source</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">No. Vendor</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">Nama Vendor</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">Terima Dok</th>
-            <th style="padding:8px 10px;text-align:left;">Proses</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">Verif Tax</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">App 1</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">App 2</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">App 3</th>
-            <th style="padding:8px 10px;text-align:left;">Kirim</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl Pengajuan</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl Receive</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl PA</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl Final</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA1 (LL)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA2 (HT)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA3 (YK)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA4 (AK)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA5 (PD)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA6 (C2)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA7 (MSIG)</th>
             <th style="padding:8px 10px;text-align:left;">Aksi</th>
           </tr>
         </thead>
         <tbody id="pam-tbody">
-          <tr><td colspan="26" style="text-align:center;padding:20px;color:#6b7280;">
+          <tr><td colspan="28" style="text-align:center;padding:20px;color:#6b7280;">
             Memuat data...
           </td></tr>
         </tbody>
@@ -2062,7 +2064,7 @@ async function loadPAM() {
   const data   = await res.json();
   const tbody  = document.getElementById('pam-tbody');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:#6b7280;">Belum ada PAM record AGRI.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="28" style="text-align:center;padding:20px;color:#6b7280;">Belum ada PAM record AGRI.</td></tr>';
     return;
   }
   _pamCache = {};
@@ -2089,15 +2091,17 @@ async function loadPAM() {
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
-      <td style="padding:6px 8px">${esc(r.no_vendor || '-')}</td>
-      <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
-      ${_plDate(r.id,'AGRI','tgl_terima_doc',r.tgl_terima_doc)}
-      ${_plDate(r.id,'AGRI','tgl_proses',r.tgl_proses)}
-      ${_plDate(r.id,'AGRI','tgl_verifikasi_tax',r.tgl_verifikasi_tax)}
-      ${_plDate(r.id,'AGRI','tgl_approval_1',r.tgl_approval_1)}
-      ${_plDate(r.id,'AGRI','tgl_approval_2',r.tgl_approval_2)}
-      ${_plDate(r.id,'AGRI','tgl_approval_3',r.tgl_approval_3)}
-      ${_plDate(r.id,'AGRI','tgl_kirim',r.tgl_kirim)}
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
+      <td style="padding:6px 8px;color:#cbd5e1;text-align:center">—</td>
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -2132,7 +2136,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   const loadingTr = document.createElement('tr');
   loadingTr.classList.add('agri-detail-rows');
   loadingTr.dataset.pamId = pamId;
-  loadingTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  loadingTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
   masterTr.insertAdjacentElement('afterend', loadingTr);
 
   const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
@@ -2143,7 +2147,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('agri-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    errTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -2154,7 +2158,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('agri-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = `<td colspan="26" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    errTr.innerHTML = `<td colspan="28" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -2165,7 +2169,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const emptyTr = document.createElement('tr');
     emptyTr.classList.add('agri-detail-rows');
     emptyTr.dataset.pamId = pamId;
-    emptyTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    emptyTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
     masterTr.insertAdjacentElement('afterend', emptyTr);
     toggleEl.innerHTML = '&#9660;';
     return;
@@ -2174,7 +2178,6 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   const d = v => v
     ? `<span style="color:#1e293b">${esc(String(v))}</span>`
     : '<span style="color:#94a3b8">—</span>';
-  const lbl = t => `<span style="color:#64748b">${t}:</span> `;
 
   [...data.rows].reverse().forEach(r => {
     const tr = document.createElement('tr');
@@ -2182,33 +2185,29 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     tr.dataset.pamId = pamId;
     tr.style.background = '#f0f9ff';
     tr.style.borderBottom = '1px solid #e2e8f0';
-    tr.innerHTML = `<td colspan="26" style="padding:4px 8px 4px 12px;font-size:11px;">
-      <div style="display:flex;gap:16px;align-items:center;margin-bottom:2px">
-        <input type="checkbox" data-pb-id="${r.id}"
-               style="margin-right:4px;cursor:pointer;vertical-align:middle;flex-shrink:0"
-               onchange="agriToggleCheckbox(${pamId}, ${r.id}, this.checked)">
-        <span style="font-family:monospace;color:#94a3b8">${esc(r.siswa_code || '')}</span>
-        <span style="font-weight:600">${esc(r.nama || '—')}</span>
-        <span>${esc(r.cat1 || '')}</span>
-        <span>${esc(r.cat2 || '')}</span>
-        <span style="font-weight:700;color:#1a56db;margin-left:auto">${fmtRupiah(r.amount)}</span>
-      </div>
-      <div style="margin-bottom:2px">
-        ${lbl('Pengajuan')}${d(r.tgl_pengajuan)} &nbsp;&middot;&nbsp;
-        ${lbl('Receive')}${d(r.tgl_receive)} &nbsp;&middot;&nbsp;
-        ${lbl('PA')}${d(r.tgl_pa)} &nbsp;&middot;&nbsp;
-        ${lbl('Final')}${d(r.tgl_final)}
-      </div>
-      <div>
-        ${lbl('SLA1(LL)')}${d(r.SLA_Date_1_LL)} &nbsp;&middot;&nbsp;
-        ${lbl('SLA2(HT)')}${d(r.SLA_Date_2_HT)} &nbsp;&middot;&nbsp;
-        ${lbl('SLA3(YK)')}${d(r.SLA_Date_3_YK)} &nbsp;&middot;&nbsp;
-        ${lbl('SLA4(AK)')}${d(r.SLA_Date_4_AK)} &nbsp;&middot;&nbsp;
-        ${lbl('SLA5(PD)')}${d(r.SLA_Date_5_PD)} &nbsp;&middot;&nbsp;
-        ${lbl('SLA6(C2)')}${d(r.SLA_Date_6_C2)} &nbsp;&middot;&nbsp;
-        ${lbl('SLA7(MSIG)')}${d(r.SLA_Date_7_MSIG)}
-      </div>
-    </td>`;
+    tr.innerHTML =
+      `<td style="padding:4px;text-align:center;vertical-align:middle">` +
+        `<input type="checkbox" data-pb-id="${r.id}" style="cursor:pointer"` +
+        ` onchange="agriToggleCheckbox(${pamId}, ${r.id}, this.checked)">` +
+      `</td>` +
+      `<td colspan="15" style="padding:4px 8px;font-size:11px;vertical-align:middle">` +
+        `<span style="font-family:monospace;color:#94a3b8;font-size:10px">${esc(r.siswa_code || '')}</span>` +
+        `<span style="font-weight:600;margin-left:6px">${esc(r.nama || '—')}</span>` +
+        `<span style="color:#64748b;margin-left:6px">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</span>` +
+        `<span style="font-weight:700;color:#1a56db;margin-left:10px">${fmtRupiah(r.amount)}</span>` +
+      `</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pengajuan)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_receive)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pa)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_final)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_1_LL)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_2_HT)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_3_YK)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_4_AK)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_5_PD)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_6_C2)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_7_MSIG)}</td>` +
+      `<td></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
 
@@ -2259,7 +2258,7 @@ function agriRenderEditPanel(pamId) {
     `style="font-size:11px;padding:2px 4px;border:1px solid #fbbf24;border-radius:3px"></label>`
   ).join('');
   panel.innerHTML =
-    `<td colspan="26" style="background:#fffbeb;border-top:1px solid #f59e0b;` +
+    `<td colspan="28" style="background:#fffbeb;border-top:1px solid #f59e0b;` +
     `border-bottom:1px solid #f59e0b;padding:8px 16px">` +
     `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">` +
     `<span data-sla-count style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">` +
