@@ -10,8 +10,8 @@ from modules.payment_memo.service import (
     get_pam_detail, get_pam_payments, get_pam_payments_detail,
     update_pam_and_application,
     get_draft_payment_detail, update_draft_and_linked,
-    delete_payment_beasiswa, cancel_pam_record,
-    get_days_of_pam, get_days_of_pam_candidates, bulk_update_dates,
+    delete_payment_beasiswa, cancel_pam_record, remove_student_from_pam,
+    bulk_update_dates,
     set_memo_tanggal_bayar,
     get_fiori_list, bulk_update_fiori_dates,
     update_fiori_status, cancel_fiori_record,
@@ -29,7 +29,7 @@ from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
     export_pam_pdf_custom, export_pam_excel_custom,
     export_open_pam_excel, export_pam_tab_excel, export_fiori_excel,
-    export_sml_excel, export_sla_excel,
+    export_sml_excel,
 )
 from datetime import datetime
 import config, io
@@ -248,6 +248,17 @@ def delete_draft_route(payment_id):
     return jsonify(result)
 
 
+@bp.route("/pam/remove-student", methods=["POST"])
+@jwt_html_required
+def pam_remove_student_route():
+    data = request.get_json() or {}
+    payment_beasiswa_id = data.get("payment_beasiswa_id")
+    if not payment_beasiswa_id:
+        return jsonify({"ok": False, "pesan": "payment_beasiswa_id diperlukan."})
+    result = remove_student_from_pam(int(payment_beasiswa_id), session.get("company_id", 0))
+    return jsonify(result)
+
+
 @bp.route("/pam/<int:pam_id>/export/pdf")
 @jwt_html_required
 def export_pam_pdf_route(pam_id):
@@ -301,43 +312,6 @@ def days_of_pam_bulk_update():
         return jsonify({"ok": False, "pesan": "Format ids tidak valid."}), 400
     result = bulk_update_dates(ids, dates, company_id)
     return jsonify(result)
-
-
-@bp.route("/days-of-pam/candidates")
-@jwt_html_required
-def days_of_pam_candidates_route():
-    company_id = session.get("company_id")
-    if not company_id:
-        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
-    return jsonify({"ok": True, "candidates": get_days_of_pam_candidates(company_id)})
-
-
-@bp.route("/days-of-pam/search")
-@jwt_html_required
-def days_of_pam_search_route():
-    company_id = session.get("company_id")
-    if not company_id:
-        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
-    pam      = request.args.get("pam",      "").strip() or None
-    nama     = request.args.get("nama",     "").strip() or None
-    source   = request.args.get("source",   "AGRI").strip().upper()
-    paid_only = request.args.get("paid_only", "1") == "1"
-    try:
-        limit  = int(request.args.get("limit",  100))
-        offset = int(request.args.get("offset", 0))
-    except (TypeError, ValueError):
-        limit, offset = 100, 0
-    result = get_days_of_pam(
-        company_id,
-        source=source,
-        paid_only=paid_only,
-        pam=pam,
-        nama=nama,
-        limit=limit,
-        offset=offset,
-    )
-    return jsonify({"ok": True, "rows": result["rows"], "total": result["total"],
-                    "limit": limit, "offset": offset})
 
 
 @bp.route("/pam/<int:pam_id>/cancel", methods=["POST"])
@@ -468,24 +442,6 @@ def export_sml_route():
     )
 
 
-@bp.route("/export/sla")
-@jwt_html_required
-def export_sla_route():
-    company_id = session.get("company_id")
-    if not company_id:
-        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
-    source    = request.args.get("source", "AGRI").strip().upper()
-    paid_only = request.args.get("paid_only", "1") == "1"
-    pam  = request.args.get("pam",  "").strip() or None
-    nama = request.args.get("nama", "").strip() or None
-    xls  = export_sla_excel(company_id, source, paid_only, pam, nama)
-    fname = f"PAM_SLA_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-    return send_file(
-        io.BytesIO(xls),
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        download_name=fname,
-        as_attachment=True,
-    )
 
 
 @bp.route("/<int:memo_id>/tanggal-bayar", methods=["POST"])
