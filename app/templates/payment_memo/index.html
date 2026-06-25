@@ -1172,7 +1172,7 @@ function renderOpenPAM(drafts) {
         '<td class="num-right">' + fmtRupiah(d.amount) + '</td>' +
         '<td style="white-space:nowrap">' +
           '<button class="btn btn-secondary btn-sm" onclick="openEditDraft(' + d.id + ');event.stopPropagation()">Edit</button> ' +
-          '<button class="btn btn-danger btn-sm" onclick="removeStudentFromPAM(' + d.id + ', ' + JSON.stringify(esc(d.nama || d.siswa_code || '')) + ');event.stopPropagation()">Hapus</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="removeStudentFromPAM(' + d.id + ', ' + JSON.stringify(esc(d.nama || d.siswa_code || '')).replace(/"/g, '&quot;') + ');event.stopPropagation()">Hapus</button>' +
         '</td>' +
         '</tr>';
     });
