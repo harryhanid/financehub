@@ -2233,14 +2233,17 @@ function agriRenderEditPanel(pamId) {
     if (panel) panel.remove();
     return;
   }
-  if (!panel) {
-    const rows = [...document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"]`)];
-    const last = rows[rows.length - 1];
-    panel = document.createElement('tr');
-    panel.className = 'agri-edit-panel';
-    panel.dataset.pamId = pamId;
-    last.insertAdjacentElement('afterend', panel);
+  if (panel) {
+    const countEl = panel.querySelector('[data-sla-count]');
+    if (countEl) countEl.textContent = `Edit SLA — ${n} siswa dipilih`;
+    return;
   }
+  const rows = [...document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"]`)];
+  const last = rows[rows.length - 1];
+  panel = document.createElement('tr');
+  panel.className = 'agri-edit-panel';
+  panel.dataset.pamId = pamId;
+  last.insertAdjacentElement('afterend', panel);
   const SLA_FIELDS = [
     { key: 'SLA_Date_1_LL',   label: 'LL'   },
     { key: 'SLA_Date_2_HT',   label: 'HT'   },
@@ -2259,7 +2262,7 @@ function agriRenderEditPanel(pamId) {
     `<td colspan="26" style="background:#fffbeb;border-top:1px solid #f59e0b;` +
     `border-bottom:1px solid #f59e0b;padding:8px 16px">` +
     `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">` +
-    `<span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">` +
+    `<span data-sla-count style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">` +
     `Edit SLA — ${n} siswa dipilih</span>` +
     inputs +
     `<button onclick="agriSaveSlaDates(${pamId})" ` +
