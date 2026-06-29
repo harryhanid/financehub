@@ -53,6 +53,16 @@ def generate_kode_siswa(jenjang: str, angkatan: int, company_id: int) -> str:
     return prefix + str(max_urut + 1).zfill(4)
 
 
+def get_distinct_universitas(company_id: int) -> list:
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT DISTINCT universitas FROM siswa WHERE company_id=? AND universitas != '' ORDER BY universitas",
+        (company_id,)
+    ).fetchall()
+    conn.close()
+    return [r[0] for r in rows]
+
+
 def get_siswa_list(company_id: int, search: str = "", status: str = "", program: str = "") -> list:
     sql    = "SELECT * FROM siswa WHERE company_id=?"
     params = [company_id]
@@ -459,8 +469,11 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
         pam_no = create_pam_record(conn, company_id, company_code, {
             "pam_date":     tanggal,
             "pt":           perusahaan,
+            "pillar":       pillar,
             "keterangan":   keterangan,
             "total_amount": total,
+            "dpp":          total,
+            "source":       "beasiswa",
             "payment_ids":  payment_ids,
         })
 

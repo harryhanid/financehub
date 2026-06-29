@@ -356,13 +356,9 @@
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Kolom:</span>
         <select id="agri-bulk-field" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;min-width:110px">
-          <option value="SLA_Date_1_LL">SLA1 — LL</option>
-          <option value="SLA_Date_2_HT">SLA2 — HT</option>
-          <option value="SLA_Date_3_YK">SLA3 — YK</option>
-          <option value="SLA_Date_4_AK">SLA4 — AK</option>
-          <option value="SLA_Date_5_PD">SLA5 — PD</option>
-          <option value="SLA_Date_6_C2">SLA6 — C2</option>
-          <option value="SLA_Date_7_MSIG">SLA7 — MSIG</option>
+          <option value="SLA_Date_2_HT">SLA HT</option>
+          <option value="SLA_Date_3_YK">SLA A2</option>
+          <option value="SLA_Date_6_C2">SLA LL</option>
         </select>
         <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Tanggal:</span>
         <input type="date" id="agri-bulk-date" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;width:140px;box-sizing:border-box">
@@ -400,13 +396,13 @@
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl Receive</th>
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl PA</th>
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl Final</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA1 (LL)</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA2 (HT)</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA3 (YK)</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA4 (AK)</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA5 (PD)</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA6 (C2)</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA7 (MSIG)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap;display:none">SLA1 (LL)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA HT</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA A2</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap;display:none">SLA4 (AK)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap;display:none">SLA5 (PD)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA LL</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap;display:none">SLA7 (MSIG)</th>
             <th style="padding:8px 10px;text-align:left;">Aksi</th>
           </tr>
         </thead>
@@ -417,9 +413,6 @@
         </tbody>
       </table>
     </div>
-  </div>
-
-  <!-- APP Tab -->    </div>
   </div>
 
   <!-- APP Tab -->
@@ -2034,13 +2027,13 @@ async function loadPAM() {
       <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_receive,   r.sub_total)}</td>
       <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_pa,        r.sub_total)}</td>
       <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_final,     r.sub_total)}</td>
-      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla1, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla1, r.sub_total)}</td>
       <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla2, r.sub_total)}</td>
       <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla3, r.sub_total)}</td>
-      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla4, r.sub_total)}</td>
-      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla5, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla4, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla5, r.sub_total)}</td>
       <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla6, r.sub_total)}</td>
-      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla7, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla7, r.sub_total)}</td>
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -2137,13 +2130,13 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_receive)}</td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pa)}</td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_final)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_1_LL)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_1_LL)}</td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_2_HT)}</td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_3_YK)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_4_AK)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_5_PD)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_4_AK)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_5_PD)}</td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_6_C2)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_7_MSIG)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_7_MSIG)}</td>` +
       `<td></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
@@ -2171,13 +2164,9 @@ function agriToggleCheckbox(pamId, pbId, checked) {
 }
 
 const _AGRI_SLA_OPTIONS = [
-  { value: 'SLA_Date_1_LL',   label: 'SLA1 — LL'   },
-  { value: 'SLA_Date_2_HT',   label: 'SLA2 — HT'   },
-  { value: 'SLA_Date_3_YK',   label: 'SLA3 — YK'   },
-  { value: 'SLA_Date_4_AK',   label: 'SLA4 — AK'   },
-  { value: 'SLA_Date_5_PD',   label: 'SLA5 — PD'   },
-  { value: 'SLA_Date_6_C2',   label: 'SLA6 — C2'   },
-  { value: 'SLA_Date_7_MSIG', label: 'SLA7 — MSIG' },
+  { value: 'SLA_Date_2_HT',   label: 'SLA HT' },
+  { value: 'SLA_Date_3_YK',   label: 'SLA A2' },
+  { value: 'SLA_Date_6_C2',   label: 'SLA LL' },
 ];
 // td index (0-based) per SLA field di sub-row
 const _AGRI_SLA_COL = {

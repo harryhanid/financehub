@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance Hub — PRD v1.4</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #1e293b;
+  background: #f1f5f9;
+}
+
+/* ── Document wrapper ─────────────────────────────────── */
+.doc-outer {
+  display: flex;
+  gap: 0;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+.doc-main { flex: 1; min-width: 0; }
+.doc {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+  padding: 56px 64px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* ── Sticky TOC sidebar ───────────────────────────────── */
+.toc-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  align-self: flex-start;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  padding: 16px;
+  margin-left: 24px;
+  font-size: 12px;
+}
+.toc-sidebar h4 {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: #94a3b8; margin-bottom: 12px;
+}
+.toc-sidebar a {
+  display: block; padding: 4px 0 4px 8px; color: #475569;
+  text-decoration: none; border-left: 2px solid transparent; transition: all .15s; line-height: 1.4;
+}
+.toc-sidebar a:hover { color: #1d4ed8; border-left-color: #1d4ed8; }
+.toc-sidebar a.active { color: #1d4ed8; border-left-color: #1d4ed8; font-weight: 600; }
+.toc-sidebar .toc-sub { padding-left: 16px; font-size: 11px; }
+
+/* ── Cover ───────────────────────────────────────────── */
+.cover {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 60%, #3b82f6 100%);
+  border-radius: 8px;
+  padding: 40px 40px 36px;
+  margin: -56px -64px 48px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+.cover::before {
+  content: ''; position: absolute; top: -40px; right: -40px;
+  width: 240px; height: 240px; background: rgba(255,255,255,.06); border-radius: 50%;
+}
+.cover::after {
+  content: ''; position: absolute; bottom: -60px; right: 60px;
+  width: 160px; height: 160px; background: rgba(255,255,255,.04); border-radius: 50%;
+}
+.cover-logo {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; background: rgba(255,255,255,.2); border-radius: 10px;
+  font-size: 20px; font-weight: 800; margin-bottom: 20px; letter-spacing: -1px;
+}
+.cover h1 { font-size: 30px; font-weight: 800; letter-spacing: -1px; margin-bottom: 6px; line-height: 1.2; }
+.cover .subtitle { font-size: 14px; opacity: .8; margin-bottom: 24px; }
+.cover-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 10px;
+  border-radius: 20px; font-size: 11px; font-weight: 600; gap: 4px;
+}
+.badge-white  { background: rgba(255,255,255,.2); color: #fff; }
+.badge-blue   { background: #dbeafe; color: #1e40af; }
+.badge-green  { background: #dcfce7; color: #166534; }
+.badge-amber  { background: #fef3c7; color: #92400e; }
+.badge-slate  { background: #f1f5f9; color: #475569; }
+.badge-red    { background: #fee2e2; color: #991b1b; }
+.badge-purple { background: #ede9fe; color: #6d28d9; }
+
+/* ── Changelog ────────────────────────────────────────── */
+.changelog { margin-top: 32px; background: rgba(255,255,255,.08); border-radius: 6px; overflow: hidden; }
+.changelog table { width: 100%; border-collapse: collapse; }
+.changelog th {
+  background: rgba(0,0,0,.1); padding: 8px 12px; text-align: left;
+  font-size: 11px; font-weight: 700; letter-spacing: .5px; color: rgba(255,255,255,.8);
+}
+.changelog td {
+  padding: 8px 12px; font-size: 12px; color: rgba(255,255,255,.85);
+  border-top: 1px solid rgba(255,255,255,.08); vertical-align: top;
+}
+
+/* ── Inline TOC ───────────────────────────────────────── */
+.toc-box {
+  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;
+  padding: 20px 24px; margin-bottom: 40px;
+}
+.toc-box h3 {
+  font-size: 12px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #1d4ed8; margin-bottom: 14px;
+}
+.toc-box ol { columns: 2; column-gap: 24px; padding-left: 20px; }
+.toc-box li { margin-bottom: 6px; break-inside: avoid; }
+.toc-box a { color: #1d4ed8; text-decoration: none; font-size: 13px; }
+.toc-box a:hover { text-decoration: underline; }
+
+/* ── Sections ─────────────────────────────────────────── */
+section { margin-bottom: 44px; scroll-margin-top: 24px; }
+section + section { border-top: 1px solid #e2e8f0; padding-top: 40px; }
+
+h2 {
+  font-size: 20px; font-weight: 800; color: #1e3a8a;
+  margin-bottom: 16px; padding-bottom: 10px;
+  border-bottom: 2px solid #dbeafe; letter-spacing: -.3px;
+}
+h2 .sec-num {
+  display: inline-block; background: #1d4ed8; color: #fff;
+  width: 28px; height: 28px; border-radius: 6px; font-size: 13px;
+  font-weight: 700; text-align: center; line-height: 28px;
+  margin-right: 8px; vertical-align: middle; position: relative; top: -1px;
+}
+h3 {
+  font-size: 15px; font-weight: 700; color: #1e40af;
+  margin: 24px 0 10px; padding-left: 10px; border-left: 3px solid #1d4ed8;
+}
+h4 { font-size: 13px; font-weight: 700; color: #374151; margin: 16px 0 8px; }
+
+p { margin-bottom: 12px; }
+p:last-child { margin-bottom: 0; }
+ul, ol { padding-left: 20px; margin-bottom: 12px; }
+li { margin-bottom: 4px; }
+strong { color: #0f172a; }
+code {
+  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px;
+  padding: 1px 5px; font-family: "Cascadia Code","Fira Code","Consolas",monospace;
+  font-size: 12px; color: #1d4ed8;
+}
+
+/* ── Code blocks ──────────────────────────────────────── */
+pre {
+  background: #0f172a; color: #e2e8f0; border-radius: 8px;
+  padding: 16px 20px; overflow-x: auto; margin: 12px 0 16px;
+  font-size: 12px; font-family: "Cascadia Code","Fira Code","Consolas",monospace; line-height: 1.6;
+}
+pre code { background: none; border: none; color: inherit; padding: 0; font-size: inherit; }
+
+/* ── Tables ───────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; margin: 12px 0 16px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead tr { background: #1e3a8a; }
+thead th {
+  padding: 9px 12px; text-align: left; font-size: 11px;
+  font-weight: 700; color: #fff; letter-spacing: .3px; white-space: nowrap;
+}
+tbody tr:nth-child(even) { background: #f8fafc; }
+tbody tr:hover { background: #eff6ff; }
+tbody td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+
+/* ── Info boxes ───────────────────────────────────────── */
+.info-box {
+  background: #eff6ff; border-left: 4px solid #1d4ed8;
+  border-radius: 0 6px 6px 0; padding: 12px 16px; margin: 12px 0;
+}
+.warning-box {
+  background: #fefce8; border-left: 4px solid #ca8a04;
+  border-radius: 0 6px 6px 0; padding: 12px 16px; margin: 12px 0;
+}
+.success-box {
+  background: #f0fdf4; border-left: 4px solid #16a34a;
+  border-radius: 0 6px 6px 0; padding: 12px 16px; margin: 12px 0;
+}
+.danger-box {
+  background: #fff1f2; border-left: 4px solid #e11d48;
+  border-radius: 0 6px 6px 0; padding: 12px 16px; margin: 12px 0;
+}
+
+/* ── Divider ──────────────────────────────────────────── */
+.divider { border: none; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+
+/* ── Feature grid ─────────────────────────────────────── */
+.feature-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; margin: 12px 0; }
+.feature-card {
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 6px; padding: 12px 14px;
+}
+.feature-card strong { display: block; color: #1e3a8a; margin-bottom: 4px; font-size: 13px; }
+.feature-card p { font-size: 12px; color: #64748b; margin: 0; }
+
+/* ── Before/After cards ───────────────────────────────── */
+.ba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+.ba-card { border-radius: 8px; padding: 14px 16px; }
+.ba-before { background: #fff1f2; border: 1.5px solid #fecdd3; }
+.ba-after  { background: #f0fdf4; border: 1.5px solid #bbf7d0; }
+.ba-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.ba-before .ba-label { color: #be123c; }
+.ba-after  .ba-label { color: #15803d; }
+.ba-card p { font-size: 12px; margin-bottom: 6px; }
+.ba-card ul { font-size: 12px; padding-left: 16px; margin: 0; }
+.ba-card li { margin-bottom: 3px; }
+
+/* ── Status chips ─────────────────────────────────────── */
+.status-flow { display: flex; align-items: center; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+.status-chip { display: inline-flex; align-items: center; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.chip-open     { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+.chip-process  { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.chip-complete { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.chip-arrow    { color: #94a3b8; font-size: 18px; }
+
+/* ── Pillar chips ─────────────────────────────────────── */
+.pillar-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.pillar-chip {
+  padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 700;
+  border: 1.5px solid; cursor: default;
+}
+.pc-agri  { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.pc-app   { background: #ede9fe; color: #6d28d9; border-color: #c4b5fd; }
+.pc-land  { background: #dcfce7; color: #166534; border-color: #86efac; }
+.pc-setf  { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.pc-smt   { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+
+/* ── Atomic flow ──────────────────────────────────────── */
+.atomic-flow {
+  background: #0f172a; border-radius: 8px; padding: 16px 20px;
+  margin: 12px 0; font-family: "Cascadia Code","Fira Code","Consolas",monospace;
+  font-size: 12px; line-height: 1.8;
+}
+.atomic-flow .af-label { color: #94a3b8; }
+.atomic-flow .af-insert { color: #86efac; }
+.atomic-flow .af-update { color: #fcd34d; }
+.atomic-flow .af-comment { color: #64748b; }
+.atomic-flow .af-begin { color: #c4b5fd; font-weight: 700; }
+
+/* ── Roadmap items ────────────────────────────────────── */
+.roadmap-phase {
+  border: 1.5px solid #e2e8f0; border-radius: 8px;
+  margin: 12px 0; overflow: hidden;
+}
+.roadmap-phase-header {
+  padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 13px;
+}
+.rph-done   { background: #f0fdf4; color: #166534; border-bottom: 1.5px solid #bbf7d0; }
+.rph-next   { background: #fefce8; color: #92400e; border-bottom: 1.5px solid #fde68a; }
+.rph-future { background: #f8fafc; color: #475569; border-bottom: 1.5px solid #e2e8f0; }
+.rph-bug    { background: #fff1f2; color: #be123c; border-bottom: 1.5px solid #fecdd3; }
+.roadmap-phase-body { padding: 4px 0; }
+.roadmap-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 8px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12px;
+}
+.roadmap-item:last-child { border-bottom: none; }
+.ri-icon { flex-shrink: 0; margin-top: 1px; font-size: 14px; }
+.ri-text strong { color: #1e3a8a; }
+.ri-text span { color: #64748b; display: block; font-size: 11px; }
+
+/* ── ERD block ───────────────────────────────────────── */
+.erd-block { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 12px 0; }
+.erd-entity {
+  background: #eff6ff; border: 1.5px solid #bfdbfe;
+  border-radius: 6px; padding: 10px 12px; font-size: 12px;
+}
+.erd-entity strong { display: block; color: #1e3a8a; font-size: 13px; margin-bottom: 6px; }
+.erd-entity span { color: #64748b; font-size: 11px; }
+
+/* ── Footer ─────────────────────────────────────────── */
+.doc-footer {
+  margin-top: 48px; padding-top: 20px; border-top: 2px solid #dbeafe;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: #94a3b8;
+}
+
+/* ── Print ───────────────────────────────────────────── */
+@media print {
+  body { background: #fff; font-size: 11pt; }
+  .toc-sidebar, .doc-footer { display: none; }
+  .doc-outer { padding: 0; max-width: none; }
+  .doc { box-shadow: none; border-radius: 0; padding: 20mm 20mm; max-width: none; }
+  .cover { margin: -20mm -20mm 32pt; border-radius: 0; }
+  h2 { font-size: 14pt; page-break-after: avoid; }
+  h3 { font-size: 12pt; page-break-after: avoid; }
+  section { page-break-inside: avoid; }
+  pre { font-size: 9pt; white-space: pre-wrap; }
+  a { color: inherit; text-decoration: none; }
+}
+@media (max-width: 900px) {
+  .toc-sidebar { display: none; }
+  .doc { padding: 28px 24px; }
+  .cover { margin: -28px -24px 32px; }
+  .toc-box ol { columns: 1; }
+  .feature-grid, .ba-grid { grid-template-columns: 1fr; }
+  .erd-block { grid-template-columns: repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="doc-outer">
+  <div class="doc-main">
+  <div class="doc">
+
+    <!-- ══ COVER ══════════════════════════════════════════ -->
+    <div class="cover">
+      <div class="cover-logo">FH</div>
+      <h1>Finance Hub</h1>
+      <p class="subtitle">Product Requirements Document — Sistem Manajemen Keuangan Internal</p>
+      <div class="cover-meta">
+        <span class="badge badge-white">v1.4</span>
+        <span class="badge badge-white">2026-06-19</span>
+        <span class="badge badge-white">ETF · SMT</span>
+        <span class="badge badge-white">222 Tests</span>
+        <span class="badge badge-white">Before/After Methodology</span>
+      </div>
+      <div class="changelog">
+        <table>
+          <thead><tr><th>Versi</th><th>Tanggal</th><th>Perubahan</th></tr></thead>
+          <tbody>
+            <tr><td>1.0</td><td>2026-05-30</td><td>Draft awal</td></tr>
+            <tr><td>1.1</td><td>2026-05-30</td><td>Post-implementation: Beasiswa tabs, multi-student, SLA tracking, migrasi Excel</td></tr>
+            <tr><td>1.2</td><td>2026-06-01</td><td>PAM Records + GL Account, Draft Memo, Days of PAM, Dynamic Badges; test 56→127</td></tr>
+            <tr><td>1.3</td><td>2026-06-10</td><td>ETF PA (AGRI/APP/SML/SETF), PAM Input Integration, PA Picker, Editable PAM No., Status Standardization</td></tr>
+            <tr><td><strong style="color:#fff">1.4</strong></td><td>2026-06-19</td><td>Before/After methodology dua sistem (DbBeasiswa + PA Excel → Finance Hub); Section 2.6 PA→Beasiswa integration; PAM Transaksi Types; Pillar-based ETF→SMT roadmap; test 127→222</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ TABLE OF CONTENTS ══════════════════════════════ -->
+    <div class="toc-box">
+      <h3>Daftar Isi</h3>
+      <ol>
+        <li><a href="#sec1">Executive Summary</a></li>
+        <li><a href="#sec2">Problem Statement &amp; Tujuan</a></li>
+        <li><a href="#sec3">User Profile &amp; Permission</a></li>
+        <li><a href="#sec4">User Journey Flows</a></li>
+        <li><a href="#sec5">System Architecture</a></li>
+        <li><a href="#sec6">Module Catalog</a></li>
+        <li><a href="#sec7">Modul Beasiswa</a></li>
+        <li><a href="#sec8">Payment Approval Memo</a></li>
+        <li><a href="#sec9">ETF Payment Application</a></li>
+        <li><a href="#sec10">Data Architecture</a></li>
+        <li><a href="#sec11">API Specification</a></li>
+        <li><a href="#sec12">Security &amp; Access Control</a></li>
+        <li><a href="#sec13">Non-Functional Requirements</a></li>
+        <li><a href="#sec14">Roadmap &amp; Phasing</a></li>
+      </ol>
+    </div>
+
+    <!-- ══ 1. EXECUTIVE SUMMARY ═══════════════════════════ -->
+    <section id="sec1">
+      <h2><span class="sec-num">1</span>Executive Summary / Ringkasan Eksekutif</h2>
+
+      <p><strong>Finance Hub</strong> adalah sistem manajemen keuangan internal berbasis web untuk <strong>Account Payable, Petty Cash, Beasiswa, dan proses pembayaran</strong> yang dijalankan secara lokal (localhost/LAN). Dirancang sebagai <strong>platform multi-perusahaan</strong> untuk dua entitas: <strong>Sinar Mas Tjipta (SMT)</strong> dan <strong>Eka Tjipta Foundation (ETF)</strong>.</p>
+
+      <h3>Transformasi: Dari Excel ke Python</h3>
+      <p>Finance Hub menggantikan <strong>dua sistem Excel</strong> yang sebelumnya berjalan terpisah dan tidak terhubung:</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Sistem Lama</th><th>Digantikan Oleh</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>DbBeasiswa v2.2.xlsm</code> (Excel VBA Macro)</td>
+              <td>Modul Beasiswa + PAM</td>
+              <td>Database siswa, budget, payment, PAM — sebelumnya di shared folder <code>Y:/</code></td>
+            </tr>
+            <tr>
+              <td>PA Excel manual (Microsoft Excel)</td>
+              <td>Modul ETF Payment Application</td>
+              <td>Tracking Payment Application per siswa — dikelola manual per tipe (AGRI/APP/LAND/SETF)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box">
+        <strong>Integrasi Kunci:</strong> Selain mendigitalisasi kedua sistem secara terpisah, Finance Hub <strong>menghubungkan alur PA → Beasiswa</strong> sehingga Payment Application menjadi sumber tunggal yang sinkron ke Beasiswa dan PAM secara atomik. Lihat <a href="#sec2-6">Bagian 2.6</a>.
+      </div>
+
+      <h3>Posisi dalam Masterplan Automasi PT Sinar Mas Tjipta</h3>
+      <p>Finance Hub adalah implementasi <strong>Fase 4 (F4) — AP, Tax &amp; Payment</strong>. Bekerja dalam ekosistem bersama PR Portal (F2) sebagai hulu dan Accounting Hub (F5) sebagai hilir.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fase</th><th>Sistem</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>F1 — Budget &amp; Master Data</td><td>Google Sheets / SQL</td><td><span class="badge badge-amber">Ongoing</span></td></tr>
+            <tr><td>F2 — Purchasing</td><td>PR Portal (Google Apps Script)</td><td><span class="badge badge-amber">Ongoing</span></td></tr>
+            <tr><td>F3 — Receiving &amp; Asset</td><td>SharePoint / Microsoft Lists</td><td><span class="badge badge-slate">TBA</span></td></tr>
+            <tr><td><strong>F4 — AP, Tax &amp; Payment</strong></td><td><strong>Finance Hub ← Sistem ini</strong></td><td><span class="badge badge-green">Implemented (Beasiswa+PAM+ETF PA)</span></td></tr>
+            <tr><td>F5 — Accounting Hub</td><td>Power Pivot / VBA / Power Query</td><td><span class="badge badge-amber">Ongoing</span></td></tr>
+            <tr><td>F6 — Reporting &amp; Analytics</td><td>Looker Studio / Excel Dashboard</td><td><span class="badge badge-slate">TBA</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Key Facts</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>Platform</td><td>Python Flask Web App (localhost / LAN)</td></tr>
+            <tr><td>Database</td><td>SQLite (file-based, zero setup)</td></tr>
+            <tr><td>Frontend</td><td>Jinja2 HTML Templates (vanilla HTML/CSS/JS)</td></tr>
+            <tr><td>Auth</td><td>JWT via flask-jwt-extended</td></tr>
+            <tr><td>Multi-Company</td><td>Sinar Mas Tjipta, Eka Tjipta Foundation</td></tr>
+            <tr><td>User Type</td><td>3 role: Requester, Verificator, Releaser</td></tr>
+            <tr><td>PDF Export</td><td>reportlab</td></tr>
+            <tr><td>Excel Export</td><td>openpyxl</td></tr>
+            <tr><td>REST API</td><td>JSON endpoints (<code>/api/v1/</code>)</td></tr>
+            <tr><td>Deployment</td><td>Localhost / LAN, tidak memerlukan internet</td></tr>
+            <tr><td>Test Coverage</td><td><strong>222 automated tests — 221 pass, 1 fail</strong></td></tr>
+            <tr><td>Status Model</td><td><code>open → on_process → complete</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ 2. PROBLEM STATEMENT ════════════════════════════ -->
+    <section id="sec2">
+      <h2><span class="sec-num">2</span>Problem Statement / Latar Belakang &amp; Tujuan</h2>
+
+      <h3>2.1 Masalah Sebelumnya</h3>
+
+      <h4>Sistem A — Beasiswa (<code>DbBeasiswa v2.2.xlsm</code>)</h4>
+      <div class="ba-before" style="border-radius:8px;padding:14px 16px;margin:10px 0;">
+        <div class="ba-label" style="color:#be123c;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Sebelum — Excel VBA Macro di shared folder Y:/</div>
+        <ul style="font-size:13px;padding-left:18px;margin:0;">
+          <li>File lock conflict — hanya 1 orang bisa edit bersamaan</li>
+          <li>Tidak ada autentikasi — siapapun yang akses <code>Y:/</code> bisa ubah data</li>
+          <li>Tidak ada audit trail — tidak diketahui siapa/kapan mengubah data</li>
+          <li>PAM dibuat manual: isi sheet <code>Detail PAM</code> &amp; <code>Rangkuman PAM</code>, cetak manual</li>
+          <li>PAM Recon via PivotTable — harus di-refresh manual</li>
+          <li>SLA dates (Days of PAM) dicatat di kolom Cat3–Cat7, tidak ada validasi format</li>
+          <li>Data Medical (<code>DbHospital</code>) tidak terintegrasi dengan rekap kategori</li>
+          <li>Data SMT &amp; ETF tidak terpisah secara sistematis</li>
+        </ul>
+      </div>
+
+      <h4>Sistem B — Payment Application (Excel Manual)</h4>
+      <div class="ba-before" style="border-radius:8px;padding:14px 16px;margin:10px 0;">
+        <div class="ba-label" style="color:#be123c;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Sebelum — PA Excel manual per tipe</div>
+        <ul style="font-size:13px;padding-left:18px;margin:0;">
+          <li>Tidak ada tracking terstruktur per tipe PA (AGRI/APP/LAND/SETF)</li>
+          <li>7 SLA dates per PA dicatat ad-hoc, tidak ada validasi atau monitoring</li>
+          <li>Nomor PAM diisi manual, rawan typo/duplikat</li>
+          <li>Tidak ada status tracking — sulit tahu PA mana yang open/on_process/complete</li>
+          <li><strong>Data tidak terhubung ke Beasiswa</strong> — pembayaran harus diinput ulang di DbBeasiswa (duplikasi entri, rawan desync)</li>
+          <li>Tidak ada summary/agregasi — rekap per tipe/pillar harus dibuat manual</li>
+        </ul>
+      </div>
+
+      <h4>Masalah Lintas Sistem</h4>
+      <div class="danger-box">
+        <p><strong>Input ganda:</strong> Pembayaran harus diinput dua kali — sekali di PA Excel, sekali lagi di DbBeasiswa. Sumber kebenaran tidak jelas.</p>
+        <p><strong>PAM tidak otomatis:</strong> Staf harus membuat PAM di DbBeasiswa secara manual setelah PA dibuat.</p>
+        <p style="margin:0"><strong>Rekonsiliasi manual:</strong> Antara PA Excel dan DbBeasiswa harus diselaraskan secara berkala.</p>
+      </div>
+
+      <h3>2.2 Solusi</h3>
+      <div class="feature-grid">
+        <div class="feature-card"><strong>Portal terpusat</strong><p>Semua transaksi finansial diinput via web app. Tidak ada Excel manual.</p></div>
+        <div class="feature-card"><strong>Multi-company</strong><p>Data SMT dan ETF terisolasi penuh via <code>company_id</code> di semua tabel.</p></div>
+        <div class="feature-card"><strong>Auth berbasis JWT</strong><p>Login wajib, role-based access, audit trail <code>created_at</code>/<code>updated_at</code>.</p></div>
+        <div class="feature-card"><strong>PA → Beasiswa atomik</strong><p>Input PA → secara otomatis membuat record Beasiswa + PAM dalam satu transaksi DB.</p></div>
+        <div class="feature-card"><strong>PAM otomatis</strong><p>Draft Memo auto-generate dari data payment; export PDF/Excel standar perusahaan.</p></div>
+        <div class="feature-card"><strong>Pillar-based PA</strong><p>Tab per pillar (AGRI/APP/LAND/SETF); Summary view; filter jenjang, tahun, bulan.</p></div>
+        <div class="feature-card"><strong>Days of PAM</strong><p>4 SLA dates terstruktur per PAM; bulk-update; monitoring keterlambatan.</p></div>
+        <div class="feature-card"><strong>REST API</strong><p>Semua operasi tersedia via JSON API untuk integrasi sistem induk.</p></div>
+      </div>
+
+      <h3>2.3 Tujuan Sistem</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tujuan</th><th>Indikator Keberhasilan</th></tr></thead>
+          <tbody>
+            <tr><td>Digitalisasi data keuangan</td><td>100% input via web, tidak ada Excel manual</td></tr>
+            <tr><td>Isolasi data antar perusahaan</td><td>Semua query difilter per <code>company_id</code></td></tr>
+            <tr><td>Kontrol akses</td><td>Tidak ada halaman yang bisa diakses tanpa login</td></tr>
+            <tr><td>PA sebagai sumber kebenaran tunggal</td><td>Satu input PA → Beasiswa + PAM terbentuk otomatis, tidak ada duplikasi</td></tr>
+            <tr><td>ETF PA tracking otomatis</td><td>7 SLA dates per PA; PAM auto-generate saat status → on_process</td></tr>
+            <tr><td>Status konsisten</td><td>Model <code>open → on_process → complete</code> di semua tabel payment</td></tr>
+            <tr><td>Integrasi-ready</td><td>Semua operasi tersedia via REST API JSON</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>2.4 Non-Tujuan (Out of Scope v1.x)</h3>
+      <ul>
+        <li>Integrasi ERP eksternal (SAP, Oracle)</li>
+        <li>Notifikasi email/WhatsApp otomatis</li>
+        <li>Multi-level approval workflow</li>
+        <li>Mobile native app</li>
+        <li>Modul Bank, Account Payable, Advance, Petty Cash, Sponsorship (Coming Soon)</li>
+        <li>F2 Purchasing — sudah ditangani PR Portal</li>
+        <li>F3 Receiving &amp; Asset Capture — SharePoint / Microsoft Lists</li>
+        <li>F5 Accounting Hub — Power Pivot / VBA Macro (sistem terpisah)</li>
+        <li>Edit siswa/lines setelah PA dibuat (integritas data)</li>
+      </ul>
+
+      <h3>2.5 Perbandingan Sistem Excel Lama vs Finance Hub</h3>
+
+      <h4>2.5.1 Struktur Sistem Lama A — <code>DbBeasiswa v2.2.xlsm</code></h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>No</th><th>Tombol Macro</th><th>Sheet Tujuan</th><th>Fungsi</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Input Baru Penerima Beasiswa</td><td>DbSiswa</td><td>Form input siswa baru via UserForm VBA</td></tr>
+            <tr><td>2</td><td>Update data Siswa</td><td>DbSiswa</td><td>Edit data siswa yang sudah ada</td></tr>
+            <tr><td>3</td><td>Input Budget Beasiswa</td><td>DbBudget</td><td>Input alokasi budget per siswa per kategori</td></tr>
+            <tr><td>4</td><td>Input Pembayaran</td><td>DbPayment</td><td>Input realisasi pembayaran per siswa</td></tr>
+            <tr><td>5</td><td>Payment Approval Memo</td><td>Detail PAM</td><td>Generate memo pembayaran untuk dicetak</td></tr>
+            <tr><td>6</td><td>Input Budget Medical</td><td>DbBudget</td><td>Input alokasi budget klaim Medical</td></tr>
+            <tr><td>7</td><td>Input Claim Medical</td><td>DbBudget</td><td>Input realisasi klaim Medical</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>2.5.2 Keterbatasan Sistem Lama A</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Keterbatasan</th><th>Detail</th><th>Solusi di Finance Hub</th></tr></thead>
+          <tbody>
+            <tr><td><strong>File lock</strong></td><td>Hanya 1 orang bisa edit</td><td>Multi-user concurrent, semua bisa input bersamaan</td></tr>
+            <tr><td><strong>Tidak ada auth</strong></td><td>Siapapun akses <code>Y:/</code> bisa ubah data</td><td>Login JWT wajib; role-based access per aksi</td></tr>
+            <tr><td><strong>Tidak ada audit trail</strong></td><td>Tidak tahu siapa/kapan ubah data</td><td><code>created_at</code> / <code>updated_at</code> di semua tabel</td></tr>
+            <tr><td><strong>PAM manual</strong></td><td>Isi sheet manual, cetak, scan</td><td>Draft Memo otomatis; export PDF/Excel standar</td></tr>
+            <tr><td><strong>PAM Recon manual</strong></td><td>PivotTable harus di-refresh manual</td><td>Tabel <code>pam_records</code> auto-created saat payment disimpan</td></tr>
+            <tr><td><strong>Days of PAM ad-hoc</strong></td><td>Tanggal SLA di kolom Cat3–Cat7 tanpa validasi</td><td>4 kolom SLA terstruktur + bulk-update UI</td></tr>
+            <tr><td><strong>Medical terpisah</strong></td><td><code>DbHospital</code> tidak masuk rekap kategori</td><td>By Medical masuk kategori standar di <code>payment_beasiswa</code></td></tr>
+            <tr><td><strong>Data tidak terisolasi</strong></td><td>Semua perusahaan campur satu file</td><td><code>company_id</code> wajib di semua tabel</td></tr>
+            <tr><td><strong>ETF PA tidak terstruktur</strong></td><td>Tidak ada tracking PA dengan 7 SLA dates</td><td>Modul ETF Payment Application dengan tabel per tipe</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>2.5.3 Sistem Lama B — PA Excel (Payment Application Manual)</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aspek</th><th>Sistem PA Excel</th><th>Finance Hub</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Struktur</strong></td><td>File/sheet terpisah per tipe</td><td>Modul ETF PA, 4 tab terpadu (AGRI/APP/LAND/SETF)</td></tr>
+            <tr><td><strong>7 SLA dates</strong></td><td>Kolom manual, tidak ada validasi</td><td>Field terstruktur per PA header; bulk-update tersedia</td></tr>
+            <tr><td><strong>Nomor PAM</strong></td><td>Diisi manual, rawan typo/duplikat</td><td>Auto-generate saat status → <code>on_process</code>; collision check</td></tr>
+            <tr><td><strong>Status</strong></td><td>Tidak ada / warna cell manual</td><td><code>open → on_process → complete</code> per PA</td></tr>
+            <tr><td><strong>Link ke Beasiswa</strong></td><td>Tidak ada — harus input ulang di DbBeasiswa</td><td>Atomik via <code>save_pa_payment()</code> — PA sinkron ke Beasiswa + PAM</td></tr>
+            <tr><td><strong>Summary per pillar</strong></td><td>Manual PivotTable</td><td>Tab AGRI/APP/LAND/SETF + Summary tab (<code>pa_summary</code> SQL view)</td></tr>
+            <tr><td><strong>Multi-siswa per PA</strong></td><td>Baris manual di sheet</td><td>Header + lines model; expand detail siswa inline</td></tr>
+            <tr><td><strong>Concurrent access</strong></td><td>File lock</td><td>Multi-user web app, tidak ada konflik</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>2.5.4 Fitur Baru yang Tidak Ada di Sistem Lama</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fitur</th><th>Deskripsi</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Multi-user concurrent</strong></td><td>10–20 user bisa input bersamaan tanpa konflik</td></tr>
+            <tr><td><strong>REST API</strong></td><td>Semua operasi tersedia via JSON API untuk integrasi</td></tr>
+            <tr><td><strong>PA → Beasiswa integration</strong></td><td>Satu tindakan di PA → Beasiswa + PAM terbentuk otomatis dan atomik</td></tr>
+            <tr><td><strong>PAM Records + GL Account</strong></td><td>Setiap PAM otomatis tercatat dengan nomor GL Account dari Chart of Accounts</td></tr>
+            <tr><td><strong>Pillar-based PAM</strong></td><td>Tab AGRI/APP/LAND/SETF di Payment Memo; sort by jenjang studi</td></tr>
+            <tr><td><strong>PAM Input Transaksi Types</strong></td><td>Panel Beasiswa / Klaim Medis (multi-row + CAT3) / Others (tagihan/ETF/sponsor)</td></tr>
+            <tr><td><strong>ETF PA Summary tab</strong></td><td><code>pa_summary</code> SQL view; filter Tahun PA / Bulan PA / Nama / Status</td></tr>
+            <tr><td><strong>Draft Memo inline editing</strong></td><td>Edit nama, total, catatan memo langsung di browser sebelum export</td></tr>
+            <tr><td><strong>Days of PAM tab</strong></td><td>Tab khusus monitoring 4 tanggal SLA per PAM, bulk-update, search PAM No + Nama</td></tr>
+            <tr><td><strong>Dynamic summary badges</strong></td><td>Kartu Budget/Payment/Selisih mencerminkan data yang sedang ditampilkan (bukan global)</td></tr>
+            <tr><td><strong>Data migrasi</strong></td><td>14,700+ record dari Excel lama berhasil dimigrasikan ke SQLite</td></tr>
+            <tr><td><strong>Automated tests</strong></td><td>222 pytest tests (221 pass, 1 fail) untuk menjamin kebenaran bisnis logic</td></tr>
+            <tr><td><strong>Global confirmation modal</strong></td><td><code>confirmModal()</code> promise-based menggantikan native <code>window.confirm()</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr class="divider">
+
+      <!-- 2.6 PA→Beasiswa Integration -->
+      <h3 id="sec2-6">2.6 Integrasi PA → Beasiswa — Data Sinkron dari Sumber</h3>
+      <p>Salah satu terobosan utama Finance Hub v1.x adalah <strong>menghubungkan Payment Application dengan Beasiswa</strong> sehingga satu tindakan di PA secara otomatis menciptakan record di Beasiswa dan PAM tanpa input ulang.</p>
+
+      <div class="ba-grid">
+        <div class="ba-card ba-before">
+          <div class="ba-label">Sebelum — Dua Sistem Terpisah</div>
+          <ul>
+            <li>Buat PA di Excel → catat 7 SLA dates manual</li>
+            <li>Ubah status PA manual (warna cell)</li>
+            <li>Tulis nomor PAM manual di DbBeasiswa</li>
+            <li>Input payment <strong>ulang</strong> per siswa di DbBeasiswa</li>
+            <li>Buat PAM <strong>ulang</strong> di sheet Detail PAM</li>
+            <li style="color:#be123c;font-weight:600;">↑↑ Dua sumber, rawan desync ↑↑</li>
+          </ul>
+        </div>
+        <div class="ba-card ba-after">
+          <div class="ba-label">Sesudah — Finance Hub Terintegrasi</div>
+          <ul>
+            <li>Buat PA di ETF PA module → 7 SLA dates terstruktur</li>
+            <li>Input PA panel: pilih siswa dari PA open otomatis tersaring</li>
+            <li>"Simpan PAM" → <strong>satu klik, atomik:</strong></li>
+            <li style="padding-left:12px;">✅ PAM terbentuk otomatis</li>
+            <li style="padding-left:12px;">✅ Beasiswa terbentuk dari PA (tidak input ulang)</li>
+            <li style="padding-left:12px;">✅ Status PA → on_process + nomor PAM terisi</li>
+            <li style="color:#15803d;font-weight:600;">↑↑ Satu sumber kebenaran ↑↑</li>
+          </ul>
+        </div>
+      </div>
+
+      <h4>Alur Detail: PA sebagai Sumber Kebenaran</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Langkah</th><th>Sistem Lama</th><th>Finance Hub</th></tr></thead>
+          <tbody>
+            <tr><td>Buat Payment Application</td><td>Isi form Excel, simpan ke sheet</td><td>Buat PA via web; tersimpan ke DB dengan 7 SLA dates</td></tr>
+            <tr><td>Proses pembayaran</td><td>Input ulang ke DbBeasiswa</td><td>Pilih dari PA open di panel Input PA (auto-filter tipe)</td></tr>
+            <tr><td>Buat PAM number</td><td>Tulis manual di DbBeasiswa</td><td>Auto-generate dari sequence + tipe</td></tr>
+            <tr><td>Sinkronisasi data</td><td>Manual, rawan desync</td><td>Atomik dalam satu transaksi DB</td></tr>
+            <tr><td>Status PA</td><td>Tidak ada / manual</td><td><code>open → on_process → complete</code> auto-update</td></tr>
+            <tr><td>Rekap per pillar</td><td>Manual PivotTable</td><td>Tab AGRI/APP/LAND/SETF + Summary tab otomatis</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4><code>save_pa_payment()</code> — Atomic Transaction</h4>
+      <div class="atomic-flow">
+        <span class="af-begin">BEGIN TRANSACTION</span><br>
+        &nbsp;&nbsp;<span class="af-insert">INSERT INTO pam_records</span> <span class="af-comment">(pam_no, source, total, ...)</span>   <span class="af-label">→ PAM terbentuk</span><br>
+        &nbsp;&nbsp;<span class="af-insert">INSERT INTO payment_beasiswa</span> <span class="af-comment">(per siswa, status='open')</span>  <span class="af-label">→ Beasiswa terbentuk</span><br>
+        &nbsp;&nbsp;<span class="af-update">UPDATE {type}_pa SET</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="af-update">nomor_pam = pam_no,</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="af-update">status    = 'on_process'</span>                          <span class="af-label">→ PA terupdate</span><br>
+        <span class="af-begin">COMMIT</span> <span class="af-comment">-- atau ROLLBACK jika error → tidak ada record parsial</span>
+      </div>
+
+      <h4>Pillar ETF (Sudah Berjalan) → SMT (Roadmap)</h4>
+      <p>Saat ini integrasi PA→Beasiswa berjalan untuk <strong>Eka Tjipta Foundation</strong> dengan 4 pillar:</p>
+      <div class="pillar-row">
+        <span class="pillar-chip pc-agri">AGRI</span>
+        <span class="pillar-chip pc-app">APP</span>
+        <span class="pillar-chip pc-land">LAND</span>
+        <span class="pillar-chip pc-setf">SETF</span>
+        <span style="align-self:center;color:#94a3b8;font-size:13px;">→ model siap direplikasi ke</span>
+        <span class="pillar-chip pc-smt">SMT (roadmap)</span>
+      </div>
+      <p>Begitu ETF stabil, model yang sama akan direplikasi untuk <strong>Sinar Mas Tjipta</strong> dengan pillar dan tipe PA yang sesuai struktur SMT. Data tetap terisolasi per <code>company_id</code>.</p>
+    </section>
+
+    <!-- ══ 3. USER PROFILE ════════════════════════════════ -->
+    <section id="sec3">
+      <h2><span class="sec-num">3</span>User Profile / Profil Pengguna</h2>
+
+      <h3>3.1 Role Definitions</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Role</th><th>Siapa</th><th>Akses Utama</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Requester</strong></td><td>Staff keuangan / operator input data</td><td>Input data, lihat laporan</td></tr>
+            <tr><td><strong>Verificator</strong></td><td>Supervisor / checker</td><td>Review, verifikasi, buat memo</td></tr>
+            <tr><td><strong>Releaser</strong></td><td>Finance manager / approver final</td><td>Release pembayaran, manage users</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>3.2 Permission Matrix</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aksi</th><th>Requester</th><th>Verificator</th><th>Releaser</th></tr></thead>
+          <tbody>
+            <tr><td colspan="4" style="background:#eff6ff;font-weight:700;color:#1e3a8a;">Beasiswa</td></tr>
+            <tr><td>Input data siswa (tambah/edit)</td><td>✅</td><td>✅</td><td>❌</td></tr>
+            <tr><td>Input budget / payment</td><td>✅</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Lihat rekap &amp; export</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td colspan="4" style="background:#eff6ff;font-weight:700;color:#1e3a8a;">Payment Approval Memo</td></tr>
+            <tr><td>Lihat daftar draft payment</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Buat / verifikasi memo</td><td>❌</td><td>✅</td><td>❌</td></tr>
+            <tr><td>Release / mark as Complete</td><td>❌</td><td>❌</td><td>✅</td></tr>
+            <tr><td colspan="4" style="background:#eff6ff;font-weight:700;color:#1e3a8a;">ETF Payment Application</td></tr>
+            <tr><td>Lihat daftar PA (AGRI/APP/LAND/SETF)</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td>Buat PA baru + update SLA dates</td><td>✅</td><td>✅</td><td>✅</td></tr>
+            <tr><td colspan="4" style="background:#eff6ff;font-weight:700;color:#1e3a8a;">User Management</td></tr>
+            <tr><td>Tambah/nonaktifkan user</td><td>❌</td><td>❌</td><td>✅</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>3.3 User Management</h3>
+      <ul>
+        <li><strong>Bootstrap:</strong> Saat pertama run, sistem auto-buat akun <code>admin</code> (role: releaser).</li>
+        <li><strong>First login:</strong> User wajib ganti password default sebelum dapat akses modul manapun.</li>
+        <li><strong>Tambah user:</strong> Releaser dapat menambah user baru dan assign role.</li>
+        <li><strong>Nonaktif user:</strong> User dapat di-nonaktifkan tanpa dihapus (audit trail terjaga).</li>
+      </ul>
+    </section>
+
+    <!-- ══ 4. USER JOURNEY ════════════════════════════════ -->
+    <section id="sec4">
+      <h2><span class="sec-num">4</span>User Journey Flows / Alur Pengguna</h2>
+
+      <h3>4.1 Alur Login &amp; Company Selection</h3>
+      <pre><code>http://localhost:8080
+  → redirect ke /login
+  → input username + password → verifikasi JWT
+  → redirect ke /select-company
+  → pilih: [Sinar Mas Tjipta] | [Eka Tjipta Foundation]
+  → masuk Dashboard perusahaan yang dipilih</code></pre>
+
+      <h3>4.2 Alur Input Beasiswa (ETF)</h3>
+      <pre><code>Dashboard ETF → Menu: Beasiswa
+  → Tab: Data Siswa   → search/filter siswa, tambah/edit/hapus
+  → Tab: Input Budget → pilih siswa (autocomplete), batch Cat1/Cat2/Amount
+  → Tab: Data Budget  → filter + dynamic summary badges + export CSV/PDF
+  → Tab: Input Payment
+      → isi header: Tanggal, PAM (auto-format), Pillar, Perusahaan
+      → "+ Tambah Baris" per siswa: autocomplete → Kat1/Kat2/Amount + 4 SLA dates
+      → Simpan → confirmModal → semua baris tersimpan (status: open)
+      → PAM record otomatis dibuat di pam_records (atomik)
+  → Tab: Data Payment → filter + badges + export
+  → Tab: Report Siswa → laporan per siswa lengkap + export</code></pre>
+
+      <h3>4.3 Alur ETF Payment Application (AGRI/APP/LAND/SETF)</h3>
+      <pre><code>Dashboard ETF → Menu: ETF Payment Application
+  → Pilih tab: [AGRI] | [APP] | [LAND] | [SETF]
+  → Daftar PA: satu baris = satu PA header
+      → Kolom: PA Number, Jml Siswa, Total, 7 SLA dates, Nomor PAM, Status
+      → Klik baris → expand detail siswa
+      → Badge: Open (abu) / On Process (kuning) / Complete (hijau)
+  → Buat PA Baru → isi header + "+ Tambah Baris" per siswa → confirmModal
+  → Edit PA (tombol Edit) → modal SLA dates + status update
+      → status → on_process + nomor_pam kosong → auto-generate PAM number
+  → Tab: Summary → pa_summary view; filter Tahun PA / Bulan PA / Nama / Status
+  → Bulk Update SLA → checkbox baris → isi tanggal → confirmModal</code></pre>
+
+      <h3>4.4 Alur PAM Input Integration (PA → Payment Memo)</h3>
+      <div class="info-box">
+        <strong>Core integration flow:</strong> PA menjadi sumber data; tidak perlu input ulang di Beasiswa atau PAM.
+      </div>
+      <pre><code>Dashboard ETF → Menu: Payment Memo → Tab: Input PA
+
+  → Pilih Tipe PAM: [AGRI] | [APP] | [LAND] | [SETF]
+  → Pilih Transaksi Type: [Beasiswa] | [Klaim Medis] | [Others]
+  → No. PAM: auto-generate readonly (PAM-054-AGRI-06-2026)
+     ★ Override manual → format regex divalidasi real-time
+     ★ Saat blur → collision check ke /payment-memo/pam/check
+
+  → "+ Tambah Baris":
+     → Cari siswa (hanya siswa dengan open PA tipe terpilih)
+     → 1 PA match → auto-fill Amount, SLA dates
+     → 2+ PA match → PA Picker sub-row (mini-table: No PA | Amount)
+
+  → "Simpan PAM {TYPE}" → confirmModal
+     Backend (atomik):
+       1. INSERT pam_records (source='etf_{tab}')
+       2. INSERT payment_beasiswa (per baris, status='open')
+       3. UPDATE {tab}_pa SET nomor_pam=?, status='on_process'</code></pre>
+
+      <h3>4.5 Alur Payment Approval Memo (PAM)</h3>
+      <pre><code>Dashboard [SMT | ETF] → Menu: Payment Memo
+  → Tab: Daftar PAM  → filter per pillar (AGRI/APP/LAND/SETF), isi GL Account
+  → Tab: Draft Memo  → cari PAM No → preview + inline edit → export PDF/Excel
+  → Tab: Days of PAM → search-first lazy-load → bulk update 4 SLA dates</code></pre>
+    </section>
+
+    <!-- ══ 5. ARCHITECTURE ════════════════════════════════ -->
+    <section id="sec5">
+      <h2><span class="sec-num">5</span>System Architecture / Arsitektur Sistem</h2>
+
+      <h3>5.1 Struktur Folder</h3>
+      <pre><code>financehub/
+├── run.py                          ← waitress production server
+├── config.py                       ← DB_PATH, JWT_SECRET, constants, COA_LIST
+├── database.py                     ← init SQLite, CREATE TABLE IF NOT EXISTS
+└── app/
+    ├── __init__.py                 ← Flask app factory, register blueprints
+    └── modules/
+        ├── beasiswa/
+        │   ├── routes.py
+        │   ├── api.py              ← REST API: /api/v1/beasiswa/*
+        │   └── service.py          ← business logic
+        ├── payment_memo/
+        │   ├── routes.py           ← /payment-memo, ipay/*, dop/*
+        │   ├── api.py
+        │   ├── service.py          ← save_pa_payment() — atomic integration
+        │   └── exports.py          ← export_pam_pdf(), export_pam_excel()
+        ├── etf_payment_application/
+        │   ├── routes.py           ← AGRI/APP/LAND/SETF tabs + Summary
+        │   ├── service.py          ← PA CRUD, get_pa_summary, _TAB_CFG
+        │   └── api.py
+        ├── payment_application/
+        └── [coming_soon]/          ← bank, ap, advance, pettycash, sponsorship</code></pre>
+
+      <h3>5.2 Tech Stack</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Teknologi</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>Backend</td><td>Python 3.9+ / Flask</td><td>Framework web</td></tr>
+            <tr><td>Database</td><td>SQLite</td><td>Zero setup, file-based</td></tr>
+            <tr><td>Auth</td><td>flask-jwt-extended</td><td>JWT access + refresh token</td></tr>
+            <tr><td>Password</td><td>bcrypt</td><td>Hashing aman (cost factor 12)</td></tr>
+            <tr><td>PDF</td><td>reportlab</td><td>Generate laporan PDF</td></tr>
+            <tr><td>Excel</td><td>openpyxl</td><td>Generate laporan .xlsx</td></tr>
+            <tr><td>Frontend</td><td>Jinja2 + vanilla JS</td><td>Server-side rendering</td></tr>
+            <tr><td>HTTP</td><td>waitress (prod) / Flask dev</td><td>Localhost / LAN</td></tr>
+            <tr><td>Testing</td><td>pytest + flask test client</td><td>222 automated tests</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>5.3 Status Model — Standar Semua Modul</h3>
+      <div class="status-flow">
+        <span class="status-chip chip-open">open</span>
+        <span class="chip-arrow">→</span>
+        <span class="status-chip chip-process">on_process</span>
+        <span class="chip-arrow">→</span>
+        <span class="status-chip chip-complete">complete</span>
+      </div>
+      <p>Digunakan di: <code>payment_beasiswa</code>, <code>payment_memo</code>, <code>pam_records</code>, <code>etf_pa</code>, <code>app_pa</code>, <code>sml_pa</code>, <code>setf_pa</code>, <code>payment_application</code>.</p>
+
+      <h3>5.4 confirmModal — Global Confirmation Utility</h3>
+      <pre><code>// Signature
+confirmModal(message, opts) → Promise&lt;boolean&gt;
+
+// opts: { type: 'primary'|'danger', title, confirmText, cancelText }
+
+// Contoh penggunaan
+if (!await confirmModal("Simpan data ini?")) return;
+if (!await confirmModal("Hapus permanen?", { type: 'danger', confirmText: 'Hapus' })) return;</code></pre>
+    </section>
+
+    <!-- ══ 6. MODULE CATALOG ══════════════════════════════ -->
+    <section id="sec6">
+      <h2><span class="sec-num">6</span>Module Catalog / Katalog Modul</h2>
+
+      <h3>6.1 Eka Tjipta Foundation (ETF) — Prioritas Saat Ini</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Modul</th><th>Status</th><th>Deskripsi</th></tr></thead>
+          <tbody>
+            <tr><td>Dashboard</td><td><span class="badge badge-green">✅ Implemented</span></td><td>Statistik ringkas ETF</td></tr>
+            <tr><td>Beasiswa</td><td><span class="badge badge-green">✅ Implemented</span></td><td>Manajemen siswa, budget, payment, rekap, dynamic badges</td></tr>
+            <tr><td>ETF Payment Application</td><td><span class="badge badge-green">✅ Implemented</span></td><td>PA per tipe (AGRI/APP/LAND/SETF), 7 SLA dates, Summary tab, auto-link ke PAM</td></tr>
+            <tr><td>Payment Approval Memo</td><td><span class="badge badge-green">✅ Implemented</span></td><td>PAM Records, Draft Memo, Days of PAM, GL Account, Input PA (Beasiswa/Klaim Medis/Others), PDF/Excel export</td></tr>
+            <tr><td>Payment Application</td><td><span class="badge badge-green">✅ Implemented</span></td><td>Monitoring status pengajuan &amp; TAT</td></tr>
+            <tr><td>Bank, AP, Advance, Petty Cash</td><td><span class="badge badge-slate">🔜 Coming Soon</span></td><td>Fase 2</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>6.2 Sinar Mas Tjipta (SMT) — Roadmap Berikutnya</h3>
+      <div class="info-box">
+        <strong>ETF-first strategy:</strong> Model PA→Beasiswa integration yang sudah proven di ETF akan direplikasi ke SMT. Pillar dan tipe PA disesuaikan dengan struktur SMT.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Modul</th><th>Status</th><th>Deskripsi</th></tr></thead>
+          <tbody>
+            <tr><td>Dashboard</td><td><span class="badge badge-green">✅ Implemented</span></td><td>Statistik ringkas SMT</td></tr>
+            <tr><td>Payment Approval Memo</td><td><span class="badge badge-green">✅ Implemented</span></td><td>PAM Records, Draft Memo, Days of PAM, GL Account, Input PA, PDF/Excel</td></tr>
+            <tr><td>Payment Application</td><td><span class="badge badge-green">✅ Implemented</span></td><td>Monitoring status pengajuan &amp; TAT</td></tr>
+            <tr><td>SMT Payment Application (Pillar-based)</td><td><span class="badge badge-amber">🔜 Fase 1.5</span></td><td>Replikasi model ETF PA → SMT; PA→Beasiswa integration untuk SMT</td></tr>
+            <tr><td>Bank, AP, Advance, Petty Cash, Sponsorship</td><td><span class="badge badge-slate">🔜 Fase 2</span></td><td>Masterplan F4 AP &amp; Tax</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ 7. BEASISWA MODULE ════════════════════════════= -->
+    <section id="sec7">
+      <h2><span class="sec-num">7</span>Beasiswa Module — Spesifikasi Detail</h2>
+
+      <h3>7.1 Tab Overview</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tab</th><th>Fungsi</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Data Siswa</td><td>List siswa + rekap Budget/Payment/Sisa, CRUD, search &amp; filter</td><td>✅</td></tr>
+            <tr><td>Input Budget</td><td>Autocomplete siswa, batch Cat1/Cat2/Amount, pillar per sesi</td><td>✅</td></tr>
+            <tr><td>Data Budget</td><td>Filter lengkap, dynamic summary badges, edit/hapus, export CSV/PDF</td><td>✅</td></tr>
+            <tr><td>Input Payment</td><td>Multi-siswa per submit, PAM auto-format, 4 SLA dates</td><td>✅</td></tr>
+            <tr><td>Data Payment</td><td>Filter lengkap, dynamic summary badges, export CSV/PDF</td><td>✅</td></tr>
+            <tr><td>Report Siswa</td><td>Detail per siswa + IPK + rekap + budget/payment detail, export</td><td>✅</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>7.2 Data Migrated (dari DbBeasiswa v2.2.xlsm)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Sumber (Sheet Excel)</th><th>Tabel SQLite</th><th>Jumlah Record</th></tr></thead>
+          <tbody>
+            <tr><td>DbSiswa</td><td>siswa</td><td>1,269 siswa</td></tr>
+            <tr><td>DbBudget</td><td>budget_beasiswa</td><td>3,859 baris</td></tr>
+            <tr><td>DbPayment</td><td>payment_beasiswa</td><td>9,567 baris</td></tr>
+            <tr><td><strong>Total</strong></td><td></td><td><strong>~14,700 record</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ 8. PAYMENT MEMO ════════════════════════════════ -->
+    <section id="sec8">
+      <h2><span class="sec-num">8</span>Payment Approval Memo — Spesifikasi Detail</h2>
+
+      <h3>8.1 Fungsi Utama</h3>
+      <p>PAM adalah <strong>hub agregasi pembayaran</strong> yang mengumpulkan data dari semua sub-modul. Di sistem lama, ini dilakukan manual via sheet Excel <code>Detail PAM</code> dan <code>Rangkuman PAM</code>. Di Finance Hub, seluruh proses otomatis dari input PA hingga export memo.</p>
+
+      <h3>8.2 Tab Payment Memo Page</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tab</th><th>Fungsi</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Daftar PAM</strong></td><td>Tabel semua PAM records; filter per pillar (AGRI/APP/LAND/SETF); sort by jenjang; isi/update GL Account</td></tr>
+            <tr><td><strong>Draft Memo</strong></td><td>Cari PAM No, preview + inline edit memo, export PDF / Excel standar perusahaan</td></tr>
+            <tr><td><strong>Days of PAM</strong></td><td>Monitoring 4 tanggal SLA per baris payment; bulk-update; filter + search</td></tr>
+            <tr><td><strong>Input PA</strong></td><td>Panel terpadu: pilih tipe (AGRI/APP/LAND/SETF) + transaksi type (Beasiswa/Klaim Medis/Others) → simpan atomik</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>8.3 PAM Input Transaksi Types (baru v1.4)</h3>
+      <p>Panel Input PA mendukung 3 jenis transaksi, masing-masing dengan form yang berbeda:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tipe Transaksi</th><th>Form</th><th>Endpoint Save</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Beasiswa</strong></td><td>Standar — pilih siswa dari PA open, cat1/cat2, amount dari PA lines</td><td><code>POST /ipay/save-pa</code></td></tr>
+            <tr><td><strong>Klaim Medis</strong></td><td>Multi-row per siswa; pilih CAT3 medical (spesialisasi, kelas, dll); jumlah per item</td><td><code>POST /ipay/save-klaim</code></td></tr>
+            <tr><td><strong>Others</strong></td><td>Simple form untuk tagihan/ETF/sponsor; tidak terhubung ke PA lines</td><td><code>POST /ipay/save-others</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>8.4 Alur PAM End-to-End</h3>
+      <pre><code>Jalur A — Via Input Payment Beasiswa (tab Beasiswa):
+  Input payment multi-siswa → Simpan → backend atomik:
+    INSERT payment_beasiswa → INSERT pam_records → UPDATE PA nomor_pam
+
+Jalur B — Via Input PA (tab Payment Memo → Input PA):
+  Pilih Tipe + Transaksi Type → tambah baris siswa (auto-filter PA open)
+  → Simpan PAM → backend atomik (lihat 2.6)
+
+Daftar PAM → user pilih GL Account dari COA dropdown
+Draft Memo  → cari PAM No → preview + inline edit → export PDF/Excel</code></pre>
+
+      <h3>8.5 Export Memo — Format Standar</h3>
+      <ul>
+        <li><strong>PDF (reportlab):</strong> Sheet 1 Rangkuman (header, tabel penerima, tanda tangan) + Sheet 2 Detail per siswa</li>
+        <li><strong>Excel (openpyxl, 2 sheet):</strong> Format identik file Excel lama — Rangkuman PAM + Detail PAM</li>
+        <li><strong>Custom export:</strong> POST endpoint untuk data yang sudah diedit inline (ephemeral, tidak disimpan ke DB)</li>
+      </ul>
+    </section>
+
+    <!-- ══ 9. ETF PAYMENT APPLICATION ════════════════════ -->
+    <section id="sec9">
+      <h2><span class="sec-num">9</span>ETF Payment Application — Spesifikasi Detail</h2>
+
+      <h3>9.1 Overview</h3>
+      <p>Modul ini mencatat, melacak, dan memonitor pengajuan pembayaran beasiswa ETF per tipe PA. Berbeda dari modul payment_application (per-memo), modul ini:</p>
+      <ul>
+        <li>Mendukung <strong>4 tipe PA</strong>: AGRI, APP, LAND, SETF — masing-masing dengan tabel DB sendiri</li>
+        <li>Satu PA mencakup <strong>beberapa siswa sekaligus</strong> (header + lines)</li>
+        <li>Tracking <strong>7 SLA dates</strong> per PA header</li>
+        <li>Integrasi langsung ke PAM via <code>save_pa_payment()</code> — atomik</li>
+      </ul>
+
+      <h3>9.2 Tipe PA &amp; Tabel</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tipe</th><th>Tabel Header</th><th>Tabel Lines</th><th>Prefix PAM</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pillar-chip pc-agri" style="font-size:11px;padding:2px 10px;">AGRI</span></td><td><code>etf_pa</code></td><td><code>etf_pa_lines</code></td><td>ETF</td></tr>
+            <tr><td><span class="pillar-chip pc-app" style="font-size:11px;padding:2px 10px;">APP</span></td><td><code>app_pa</code></td><td><code>app_pa_lines</code></td><td>APP</td></tr>
+            <tr><td><span class="pillar-chip pc-land" style="font-size:11px;padding:2px 10px;">LAND</span></td><td><code>sml_pa</code></td><td><code>sml_pa_lines</code></td><td>LAND</td></tr>
+            <tr><td><span class="pillar-chip pc-setf" style="font-size:11px;padding:2px 10px;">SETF</span></td><td><code>setf_pa</code></td><td><code>setf_pa_lines</code></td><td>SETF</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Routing ke tabel yang benar via <code>_TAB_CFG</code> di <code>etf_payment_application/service.py</code>.</p>
+
+      <h3>9.3 7 SLA Dates per PA Header</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Field</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>—</td><td><code>tgl_payment_application</code></td><td>Tanggal PA dibuat</td></tr>
+            <tr><td>—</td><td><code>tgl_surat_pengajuan</code></td><td>Tanggal surat pengajuan</td></tr>
+            <tr><td>1</td><td><code>doc_received_by_educ</code></td><td>SLA Date 1</td></tr>
+            <tr><td>2</td><td><code>received_pa_from_educ</code></td><td>SLA Date 2</td></tr>
+            <tr><td>3</td><td><code>checked_by_fincon</code></td><td>SLA Date 3</td></tr>
+            <tr><td>4</td><td><code>approved_by_htj_1</code></td><td>SLA Date 4 — approval pertama</td></tr>
+            <tr><td>5</td><td><code>send_pa_back_to_educ</code></td><td>SLA Date 5</td></tr>
+            <tr><td>6</td><td><code>pa_received_by_po_fin</code></td><td>SLA Date 6</td></tr>
+            <tr><td>7</td><td><code>approval_by_htj_2</code></td><td>SLA Date 7 — approval final</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>9.4 Status Transitions</h3>
+      <div class="status-flow">
+        <span class="status-chip chip-open">open</span>
+        <span class="chip-arrow">→</span>
+        <span style="font-size:12px;color:#64748b;">status edit / save_pa_payment()</span>
+        <span class="chip-arrow">→</span>
+        <span class="status-chip chip-process">on_process</span>
+        <span style="font-size:12px;color:#64748b;">(nomor_pam auto-fill)</span>
+        <span class="chip-arrow">→</span>
+        <span class="status-chip chip-complete">complete</span>
+        <span style="font-size:12px;color:#64748b;">(set tanggal_bayar)</span>
+      </div>
+
+      <h3>9.5 Summary Tab (baru v1.4)</h3>
+      <p>Tab Summary menampilkan <code>pa_summary</code> SQL view yang mengagregasi semua PA per tipe dengan filter:</p>
+      <ul>
+        <li>Nama student, Status PA, Tgl PA</li>
+        <li>Tahun PA, Bulan PA</li>
+        <li>Lazy-loaded via AJAX (tidak ada data saat page load)</li>
+      </ul>
+    </section>
+
+    <!-- ══ 10. DATA ARCHITECTURE ══════════════════════════ -->
+    <section id="sec10">
+      <h2><span class="sec-num">10</span>Data Architecture / Model Data</h2>
+
+      <h3>10.1 ERD Ringkas</h3>
+      <div class="erd-block">
+        <div class="erd-entity"><strong>companies</strong><span>id, code, name</span></div>
+        <div class="erd-entity"><strong>users</strong><span>id, username, role, is_active</span></div>
+        <div class="erd-entity"><strong>siswa</strong><span>id, company_id, code, nama, jenjang, ipk...</span></div>
+        <div class="erd-entity"><strong>budget_beasiswa</strong><span>id, company_id, siswa_code, cat1, cat2, amount, pillar</span></div>
+        <div class="erd-entity"><strong>payment_beasiswa</strong><span>id, company_id, siswa_code, pam, status, 4 SLA dates</span></div>
+        <div class="erd-entity"><strong>pam_records</strong><span>id, company_id, pam_no, source, gl_account, status</span></div>
+        <div class="erd-entity"><strong>etf_pa / app_pa / sml_pa / setf_pa</strong><span>id, company_id, pa_number, 7 SLA dates, nomor_pam, status</span></div>
+        <div class="erd-entity"><strong>*_pa_lines</strong><span>pa_id, student_id, jenis_pembayaran, jumlah_pembayaran</span></div>
+        <div class="erd-entity"><strong>coa</strong><span>id, company_id, code, name — Chart of Accounts</span></div>
+      </div>
+
+      <h3>10.2 Key Relationships</h3>
+      <pre><code>companies (1) ──&lt; siswa, budget_beasiswa, payment_beasiswa (N)
+companies (1) ──&lt; pam_records, etf_pa, app_pa, sml_pa, setf_pa (N)
+etf_pa  (1) ──&lt; etf_pa_lines  (N)   [ON DELETE CASCADE]
+app_pa  (1) ──&lt; app_pa_lines  (N)
+sml_pa  (1) ──&lt; sml_pa_lines  (N)
+setf_pa (1) ──&lt; setf_pa_lines (N)
+pa_summary  ← SQL VIEW aggregating etf_pa + lines per tipe</code></pre>
+    </section>
+
+    <!-- ══ 11. API SPECIFICATION ══════════════════════════ -->
+    <section id="sec11">
+      <h2><span class="sec-num">11</span>API Specification / Spesifikasi API</h2>
+
+      <p>Semua endpoint <code>/api/v1/*</code> memerlukan header: <code>Authorization: Bearer &lt;access_token&gt;</code></p>
+
+      <h3>11.1 Auth</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td><code>/api/auth/login</code></td><td>Login → access_token + refresh_token</td></tr>
+            <tr><td>POST</td><td><code>/api/auth/refresh</code></td><td>Refresh access_token</td></tr>
+            <tr><td>POST</td><td><code>/api/auth/logout</code></td><td>Revoke refresh_token</td></tr>
+            <tr><td>POST</td><td><code>/api/auth/change-password</code></td><td>Ganti password</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>11.2 Payment Memo / PAM</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/payment-memo/pam</code></td><td>List PAM records; param <code>source</code> filter per pillar</td></tr>
+            <tr><td>PATCH</td><td><code>/payment-memo/pam/&lt;id&gt;/gl-account</code></td><td>Update GL Account</td></tr>
+            <tr><td>GET</td><td><code>/payment-memo/pam/check</code></td><td>Collision check PAM number</td></tr>
+            <tr><td>GET</td><td><code>/payment-memo/ipay/next-pam-no</code></td><td>Next PAM number untuk tipe + bulan</td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/ipay/save-pa</code></td><td>Atomik: INSERT pam_records + payment_beasiswa + UPDATE PA</td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/ipay/save-klaim</code></td><td>Save Klaim Medis (payment_beasiswa + klaim_medical + pam_records)</td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/ipay/save-others</code></td><td>Save Others (tagihan/ETF/sponsor ke pam_records)</td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/dop/bulk-update</code></td><td>Bulk update 4 SLA dates</td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/export/pdf</code></td><td>Export PDF memo standar</td></tr>
+            <tr><td>POST</td><td><code>/payment-memo/export/excel</code></td><td>Export Excel memo standar (2 sheet)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>11.3 ETF Payment Application</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method</th><th>Path</th><th>Keterangan</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td><code>/etf-payment-application/list</code></td><td><code>?tab={agri|app|land|setf}</code> — JSON list PA</td></tr>
+            <tr><td>POST</td><td><code>/etf-payment-application/create</code></td><td><code>?tab={type}</code> — buat PA baru</td></tr>
+            <tr><td>PUT</td><td><code>/etf-payment-application/update/&lt;id&gt;</code></td><td>Update PA (SLA dates, status)</td></tr>
+            <tr><td>POST</td><td><code>/etf-payment-application/bulk-update</code></td><td>Bulk update SLA untuk banyak PA</td></tr>
+            <tr><td>GET</td><td><code>/etf-payment-application/summary-data</code></td><td><code>?tab={type}</code> — pa_summary view data</td></tr>
+            <tr><td>GET</td><td><code>/etf-payment-application/draft-siswa</code></td><td><code>?q=...&amp;tab={type}</code> — siswa dengan open PA</td></tr>
+            <tr><td>GET</td><td><code>/etf-payment-application/draft-lines</code></td><td>PA lines untuk PA Picker</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>11.4 Standard Response Format</h3>
+      <pre><code>{
+  "ok": true,
+  "data": { ... },
+  "pesan": "Keterangan sukses atau error"
+}</code></pre>
+    </section>
+
+    <!-- ══ 12. SECURITY ═══════════════════════════════════ -->
+    <section id="sec12">
+      <h2><span class="sec-num">12</span>Security &amp; Access Control</h2>
+
+      <h3>12.1 Authentication Flow</h3>
+      <pre><code>POST /api/auth/login → verifikasi bcrypt
+  → access_token (JWT, expire 1 jam)
+  → refresh_token (JWT, expire 7 hari, hash di tabel refresh_tokens)
+
+Setiap request → middleware decode access_token
+Token expire   → client gunakan refresh_token untuk token baru
+Logout         → revoke refresh_token di DB</code></pre>
+
+      <h3>12.2 Company Data Isolation</h3>
+      <ul>
+        <li>Semua tabel bisnis memiliki kolom <code>company_id</code></li>
+        <li>Setiap query <strong>wajib</strong> menyertakan <code>WHERE company_id = ?</code> dari session aktif</li>
+        <li>Company aktif disimpan di JWT payload — tidak bisa dimanipulasi client</li>
+        <li>Tidak ada endpoint yang mengembalikan data lintas perusahaan</li>
+      </ul>
+
+      <h3>12.3 API Security</h3>
+      <ul>
+        <li>CORS dikonfigurasi hanya untuk origin yang diizinkan (localhost / IP LAN)</li>
+        <li>Semua input divalidasi sebelum eksekusi ke SQLite (parameterized query)</li>
+        <li>IDOR guards: setiap resource divalidasi <code>company_id</code> sebelum dikembalikan</li>
+        <li>PAM number collision check real-time via <code>GET /payment-memo/pam/check</code></li>
+      </ul>
+    </section>
+
+    <!-- ══ 13. NON-FUNCTIONAL ══════════════════════════════ -->
+    <section id="sec13">
+      <h2><span class="sec-num">13</span>Non-Functional Requirements</h2>
+
+      <h3>13.1 Performance</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Metrik</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>Waktu load halaman</td><td>&lt; 2 detik pada LAN</td></tr>
+            <tr><td>Response API</td><td>&lt; 500ms untuk query normal</td></tr>
+            <tr><td>Days of PAM / PA Summary</td><td>Lazy-load AJAX — tidak ada data dikirim saat page load</td></tr>
+            <tr><td>Concurrent users</td><td>10–20 user (SQLite write lock per transaksi)</td></tr>
+            <tr><td>Ukuran database</td><td>Estimasi &lt; 100MB untuk 5 tahun data</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>13.2 Deployment</h3>
+      <pre><code>[Laptop Server — selalu nyala saat jam kerja]
+  └── python run.py  (Flask + waitress, port 8080)
+  └── finance_hub.db (SQLite, lokal di laptop server)
+
+[User lain] ──browser──→ http://[IP-laptop]:8080</code></pre>
+      <p><strong>Backup:</strong> copy <code>finance_hub.db</code> ke <code>Y:/</code> shared folder secara berkala. <code>Y:/</code> hanya sebagai backup destination, bukan lokasi DB aktif.</p>
+
+      <h3>13.3 Risiko &amp; Mitigasi</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Risiko</th><th>Dampak</th><th>Mitigasi</th></tr></thead>
+          <tbody>
+            <tr><td>File <code>finance_hub.db</code> terhapus/corrupt</td><td>Kehilangan semua data</td><td>Backup harian; tiap DB migration auto-backup dulu</td></tr>
+            <tr><td>SQLite write lock concurrent tinggi</td><td>Operasi simpan lambat</td><td>Acceptable 10–20 user; scale ke PostgreSQL jika perlu</td></tr>
+            <tr><td>JWT secret bocor</td><td>Semua token bisa dipalsukan</td><td>Simpan di environment variable, bukan di kode</td></tr>
+            <tr><td>PAM number collision (manual override)</td><td>Duplikat nomor PAM</td><td>Collision check real-time + guard di <code>save_pa_payment()</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ 14. ROADMAP ════════════════════════════════════ -->
+    <section id="sec14">
+      <h2><span class="sec-num">14</span>Roadmap &amp; Phasing / Peta Jalan</h2>
+
+      <!-- Fase 1 -->
+      <div class="roadmap-phase">
+        <div class="roadmap-phase-header rph-done">✅ Fase 1 — Foundation + PAM + ETF Payment Application (v1.x) — COMPLETE</div>
+        <div class="roadmap-phase-body">
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>Flask app + SQLite + Auth (JWT)</strong><span>Login, logout, refresh, first-login gate, company selector</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>Modul Beasiswa lengkap (ETF)</strong><span>Data Siswa, Input Budget, Data Budget, Input Payment, Data Payment, Report Siswa, export CSV/PDF</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>Data Migrasi Excel → SQLite</strong><span>1,269 siswa, 3,859 budget, 9,567 payment (~14,700 record)</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>PAM Records + GL Account + Draft Memo + Days of PAM</strong><span>Auto-create PAM record; inline edit; export PDF/Excel standar; SLA bulk-update</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>ETF Payment Application (AGRI/APP/LAND/SETF)</strong><span>4 tipe PA, 7 SLA dates, auto-link ke PAM, bulk-update</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>PA → Beasiswa Integration (atomik)</strong><span><code>save_pa_payment()</code> — satu transaksi DB untuk PAM + Beasiswa + PA status update</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>Pillar-based PAM Tabs (AGRI/APP/LAND/SETF)</strong><span>Sort by jenjang; freeze header; filter Status/Source</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>PAM Input Transaksi Types</strong><span>Panel Beasiswa / Klaim Medis (multi-row + CAT3) / Others (tagihan/ETF/sponsor)</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>ETF PA Summary Tab</strong><span><code>pa_summary</code> SQL view; filter Tahun PA, Bulan PA, Nama, Status</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>Print Memo PAM Improvements</strong><span>Bank detail auto-fill, Jenjang Studi column, Rp Accounting format, WORKDAY due date</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>Status Standardization + Global Confirm Modal</strong><span><code>open → on_process → complete</code> semua tabel; <code>confirmModal()</code> promise-based</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">✅</span><div class="ri-text"><strong>Test Coverage: 222 tests (221 pass)</strong><span>TDD untuk semua service functions; integration tests untuk PA→PAM cascade</span></div></div>
+        </div>
+      </div>
+
+      <!-- Fase 1.5 -->
+      <div class="roadmap-phase" style="margin-top:12px;">
+        <div class="roadmap-phase-header rph-next">🔜 Fase 1.5 — SMT Pillar-based PA + Beasiswa Integration (v1.x next)</div>
+        <div class="roadmap-phase-body">
+          <div class="roadmap-item">
+            <span class="ri-icon">🐛</span>
+            <div class="ri-text">
+              <strong>Fix failing test</strong>
+              <span><code>test_get_next_pam_no_sml_uses_sml_prefix</code> — prefix SML/LAND mismatch di <code>test_payment_memo_ipay.py</code></span>
+            </div>
+          </div>
+          <div class="roadmap-item">
+            <span class="ri-icon">🔜</span>
+            <div class="ri-text">
+              <strong>SMT Payment Application Modul</strong>
+              <span>Tipe PA + pillar sesuai struktur SMT; model identik dengan ETF PA; tabel terisolasi via <code>company_id</code></span>
+            </div>
+          </div>
+          <div class="roadmap-item">
+            <span class="ri-icon">🔜</span>
+            <div class="ri-text">
+              <strong>PA → Beasiswa Integration (SMT)</strong>
+              <span>Extend <code>save_pa_payment()</code> untuk company_id SMT; sumber kebenaran tunggal untuk SMT juga</span>
+            </div>
+          </div>
+          <div class="roadmap-item">
+            <span class="ri-icon">🔜</span>
+            <div class="ri-text">
+              <strong>Pillar-based PAM (SMT)</strong>
+              <span>Tab per pillar SMT di Payment Memo; sort + filter identik model ETF</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fase 2 -->
+      <div class="roadmap-phase" style="margin-top:12px;">
+        <div class="roadmap-phase-header rph-future">📋 Fase 2 — AP &amp; Tax Core / Masterplan F4 (v2.x)</div>
+        <div class="roadmap-phase-body">
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>Account Payable (SMT + ETF)</strong><span>Automated 3-Way Match (PO/GR/Invoice)</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>Tax Auto-Calculation (PPh/PPN)</strong><span>Auto PPh/PPN per vendor NPWP &amp; jenis transaksi</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>Payment Disbursement</strong><span>Batch Payment File (.CSV Export) ke bank</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>Integrasi PR Portal (F2)</strong><span>Receive PO approved dari PR Portal → trigger AP flow</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>Advance, Petty Cash (SMT + ETF)</strong><span>Uang muka + kas kecil operasional</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>Sponsorship (SMT only)</strong><span>Pengelolaan sponsorship</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>Export ETF PA (PDF/Excel)</strong><span>Laporan PA per tipe dengan format standar</span></div></div>
+        </div>
+      </div>
+
+      <!-- Fase 3 -->
+      <div class="roadmap-phase" style="margin-top:12px;">
+        <div class="roadmap-phase-header rph-future">📋 Fase 3 — Integration &amp; Accounting Hub (v3.x)</div>
+        <div class="roadmap-phase-body">
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>F4 → F5: Export Journal Entry</strong><span>CSV/GL export ke Accounting Hub (Power Pivot / VBA)</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>Dashboard Charts</strong><span>Tren pembayaran per bulan, aging AP (Chart.js)</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>Audit Log Lengkap</strong><span>Siapa mengubah apa dan kapan — semua modul</span></div></div>
+          <div class="roadmap-item"><span class="ri-icon">🔜</span><div class="ri-text"><strong>Migrasi ke PostgreSQL</strong><span>Jika concurrent user meningkat signifikan</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ FOOTER ══════════════════════════════════════════ -->
+    <div class="doc-footer">
+      <span>Finance Hub PRD v1.4 — 2026-06-19</span>
+      <span>ETF-first · SMT-next · PA→Beasiswa Integration</span>
+    </div>
+
+  </div><!-- /.doc -->
+  </div><!-- /.doc-main -->
+
+  <!-- ══ SIDEBAR TOC ═════════════════════════════════════ -->
+  <nav class="toc-sidebar">
+    <h4>Daftar Isi</h4>
+    <a href="#sec1">1. Executive Summary</a>
+    <a href="#sec2">2. Problem Statement</a>
+    <a href="#sec2-6" class="toc-sub">2.6 PA→Beasiswa Integration</a>
+    <a href="#sec3">3. User Profile</a>
+    <a href="#sec4">4. User Journey Flows</a>
+    <a href="#sec5">5. System Architecture</a>
+    <a href="#sec6">6. Module Catalog</a>
+    <a href="#sec7">7. Beasiswa Module</a>
+    <a href="#sec8">8. Payment Approval Memo</a>
+    <a href="#sec9">9. ETF Payment Application</a>
+    <a href="#sec10">10. Data Architecture</a>
+    <a href="#sec11">11. API Specification</a>
+    <a href="#sec12">12. Security</a>
+    <a href="#sec13">13. Non-Functional</a>
+    <a href="#sec14">14. Roadmap</a>
+  </nav>
+</div><!-- /.doc-outer -->
+
+<script>
+// Highlight active TOC link on scroll
+const tocLinks = document.querySelectorAll('.toc-sidebar a');
+const sections = document.querySelectorAll('section[id]');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      tocLinks.forEach(a => a.classList.remove('active'));
+      const active = document.querySelector(`.toc-sidebar a[href="#${e.target.id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

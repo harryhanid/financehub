@@ -1739,9 +1739,10 @@ def export_open_pam_excel(company_id: int) -> bytes:
 
 
 def export_pam_tab_excel(company_id: int, search: str = "", bulan: str = "",
-                          tahun: str = "", source: str = "") -> bytes:
+                          tahun: str = "", source: str = "",
+                          pillar: str = "", status: str = "") -> bytes:
     from modules.payment_memo.service import get_pam_list
-    rows    = get_pam_list(company_id, search, bulan, tahun, source)
+    rows    = get_pam_list(company_id, search, bulan, tahun, source, pillar, status)
     headers = ["PAM No", "PAM Date", "PT", "Cost Center", "GL Account",
                "Requestor", "Catatan Payment", "Total (Rp)", "Due Date",
                "Tgl Paid", "Status"]

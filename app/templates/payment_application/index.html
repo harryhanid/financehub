@@ -32,8 +32,11 @@
 {% endblock %}
 
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
-  <h1 style="font-size:1.25rem; font-weight:700">Payment Application -- {{ company_name }}</h1>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Payment Application</h1>
+    {% if company_name %}<div class="page-meta">{{ company_name }}</div>{% endif %}
+  </div>
   {% if approved_memos %}
   <button class="btn btn-primary" onclick="document.getElementById('app-submitted-at').value=new Date().toISOString().slice(0,10); openModal('modal-buat-app')">+ Buat Application</button>
   {% endif %}
@@ -113,8 +116,18 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:2rem">
-        Belum ada payment application.
+      <tr><td colspan="9">
+        <div class="empty-state">
+          <svg class="empty-state-icon" viewBox="0 0 48 48" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="10" width="36" height="30" rx="3"/>
+            <line x1="6" y1="20" x2="42" y2="20"/>
+            <line x1="15" y1="10" x2="15" y2="40"/>
+            <line x1="19" y1="28" x2="36" y2="28"/>
+            <line x1="19" y1="33" x2="30" y2="33"/>
+          </svg>
+          <div class="empty-state-title">Belum ada payment application</div>
+          <div class="empty-state-sub">Buat application dari memo yang sudah berstatus on_process.</div>
+        </div>
       </td></tr>
       {% endfor %}
     </tbody>
@@ -147,7 +160,7 @@
     </div>
     <div class="form-group">
       <label>Catatan</label>
-      <input type="text" id="app-notes" placeholder="Catatan (opsional)">
+      <textarea id="app-notes" rows="3" placeholder="Catatan (opsional) — Shift+Enter untuk baris baru" style="resize:vertical"></textarea>
     </div>
     <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:.75rem">
       <button class="btn btn-secondary" onclick="closeModal('modal-buat-app')">Batal</button>

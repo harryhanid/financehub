@@ -2,8 +2,10 @@
 {% block title %}User Management{% endblock %}
 
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
-  <h1 style="font-size:1.25rem; font-weight:700">User Management</h1>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">User Management</h1>
+  </div>
   <button class="btn btn-primary" onclick="openModal('modal-add-user')">+ Tambah User</button>
 </div>
 
@@ -73,7 +75,7 @@
         <option value="releaser">Releaser -- approve, release payment</option>
       </select>
     </div>
-    <div style="font-size:.8rem; margin-top:.5rem; color:#0e9f6e">
+    <div class="user-info-text" style="font-size:.8rem; margin-top:.5rem; color:#0e9f6e">
       User baru wajib ganti password saat pertama login.
     </div>
     <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:.75rem">

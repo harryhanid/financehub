@@ -46,3 +46,8 @@ result.push({
 max_seq
 list
 keluar
+
+# Secrets
+.flask_secret
+.jwt_secret
+*.db.bak*

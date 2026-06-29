@@ -1,17 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Beasiswa{% endblock %}
 {% block content %}
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-  <h1 style="font-size:1.25rem;font-weight:700">🎓 Beasiswa — {{ company_name }}</h1>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Beasiswa</h1>
+    {% if company_name %}<div class="page-meta">{{ company_name }}</div>{% endif %}
+  </div>
 </div>
 
 <div data-tabs>
   <div class="tabs">
     <button class="tab-btn" data-tab="tab-siswa" onclick="loadRekap()">Data Siswa</button>
-    <button class="tab-btn" data-tab="tab-input-budget" onclick="ibgtReset()">Input Budget</button>
     <button class="tab-btn" data-tab="tab-budget" onclick="loadBudgetList()">Data Budget</button>
     <button class="tab-btn" data-tab="tab-payment" onclick="loadPaymentList()">Data Payment</button>
     <button class="tab-btn" data-tab="tab-laporan" onclick="lprReset()">Report Siswa</button>
+    <button class="tab-btn" data-tab="tab-rekam" onclick="loadRekamMedis()">Rekam Medis</button>
   </div>
 
   <!-- TAB DATA BEASISWA (siswa + rekap) -->
@@ -56,7 +59,7 @@
         </select>
       </div>
       <div style="align-self:flex-end;display:flex;gap:.375rem">
-        <button class="btn btn-primary btn-sm" onclick="openModal('modal-siswa-tambah')">+ Tambah Siswa</button>
+        <button class="btn btn-primary btn-sm" onclick="openTambahSiswa()">+ Tambah Siswa</button>
         <button class="btn btn-secondary btn-sm" onclick="exportRekap('csv')">📥 CSV</button>
         <button class="btn btn-secondary btn-sm" onclick="exportRekap('pdf')">📄 PDF</button>
       </div>
@@ -81,60 +84,6 @@
           </tr>
         </tfoot>
       </table>
-    </div>
-  </div>
-
-  <!-- TAB INPUT BUDGET -->
-  <div class="tab-panel" id="tab-input-budget">
-    <div style="max-width:480px;margin-bottom:1.25rem;position:relative">
-      <label style="font-weight:600;display:block;margin-bottom:.375rem">Pilih Siswa</label>
-      <input type="text" id="ibgt-search" placeholder="Ketik nama atau kode siswa..." autocomplete="off"
-             style="width:100%" oninput="ibgtSearchInput()"
-             onblur="setTimeout(()=>document.getElementById('ibgt-sugg').style.display='none',200)">
-      <div id="ibgt-sugg" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:400;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
-    </div>
-    <div id="ibgt-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
-        <div id="ibgt-title" style="font-weight:600;color:#1a56db;font-size:.95rem"></div>
-        <div style="display:flex;gap:.375rem">
-          <button class="btn btn-primary btn-sm" onclick="ibgtOpenAdd()">+ Tambah Budget</button>
-          <button class="btn btn-secondary btn-sm" onclick="exportInputBudget('csv')">📥 CSV</button>
-          <button class="btn btn-secondary btn-sm" onclick="exportInputBudget('pdf')">📄 PDF</button>
-        </div>
-      </div>
-      <!-- Catatan Budget (per siswa, global) -->
-      <div id="ibgt-catatan-view" style="display:none;margin-bottom:.75rem;padding:.5rem .75rem;background:#fffbeb;border:1px solid #fde68a;border-radius:.375rem">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
-          <div style="flex:1">
-            <div style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.2rem">Catatan Budget</div>
-            <div id="ibgt-catatan-text" style="font-size:.875rem;color:#78350f;white-space:pre-wrap"></div>
-          </div>
-          <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="ibgtEditCatatan()">Edit</button>
-        </div>
-      </div>
-      <div id="ibgt-catatan-form" style="display:none;margin-bottom:.75rem">
-        <div class="form-group" style="margin:0 0 .375rem">
-          <label style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Catatan Budget</label>
-          <textarea id="ibgt-catatan-input" rows="2" style="width:100%" placeholder="Tambah catatan budget siswa ini..."></textarea>
-        </div>
-        <div style="display:flex;gap:.375rem">
-          <button class="btn btn-primary btn-sm" onclick="ibgtSaveCatatan()">Simpan</button>
-          <button class="btn btn-secondary btn-sm" onclick="ibgtCancelCatatan()">Batal</button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th><th>Aksi</th></tr>
-          </thead>
-          <tbody id="ibgt-tbody">
-            <tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Pilih siswa untuk melihat budget.</td></tr>
-          </tbody>
-          <tfoot>
-            <tr><th colspan="4">Total</th><th class="num-right" id="ibgt-total">—</th><th></th></tr>
-          </tfoot>
-        </table>
-      </div>
     </div>
   </div>
 
@@ -331,58 +280,6 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Input Payment</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.75rem;margin-bottom:1rem">
-        <div class="form-group">
-          <label>Siswa</label>
-          <select id="pay-siswa" onchange="onPaySiswaChange()">
-            <option value="">-- Pilih Siswa --</option>
-            {% for s in siswa_list %}<option value="{{ s.code }}">{{ s.code }} — {{ s.nama }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="form-group"><label>Tanggal</label><input type="date" id="pay-tgl"></div>
-        <div class="form-group">
-          <label>Pillar</label>
-          <select id="pay-pillar">
-            <option value="">-- Pillar --</option>
-            {% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Perusahaan</label>
-          <select id="pay-perusahaan">
-            <option value="">-- Perusahaan --</option>
-            {% for p in perusahaan %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-          </select>
-        </div>
-      </div>
-      <!-- Catatan Payment per siswa -->
-      <div id="pay-catpay-view" style="display:none;margin-bottom:.75rem;padding:.5rem .75rem;background:#fffbeb;border:1px solid #fde68a;border-radius:.375rem">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
-          <div style="flex:1">
-            <div style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.2rem">Catatan Payment</div>
-            <div id="pay-catpay-text" style="font-size:.875rem;color:#78350f;white-space:pre-wrap"></div>
-          </div>
-          <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="payEditCatpay()">Edit</button>
-        </div>
-      </div>
-      <div id="pay-catpay-form" style="display:none;margin-bottom:.75rem">
-        <div class="form-group" style="margin:0 0 .375rem">
-          <label style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Catatan Payment</label>
-          <textarea id="pay-catpay-input" rows="2" style="width:100%" placeholder="Catatan review payment untuk siswa ini..."></textarea>
-        </div>
-        <div style="display:flex;gap:.375rem">
-          <button class="btn btn-primary btn-sm" onclick="paySaveCatpay()">Simpan</button>
-          <button class="btn btn-secondary btn-sm" onclick="payCancelCatpay()">Batal</button>
-        </div>
-      </div>
-      <div id="pay-items"></div>
-      <div style="display:flex;gap:.5rem;margin-top:.5rem">
-        <button class="btn btn-secondary btn-sm" onclick="addPayRow()">+ Baris</button>
-        <button class="btn btn-primary" onclick="savePayment()">💾 Simpan Payment</button>
-      </div>
-    </div>
-    <div class="card">
       <div class="card-title">Daftar Payment</div>
       <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:flex-end">
         <div class="form-group" style="margin:0;flex:1;min-width:200px">
@@ -457,6 +354,66 @@
     </div>
   </div>
 
+  <!-- TAB REKAM MEDIS -->
+  <div class="tab-panel" id="tab-rekam">
+    <div class="card">
+      <div class="card-title">Rekam Medis Klaim</div>
+      <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="margin:0;flex:1;min-width:200px">
+          <label>Cari</label>
+          <input type="text" id="rm-search" placeholder="Nama, kode, RS, diagnosa..." oninput="loadRekamMedis()">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Cat3</label>
+          <select id="rm-filter-cat3" onchange="loadRekamMedis()">
+            <option value="">Semua</option>
+            {% for c in cat3_medical %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Bulan</label>
+          <select id="rm-filter-bulan" onchange="loadRekamMedis()">
+            <option value="">Semua</option>
+            {% set bl = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"] %}
+            {% for b in bl %}<option value="{{ "%02d" % loop.index }}">{{ b }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Tahun</label>
+          <select id="rm-filter-tahun" onchange="loadRekamMedis()">
+            <option value="">Semua</option>
+            {% for y in range(2023, 2029) %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="min-width:180px">Siswa</th>
+              <th style="min-width:100px">Tanggal</th>
+              <th style="min-width:130px">Rumah Sakit</th>
+              <th style="min-width:150px">Diagnosa</th>
+              <th style="min-width:120px">Cat3</th>
+              <th style="min-width:110px;text-align:right">Amount</th>
+              <th style="min-width:160px">No. PAM</th>
+            </tr>
+          </thead>
+          <tbody id="rm-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Klik tab untuk memuat data.</td></tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td id="rm-grand-label" colspan="5" style="text-align:right;font-weight:600;font-size:.875rem;color:var(--sl-700)">Grand Total:</td>
+              <td id="rm-grand" class="num-right" style="font-weight:700;color:var(--accent)">—</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- MODAL: Tambah/Edit Siswa -->
@@ -484,7 +441,12 @@
       <div class="form-group"><label>Prodi</label><input type="text" id="s-prodi" placeholder="Teknik Informatika"></div>
       <div class="form-group"><label>Angkatan Kuliah</label><input type="text" id="s-angkatan_kuliah" placeholder="2022"></div>
       <div class="form-group"><label>Fakultas</label><input type="text" id="s-fakultas"></div>
-      <div class="form-group"><label>Universitas</label><input type="text" id="s-universitas"></div>
+      <div class="form-group"><label>Universitas</label>
+        <input type="text" id="s-universitas" list="universitas-datalist" autocomplete="off" placeholder="Ketik untuk mencari...">
+        <datalist id="universitas-datalist">
+          {% for u in universitas_list %}<option value="{{ u }}">{% endfor %}
+        </datalist>
+      </div>
       <div class="form-group"><label>Bank</label><input type="text" id="s-bank"></div>
       <div class="form-group"><label>No. Rekening</label><input type="text" id="s-norek"></div>
       <div class="form-group"><label>Nama Rekening</label><input type="text" id="s-namarek"></div>
@@ -521,7 +483,7 @@
 </div>
 
 <!-- MODAL: Tambah / Edit Budget -->
-<div class="modal-overlay" id="modal-bgt-form">
+<div class="modal-overlay" id="modal-bgt-form" style="z-index:300">
   <div class="modal" style="width:min(620px,95vw)">
     <div class="modal-header">
       <span class="modal-title" id="bgt-modal-title">Tambah Budget</span>
@@ -571,9 +533,9 @@
               <span id="bgt-cat2-text" style="color:#9ca3af;font-size:.875rem">Pilih kategori...</span>
               <span style="color:#6b7280;font-size:.7rem;flex-shrink:0">▾</span>
             </div>
-            <div id="bgt-cat2-panel" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px">
+            <div id="bgt-cat2-panel" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;background:var(--card,#fff);border:1px solid var(--border,#e5e7eb);border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px">
               <div style="padding:6px">
-                <input type="text" id="bgt-cat2-search" placeholder="Cari..." oninput="bgtCat2Filter()" autocomplete="off" style="width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:.25rem;padding:.3rem .6rem;font-size:.875rem">
+                <input type="text" id="bgt-cat2-search" placeholder="Cari..." oninput="bgtCat2Filter()" autocomplete="off" style="width:100%;box-sizing:border-box;border:1px solid var(--border,#e5e7eb);border-radius:.25rem;padding:.3rem .6rem;font-size:.875rem">
               </div>
               <div id="bgt-cat2-opts" style="max-height:200px;overflow-y:auto"></div>
             </div>
@@ -615,10 +577,81 @@
     </div>
   </div>
 </div>
+
+<!-- MODAL: Input Budget per Siswa -->
+<div class="modal-overlay" id="modal-input-budget">
+  <div class="modal" style="width:min(820px,95vw)">
+    <div class="modal-header">
+      <span class="modal-title">Budget — <span id="ibgt-title" style="color:#1a56db"></span></span>
+      <button class="modal-close" onclick="closeModal('modal-input-budget')">✕</button>
+    </div>
+    <div id="ibgt-content">
+      <div style="display:flex;justify-content:flex-end;gap:.375rem;margin-bottom:.75rem">
+        <button class="btn btn-primary btn-sm" onclick="ibgtOpenAdd()">+ Tambah Budget</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportInputBudget('csv')">📥 CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportInputBudget('pdf')">📄 PDF</button>
+      </div>
+      <div id="ibgt-catatan-view" style="display:none;margin-bottom:.75rem;padding:.5rem .75rem;background:#fffbeb;border:1px solid #fde68a;border-radius:.375rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
+          <div style="flex:1">
+            <div style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.2rem">Catatan Budget</div>
+            <div id="ibgt-catatan-text" style="font-size:.875rem;color:#78350f;white-space:pre-wrap"></div>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="ibgtEditCatatan()">Edit</button>
+        </div>
+      </div>
+      <div id="ibgt-catatan-form" style="display:none;margin-bottom:.75rem">
+        <div class="form-group" style="margin:0 0 .375rem">
+          <label style="font-size:.7rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Catatan Budget</label>
+          <textarea id="ibgt-catatan-input" rows="2" style="width:100%" placeholder="Tambah catatan budget siswa ini..."></textarea>
+        </div>
+        <div style="display:flex;gap:.375rem">
+          <button class="btn btn-primary btn-sm" onclick="ibgtSaveCatatan()">Simpan</button>
+          <button class="btn btn-secondary btn-sm" onclick="ibgtCancelCatatan()">Batal</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th><th>Aksi</th></tr>
+          </thead>
+          <tbody id="ibgt-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>
+          </tbody>
+          <tfoot>
+            <tr><th colspan="4">Total</th><th class="num-right" id="ibgt-total">—</th><th></th></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Rekam Medis Detail -->
+<div class="modal-overlay" id="modal-rekam-detail">
+  <div class="modal" style="width:min(680px,95vw)">
+    <div class="modal-header">
+      <span class="modal-title">Detail Rekam Medis</span>
+      <button class="modal-close" onclick="closeModal('modal-rekam-detail')">✕</button>
+    </div>
+    <div id="rm-detail-content"></div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+function _emptyHtml(cols, msg, sub) {
+  return `<tr><td colspan="${cols}"><div class="empty-state">
+    <svg class="empty-state-icon" viewBox="0 0 48 48" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="6" y="10" width="36" height="30" rx="3"/><line x1="6" y1="20" x2="42" y2="20"/><line x1="15" y1="10" x2="15" y2="40"/>
+      <line x1="19" y1="28" x2="36" y2="28"/><line x1="19" y1="33" x2="30" y2="33"/>
+    </svg>
+    <div class="empty-state-title">${msg}</div>
+    ${sub ? `<div class="empty-state-sub">${sub}</div>` : ''}
+  </div></td></tr>`;
+}
+
 const CAT1 = {{ cat1_bgt | tojson }};
 const CAT2 = {{ cat2_sem | tojson }};
 
@@ -673,6 +706,20 @@ async function simpanSiswa() {
   const data = await resp.json();
   showToast(data.pesan, data.ok ? "success" : "error");
   if (data.ok) { closeModal("modal-siswa-tambah"); setTimeout(() => location.reload(), 800); }
+}
+
+function openTambahSiswa() {
+  _editMode = false; _editCode = "";
+  document.getElementById("siswa-modal-title").textContent = "Tambah Siswa Baru";
+  ["code","jenjang","angkatan","nama","program","status","fakultas","universitas",
+   "bank","norek","namarek","referensi","catatan","catatan_budget","catatan_payment",
+   "prodi","angkatan_kuliah"].forEach(k => {
+    const el = document.getElementById(`s-${k}`);
+    if (el) el.value = "";
+  });
+  for (let i = 1; i <= 10; i++) { const el = document.getElementById(`s-ipk-sem${i}`); if (el) el.value = ""; }
+  for (let i = 1; i <= 3; i++) { const el = document.getElementById(`s-ipk-pen${i}`); if (el) el.value = ""; }
+  openModal("modal-siswa-tambah");
 }
 
 async function openEditSiswa(code) {
@@ -814,7 +861,7 @@ async function loadBudgetList() {
     const d = await (await apiFetch(`/beasiswa/budget/list?${params}`)).json();
     _renderTabSummary('bgt', d.totals, d.payment_totals);
     if (!d.ok || !d.rows?.length) {
-      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+      tbody.innerHTML = _emptyHtml(9, 'Tidak ada data');
       document.getElementById("bgt-list-info").textContent = "";
       return;
     }
@@ -868,10 +915,8 @@ function bgtCat2Filter() {
   CAT2.filter(c => c.toLowerCase().includes(q)).forEach(c => {
     const div = document.createElement("div");
     div.textContent = c;
-    div.style.cssText = "padding:7px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
+    div.className = "fh-custom-panel-item";
     div.addEventListener("mousedown", () => bgtCat2Select(c));
-    div.addEventListener("mouseover", () => { div.style.background = "#eff6ff"; });
-    div.addEventListener("mouseout",  () => { div.style.background = ""; });
     list.appendChild(div);
   });
 }
@@ -910,18 +955,19 @@ function _mkDrop(opts, ph) {
   const w   = document.createElement("div"); w.style.position = "relative";
   const hid = document.createElement("input"); hid.type = "hidden";
   const dsp = document.createElement("div");
-  dsp.style.cssText = "border:1px solid #d1d5db;border-radius:.375rem;padding:.45rem .75rem;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:38px";
+  dsp.className = "fh-custom-select";
   const lbl = document.createElement("span");
-  lbl.textContent = ph; lbl.style.cssText = "color:#9ca3af;font-size:.875rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+  lbl.textContent = ph; lbl.className = "fh-custom-select-label";
   const arr = document.createElement("span");
-  arr.textContent = "▾"; arr.style.cssText = "color:#6b7280;font-size:.7rem;flex-shrink:0;margin-left:4px";
+  arr.textContent = "▾"; arr.className = "fh-custom-select-arrow";
   dsp.appendChild(lbl); dsp.appendChild(arr);
   // pan is attached to document.body with position:fixed to escape .table-wrap overflow:hidden clipping
   const pan = document.createElement("div");
-  pan.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12)";
+  pan.className = "fh-custom-panel";
+  pan.style.cssText = "display:none;position:fixed;z-index:9999";
   const sw = document.createElement("div"); sw.style.padding = "6px";
   const si = document.createElement("input"); si.type = "text"; si.placeholder = "Cari...";
-  si.style.cssText = "width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:.25rem;padding:.3rem .6rem;font-size:.875rem";
+  si.style.cssText = "width:100%;box-sizing:border-box;border:1px solid var(--border,#e5e7eb);border-radius:.25rem;padding:.3rem .6rem;font-size:.875rem";
   sw.appendChild(si);
   const lst = document.createElement("div"); lst.style.cssText = "max-height:200px;overflow-y:auto";
   pan.appendChild(sw); pan.appendChild(lst);
@@ -937,10 +983,8 @@ function _mkDrop(opts, ph) {
     opts.filter(c => c.toLowerCase().includes(q.toLowerCase())).forEach(c => {
       const d = document.createElement("div");
       d.textContent = c;
-      d.style.cssText = "padding:7px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
-      d.addEventListener("mousedown", () => { hid.value=c; lbl.textContent=c; lbl.style.color=""; pan.style.display="none"; si.value=""; });
-      d.addEventListener("mouseover", () => { d.style.background="#eff6ff"; });
-      d.addEventListener("mouseout",  () => { d.style.background=""; });
+      d.className = "fh-custom-panel-item";
+      d.addEventListener("mousedown", () => { hid.value=c; lbl.textContent=c; lbl.style.color="var(--sl-700)"; pan.style.display="none"; si.value=""; });
       lst.appendChild(d);
     });
   }
@@ -1026,39 +1070,10 @@ async function _bgtAfterSave() {
   _bgtContext = "list";
 }
 
-function ibgtReset() {
-  document.getElementById("ibgt-search").value = "";
-  document.getElementById("ibgt-sugg").style.display = "none";
-  document.getElementById("ibgt-content").style.display = "none";
-  _ibgtCode = ""; _ibgtNama = "";
-}
-
-function ibgtSearchInput() {
-  const q = document.getElementById("ibgt-search").value.toLowerCase().trim();
-  const sug = document.getElementById("ibgt-sugg");
-  if (!q) { sug.style.display = "none"; return; }
-  const hits = SISWA_LIST.filter(s =>
-    (s.nama && s.nama.toLowerCase().includes(q)) ||
-    (s.code && String(s.code).toLowerCase().includes(q))
-  ).slice(0, 12);
-  if (!hits.length) { sug.style.display = "none"; return; }
-  sug.innerHTML = "";
-  hits.forEach(s => {
-    const div = document.createElement("div");
-    div.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
-    div.innerHTML = `<strong>${s.code}</strong> — ${s.nama}`;
-    div.addEventListener("mousedown", () => ibgtSelectSiswa(s.code, s.nama));
-    div.addEventListener("mouseover", () => { div.style.background = "#eff6ff"; });
-    div.addEventListener("mouseout",  () => { div.style.background = ""; });
-    sug.appendChild(div);
-  });
-  sug.style.display = "block";
-}
-
-async function ibgtSelectSiswa(code, nama) {
+async function openInputBudgetModal(code, nama) {
   _ibgtCode = code; _ibgtNama = nama;
-  document.getElementById("ibgt-search").value = `${code} — ${nama}`;
-  document.getElementById("ibgt-sugg").style.display = "none";
+  document.getElementById("ibgt-title").textContent = `${nama} (${code})`;
+  openModal("modal-input-budget");
   await loadInputBudget(code);
 }
 
@@ -1077,7 +1092,7 @@ async function loadInputBudget(code) {
   document.getElementById("ibgt-catatan-view").style.display = "block";
   document.getElementById("ibgt-catatan-form").style.display = "none";
   if (!d.ok || !d.rows?.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Belum ada data budget.</td></tr>`;
+    tbody.innerHTML = _emptyHtml(6, 'Belum ada data budget', 'Tambahkan budget menggunakan tombol + di atas.');
     return;
   }
   tbody.innerHTML = d.rows.map(r => {
@@ -1152,99 +1167,6 @@ function exportInputBudget(fmt) {
   window.location.href = `/beasiswa/budget/siswa/${_ibgtCode}/export/${fmt}`;
 }
 
-function addPayRow() { document.getElementById("pay-items").appendChild(_makePayRow()); }
-function removePayRow(b) { b.closest(".pay-row").remove(); }
-function _makePayRow() {
-  function fg(txt, el) {
-    const d = document.createElement("div"); d.className = "form-group"; d.style.margin = "0";
-    const l = document.createElement("label"); l.textContent = txt;
-    d.appendChild(l); d.appendChild(el); return d;
-  }
-  const row = document.createElement("div");
-  row.className = "pay-row";
-  row.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end";
-  const cat1 = _mkDrop(CAT1, "Pilih kategori 1..."); cat1.classList.add("pay-row-cat1");
-  const cat2 = _mkDrop(CAT2, "Pilih kategori 2..."); cat2.classList.add("pay-row-cat2");
-  const amtFg = document.createElement("div"); amtFg.className = "form-group"; amtFg.style.margin = "0";
-  const amtLbl = document.createElement("label"); amtLbl.textContent = "Amount";
-  const amtInp = document.createElement("input");
-  amtInp.type = "number"; amtInp.className = "pay-row-amount";
-  amtInp.placeholder = "0"; amtInp.min = "0"; amtInp.style.width = "100%";
-  amtFg.appendChild(amtLbl); amtFg.appendChild(amtInp);
-  const rmBtn = document.createElement("button");
-  rmBtn.className = "btn btn-secondary btn-sm";
-  rmBtn.style.marginBottom = "0";
-  rmBtn.textContent = "✕";
-  rmBtn.addEventListener("click", () => { cat1._pan?.remove(); cat2._pan?.remove(); row.remove(); });
-  row.appendChild(fg("Kategori 1", cat1));
-  row.appendChild(fg("Kategori 2", cat2));
-  row.appendChild(amtFg);
-  row.appendChild(rmBtn);
-  return row;
-}
-
-async function savePayment() {
-  const code=document.getElementById("pay-siswa").value, tgl=document.getElementById("pay-tgl").value,
-        pillar=document.getElementById("pay-pillar").value, per=document.getElementById("pay-perusahaan").value;
-  if (!code||!tgl||!pillar||!per) { showToast("Semua field wajib diisi.","error"); return; }
-  if (!await confirmModal("Simpan data payment ini?")) return;
-  const items=[...document.querySelectorAll(".pay-row")].map(r=>({
-    cat1:r.querySelector(".pay-row-cat1")._hid.value, cat2:r.querySelector(".pay-row-cat2")._hid.value,
-    cat3:"",cat4:"", amount:parseFloat(r.querySelector(".pay-row-amount").value)||0 }));
-  if (!items.some(it=>it.amount>0)) { showToast("Minimal 1 baris dengan amount > 0.","error"); return; }
-  const d=await (await apiFetch("/beasiswa/payment/tambah",{method:"POST",body:JSON.stringify({code,tanggal:tgl,pillar,perusahaan:per,items})})).json();
-  showToast(d.pesan, d.ok?"success":"error");
-  if (d.ok) {
-    document.getElementById("pay-siswa").value = "";
-    document.getElementById("pay-tgl").value = "";
-    document.getElementById("pay-pillar").value = "";
-    document.getElementById("pay-perusahaan").value = "";
-    document.getElementById("pay-items").innerHTML = "";
-    document.getElementById("pay-catpay-view").style.display = "none";
-    document.getElementById("pay-catpay-form").style.display = "none";
-    addPayRow();
-    await loadPaymentList();
-  }
-}
-
-let _payCurrentSiswaCode = "";
-function onPaySiswaChange() {
-  const code = document.getElementById("pay-siswa").value;
-  _payCurrentSiswaCode = code;
-  const view = document.getElementById("pay-catpay-view");
-  const form = document.getElementById("pay-catpay-form");
-  if (!code) { view.style.display = "none"; form.style.display = "none"; return; }
-  const sw = SISWA_LIST.find(s => s.code === code);
-  const cp = (sw?.catatan_payment || "").trim();
-  document.getElementById("pay-catpay-input").value = cp;
-  document.getElementById("pay-catpay-text").textContent = cp || "—";
-  view.style.display = "block";
-  form.style.display = "none";
-}
-function payEditCatpay() {
-  document.getElementById("pay-catpay-view").style.display = "none";
-  document.getElementById("pay-catpay-form").style.display = "block";
-  document.getElementById("pay-catpay-input").focus();
-}
-function payCancelCatpay() {
-  document.getElementById("pay-catpay-form").style.display = "none";
-  document.getElementById("pay-catpay-view").style.display = "block";
-}
-async function paySaveCatpay() {
-  if (!_payCurrentSiswaCode) return;
-  if (!await confirmModal("Simpan catatan payment?")) return;
-  const catatan_payment = document.getElementById("pay-catpay-input").value;
-  const d = await (await apiFetch(`/beasiswa/siswa/${_payCurrentSiswaCode}/catatan-payment`,
-    { method: "POST", body: JSON.stringify({ catatan_payment }) })).json();
-  showToast(d.pesan, d.ok ? "success" : "error");
-  if (d.ok) {
-    document.getElementById("pay-catpay-text").textContent = catatan_payment.trim() || "—";
-    const sw = SISWA_LIST.find(s => s.code === _payCurrentSiswaCode);
-    if (sw) sw.catatan_payment = catatan_payment;
-    payCancelCatpay();
-  }
-}
-
 let _paySearchTimer = null;
 async function loadPaymentList() {
   clearTimeout(_paySearchTimer);
@@ -1262,7 +1184,7 @@ async function loadPaymentList() {
     const d = await (await apiFetch(`/beasiswa/payment/list?${params}`)).json();
     _renderTabSummary('pay', d.budget_totals, d.totals);
     if (!d.ok || !d.rows?.length) {
-      tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+      tbody.innerHTML = _emptyHtml(12, 'Tidak ada data');
       document.getElementById("pay-list-info").textContent = "";
       return;
     }
@@ -1378,8 +1300,8 @@ async function loadRekap() {
   const tbody = document.getElementById("rekap-tbody");
   tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
   const d = await (await apiFetch(`/beasiswa/rekap/data?${params}`)).json();
-  if (!d.ok) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Gagal memuat.</td></tr>`; return; }
-  if (!d.rows.length) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`; return; }
+  if (!d.ok) { tbody.innerHTML = _emptyHtml(10, 'Gagal memuat data'); return; }
+  if (!d.rows.length) { tbody.innerHTML = _emptyHtml(10, 'Tidak ada data'); return; }
   tbody.innerHTML = d.rows.map(r => `<tr>
     <td style="white-space:nowrap"><code>${r.code}</code></td>
     <td>${r.nama}</td>
@@ -1392,6 +1314,7 @@ async function loadRekap() {
     <td class="num-right" style="color:${r.sisa<0?'var(--danger)':'inherit'}">${fmtRupiah(r.sisa)}</td>
     <td style="white-space:nowrap">
       <button class="btn btn-secondary btn-sm" onclick="openEditSiswa('${r.code}')">Update</button>
+      <button class="btn btn-secondary btn-sm" onclick="openInputBudgetModal('${r.code}','${r.nama.replace(/'/g,"\\'")}')">Budget</button>
       <button class="btn btn-secondary btn-sm" onclick="openBudgetSiswa('${r.code}','${r.nama.replace(/'/g,"\\'")}')">Sisa</button>
       <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="hapusSiswa('${r.code}','${r.nama.replace(/'/g,"\\'")}')">Hapus</button>
     </td>
@@ -1418,9 +1341,6 @@ function exportRekap(fmt) {
 document.addEventListener("DOMContentLoaded", () => {
   loadRekap();
   loadSummary();
-  if (document.getElementById("pay-items")) addPayRow();
-  const payTgl = document.getElementById("pay-tgl");
-  if (payTgl) payTgl.value = new Date().toISOString().slice(0, 10);
 });
 
 function lprReset() {
@@ -1577,7 +1497,7 @@ async function loadLaporan(code) {
       <td class="num-right">${fmtRupiah(c.payment)}</td>
       <td class="num-right" style="color:${neg ? "var(--danger)" : "inherit"}">${fmtRupiah(c.sisa)}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+  }).join("") || _emptyHtml(4, 'Tidak ada data');
   const ts = d.total_sisa;
   document.getElementById("lpr-total-b").textContent = fmtRupiah(d.total_budget);
   document.getElementById("lpr-total-p").textContent = fmtRupiah(d.total_payment);
@@ -1602,6 +1522,82 @@ async function loadLaporan(code) {
     <td>${LBADGE[r.status] || r.status || ""}</td>
   </tr>`).join("") || `<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
   document.getElementById("lpr-pay-subtotal").textContent = fmtRupiah(payRows.reduce((s, r) => s + (r.amount || 0), 0));
+}
+
+/* ── REKAM MEDIS ─────────────────────────────────────────────── */
+let _rkRows = [];
+let _rkTimer = null;
+async function loadRekamMedis() {
+  clearTimeout(_rkTimer);
+  _rkTimer = setTimeout(async () => {
+    const search  = (document.getElementById("rm-search")?.value || "").trim();
+    const cat3    = document.getElementById("rm-filter-cat3")?.value || "";
+    const bulan   = document.getElementById("rm-filter-bulan")?.value || "";
+    const tahun   = document.getElementById("rm-filter-tahun")?.value || "";
+    const params  = new URLSearchParams({ search, perawatan: cat3, bulan, tahun });
+    const d = await (await apiFetch(`/beasiswa/klaim/list?${params}`)).json();
+    if (!d.ok) return;
+    _rkRows = d.rows || [];
+    document.getElementById("rm-tbody").innerHTML = _rkRows.map(r => `<tr style="cursor:pointer" onclick="rekamShowDetail(${r.payment_id || 0}, ${r.id})" title="Klik untuk detail">
+      <td>
+        <div style="font-size:.875rem;font-weight:600">${r.nama || r.siswa_code}</div>
+        <div style="font-size:.75rem;color:var(--text-muted)">${r.siswa_code}</div>
+      </td>
+      <td style="white-space:nowrap">${r.tanggal || ""}</td>
+      <td style="font-size:.85rem">${r.rumah_sakit || ""}</td>
+      <td style="font-size:.85rem">${r.diagnosa || ""}</td>
+      <td style="font-size:.85rem">${r.perawatan || ""}</td>
+      <td class="num-right">${fmtRupiah(r.amount || 0)}</td>
+      <td style="font-size:.8rem">${r.pam || ""}</td>
+    </tr>`).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+    document.getElementById("rm-grand").textContent = fmtRupiah(d.grand || 0);
+  }, 300);
+}
+
+function rekamShowDetail(paymentId, rowId) {
+  const group = paymentId
+    ? _rkRows.filter(r => r.payment_id === paymentId)
+    : _rkRows.filter(r => r.id === rowId);
+  if (!group.length) return;
+  const first = group[0];
+  const totalAmt = group.reduce((s, r) => s + (r.amount || 0), 0);
+  document.getElementById("rm-detail-content").innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem .75rem;margin-bottom:1rem;padding:.75rem;background:#f8fafc;border-radius:.375rem">
+      <div><div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;font-weight:600">Siswa</div>
+        <div style="font-weight:600">${first.nama || first.siswa_code}</div>
+        <div style="font-size:.8rem;color:var(--text-muted)">${first.siswa_code}</div></div>
+      <div><div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;font-weight:600">No. PAM</div>
+        <div style="font-size:.875rem">${first.pam || "—"}</div></div>
+      <div><div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;font-weight:600">Tanggal</div>
+        <div style="font-size:.875rem">${first.tanggal || "—"}</div></div>
+      <div><div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;font-weight:600">Pillar</div>
+        <div style="font-size:.875rem">${first.pillar || "—"}</div></div>
+      <div><div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;font-weight:600">Rumah Sakit</div>
+        <div style="font-size:.875rem">${first.rumah_sakit || "—"}</div></div>
+      <div><div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;font-weight:600">Kelas</div>
+        <div style="font-size:.875rem">${first.kelas || "—"}</div></div>
+      <div><div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;font-weight:600">Diagnosa</div>
+        <div style="font-size:.875rem">${first.diagnosa || "—"}</div></div>
+      <div><div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;font-weight:600">Spesialisasi</div>
+        <div style="font-size:.875rem">${first.spesialisasi || "—"}</div></div>
+    </div>
+    <table style="width:100%">
+      <thead><tr style="background:#f3f4f6">
+        <th style="text-align:left;padding:.375rem .5rem;font-size:.8rem">Kategori Biaya (Cat3)</th>
+        <th style="text-align:right;padding:.375rem .5rem;font-size:.8rem">Amount</th>
+      </tr></thead>
+      <tbody>
+        ${group.map(r => `<tr>
+          <td style="padding:.375rem .5rem;font-size:.875rem;border-bottom:1px solid #f3f4f6">${r.perawatan || "—"}</td>
+          <td style="padding:.375rem .5rem;text-align:right;font-size:.875rem;border-bottom:1px solid #f3f4f6">${fmtRupiah(r.amount || 0)}</td>
+        </tr>`).join("")}
+      </tbody>
+      <tfoot><tr style="background:#f8fafc">
+        <td style="padding:.375rem .5rem;font-weight:700;font-size:.875rem">Total</td>
+        <td style="padding:.375rem .5rem;text-align:right;font-weight:700;font-size:.875rem;color:#1a56db">${fmtRupiah(totalAmt)}</td>
+      </tr></tfoot>
+    </table>`;
+  openModal("modal-rekam-detail");
 }
 </script>
 {% endblock %}

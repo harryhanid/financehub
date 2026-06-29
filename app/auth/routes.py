@@ -96,15 +96,15 @@ def logout():
 def refresh():
     data          = request.get_json(force=True) or {}
     refresh_token = data.get("refresh_token", "")
-    token_hash    = hashlib.sha256(refresh_token.encode()).hexdigest()
-    conn          = get_conn()
-    row           = conn.execute(
-        "SELECT id, revoked FROM refresh_tokens WHERE token_hash = ?", (token_hash,)
-    ).fetchone()
-    conn.close()
-
-    if row is None or row["revoked"]:
-        return jsonify({"ok": False, "pesan": "Refresh token tidak valid."}), 401
+    if refresh_token:
+        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        conn       = get_conn()
+        row        = conn.execute(
+            "SELECT id, revoked FROM refresh_tokens WHERE token_hash = ?", (token_hash,)
+        ).fetchone()
+        conn.close()
+        if row is None or row["revoked"]:
+            return jsonify({"ok": False, "pesan": "Refresh token tidak valid."}), 401
 
     claims       = get_jwt()
     access_token = create_access_token(

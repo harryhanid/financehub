@@ -27,12 +27,12 @@ def _ctx():
 
 
 def _tab(allow_input: bool = False, allow_summary: bool = False):
-    t = request.args.get("tab", "agri").lower()
+    t = request.args.get("tab", "summary").lower()
     if allow_input and t == "input":
         return "input"
     if allow_summary and t == "summary":
         return "summary"
-    return t if t in VALID_TABS else "agri"
+    return t if t in VALID_TABS else "summary"
 
 
 @bp.route("/")
@@ -192,4 +192,12 @@ def header(pa_id):
 @jwt_html_required
 def summary_data():
     company_id = session.get("company_id")
-    return jsonify(get_pa_summary(company_id))
+    all_data = []
+    for t in VALID_TABS:
+        rows = get_pa_flat(company_id, tab=t)
+        for r in rows:
+            r['nama_student'] = r.get('nama', '')
+            all_data.append(r)
+    # Urutkan berdasarkan pa_number descending
+    all_data.sort(key=lambda x: x.get('pa_number', ''), reverse=True)
+    return jsonify(all_data)

@@ -71,13 +71,13 @@ OPEN_PAM_FILE = r"C:\Users\25010160\Downloads\Open_PAM_20260617_1111.xlsx"
 | Kolom Excel | Field DB | Catatan |
 |-------------|----------|---------|
 | `Status` | `pam_records.status` | Nilai: open / on_process / complete |
-| `Tgl Paid` | `pam_records.tanggal_bayar` | Jika diisi → status juga di-set complete |
+| `Tgl Paid` | `pam_records.tanggal_bayar` | Di-update apa adanya dari Excel; status ikut kolom Status |
 | `PAM No` | `pam_records.pam_no` | Hanya jika terdeteksi sebagai rename |
 
 ### Auto-detect Rename
 Jika PAM No di Excel tidak ada di DB, cari DB row yang:
 - `pam_date` sama
-- `total_amount` sama (toleransi ±1)
+- `total_amount` sama (toleransi ±0.01 untuk float)
 - Tidak ada di Excel (candidate "deleted")
 
 Jika ditemukan tepat 1 match → treat sebagai **RENAME**.

@@ -154,6 +154,7 @@ button { font-family: inherit; }
   color: var(--accent-text);
   font-weight: 600;
   border-bottom-color: var(--accent);
+  background: var(--accent-surface);
 }
 .navbar-link.coming-soon {
   opacity: .35;
@@ -188,7 +189,7 @@ button { font-family: inherit; }
 /* ── KPI / Stats ─────────────────────────────────────── */
 .kpi-grid, .stats-grid {
   display: grid;
-  grid-template-columns: 1.4fr 1.4fr repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: .875rem;
   margin-bottom: 1.375rem;
 }
@@ -294,6 +295,7 @@ td {
 }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover td { background: var(--sl-50); }
+tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 tfoot tr { background: var(--sl-50); border-top: 1px solid var(--sl-200); }
 tfoot td { font-family: var(--mono); font-weight: 600; color: var(--sl-800); font-size: .8125rem; }
 .num-right {
@@ -420,8 +422,8 @@ input[readonly], input[disabled] {
 /* ── Modals ──────────────────────────────────────────── */
 .modal-overlay {
   display: none; position: fixed; inset: 0;
-  background: rgba(15,23,42,.35);
-  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  background: rgba(15,23,42,.4);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   z-index: 200; align-items: center; justify-content: center;
 }
 .modal-overlay.open { display: flex; animation: overlay-in .16s ease; }
@@ -999,3 +1001,185 @@ input[readonly], input[disabled] {
 [data-theme="dark"] #ipay-table tfoot [style*="color:#1a56db"] { color: var(--accent-text) !important; }
 /* Payment app filter reset link */
 [data-theme="dark"] .pa-filter-reset { color: var(--sl-700) !important; }
+
+/* ── Dark: PAM open accordion rows ─────────────────────────────────── */
+[data-theme="dark"] .pam-detail-row   { background: rgba(255,255,255,0.03) !important; }
+[data-theme="dark"] .pam-master-row:hover { background: rgba(255,255,255,0.04) !important; }
+[data-theme="dark"] .pam-unassigned-row { background: rgba(251,191,36,0.09) !important; }
+
+/* ── Dark: pillar badges (PAM module-local) ─────────────────────────── */
+[data-theme="dark"] .badge-agri   { background: rgba(251,191,36,0.12) !important; color: #FCD34D !important; border-color: rgba(251,191,36,0.3) !important; }
+[data-theme="dark"] .badge-app    { background: rgba(124,58,237,0.12) !important; color: #C4B5FD !important; border-color: rgba(124,58,237,0.3) !important; }
+[data-theme="dark"] .badge-land   { background: rgba(5,150,105,0.12)  !important; color: #6EE7B7 !important; border-color: rgba(5,150,105,0.3)  !important; }
+[data-theme="dark"] .badge-energy { background: rgba(202,138,4,0.12)  !important; color: #FDE047 !important; border-color: rgba(202,138,4,0.3)  !important; }
+[data-theme="dark"] .badge-setf   { background: rgba(8,145,178,0.12)  !important; color: #67E8F9 !important; border-color: rgba(8,145,178,0.3)  !important; }
+
+/* ── Dark: PAM memo bar inputs/buttons ──────────────────────────────── */
+[data-theme="dark"] #open-pam-paid-date {
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--sl-900) !important;
+  border-color: rgba(59,130,246,0.35) !important;
+}
+[data-theme="dark"] #pam-memo-bar .btn-secondary {
+  background: rgba(255,255,255,0.08) !important;
+  color: var(--accent-text) !important;
+  border: 1px solid rgba(59,130,246,0.22) !important;
+}
+
+/* ── Dark: ipay-tx (transaction type select) ────────────────────────── */
+[data-theme="dark"] #ipay-tx {
+  background: rgba(16,185,129,0.12) !important;
+  color: #6EE7B7 !important;
+  border-color: rgba(16,185,129,0.35) !important;
+}
+
+/* ── Dark: bgt-cat2 dropdown trigger ────────────────────────────────── */
+[data-theme="dark"] #bgt-cat2-display {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: rgba(255,255,255,0.14) !important;
+}
+[data-theme="dark"] #bgt-cat2-text { color: var(--sl-400) !important; }
+
+/* ── Dark: rekam medis tfoot ─────────────────────────────────────────── */
+[data-theme="dark"] #rm-grand { color: var(--accent-text) !important; }
+[data-theme="dark"] #rm-grand-label { color: var(--sl-700) !important; }
+
+/* ── Dark: user form info text ───────────────────────────────────────── */
+[data-theme="dark"] .user-info-text { color: var(--positive) !important; }
+
+/* ── Custom dropdown — JS-created via _mkDrop in beasiswa ───────────── */
+.fh-custom-select {
+  border: 1px solid var(--sl-300);
+  border-radius: var(--r-md);
+  padding: .45rem .75rem;
+  background: var(--card, #fff);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 38px;
+}
+.fh-custom-select:hover { border-color: var(--sl-400); }
+.fh-custom-select-label {
+  color: var(--sl-400);
+  font-size: .875rem;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fh-custom-select-arrow { color: var(--sl-500); font-size: .7rem; flex-shrink: 0; margin-left: 4px; }
+
+.fh-custom-panel {
+  background: var(--card, #fff);
+  border: 1px solid var(--border, var(--sl-200));
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-md);
+}
+
+.fh-custom-panel-item {
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: .875rem;
+  border-bottom: 1px solid var(--sl-100);
+  color: var(--sl-700);
+}
+.fh-custom-panel-item:hover {
+  background: var(--accent-surface) !important;
+  color: var(--accent-text) !important;
+}
+[data-theme="dark"] .fh-custom-panel-item {
+  border-bottom-color: rgba(255,255,255,0.04);
+  color: var(--sl-600);
+}
+[data-theme="dark"] .fh-custom-panel-item:hover {
+  background: rgba(59,130,246,0.12) !important;
+  color: var(--accent-text) !important;
+}
+
+/* ── Empty state ─────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .625rem;
+  padding: 2.5rem 1rem;
+}
+.empty-state-icon {
+  color: var(--sl-300);
+  flex-shrink: 0;
+}
+.empty-state-title {
+  font-weight: 600;
+  font-size: .8125rem;
+  color: var(--sl-600);
+  text-align: center;
+}
+.empty-state-sub {
+  font-size: .75rem;
+  color: var(--sl-400);
+  max-width: 32ch;
+  text-align: center;
+  line-height: 1.55;
+  margin-top: -.125rem;
+}
+/* Empty state inside table cell — zero out default td padding */
+td:has(.empty-state) { padding: 0 !important; }
+
+[data-theme="dark"] .empty-state-icon { color: var(--sl-400); }
+[data-theme="dark"] .empty-state-title { color: var(--sl-700); }
+[data-theme="dark"] .empty-state-sub  { color: var(--sl-500); }
+
+/* ── Stat card sub-label & bar ───────────────────────── */
+.stat-sub {
+  font-size: .675rem;
+  color: var(--sl-400);
+  margin-top: .25rem;
+  font-weight: 500;
+  letter-spacing: .01em;
+}
+.stat-bar {
+  height: 2px;
+  border-radius: 99px;
+  margin-top: .875rem;
+  background: var(--sl-100);
+}
+.stat-card.primary  .stat-bar { background: linear-gradient(to right, var(--accent-border), var(--accent)); }
+.stat-card.positive .stat-bar { background: linear-gradient(to right, var(--positive-border), var(--positive)); }
+.stat-card.caution  .stat-bar { background: linear-gradient(to right, var(--caution-border), var(--caution)); }
+
+[data-theme="dark"] .stat-bar { background: rgba(255,255,255,0.08); }
+[data-theme="dark"] .stat-card.primary  .stat-bar { background: linear-gradient(to right, rgba(59,130,246,0.2), rgba(59,130,246,0.7)); }
+[data-theme="dark"] .stat-card.positive .stat-bar { background: linear-gradient(to right, rgba(52,211,153,0.2), rgba(52,211,153,0.7)); }
+[data-theme="dark"] .stat-card.caution  .stat-bar { background: linear-gradient(to right, rgba(251,191,36,0.2), rgba(251,191,36,0.7)); }
+
+/* ── Delta badge ─────────────────────────────────────── */
+.stat-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+  font-size: .6rem;
+  font-weight: 700;
+  padding: .15rem .4rem;
+  border-radius: 99px;
+  margin-top: .375rem;
+  letter-spacing: .02em;
+}
+.stat-delta.up      { background: var(--positive-surface); color: #065F46; }
+.stat-delta.down    { background: var(--negative-surface); color: #991B1B; }
+.stat-delta.neutral { background: var(--sl-100); color: var(--sl-500); }
+
+[data-theme="dark"] .stat-delta.up      { background: rgba(52,211,153,0.12); color: #34D399; }
+[data-theme="dark"] .stat-delta.down    { background: rgba(248,113,113,0.12); color: #F87171; }
+[data-theme="dark"] .stat-delta.neutral { background: rgba(255,255,255,0.06); color: var(--sl-500); }
+
+/* ── Additional badge variants ───────────────────────── */
+.badge-violet { background: #F5F3FF; color: #5B21B6; border-color: #DDD6FE; }
+.badge-pink   { background: #FDF2F8; color: #9D174D; border-color: #FBCFE8; }
+.badge-slate  { background: var(--sl-100); color: var(--sl-700); border-color: var(--sl-200); }
+[data-theme="dark"] .badge-violet { background: rgba(124,58,237,0.12); color: #C4B5FD; border-color: rgba(124,58,237,0.3); }
+[data-theme="dark"] .badge-pink   { background: rgba(244,114,182,0.1); color: #F9A8D4; border-color: rgba(244,114,182,0.3); }
+[data-theme="dark"] .badge-slate  { background: rgba(255,255,255,0.07); color: var(--sl-600); border-color: rgba(255,255,255,0.1); }
+
+/* ── Table hover left-accent dark mode ───────────────── */
+[data-theme="dark"] tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--accent) !important; }

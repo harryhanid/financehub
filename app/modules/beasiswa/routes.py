@@ -10,7 +10,7 @@ from modules.beasiswa.service import (
     get_sisa_budget, get_rekap, get_budget_list, get_laporan_siswa,
     get_financial_summary,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
-    get_vendors,
+    get_vendors, get_distinct_universitas,
 )
 import config
 
@@ -51,6 +51,8 @@ def index():
         cat2_sem=config.CAT2_SEM,
         perusahaan=config.PERUSAHAAN,
         vendor_list=get_vendors(),
+        universitas_list=get_distinct_universitas(_cid()),
+        cat3_medical=config.CAT3_MEDICAL,
         active_page="beasiswa",
         **_ctx()
     )

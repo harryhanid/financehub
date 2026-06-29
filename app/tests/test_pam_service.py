@@ -525,7 +525,7 @@ def test_save_pa_payment_sets_source_beasiswa():
 
 def test_set_paid_cascades_to_payment_beasiswa():
     """Lifecycle: setting tanggal_bayar on a beasiswa PAM must complete payment_beasiswa too."""
-    from modules.payment_memo.service import save_pa_payment, set_pam_tanggal_bayar_agri
+    from modules.payment_memo.service import save_pa_payment, set_pam_complete_cascade
     result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
         "tab":        "app",
         "tanggal":    "2026-06-10",
@@ -545,7 +545,7 @@ def test_set_paid_cascades_to_payment_beasiswa():
     conn.close()
     pam_id = pam["id"]
 
-    paid = set_pam_tanggal_bayar_agri(pam_id, "2026-06-20", COMPANY_ID)
+    paid = set_pam_complete_cascade(pam_id, "2026-06-20", COMPANY_ID)
     assert paid["ok"] is True
 
     conn = get_conn()

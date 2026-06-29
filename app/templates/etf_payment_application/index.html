@@ -22,7 +22,7 @@
 #pa-table thead th.s1,
 #pa-table thead th.s2,
 #pa-table thead th.s3 {
-  background: var(--bg-muted, #f1f3f5);
+  background: var(--sl-800);
   z-index: 4;
 }
 
@@ -65,7 +65,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--bg-muted, #f1f3f5);
+  background: var(--sl-800);
 }
 /* corner cells: both top:0 and left:Npx — freeze in both axes */
 #pa-table thead th.s0 { top: 0; left: 0;     z-index: 5; }
@@ -145,6 +145,50 @@ body.pa-focus #pa-focus-exit { display: flex; }
 /* checkbox size */
 .row-chk, #chk-all { width:18px; height:18px; cursor:pointer; accent-color:#3b82f6; }
 
+/* ── Column group toggle — Data Siswa ───────────────────────────────── */
+.col-siswa { display: none; }
+#pa-table.grp-siswa-expanded .col-siswa { display: table-cell; }
+
+#grp-siswa-toggle {
+  position: sticky;
+  top: 0;
+  background: var(--sl-800);
+  z-index: 4;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  padding: 0 4px;
+  min-width: 28px;
+  max-width: 28px;
+}
+#grp-siswa-toggle:hover { background: #334155; }
+
+/* Saat expanded: toggle cell di tbody */
+.grp-toggle-cell {
+  min-width: 28px;
+  max-width: 28px;
+  padding: 0;
+  text-align: center;
+  cursor: pointer;
+  color: #94a3b8;
+  font-size: .65rem;
+}
+.grp-toggle-cell:hover { color: #3b82f6; }
+
+/* Label vertikal saat collapsed */
+.grp-siswa-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  color: #93c5fd;
+  line-height: 1;
+  padding: 4px 0;
+}
+[data-theme="dark"] #grp-siswa-toggle { background: #181b25; }
+[data-theme="dark"] #grp-siswa-toggle:hover { background: #212533; }
+
 /* date header controls */
 .th-date-wrap { display:flex; flex-direction:column; gap:3px; }
 .th-date-ctrl { display:flex; flex-wrap:wrap; gap:2px; align-items:center; }
@@ -171,110 +215,88 @@ body.pa-focus #pa-focus-exit { display: flex; }
 
 {# ── Header ─────────────────────────────────────────────────────────────── #}
 <div id="pa-page-header">
-<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem">
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; margin-bottom:.25rem">
   <div>
-    <h1 style="font-size:1.25rem; font-weight:700; margin-bottom:.5rem">ETF Payment Application — {{ company_name }}</h1>
-    {# ── Tab navigation ── #}
-    <div style="display:flex; gap:0; border:1px solid var(--border); border-radius:6px; overflow:hidden; width:fit-content">
-      {% for t, label in [('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF'),('summary','Summary')] %}
-      <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
-         style="padding:.35rem .9rem; font-size:.8rem; font-weight:600; text-decoration:none; white-space:nowrap;
-                {% if active_tab == t %}background:var(--primary,#3b82f6); color:#fff;
-                {% else %}background:var(--bg-muted,#f1f3f5); color:var(--text-muted);{% endif %}
-                {% if not loop.last %}border-right:1px solid var(--border);{% endif %}"
-      >{{ label }}</a>
-      {% endfor %}
-    </div>
+    <h1 class="page-title" style="margin-bottom:0">ETF Payment Application
+      {% if company_name %}<span class="page-meta" style="font-weight:400; margin-left:.5rem">{{ company_name }}</span>{% endif %}
+    </h1>
   </div>
   {% if active_tab not in ('input', 'summary') %}
-  <div style="display:flex; gap:.5rem; align-self:flex-end">
-    <button id="pa-focus-btn" class="btn btn-secondary" onclick="enterFocusMode()" title="Sembunyikan filter & navbar (geser tabel untuk otomatis)">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-      Full Screen
-    </button>
-    <button class="btn btn-secondary" onclick="exportETFExcel()">↓ Export Excel</button>
-  </div>
+  <button id="pa-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+    Full Screen
+  </button>
   {% endif %}
+</div>
+{# ── Tab navigation ── #}
+<div class="tabs" style="margin-bottom:.5rem">
+  {% for t, label in [('summary','Open PA'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
+  <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
+     class="tab-btn{% if active_tab == t %} active{% endif %}"
+     style="text-decoration:none"
+  >{{ label }}</a>
+  {% endfor %}
 </div>
 
 {# ── Filter + bulk bar: only on data tabs ────────────────────────────────── #}
 {% if active_tab not in ('input', 'summary') %}
-<div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; margin-bottom:.75rem; padding:.65rem .75rem; background:var(--bg-muted,#f8f9fa); border-radius:6px; border:1px solid var(--border)">
-  <div class="form-group" style="margin:0; width:160px">
-    <label style="font-size:.72rem; font-weight:600">Cari Nama PB</label>
-    <input type="text" id="f-nama" placeholder="Ketik nama..." oninput="applyFiltersDebounced()" style="font-size:.82rem">
-  </div>
-  <div class="form-group" style="margin:0; width:120px">
-    <label style="font-size:.72rem; font-weight:600">Status</label>
-    <select id="f-status" onchange="statusFilterChanged(this)" style="font-size:.82rem">
-      <option value="">Semua</option>
-      <option value="active" {% if active_sf == 'active' %}selected{% endif %}>Open + On Process</option>
-      <option value="open" {% if active_sf == 'open' %}selected{% endif %}>Open</option>
-      <option value="on_process" {% if active_sf == 'on_process' %}selected{% endif %}>On Process</option>
-      <option value="complete" {% if active_sf == 'complete' %}selected{% endif %}>Complete</option>
-    </select>
-  </div>
-  <div class="form-group" style="margin:0; width:110px">
-    <label style="font-size:.72rem; font-weight:600">Jenjang</label>
-    <select id="f-jenjang" onchange="applyFilters()" style="font-size:.82rem">
-      <option value="">Semua</option>
-      {% set jenjang_list = pa_rows | map(attribute='jenjang_pendidikan') | select | unique | list | sort %}
-      {% for j in jenjang_list %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
-    </select>
-  </div>
-  <div class="form-group" style="margin:0; width:130px">
-    <label style="font-size:.72rem; font-weight:600">Program</label>
-    <select id="f-program" onchange="applyFilters()" style="font-size:.82rem">
-      <option value="">Semua</option>
-      {% set prog_list = pa_rows | map(attribute='program_beasiswa') | select | unique | list | sort %}
-      {% for p in prog_list %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-    </select>
-  </div>
-  <div class="form-group" style="margin:0; width:100px">
-    <label style="font-size:.72rem; font-weight:600">Angkatan ETF</label>
-    <select id="f-angkatan" onchange="applyFilters()" style="font-size:.82rem">
-      <option value="">Semua</option>
-      {% set ang_list = pa_rows | map(attribute='angkatan_etf') | select | unique | list | sort %}
-      {% for a in ang_list %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
-    </select>
-  </div>
-  <div class="form-group" style="margin:0; width:115px">
-    <label style="font-size:.72rem; font-weight:600">Jenis Bayar</label>
-    <select id="f-jenis" onchange="applyFilters()" style="font-size:.82rem">
-      <option value="">Semua</option>
-      {% set jenis_list = pa_rows | map(attribute='jenis_pembayaran') | select | unique | list | sort %}
-      {% for j in jenis_list %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
-    </select>
-  </div>
-  <div class="form-group" style="margin:0; width:110px">
-    <label style="font-size:.72rem; font-weight:600">Nomor PAM</label>
-    <input type="text" id="f-pam" placeholder="cari PAM..." oninput="applyFiltersDebounced()" style="font-size:.82rem">
-  </div>
-  <div class="form-group" style="margin:0; width:130px">
-    <label style="font-size:.72rem; font-weight:600">Bulan PA</label>
-    <select id="f-bulan-pa" onchange="applyFilters()" style="font-size:.82rem">
-      <option value="">Semua</option>
-      <option value="01">Januari</option><option value="02">Februari</option>
-      <option value="03">Maret</option><option value="04">April</option>
-      <option value="05">Mei</option><option value="06">Juni</option>
-      <option value="07">Juli</option><option value="08">Agustus</option>
-      <option value="09">September</option><option value="10">Oktober</option>
-      <option value="11">November</option><option value="12">Desember</option>
-    </select>
-  </div>
-  <div class="form-group" style="margin:0; width:100px">
-    <label style="font-size:.72rem; font-weight:600">Tahun PA</label>
-    <select id="f-tahun-pa" onchange="applyFilters()" style="font-size:.82rem">
-      <option value="">Semua</option>
-      <option value="2023">2023</option><option value="2024">2024</option>
-      <option value="2025">2025</option><option value="2026">2026</option>
-      <option value="2027">2027</option>
-    </select>
-  </div>
-  <div style="display:flex; align-items:flex-end; gap:.4rem">
-    <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Reset</button>
-    <span id="f-count" style="font-size:.72rem; color:var(--text-muted); white-space:nowrap; padding-bottom:.2rem"></span>
-  </div>
+<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+  <input type="text" id="f-nama" placeholder="Cari nama PB..." oninput="applyFiltersDebounced()"
+         style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:170px">
+  <select id="f-status" onchange="statusFilterChanged(this)"
+          style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:145px">
+    <option value="">Semua Status</option>
+    <option value="active" {% if active_sf == 'active' %}selected{% endif %}>Open + On Process</option>
+    <option value="open" {% if active_sf == 'open' %}selected{% endif %}>Open</option>
+    <option value="on_process" {% if active_sf == 'on_process' %}selected{% endif %}>On Process</option>
+    <option value="complete" {% if active_sf == 'complete' %}selected{% endif %}>Complete</option>
+  </select>
+  <select id="f-jenjang" onchange="applyFilters()"
+          style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:110px">
+    <option value="">Jenjang</option>
+    {% set jenjang_list = pa_rows | map(attribute='jenjang_pendidikan') | select | unique | list | sort %}
+    {% for j in jenjang_list %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
+  </select>
+  <select id="f-program" onchange="applyFilters()"
+          style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:130px">
+    <option value="">Program</option>
+    {% set prog_list = pa_rows | map(attribute='program_beasiswa') | select | unique | list | sort %}
+    {% for p in prog_list %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+  </select>
+  <select id="f-angkatan" onchange="applyFilters()"
+          style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:100px">
+    <option value="">Angkatan</option>
+    {% set ang_list = pa_rows | map(attribute='angkatan_etf') | select | unique | list | sort %}
+    {% for a in ang_list %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+  </select>
+  <select id="f-jenis" onchange="applyFilters()"
+          style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:115px">
+    <option value="">Jenis Bayar</option>
+    {% set jenis_list = pa_rows | map(attribute='jenis_pembayaran') | select | unique | list | sort %}
+    {% for j in jenis_list %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
+  </select>
+  <input type="text" id="f-pam" placeholder="Nomor PAM..." oninput="applyFiltersDebounced()"
+         style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:110px">
+  <select id="f-bulan-pa" onchange="applyFilters()"
+          style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px">
+    <option value="">Bulan</option>
+    <option value="01">Jan</option><option value="02">Feb</option>
+    <option value="03">Mar</option><option value="04">Apr</option>
+    <option value="05">Mei</option><option value="06">Jun</option>
+    <option value="07">Jul</option><option value="08">Agu</option>
+    <option value="09">Sep</option><option value="10">Okt</option>
+    <option value="11">Nov</option><option value="12">Des</option>
+  </select>
+  <select id="f-tahun-pa" onchange="applyFilters()"
+          style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:76px">
+    <option value="">Tahun</option>
+    <option value="2023">2023</option><option value="2024">2024</option>
+    <option value="2025">2025</option><option value="2026">2026</option>
+    <option value="2027">2027</option>
+  </select>
+  <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Reset</button>
+  <button class="btn btn-success btn-sm" onclick="exportETFExcel()">&#8595; Export Excel</button>
+  <span id="f-count" style="font-size:11px;color:#6b7280"></span>
 </div>
 
 {# ── Bulk action toolbar ──────────────────────────────────────────────────── #}
@@ -356,7 +378,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
 
   <div class="form-group" style="margin-bottom:.75rem">
     <label>Keterangan</label>
-    <input type="text" id="pa-keterangan" placeholder="Opsional">
+    <textarea id="pa-keterangan" rows="3" placeholder="Opsional (Shift+Enter untuk baris baru)" style="resize:vertical"></textarea>
   </div>
 
   {# ── Baris pembayaran ── #}
@@ -372,10 +394,15 @@ body.pa-focus #pa-focus-exit { display: flex; }
 </div>
 {% elif active_tab not in ('input', 'summary') %}{# data tabs: AGRI / APP / SML / SETF #}
 {% if active_tab == 'setf' and not pa_rows %}
-<div style="margin:2rem auto;max-width:500px;text-align:center;padding:2rem;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text-muted)">
-  <div style="font-size:2rem;margin-bottom:.5rem">📋</div>
-  <div style="font-weight:700;margin-bottom:.4rem">Tab SETF</div>
-  <div style="font-size:.875rem">Data SETF belum tersedia. Akan diisi dan diperbaiki kemudian.<br>Gunakan tab <strong>Input</strong> untuk mulai menambahkan data SETF.</div>
+<div style="margin:3rem auto;max-width:400px">
+  <div class="empty-state">
+    <svg class="empty-state-icon" viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="6" y="10" width="36" height="30" rx="3"/><line x1="6" y1="20" x2="42" y2="20"/><line x1="15" y1="10" x2="15" y2="40"/>
+      <line x1="19" y1="28" x2="36" y2="28"/><line x1="19" y1="33" x2="30" y2="33"/>
+    </svg>
+    <div class="empty-state-title">Data SETF belum tersedia</div>
+    <div class="empty-state-sub">Gunakan tab <strong>Input</strong> untuk mulai menambahkan data SETF.</div>
+  </div>
 </div>
 {% endif %}
 {# ── Table ───────────────────────────────────────────────────────────────── #}
@@ -385,20 +412,24 @@ body.pa-focus #pa-focus-exit { display: flex; }
 {# Explicit width prevents .main (flex:1, min-width:auto) from expanding to 2700px.           #}
 <div id="pa-scroll-wrap" style="position:relative; overflow:auto; width:calc(100vw - 3.5rem); border:1px solid var(--sl-200,#e2e8f0); border-radius:10px; box-shadow:var(--sh-xs,0 1px 3px rgba(0,0,0,.08))">
   <table id="pa-table" style="min-width:2700px; font-size:.78rem">
-    <thead>
+    <thead class="thead-primary">
       <tr>
         <th class="s0"><input type="checkbox" id="chk-all" onchange="toggleAll(this)" title="Pilih semua"></th>
         <th class="s1">No. PA</th>
         <th class="s2">ID Siswa</th>
         <th class="s3">Nama PB</th>
-        <th>Status PB</th>
-        <th>Instansi</th>
-        <th>Angkatan ETF</th>
-        <th>Angkatan Kuliah</th>
-        <th>Jenjang</th>
-        <th>Program</th>
-        <th>Fakultas</th>
-        <th>Program Studi</th>
+        <th id="grp-siswa-toggle" onclick="toggleSiswaGroup()" title="Klik untuk expand/collapse kolom Data Siswa">
+          <span id="grp-siswa-icon">▶</span>
+          <div class="grp-siswa-label" id="grp-siswa-lbl">DATA SISWA</div>
+        </th>
+        <th class="col-siswa">Status PB</th>
+        <th class="col-siswa">Instansi</th>
+        <th class="col-siswa">Angkatan ETF</th>
+        <th class="col-siswa">Angkatan Kuliah</th>
+        <th class="col-siswa">Jenjang</th>
+        <th class="col-siswa">Program</th>
+        <th class="col-siswa">Fakultas</th>
+        <th class="col-siswa">Program Studi</th>
         <th>Tgl PA</th>
         <th>Tgl Surat</th>
         <th>Jenis Bayar</th>
@@ -448,14 +479,15 @@ body.pa-focus #pa-focus-exit { display: flex; }
         <td class="s1"><code style="white-space:nowrap">{{ r.pa_number }}</code></td>
         <td class="s2">{{ r.student_code }}</td>
         <td class="s3" style="white-space:nowrap">{{ r.nama }}</td>
-        <td>{{ r.status_pb or '--' }}</td>
-        <td style="white-space:nowrap">{{ r.instansi_pendidikan or '--' }}</td>
-        <td>{{ r.angkatan_etf or '--' }}</td>
-        <td>{{ r.angkatan_kuliah or '--' }}</td>
-        <td>{{ r.jenjang_pendidikan or '--' }}</td>
-        <td>{{ r.program_beasiswa or '--' }}</td>
-        <td>{{ r.fakultas or '--' }}</td>
-        <td>{{ r.program_studi or '--' }}</td>
+        <td class="grp-toggle-cell" onclick="toggleSiswaGroup()" title="Expand/collapse Data Siswa">·</td>
+        <td class="col-siswa">{{ r.status_pb or '--' }}</td>
+        <td class="col-siswa" style="white-space:nowrap">{{ r.instansi_pendidikan or '--' }}</td>
+        <td class="col-siswa">{{ r.angkatan_etf or '--' }}</td>
+        <td class="col-siswa">{{ r.angkatan_kuliah or '--' }}</td>
+        <td class="col-siswa">{{ r.jenjang_pendidikan or '--' }}</td>
+        <td class="col-siswa">{{ r.program_beasiswa or '--' }}</td>
+        <td class="col-siswa">{{ r.fakultas or '--' }}</td>
+        <td class="col-siswa">{{ r.program_studi or '--' }}</td>
         <td>{{ r.tgl_payment_application or '--' }}</td>
         <td>{{ r.tgl_surat_pengajuan or '--' }}</td>
         <td>{{ r.jenis_pembayaran or '--' }}</td>
@@ -484,7 +516,14 @@ body.pa-focus #pa-focus-exit { display: flex; }
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="32" style="text-align:center; color:var(--text-muted); padding:2rem">Belum ada payment application ETF.</td></tr>
+      <tr><td colspan="32"><div class="empty-state">
+        <svg class="empty-state-icon" viewBox="0 0 48 48" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="6" y="10" width="36" height="30" rx="3"/><line x1="6" y1="20" x2="42" y2="20"/><line x1="15" y1="10" x2="15" y2="40"/>
+          <line x1="19" y1="28" x2="36" y2="28"/><line x1="19" y1="33" x2="30" y2="33"/>
+        </svg>
+        <div class="empty-state-title">Belum ada payment application ETF</div>
+        <div class="empty-state-sub">Pilih tab Input untuk mulai menambahkan data.</div>
+      </div></td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -498,9 +537,10 @@ body.pa-focus #pa-focus-exit { display: flex; }
     <label style="font-size:.72rem; font-weight:600">Cari Nama Student</label>
     <input type="text" id="sf-nama" placeholder="Ketik nama..." oninput="renderSummary()" style="font-size:.82rem">
   </div>
-  <div class="form-group" style="margin:0; width:120px">
+  <div class="form-group" style="margin:0; width:150px">
     <label style="font-size:.72rem; font-weight:600">Status</label>
     <select id="sf-status" onchange="renderSummary()" style="font-size:.82rem">
+      <option value="active" selected>Open & On Process</option>
       <option value="">Semua</option>
       <option value="open">Open</option>
       <option value="on_process">On Process</option>
@@ -515,7 +555,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
     <label style="font-size:.72rem; font-weight:600">Bulan PA</label>
     <input type="month" id="sf-bulan-pa" onchange="renderSummary()" style="font-size:.82rem">
   </div>
-  <button class="btn btn-secondary" onclick="document.getElementById('sf-nama').value=''; document.getElementById('sf-status').value=''; document.getElementById('sf-tahun-pa').value=''; document.getElementById('sf-bulan-pa').value=''; renderSummary();" style="font-size:.8rem; align-self:flex-end">Reset</button>
+  <button class="btn btn-secondary" onclick="document.getElementById('sf-nama').value=''; document.getElementById('sf-status').value='active'; document.getElementById('sf-tahun-pa').value=''; document.getElementById('sf-bulan-pa').value=''; renderSummary();" style="font-size:.8rem; align-self:flex-end">Reset</button>
 </div>
 
 <div style="margin-top:.25rem">
@@ -555,7 +595,14 @@ body.pa-focus #pa-focus-exit { display: flex; }
 
     const filtered = _summaryRows.filter(r => {
       if (nama   && !(r.nama_student            || '').toLowerCase().includes(nama))   return false;
-      if (status && !(r.status                  || '').toLowerCase().includes(status)) return false;
+      
+      if (status === 'active') {
+        const s = (r.status || '').toLowerCase();
+        if (s !== 'open' && s !== 'on_process') return false;
+      } else if (status && !(r.status || '').toLowerCase().includes(status)) {
+        return false;
+      }
+
       if (tahun  && !(r.tgl_payment_application || '').includes(tahun))                return false;
       if (bulan  && !(r.tgl_payment_application || '').includes(bulan))                return false;
       return true;
@@ -660,7 +707,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
 
 {# ── Template baris pembayaran (payline) ─────────────────────────────────── #}
 <template id="payline-template">
-  <div class="payline-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;align-items:end;margin-bottom:.35rem;padding:.4rem .5rem;background:#f8fafc;border:1px solid var(--border);border-radius:5px">
+  <div class="payline-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.5rem;align-items:end;margin-bottom:.35rem;padding:.4rem .5rem;background:#f8fafc;border:1px solid var(--border);border-radius:5px">
     <div class="form-group" style="margin:0"><label style="font-size:.75rem">Jenis Bayar</label>
       <select class="pl-jenis-bayar">
         <option value="">-- Pilih --</option>
@@ -672,6 +719,9 @@ body.pa-focus #pa-focus-exit { display: flex; }
         <option value="">-- Pilih --</option>
         {% for c in cat2_sem %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
       </select>
+    </div>
+    <div class="form-group" style="margin:0"><label style="font-size:.75rem">Tahun Ajaran</label>
+      <input type="text" class="pl-tahun-ajaran" placeholder="2024/2025">
     </div>
     <div class="form-group" style="margin:0"><label style="font-size:.75rem">Jumlah (Rp)</label>
       <input type="number" class="pl-jumlah" placeholder="0" min="0">
@@ -941,47 +991,68 @@ function visiblePaIds() {
 
 // ─── Column index map untuk DOM update in-place ───────────────────────────────
 const FIELD_COL = {
-  tgl_payment_application: 12,
-  tgl_surat_pengajuan:     13,
-  doc_received_by_educ:    19,
-  received_pa_from_educ:   20,
-  checked_by_fincon:       21,
-  approved_by_htj_1:       22,
-  send_pa_back_to_educ:    23,
-  pa_received_by_po_fin:   24,
-  approval_by_htj_2:       25,
-  nomor_pam:               26,
-  tanggal_bayar:           27,
-  status:                  29,
+  tgl_payment_application: 13,
+  tgl_surat_pengajuan:     14,
+  doc_received_by_educ:    20,
+  received_pa_from_educ:   21,
+  checked_by_fincon:       22,
+  approved_by_htj_1:       23,
+  send_pa_back_to_educ:    24,
+  pa_received_by_po_fin:   25,
+  approval_by_htj_2:       26,
+  nomor_pam:               27,
+  tanggal_bayar:           28,
+  status:                  30,
 };
+
+// ─── Column group toggle — Data Siswa ─────────────────────────────────────────
+const GRP_SISWA_KEY = 'etfpa_grp_siswa';
+function toggleSiswaGroup() {
+  const table    = document.getElementById('pa-table');
+  const icon     = document.getElementById('grp-siswa-icon');
+  const lbl      = document.getElementById('grp-siswa-lbl');
+  const expanded = table.classList.toggle('grp-siswa-expanded');
+  if (icon) icon.textContent = expanded ? '◀' : '▶';
+  if (lbl)  lbl.style.display = expanded ? 'none' : '';
+  try { localStorage.setItem(GRP_SISWA_KEY, expanded ? '1' : '0'); } catch(e) {}
+}
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    if (localStorage.getItem(GRP_SISWA_KEY) === '1') {
+      const table = document.getElementById('pa-table');
+      const icon  = document.getElementById('grp-siswa-icon');
+      const lbl   = document.getElementById('grp-siswa-lbl');
+      if (table) table.classList.add('grp-siswa-expanded');
+      if (icon)  icon.textContent = '◀';
+      if (lbl)   lbl.style.display = 'none';
+    }
+  } catch(e) {}
+});
 
 function _updateRowCells(paIds, field, value) {
   const colIdx = FIELD_COL[field];
   paIds.forEach(id => {
-    const tr = document.querySelector(`#pa-table tbody tr[data-pa-id="${id}"]`);
-    if (!tr) return;
-    // Update field cell
-    if (colIdx !== undefined) {
-      const td = tr.querySelectorAll("td")[colIdx];
-      if (td) td.textContent = value || "--";
-    }
-    // Jika field tanggal_bayar → set status complete juga
-    if (field === "tanggal_bayar" && value) {
-      const stTd = tr.querySelectorAll("td")[29];
-      if (stTd) stTd.innerHTML = '<span class="badge badge-green">Complete</span>';
-      tr.classList.remove("row-op");
-      tr.dataset.status = "complete";
-    }
-    // Jika field status → update badge dan row class
-    if (field === "status") {
-      const stTd = tr.querySelectorAll("td")[29];
-      if (stTd) {
-        const cls = value === "complete" ? "badge-green" : value === "on_process" ? "badge-yellow" : value === "open" ? "badge-blue" : "badge-gray";
-        stTd.innerHTML = `<span class="badge ${cls}">${value.replace("_"," ").replace(/\b\w/g,c=>c.toUpperCase())}</span>`;
+    document.querySelectorAll(`#pa-table tbody tr[data-pa-id="${id}"]`).forEach(tr => {
+      if (colIdx !== undefined) {
+        const td = tr.querySelectorAll("td")[colIdx];
+        if (td) td.textContent = value || "--";
       }
-      tr.classList.toggle("row-op", value === "on_process");
-      tr.dataset.status = value;
-    }
+      if (field === "tanggal_bayar" && value) {
+        const stTd = tr.querySelectorAll("td")[29];
+        if (stTd) stTd.innerHTML = '<span class="badge badge-green">Complete</span>';
+        tr.classList.remove("row-op");
+        tr.dataset.status = "complete";
+      }
+      if (field === "status") {
+        const stTd = tr.querySelectorAll("td")[29];
+        if (stTd) {
+          const cls = value === "complete" ? "badge-green" : value === "on_process" ? "badge-yellow" : value === "open" ? "badge-blue" : "badge-gray";
+          stTd.innerHTML = `<span class="badge ${cls}">${value.replace("_"," ").replace(/\b\w/g,c=>c.toUpperCase())}</span>`;
+        }
+        tr.classList.toggle("row-op", value === "on_process");
+        tr.dataset.status = value;
+      }
+    });
   });
 }
 
@@ -1169,7 +1240,7 @@ async function submitPA() {
       student_id:         parseInt(siswaId),
       jenis_pembayaran:   row.querySelector('.pl-jenis-bayar').value,
       semester:           row.querySelector('.pl-semester').value,
-      tahun_ajaran:       '',
+      tahun_ajaran:       row.querySelector('.pl-tahun-ajaran') ? row.querySelector('.pl-tahun-ajaran').value : '',
       ipk_sem_sebelumnya: ipkVal,
       jumlah_pembayaran:  parseInt(row.querySelector('.pl-jumlah').value) || 0,
     });
