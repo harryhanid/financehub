@@ -84,6 +84,29 @@ def test_update_budget_missing_returns_error():
     assert result["ok"] is False
 
 
+def test_update_budget_rejects_invalid_company():
+    created = create_budget({"company": "PO", "dept": "Finance", "mm": 1, "yy": 2026, "amount": 100})
+    result = update_budget(created["id"], {"company": "XX"})
+    assert result["ok"] is False
+    assert "Company" in result["pesan"]
+
+
+def test_update_budget_rejects_invalid_month():
+    created = create_budget({"company": "PO", "dept": "Finance", "mm": 1, "yy": 2026, "amount": 100})
+    result = update_budget(created["id"], {"mm": 13})
+    assert result["ok"] is False
+    assert "Bulan" in result["pesan"]
+
+
+def test_update_budget_allows_partial_update_without_company():
+    created = create_budget({"company": "PO", "dept": "Finance", "mm": 1, "yy": 2026, "amount": 100})
+    result = update_budget(created["id"], {"amount": 999})
+    assert result["ok"] is True
+    updated = get_budget(created["id"])
+    assert updated["company"] == "PO"
+    assert updated["amount"] == 999
+
+
 def test_delete_budget_removes_row():
     created = create_budget({"company": "PO", "dept": "Finance", "mm": 1, "yy": 2026, "amount": 100})
     result = delete_budget(created["id"])

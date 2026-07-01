@@ -132,12 +132,25 @@ def update_budget(budget_id: str, payload: dict) -> dict:
     except (TypeError, ValueError):
         conn.close()
         return {"ok": False, "pesan": "Bulan/tahun/jumlah tidak valid."}
+
+    # Validate resolved values (whether from payload or fallback to existing row)
+    company = payload.get("company", row["company"])
+    if company not in VALID_COMPANIES:
+        conn.close()
+        return {"ok": False, "pesan": "Company harus PO atau TF."}
+    if not (1 <= mm <= 12):
+        conn.close()
+        return {"ok": False, "pesan": "Bulan harus 1-12."}
+    if yy < 2000:
+        conn.close()
+        return {"ok": False, "pesan": "Tahun tidak valid."}
+
     deadline = compute_deadline(mm, yy)
     conn.execute(
         """UPDATE budget_master SET mm=?, yy=?, company=?, dept=?, gl_account=?,
            gl_description=?, budget_category=?, activity=?, description=?, amount=?,
            deadline=?, updated_at=? WHERE id=?""",
-        (mm, yy, payload.get("company", row["company"]), payload.get("dept", row["dept"]),
+        (mm, yy, company, payload.get("dept", row["dept"]),
          payload.get("gl_account", row["gl_account"]), payload.get("gl_description", row["gl_description"]),
          payload.get("budget_category", row["budget_category"]), payload.get("activity", row["activity"]),
          payload.get("description", row["description"]), amount, deadline, _ts(), budget_id)
