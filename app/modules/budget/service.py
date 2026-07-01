@@ -1,6 +1,7 @@
 # modules/budget/service.py
 import re
 import time
+import uuid
 from datetime import datetime, date
 from database import get_conn
 
@@ -155,3 +156,81 @@ def delete_budget(budget_id: str) -> dict:
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": f"Budget {budget_id} dihapus."}
+
+
+def list_realisasi(filters: dict = None) -> list:
+    filters = filters or {}
+    conn = get_conn()
+    query = "SELECT * FROM budget_realisasi WHERE 1=1"
+    query, params = _apply_common_filters(query, [], filters)
+    query += " ORDER BY tanggal_realisasi DESC"
+    rows = [dict(r) for r in conn.execute(query, params).fetchall()]
+    conn.close()
+    return rows
+
+
+def create_realisasi(payload: dict) -> dict:
+    budget_id = payload.get("budget_id")
+    budget = get_budget(budget_id)
+    if not budget:
+        return {"ok": False, "pesan": f"Budget ID tidak ditemukan: {budget_id}"}
+    try:
+        amount = float(payload.get("amount") or 0)
+    except (TypeError, ValueError):
+        return {"ok": False, "pesan": "Jumlah tidak valid."}
+    if amount <= 0:
+        return {"ok": False, "pesan": "Jumlah harus lebih dari 0."}
+
+    trx_id = f"TRX-{uuid.uuid4().hex[:8].upper()}"
+    tanggal = payload.get("tanggal_realisasi") or datetime.now().strftime("%Y-%m-%d")
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO budget_realisasi
+           (trx_id, budget_id, mm, yy, company, dept, gl_account, gl_description,
+            budget_category, activity, description, amount, tanggal_realisasi, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (trx_id, budget_id, budget["mm"], budget["yy"], budget["company"], budget["dept"],
+         budget["gl_account"], budget["gl_description"], budget["budget_category"],
+         budget["activity"], payload.get("description") or budget["description"],
+         amount, tanggal, _ts())
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Realisasi berhasil dicatat.", "trx_id": trx_id}
+
+
+def update_realisasi(trx_id: str, payload: dict) -> dict:
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM budget_realisasi WHERE trx_id = ?", (trx_id,)).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Transaksi tidak ditemukan."}
+    try:
+        amount = float(payload.get("amount", row["amount"]) or 0)
+    except (TypeError, ValueError):
+        conn.close()
+        return {"ok": False, "pesan": "Jumlah tidak valid."}
+    if amount <= 0:
+        conn.close()
+        return {"ok": False, "pesan": "Jumlah harus lebih dari 0."}
+    description = payload.get("description", row["description"])
+    tanggal = payload.get("tanggal_realisasi", row["tanggal_realisasi"])
+    conn.execute(
+        "UPDATE budget_realisasi SET description=?, amount=?, tanggal_realisasi=? WHERE trx_id=?",
+        (description, amount, tanggal, trx_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Realisasi berhasil diupdate."}
+
+
+def delete_realisasi(trx_id: str) -> dict:
+    conn = get_conn()
+    row = conn.execute("SELECT trx_id FROM budget_realisasi WHERE trx_id = ?", (trx_id,)).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Transaksi tidak ditemukan."}
+    conn.execute("DELETE FROM budget_realisasi WHERE trx_id = ?", (trx_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Transaksi dihapus."}

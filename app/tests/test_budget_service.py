@@ -94,3 +94,70 @@ def test_delete_budget_removes_row():
 def test_delete_budget_missing_returns_error():
     result = delete_budget("DOES-NOT-EXIST")
     assert result["ok"] is False
+
+
+from modules.budget.service import (
+    list_realisasi, create_realisasi, update_realisasi, delete_realisasi,
+)
+
+
+def test_create_realisasi_snapshots_budget_fields():
+    budget = create_budget({
+        "company": "PO", "dept": "Finance", "mm": 1, "yy": 2026,
+        "gl_account": "70110230", "budget_category": "OpEx", "activity": "Audit Fee",
+        "amount": 50000000,
+    })
+    result = create_realisasi({
+        "budget_id": budget["id"], "amount": 10000000,
+        "tanggal_realisasi": "2026-01-20", "description": "Partial payment",
+    })
+    assert result["ok"] is True
+    assert result["trx_id"].startswith("TRX-")
+    rows = list_realisasi({"company": "PO"})
+    match = next(r for r in rows if r["trx_id"] == result["trx_id"])
+    assert match["budget_id"] == budget["id"]
+    assert match["company"] == "PO"
+    assert match["dept"] == "Finance"
+    assert match["budget_category"] == "OpEx"
+    assert match["amount"] == 10000000
+
+
+def test_create_realisasi_rejects_unknown_budget():
+    result = create_realisasi({"budget_id": "GHOST-ID", "amount": 1000})
+    assert result["ok"] is False
+    assert "tidak ditemukan" in result["pesan"]
+
+
+def test_create_realisasi_rejects_zero_amount():
+    budget = create_budget({"company": "PO", "dept": "Finance", "mm": 1, "yy": 2026, "amount": 1000})
+    result = create_realisasi({"budget_id": budget["id"], "amount": 0})
+    assert result["ok"] is False
+
+
+def test_update_realisasi_changes_amount():
+    budget = create_budget({"company": "TF", "dept": "IT", "mm": 2, "yy": 2026, "amount": 1000})
+    created = create_realisasi({"budget_id": budget["id"], "amount": 500, "tanggal_realisasi": "2026-02-01"})
+    result = update_realisasi(created["trx_id"], {"amount": 700})
+    assert result["ok"] is True
+    rows = list_realisasi({"company": "TF"})
+    match = next(r for r in rows if r["trx_id"] == created["trx_id"])
+    assert match["amount"] == 700
+
+
+def test_update_realisasi_missing_returns_error():
+    result = update_realisasi("TRX-GHOST", {"amount": 100})
+    assert result["ok"] is False
+
+
+def test_delete_realisasi_removes_row():
+    budget = create_budget({"company": "PO", "dept": "Finance", "mm": 1, "yy": 2026, "amount": 1000})
+    created = create_realisasi({"budget_id": budget["id"], "amount": 500, "tanggal_realisasi": "2026-01-05"})
+    result = delete_realisasi(created["trx_id"])
+    assert result["ok"] is True
+    rows = list_realisasi({"company": "PO"})
+    assert all(r["trx_id"] != created["trx_id"] for r in rows)
+
+
+def test_delete_realisasi_missing_returns_error():
+    result = delete_realisasi("TRX-GHOST")
+    assert result["ok"] is False
