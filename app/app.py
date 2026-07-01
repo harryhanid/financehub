@@ -39,6 +39,9 @@ def create_app(testing=False):
     from modules.etf_payment_application.routes import bp as etf_pa_bp
     app.register_blueprint(etf_pa_bp)
 
+    from modules.budget.routes import bp as budget_bp
+    app.register_blueprint(budget_bp)
+
     from modules.users.routes import bp as users_bp
     app.register_blueprint(users_bp)
 
