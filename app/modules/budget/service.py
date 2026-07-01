@@ -2,6 +2,7 @@
 import re
 import time
 import uuid
+import calendar
 from datetime import datetime, date
 from database import get_conn
 
@@ -590,3 +591,142 @@ def get_available_activities() -> list:
     ).fetchall()
     conn.close()
     return [r["activity"] for r in rows]
+
+
+def _add_months(d: date, months: int) -> date:
+    total = d.year * 12 + (d.month - 1) + months
+    year = total // 12
+    month = total % 12 + 1
+    day = min(d.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def request_carryover(budget_id: str, username: str, reason: str) -> dict:
+    budget = get_budget(budget_id)
+    if not budget:
+        return {"ok": False, "pesan": "Budget tidak ditemukan."}
+    conn = get_conn()
+    pending = conn.execute(
+        "SELECT id FROM budget_carryover_logs WHERE budget_id=? AND status='Pending'",
+        (budget_id,)
+    ).fetchone()
+    if pending:
+        conn.close()
+        return {"ok": False, "pesan": "Sudah ada request pending untuk budget ini."}
+    conn.execute(
+        """INSERT INTO budget_carryover_logs
+           (budget_id, requested_by, request_date, status, extension_months, reason, type, additional_amount)
+           VALUES (?,?,?,?,?,?,?,?)""",
+        (budget_id, username, _ts(), "Pending", 12, reason or "", "Carryover", 0)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Carryover request terkirim (rollover ke tahun depan)."}
+
+
+def request_additional_budget(budget_id: str, username: str, amount, reason: str) -> dict:
+    budget = get_budget(budget_id)
+    if not budget:
+        return {"ok": False, "pesan": "Budget tidak ditemukan."}
+    try:
+        amt = float(amount or 0)
+    except (TypeError, ValueError):
+        return {"ok": False, "pesan": "Jumlah tidak valid."}
+    if amt <= 0:
+        return {"ok": False, "pesan": "Tambahan anggaran harus lebih dari 0."}
+    conn = get_conn()
+    pending = conn.execute(
+        "SELECT id FROM budget_carryover_logs WHERE budget_id=? AND status='Pending'",
+        (budget_id,)
+    ).fetchone()
+    if pending:
+        conn.close()
+        return {"ok": False, "pesan": "Sudah ada request pending untuk budget ini."}
+    conn.execute(
+        """INSERT INTO budget_carryover_logs
+           (budget_id, requested_by, request_date, status, extension_months, reason, type, additional_amount)
+           VALUES (?,?,?,?,?,?,?,?)""",
+        (budget_id, username, _ts(), "Pending", 3, reason or "", "Additional", amt)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Permintaan Tambahan Anggaran terkirim. Menunggu persetujuan."}
+
+
+def approve_carryover(budget_id: str, username: str, extension_months) -> dict:
+    conn = get_conn()
+    log = conn.execute(
+        "SELECT * FROM budget_carryover_logs WHERE budget_id=? AND status='Pending' AND type='Carryover'",
+        (budget_id,)
+    ).fetchone()
+    if not log:
+        conn.close()
+        return {"ok": False, "pesan": "Tidak ada request carryover pending untuk budget ini."}
+    budget = conn.execute("SELECT * FROM budget_master WHERE id=?", (budget_id,)).fetchone()
+    if not budget:
+        conn.close()
+        return {"ok": False, "pesan": "Budget tidak ditemukan."}
+    months = int(extension_months or 3)
+    current_deadline = (
+        datetime.fromisoformat(budget["deadline"]).date() if budget["deadline"] else datetime.now().date()
+    )
+    new_deadline = _add_months(current_deadline, months)
+    conn.execute("UPDATE budget_master SET deadline=?, updated_at=? WHERE id=?",
+                 (new_deadline.isoformat(), _ts(), budget_id))
+    conn.execute(
+        "UPDATE budget_carryover_logs SET status='Approved', approval_date=?, extension_months=?, approved_by=? WHERE id=?",
+        (_ts(), months, username, log["id"])
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"Carryover disetujui. Deadline diperpanjang {months} bulan."}
+
+
+def approve_additional_budget(budget_id: str, username: str, extension_months) -> dict:
+    conn = get_conn()
+    log = conn.execute(
+        "SELECT * FROM budget_carryover_logs WHERE budget_id=? AND status='Pending' AND type='Additional'",
+        (budget_id,)
+    ).fetchone()
+    if not log:
+        conn.close()
+        return {"ok": False, "pesan": "Tidak ada request tambahan anggaran pending untuk budget ini."}
+    budget = conn.execute("SELECT * FROM budget_master WHERE id=?", (budget_id,)).fetchone()
+    if not budget:
+        conn.close()
+        return {"ok": False, "pesan": "Budget tidak ditemukan."}
+    months = int(extension_months or 3)
+    new_amount = (budget["amount"] or 0) + (log["additional_amount"] or 0)
+    new_deadline = _add_months(datetime.now().date(), months)
+    conn.execute("UPDATE budget_master SET amount=?, deadline=?, updated_at=? WHERE id=?",
+                 (new_amount, new_deadline.isoformat(), _ts(), budget_id))
+    conn.execute(
+        "UPDATE budget_carryover_logs SET status='Approved', approval_date=?, extension_months=?, approved_by=? WHERE id=?",
+        (_ts(), months, username, log["id"])
+    )
+    conn.commit()
+    conn.close()
+    return {
+        "ok": True,
+        "pesan": f"Tambahan anggaran disetujui. Allocated +{format_currency(log['additional_amount'])}, "
+                 f"deadline diperpanjang {months} bulan.",
+    }
+
+
+def reject_request(budget_id: str, username: str, reason: str) -> dict:
+    conn = get_conn()
+    log = conn.execute(
+        "SELECT * FROM budget_carryover_logs WHERE budget_id=? AND status='Pending'",
+        (budget_id,)
+    ).fetchone()
+    if not log:
+        conn.close()
+        return {"ok": False, "pesan": "Tidak ada request pending untuk budget ini."}
+    new_reason = (log["reason"] or "") + (f" | Rejected: {reason}" if reason else "")
+    conn.execute(
+        "UPDATE budget_carryover_logs SET status='Rejected', approval_date=?, reason=?, approved_by=? WHERE id=?",
+        (_ts(), new_reason, username, log["id"])
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Request ditolak."}
