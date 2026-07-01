@@ -1,10 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Budget Master{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+{% endblock %}
 {% block content %}
+<div class="budget-page">
 <h1>Budget Master</h1>
 <table><tbody>
 {% for b in budgets %}
   <tr><td>{{ b.id }}</td><td>{{ b.company }}</td><td>{{ b.dept }}</td><td>{{ b.amount }}</td></tr>
 {% endfor %}
 </tbody></table>
+</div>
 {% endblock %}

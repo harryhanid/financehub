@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Budget Dashboard{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+{% endblock %}
 {% block content %}
+<div class="budget-page">
 <h1>Budget Dashboard</h1>
 <div id="budget-dashboard-root"></div>
+</div>
 {% endblock %}

@@ -1,10 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Carryover & Additional Budget{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+{% endblock %}
 {% block content %}
+<div class="budget-page">
 <h1>Carryover & Additional Budget Requests</h1>
 <table><tbody>
 {% for log in logs %}
   <tr><td>{{ log.budget_id }}</td><td>{{ log.type }}</td><td>{{ log.status }}</td></tr>
 {% endfor %}
 </tbody></table>
+</div>
 {% endblock %}

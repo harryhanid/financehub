@@ -1,10 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Realisasi{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+{% endblock %}
 {% block content %}
+<div class="budget-page">
 <h1>Realisasi</h1>
 <table><tbody>
 {% for r in realisasi %}
   <tr><td>{{ r.trx_id }}</td><td>{{ r.budget_id }}</td><td>{{ r.amount }}</td></tr>
 {% endfor %}
 </tbody></table>
+</div>
 {% endblock %}

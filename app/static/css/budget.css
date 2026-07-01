@@ -1,0 +1,160 @@
+/* static/css/budget.css — Budget Monitoring module (glassmorphism, adapted from GAS Budget_Dashboard2) */
+.budget-page {
+  --bg-card: rgba(18, 24, 42, 0.75);
+  --bg-card-hover: rgba(22, 30, 52, 0.85);
+  --border-color: rgba(99, 102, 241, 0.12);
+  --border-hover: rgba(99, 102, 241, 0.25);
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --accent-glow: rgba(99, 102, 241, 0.3);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --po-color: #f97316;
+  --tf-color: #06b6d4;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+  background: #070a12;
+  color: var(--text-primary);
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+}
+
+.budget-page h1, .budget-page h2, .budget-page h3 {
+  color: var(--text-primary);
+}
+
+.budget-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-md);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.budget-card:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-card-hover);
+}
+
+.budget-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.budget-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+}
+.budget-stat-card .label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.budget-stat-card .value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 0.25rem;
+}
+
+.budget-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.budget-chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+.budget-chart-card canvas {
+  max-height: 260px;
+}
+
+.budget-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.budget-table th, .budget-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+.budget-table th {
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+.budget-table tr:hover td {
+  background: var(--bg-card-hover);
+}
+
+.budget-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.badge-po { background: rgba(249, 115, 22, 0.15); color: var(--po-color); }
+.badge-tf { background: rgba(6, 182, 212, 0.15); color: var(--tf-color); }
+.badge-status-active { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+.badge-status-near-limit { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+.badge-status-expired { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+.badge-status-completed { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+
+.budget-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.budget-toolbar select, .budget-toolbar input {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+}
+.budget-toolbar select:focus, .budget-toolbar input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.budget-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+.budget-btn:hover { box-shadow: 0 6px 24px var(--accent-glow); }
+.budget-btn-danger { background: linear-gradient(135deg, var(--danger), #f87171); box-shadow: none; }
