@@ -425,3 +425,168 @@ def group_by_status(data: list) -> dict:
         if d["status"] in statuses:
             statuses[d["status"]] += 1
     return {"labels": list(statuses.keys()), "values": list(statuses.values())}
+
+
+REMINDER_DAYS_BEFORE = 14
+
+
+def analyze_expired_budgets(data: list) -> dict:
+    expired = [d for d in data if d["status"] == "Expired"]
+    by_dept = {}
+    by_company = {"PO": {"count": 0, "amount": 0, "realized": 0}, "TF": {"count": 0, "amount": 0, "realized": 0}}
+    age_buckets = {"recent": 0, "midterm": 0, "longterm": 0}
+    now = datetime.now().date()
+
+    for d in expired:
+        dept = d["dept"] or "(unset)"
+        if dept not in by_dept:
+            by_dept[dept] = {"count": 0, "amount": 0, "realized": 0}
+        by_dept[dept]["count"] += 1
+        by_dept[dept]["amount"] += d["amount"]
+        by_dept[dept]["realized"] += d["realized"]
+        if d["company"] in by_company:
+            by_company[d["company"]]["count"] += 1
+            by_company[d["company"]]["amount"] += d["amount"]
+            by_company[d["company"]]["realized"] += d["realized"]
+        if d["deadline"]:
+            try:
+                deadline_date = datetime.fromisoformat(d["deadline"]).date()
+                days = (now - deadline_date).days
+                if days <= 30:
+                    age_buckets["recent"] += 1
+                elif days <= 90:
+                    age_buckets["midterm"] += 1
+                else:
+                    age_buckets["longterm"] += 1
+            except ValueError:
+                pass
+
+    return {
+        "totalExpired": len(expired),
+        "totalAmount": sum(d["amount"] for d in expired),
+        "totalRealized": sum(d["realized"] for d in expired),
+        "byDept": [{"dept": k, **v} for k, v in by_dept.items()],
+        "byCompany": [{"company": k, **v} for k, v in by_company.items()],
+        "ageBuckets": age_buckets,
+    }
+
+
+def get_carryover_data(status: str = None) -> list:
+    conn = get_conn()
+    query = "SELECT * FROM budget_carryover_logs"
+    params = []
+    if status:
+        query += " WHERE status = ?"
+        params.append(status)
+    query += " ORDER BY request_date DESC"
+    rows = [dict(r) for r in conn.execute(query, params).fetchall()]
+    conn.close()
+    return rows
+
+
+def analyze_compliance(budget_data: list, carryover_data: list) -> dict:
+    expired_ids = {d["id"] for d in budget_data if d["status"] == "Expired"}
+    total_requests = len(carryover_data)
+    approved = sum(1 for c in carryover_data if c["status"] == "Approved")
+    pending = sum(1 for c in carryover_data if c["status"] == "Pending")
+    rejected = sum(1 for c in carryover_data if c["status"] == "Rejected")
+    carryover_type = [c for c in carryover_data if c["type"] == "Carryover"]
+    additional_type = [c for c in carryover_data if c["type"] == "Additional"]
+    expired_covered = sum(
+        1 for c in carryover_data if c["budget_id"] in expired_ids and c["status"] == "Approved"
+    )
+    additional_approved = [c for c in additional_type if c["status"] == "Approved"]
+    return {
+        "totalExpired": len(expired_ids),
+        "totalRequests": total_requests,
+        "approved": approved, "pending": pending, "rejected": rejected,
+        "carryoverCount": len(carryover_type), "additionalCount": len(additional_type),
+        "additionalApproved": len(additional_approved),
+        "additionalAmountApproved": sum(c["additional_amount"] or 0 for c in additional_approved),
+        "complianceRate": (
+            f"{(expired_covered / len(expired_ids) * 100):.1f}" if expired_ids else "100.0"
+        ),
+    }
+
+
+def generate_notifications(data: list) -> list:
+    notifications = []
+    for d in data:
+        if d["status"] == "Expired":
+            notifications.append({
+                "type": "danger", "icon": "warning", "title": "Budget Expired",
+                "message": f"{d['id']} ({d['dept']}) has expired. Balance: {format_currency(d['balance'])}",
+                "date": d["deadline"], "budgetId": d["id"],
+            })
+        elif d["status"] == "Near Limit":
+            notifications.append({
+                "type": "warning", "icon": "bell", "title": "Near Budget Limit",
+                "message": f"{d['id']} ({d['dept']}) at {d['utilizationRate']:.1f}% utilization",
+                "date": d["deadline"], "budgetId": d["id"],
+            })
+        elif 0 < d["daysToDeadline"] <= REMINDER_DAYS_BEFORE and d["balance"] > 0:
+            notifications.append({
+                "type": "info", "icon": "clock", "title": "Deadline Approaching",
+                "message": f"{d['id']} expires in {d['daysToDeadline']} days. Remaining: {format_currency(d['balance'])}",
+                "date": d["deadline"], "budgetId": d["id"],
+            })
+    order = {"danger": 0, "warning": 1, "info": 2}
+    notifications.sort(key=lambda n: order[n["type"]])
+    return notifications[:50]
+
+
+def get_dashboard_data(filters: dict) -> dict:
+    filters = filters or {}
+    data = _build_budget_data(filters)
+    carryover_data = get_carryover_data()
+    return {
+        "summary": calculate_summary(data),
+        "monthlyChart": group_by_month(data),
+        "deptChart": group_budget_vs_realized(data, "dept"),
+        "activityChart": group_budget_vs_realized(data, "activity"),
+        "companyChart": group_by_company(data),
+        "categoryChart": group_budget_vs_realized(data, "category"),
+        "statusChart": group_by_status(data),
+        "expiredAnalysis": analyze_expired_budgets(data),
+        "complianceData": analyze_compliance(data, carryover_data),
+        "notifications": generate_notifications(data),
+        "transactions": data,
+        "realizations": list_realisasi(filters),
+        "carryovers": carryover_data,
+    }
+
+
+def get_available_years() -> list:
+    conn = get_conn()
+    rows = conn.execute("SELECT DISTINCT yy FROM budget_master ORDER BY yy DESC").fetchall()
+    conn.close()
+    years = [str(r["yy"]) for r in rows if r["yy"]]
+    return years or [str(datetime.now().year)]
+
+
+def get_available_categories() -> list:
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT DISTINCT budget_category FROM budget_master "
+        "WHERE budget_category IS NOT NULL AND budget_category != '' ORDER BY budget_category"
+    ).fetchall()
+    conn.close()
+    return [r["budget_category"] for r in rows]
+
+
+def get_available_departments() -> list:
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT DISTINCT dept FROM budget_master WHERE dept IS NOT NULL AND dept != '' ORDER BY dept"
+    ).fetchall()
+    conn.close()
+    return [r["dept"] for r in rows]
+
+
+def get_available_activities() -> list:
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT DISTINCT activity FROM budget_master WHERE activity IS NOT NULL AND activity != '' ORDER BY activity"
+    ).fetchall()
+    conn.close()
+    return [r["activity"] for r in rows]

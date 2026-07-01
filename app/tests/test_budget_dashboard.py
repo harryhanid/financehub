@@ -1,9 +1,13 @@
 # tests/test_budget_dashboard.py
-from datetime import datetime
+from datetime import datetime, timedelta
 from modules.budget.service import (
     format_currency, create_budget, create_realisasi, _build_budget_data,
     calculate_summary, group_budget_vs_realized, group_by_month,
     group_by_company, group_by_status,
+    analyze_expired_budgets, get_carryover_data, analyze_compliance,
+    generate_notifications, get_dashboard_data, get_available_years,
+    get_available_categories, get_available_departments, get_available_activities,
+    update_budget,
 )
 
 
@@ -112,3 +116,66 @@ def test_group_by_status_counts_active_by_default():
     data = _build_budget_data({"year": "ALL"})
     grouped = group_by_status(data)
     assert dict(zip(grouped["labels"], grouped["values"]))["Active"] == 2
+
+
+def test_analyze_expired_budgets_counts_and_buckets():
+    b = create_budget({"company": "PO", "dept": "Finance", "mm": 1, "yy": 2020, "amount": 1000000})
+    # force an already-past deadline
+    yesterday = (datetime.now() - timedelta(days=5)).date().isoformat()
+    conn = __import__("database").get_conn()
+    conn.execute("UPDATE budget_master SET deadline=? WHERE id=?", (yesterday, b["id"]))
+    conn.commit()
+    conn.close()
+    data = _build_budget_data({"year": "2020"})
+    result = analyze_expired_budgets(data)
+    assert result["totalExpired"] == 1
+    assert result["ageBuckets"]["recent"] == 1
+
+
+def test_get_dashboard_data_has_all_expected_keys():
+    _seed_two_budgets()
+    payload = get_dashboard_data({"year": "ALL"})
+    for key in [
+        "summary", "monthlyChart", "deptChart", "activityChart", "companyChart",
+        "categoryChart", "statusChart", "expiredAnalysis", "complianceData",
+        "notifications", "transactions", "realizations", "carryovers",
+    ]:
+        assert key in payload
+
+
+def test_analyze_compliance_with_no_requests():
+    result = analyze_compliance([], [])
+    assert result["complianceRate"] == "100.0"
+    assert result["totalRequests"] == 0
+
+
+def test_generate_notifications_flags_near_limit():
+    # Use next month to ensure deadline is in the future relative to today (2026-07-01)
+    now = datetime.now()
+    total_months = now.year * 12 + (now.month - 1) + 1
+    year = total_months // 12
+    month = total_months % 12 + 1
+
+    b = create_budget({"company": "PO", "dept": "Finance", "mm": month, "yy": year, "amount": 1000000})
+    realisasi_date = f"{year:04d}-{month:02d}-10"
+    create_realisasi({"budget_id": b["id"], "amount": 950000, "tanggal_realisasi": realisasi_date})
+    data = _build_budget_data({"year": str(year)})
+    notifications = generate_notifications(data)
+    assert any(n["title"] == "Near Budget Limit" for n in notifications)
+
+
+def test_get_available_years_returns_sorted_desc():
+    create_budget({"company": "PO", "dept": "Finance", "mm": 1, "yy": 2025, "amount": 100})
+    create_budget({"company": "PO", "dept": "Finance", "mm": 1, "yy": 2026, "amount": 100})
+    years = get_available_years()
+    assert years[0] == "2026"
+
+
+def test_get_available_categories_departments_activities():
+    create_budget({
+        "company": "PO", "dept": "Marketing", "mm": 1, "yy": 2026,
+        "budget_category": "OpEx", "activity": "Ad Campaign", "amount": 100,
+    })
+    assert "Marketing" in get_available_departments()
+    assert "OpEx" in get_available_categories()
+    assert "Ad Campaign" in get_available_activities()
