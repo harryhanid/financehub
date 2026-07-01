@@ -5,11 +5,51 @@
 {% endblock %}
 {% block content %}
 <div class="budget-page">
-<h1>Realisasi</h1>
-<table><tbody>
-{% for r in realisasi %}
-  <tr><td>{{ r.trx_id }}</td><td>{{ r.budget_id }}</td><td>{{ r.amount }}</td></tr>
-{% endfor %}
-</tbody></table>
+  <h1>Realisasi Budget</h1>
+  <div class="budget-toolbar">
+    <button class="budget-btn" onclick="openModal('budget-realisasi-modal')">+ Realisasi Baru</button>
+  </div>
+  <table class="budget-table">
+    <thead>
+      <tr><th>Trx ID</th><th>Budget ID</th><th>Tanggal</th><th>Description</th><th>Amount</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for r in realisasi %}
+      <tr data-trx-id="{{ r.trx_id }}" data-description="{{ r.description }}" data-amount="{{ r.amount }}" data-tanggal="{{ r.tanggal_realisasi }}">
+        <td>{{ r.trx_id }}</td>
+        <td>{{ r.budget_id }}</td>
+        <td>{{ r.tanggal_realisasi }}</td>
+        <td>{{ r.description }}</td>
+        <td>{{ r.amount }}</td>
+        <td>
+          <button class="budget-btn" onclick="budgetRealisasiEdit(this)">Edit</button>
+          <button class="budget-btn budget-btn-danger" onclick="budgetRealisasiDelete('{{ r.trx_id }}')">Hapus</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
+
+<div id="budget-realisasi-modal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Realisasi</span></div>
+    <div class="modal-body">
+      <form id="budget-realisasi-form">
+        <input type="hidden" id="br-trx-id">
+        <label>Budget ID <input type="text" id="br-budget-id"></label>
+        <label>Tanggal <input type="date" id="br-tanggal"></label>
+        <label>Description <input type="text" id="br-description"></label>
+        <label>Amount <input type="number" id="br-amount" min="0"></label>
+      </form>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem">
+      <button class="btn btn-secondary" onclick="closeModal('budget-realisasi-modal')">Batal</button>
+      <button class="budget-btn" onclick="budgetRealisasiSave()">Simpan</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/budget_realisasi.js') }}"></script>
 {% endblock %}

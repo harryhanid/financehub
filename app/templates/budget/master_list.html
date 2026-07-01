@@ -5,11 +5,64 @@
 {% endblock %}
 {% block content %}
 <div class="budget-page">
-<h1>Budget Master</h1>
-<table><tbody>
-{% for b in budgets %}
-  <tr><td>{{ b.id }}</td><td>{{ b.company }}</td><td>{{ b.dept }}</td><td>{{ b.amount }}</td></tr>
-{% endfor %}
-</tbody></table>
+  <h1>Budget Master</h1>
+  <div class="budget-toolbar">
+    <button class="budget-btn" onclick="openModal('budget-master-modal')">+ Budget Baru</button>
+  </div>
+  <table class="budget-table">
+    <thead>
+      <tr>
+        <th>ID</th><th>Company</th><th>Dept</th><th>Category</th><th>Activity</th>
+        <th>Amount</th><th>Deadline</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in budgets %}
+      <tr data-budget-id="{{ b.id }}">
+        <td>{{ b.id }}</td>
+        <td><span class="budget-badge {% if b.company == 'PO' %}badge-po{% else %}badge-tf{% endif %}">{{ b.company }}</span></td>
+        <td>{{ b.dept }}</td>
+        <td>{{ b.budget_category }}</td>
+        <td>{{ b.activity }}</td>
+        <td>{{ b.amount }}</td>
+        <td>{{ b.deadline }}</td>
+        <td>
+          <button class="budget-btn" onclick="budgetMasterEdit('{{ b.id }}')">Edit</button>
+          <button class="budget-btn budget-btn-danger" onclick="budgetMasterDelete('{{ b.id }}')">Hapus</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
+
+<div id="budget-master-modal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Budget</span></div>
+    <div class="modal-body">
+      <form id="budget-master-form">
+        <input type="hidden" id="bm-id">
+        <label>Company
+          <select id="bm-company"><option value="PO">PO (SMT)</option><option value="TF">TF (ETF)</option></select>
+        </label>
+        <label>Dept <input type="text" id="bm-dept"></label>
+        <label>Bulan <input type="number" id="bm-mm" min="1" max="12"></label>
+        <label>Tahun <input type="number" id="bm-yy" min="2000"></label>
+        <label>GL Account <input type="text" id="bm-gl-account"></label>
+        <label>GL Description <input type="text" id="bm-gl-description"></label>
+        <label>Category <input type="text" id="bm-category"></label>
+        <label>Activity <input type="text" id="bm-activity"></label>
+        <label>Description <input type="text" id="bm-description"></label>
+        <label>Amount <input type="number" id="bm-amount" min="0"></label>
+      </form>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem">
+      <button class="btn btn-secondary" onclick="closeModal('budget-master-modal')">Batal</button>
+      <button class="budget-btn" onclick="budgetMasterSave()">Simpan</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/budget_master.js') }}"></script>
 {% endblock %}
