@@ -1,4 +1,6 @@
 # tests/test_budget_dashboard.py
+from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 from modules.budget.service import (
     format_currency, create_budget, create_realisasi, _build_budget_data,
     calculate_summary, group_budget_vs_realized, group_by_month,
@@ -13,16 +15,26 @@ def test_format_currency():
 
 
 def _seed_two_budgets():
+    """Seed fixture with relative dates: next month and month-after-next from today.
+    This keeps tests valid regardless of when they run."""
+    now = datetime.now()
+    # Calculate next month (month 1) and month after next (month 2)
+    month1_date = now + relativedelta(months=1)
+    month2_date = now + relativedelta(months=2)
+
     b1 = create_budget({
-        "company": "PO", "dept": "Finance", "mm": 7, "yy": 2026,
+        "company": "PO", "dept": "Finance", "mm": month1_date.month, "yy": month1_date.year,
         "budget_category": "OpEx", "activity": "Audit Fee", "amount": 1000000,
     })
     b2 = create_budget({
-        "company": "TF", "dept": "IT", "mm": 8, "yy": 2026,
+        "company": "TF", "dept": "IT", "mm": month2_date.month, "yy": month2_date.year,
         "budget_category": "CapEx", "activity": "Server Upgrade", "amount": 2000000,
     })
-    create_realisasi({"budget_id": b1["id"], "amount": 400000, "tanggal_realisasi": "2026-07-10"})
-    create_realisasi({"budget_id": b2["id"], "amount": 500000, "tanggal_realisasi": "2026-08-10"})
+    # Realisasi dates: 10th of each seeded month
+    realisasi_date1 = month1_date.replace(day=10).strftime("%Y-%m-%d")
+    realisasi_date2 = month2_date.replace(day=10).strftime("%Y-%m-%d")
+    create_realisasi({"budget_id": b1["id"], "amount": 400000, "tanggal_realisasi": realisasi_date1})
+    create_realisasi({"budget_id": b2["id"], "amount": 500000, "tanggal_realisasi": realisasi_date2})
     return b1, b2
 
 
@@ -62,10 +74,16 @@ def test_group_budget_vs_realized_by_activity():
 
 def test_group_by_month_places_amount_in_correct_index():
     _seed_two_budgets()
-    data = _build_budget_data({"year": "2026"})
+    now = datetime.now()
+    month1_date = now + relativedelta(months=1)
+    month2_date = now + relativedelta(months=2)
+    month1_idx = month1_date.month - 1  # Convert to 0-indexed
+    month2_idx = month2_date.month - 1
+
+    data = _build_budget_data({"year": str(month1_date.year)})
     grouped = group_by_month(data)
-    assert grouped["budget"][6] == 1000000  # July = index 6
-    assert grouped["budget"][7] == 2000000  # August = index 7
+    assert grouped["budget"][month1_idx] == 1000000
+    assert grouped["budget"][month2_idx] == 2000000
 
 
 def test_group_by_company_splits_po_tf():
