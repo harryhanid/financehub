@@ -2,10 +2,46 @@
 {% block title %}Budget Dashboard{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 {% endblock %}
 {% block content %}
 <div class="budget-page">
-<h1>Budget Dashboard</h1>
-<div id="budget-dashboard-root"></div>
+  <h1>Budget Dashboard</h1>
+
+  <div class="budget-toolbar">
+    <select id="bf-company">
+      <option value="ALL">Semua Company</option>
+      <option value="PO">PO (SMT)</option>
+      <option value="TF">TF (ETF)</option>
+    </select>
+    <select id="bf-dept"><option value="ALL">Semua Dept</option></select>
+    <select id="bf-year"><option value="ALL">Semua Tahun</option></select>
+    <select id="bf-category"><option value="ALL">Semua Kategori</option></select>
+    <select id="bf-activity"><option value="ALL">Semua Aktivitas</option></select>
+    <button class="budget-btn" id="bf-apply">Terapkan Filter</button>
+    <a class="budget-btn" href="/budget/master">Kelola Budget</a>
+    <a class="budget-btn" href="/budget/realisasi">Kelola Realisasi</a>
+    <a class="budget-btn" href="/budget/carryover">Carryover / Tambahan</a>
+  </div>
+
+  <div class="budget-summary-grid" id="budget-summary"></div>
+
+  <div class="budget-chart-grid">
+    <div class="budget-chart-card"><h3>Budget vs Realisasi per Bulan</h3><canvas id="chart-monthly"></canvas></div>
+    <div class="budget-chart-card"><h3>PO vs TF</h3><canvas id="chart-company"></canvas></div>
+    <div class="budget-chart-card"><h3>Per Department</h3><canvas id="chart-dept"></canvas></div>
+    <div class="budget-chart-card"><h3>Per Activity</h3><canvas id="chart-activity"></canvas></div>
+    <div class="budget-chart-card"><h3>Per Category</h3><canvas id="chart-category"></canvas></div>
+    <div class="budget-chart-card"><h3>Status</h3><canvas id="chart-status"></canvas></div>
+  </div>
+
+  <div class="budget-card">
+    <h3>Notifikasi</h3>
+    <ul id="budget-notifications"></ul>
+  </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/budget.js') }}"></script>
+<script>document.addEventListener("DOMContentLoaded", initBudgetDashboard);</script>
 {% endblock %}
