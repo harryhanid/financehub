@@ -372,6 +372,30 @@ def upsert_pam_lines(pam_id: int, pillar: str, data: dict, company_id: int) -> d
     return {"ok": True}
 
 
+def bulk_update_pam_lines_dates(pillar: str, ids: list, field: str,
+                                 value, company_id: int) -> dict:
+    """Bulk-set one date field in {pillar}_pam_lines across multiple pam_records ids.
+
+    Upserts per id (via upsert_pam_lines) rather than a single UPDATE, since a
+    lines row may not exist yet for a given pam_id.
+    """
+    ALLOWED = {"tgl_terima_doc", "tgl_proses", "tgl_verifikasi_tax",
+               "tgl_approval_1", "tgl_approval_2", "tgl_approval_3", "tgl_kirim"}
+    if pillar not in _VALID_PILLARS:
+        return {"ok": False, "pesan": f"Pillar tidak valid: {pillar}"}
+    if field not in ALLOWED:
+        return {"ok": False, "pesan": f"Kolom tidak valid: {field}"}
+    if not ids:
+        return {"ok": False, "pesan": "Tidak ada baris yang dipilih."}
+    updated = 0
+    for pam_id in ids:
+        result = upsert_pam_lines(pam_id, pillar, {field: value or None}, company_id)
+        if result.get("ok"):
+            updated += 1
+    return {"ok": True, "updated": updated,
+            "pesan": f"{updated} dari {len(ids)} baris berhasil diperbarui."}
+
+
 def get_next_pam_no(company_id: int, company_code: str,
                     tab: str, date_str: str) -> str:
     """Return next PAM number for selected type, e.g. 'PAM-054-SETF-06-2026'."""
@@ -592,15 +616,7 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
         payment_ids = ins["payment_ids"]
         total       = ins["total"]
 
-        # 2. Link payment_beasiswa rows to user pam_no
-        if payment_ids:
-            ph = ",".join("?" * len(payment_ids))
-            conn.execute(
-                f"UPDATE payment_beasiswa SET pam=? WHERE id IN ({ph})",
-                [pam_no] + list(payment_ids)
-            )
-
-        # 3. Create exactly one pam_records entry
+        # 2. Create pam_records entry FIRST (FK must exist before UPDATE payment_beasiswa)
         due_date    = _add_one_month(tanggal)
         cost_center = config.COST_CENTER_MAP.get(perusahaan, "")
         conn.execute(
@@ -615,6 +631,14 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
              due_date, pillar, "beasiswa",
              perusahaan, cost_center, _ts())
         )
+
+        # 3. Link payment_beasiswa rows to user pam_no (pam_records now exists)
+        if payment_ids:
+            ph = ",".join("?" * len(payment_ids))
+            conn.execute(
+                f"UPDATE payment_beasiswa SET pam=? WHERE id IN ({ph})",
+                [pam_no] + list(payment_ids)
+            )
 
         # 4. Update PA: nomor_pam + status='on_process'
         line_ids = [r.get("etf_pa_line_id") for r in rows

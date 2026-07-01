@@ -93,14 +93,14 @@
           <tr>
             <th><input type="checkbox" id="select-all-drafts" onchange="toggleAllDrafts(this)"></th>
             <th></th>
-            <th>PAM No</th>
-            <th>Pillar</th>
+            <th style="min-width:180px">PAM No</th>
             <th>Tanggal</th>
             <th>Due Date</th>
-            <th>Keterangan (Nama)</th>
+            <th>Due Days</th>
+            <th>Pillar</th>
+            <th style="min-width:280px">Keterangan (Nama)</th>
             <th class="num-right">Jml</th>
             <th class="num-right">Total</th>
-            <th>Status</th>
           </tr>
         </thead>
         <tbody id="open-pam-tbody">
@@ -218,7 +218,7 @@
     </div>
     <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
       <button class="btn btn-secondary btn-sm" onclick="ipayAddRow()">+ Tambah Baris</button>
-      <button id="ipay-save-btn" class="btn btn-primary" onclick="ipaySavePa()">💾 Simpan PAM AGRI</button>
+      <button id="ipay-save-btn" class="btn btn-primary" onclick="ipaySavePa()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.35rem;vertical-align:-.1em"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Simpan PAM</button>
     </div>
     </div>{# end ipay-panel-beasiswa #}
 
@@ -257,7 +257,7 @@
   </div>
   <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
     <button class="btn btn-secondary btn-sm" onclick="klaimAddSiswa()">+ Tambah Siswa</button>
-    <button id="klaim-save-btn" class="btn btn-primary" onclick="ipaySaveKlaim()">💾 Simpan PAM Klaim Medis</button>
+    <button id="klaim-save-btn" class="btn btn-primary" onclick="ipaySaveKlaim()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.35rem;vertical-align:-.1em"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Simpan PAM Klaim Medis</button>
   </div>
 </div>{# end ipay-panel-klaim #}
 
@@ -303,7 +303,7 @@
     </div>
   </div>
   <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
-    <button id="others-save-btn" class="btn btn-primary" onclick="ipaySaveOthers()">💾 Simpan PAM</button>
+    <button id="others-save-btn" class="btn btn-primary" onclick="ipaySaveOthers()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.35rem;vertical-align:-.1em"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Simpan PAM</button>
   </div>
 </div>{# end ipay-panel-others #}
 
@@ -457,10 +457,33 @@
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('APP')">&#8595; Export Excel</button>
       <span id="fiori-count" style="font-size:11px;color:#6b7280"></span>
     </div>
+    <div id="fiori-bulk-bar" style="display:none;align-items:center;flex-wrap:wrap;gap:8px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:7px 12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Kolom:</span>
+        <select id="fiori-bulk-field" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;min-width:110px">
+          <option value="tgl_terima_doc">Terima Dok</option>
+          <option value="tgl_proses">Proses</option>
+          <option value="tgl_verifikasi_tax">Verif Tax</option>
+          <option value="tgl_approval_1">App 1</option>
+          <option value="tgl_approval_2">App 2</option>
+          <option value="tgl_approval_3">App 3</option>
+          <option value="tgl_kirim">Kirim</option>
+        </select>
+        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Tanggal:</span>
+        <input type="date" id="fiori-bulk-date" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;width:140px;box-sizing:border-box">
+        <button onclick="fioriIsiTanggal()" style="font-size:11px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Simpan Tanggal</button>
+        <button onclick="fioriHapusTanggal()" style="font-size:11px;padding:3px 11px;background:#dc2626;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Hapus Tanggal</button>
+        <button onclick="fioriClearAllSelection()" style="font-size:11px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;height:26px">&#10005; Batal</button>
+      </div>
+      <div style="width:1px;background:#f59e0b;height:20px;flex-shrink:0"></div>
+      <span id="fiori-bulk-count" style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap;flex-shrink:0"></span>
+      <div id="fiori-chips-row" style="display:flex;flex-wrap:wrap;gap:4px;min-width:0;flex:1"></div>
+    </div>
     <div class="pillar-table-wrap">
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
+            <th style="padding:7px 8px;text-align:center"><input type="checkbox" id="fiori-select-all" onchange="fioriToggleSelectAll(this)"></th>
             <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
             <th style="padding:7px 8px;white-space:nowrap">Tgl PAM</th>
             <th style="padding:7px 8px;white-space:nowrap">GL Account</th>
@@ -489,7 +512,7 @@
           </tr>
         </thead>
         <tbody id="fiori-tbody">
-          <tr><td colspan="25" style="text-align:center;padding:20px;color:#6b7280;">Memuat data...</td></tr>
+          <tr><td colspan="26" style="text-align:center;padding:20px;color:#6b7280;">Memuat data...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1098,6 +1121,38 @@ function _dueDateBadge(dueDate) {
   return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${dueDate}</span>`;
 }
 
+function _workingDaysDiff(dueDate) {
+  if (!dueDate) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due = new Date(dueDate); due.setHours(0,0,0,0);
+  const sign = due >= today ? 1 : -1;
+  const start = sign === 1 ? today : due;
+  const end   = sign === 1 ? due   : today;
+  let days = 0, cur = new Date(start);
+  while (cur < end) {
+    cur.setDate(cur.getDate() + 1);
+    const dow = cur.getDay();
+    if (dow !== 0 && dow !== 6) days++;
+  }
+  return sign === 1 ? days : -days;
+}
+
+function _dueDaysBadge(dueDate) {
+  if (!dueDate) return '<span style="color:#9ca3af">—</span>';
+  const diff = _workingDaysDiff(dueDate);
+  if (diff === null) return '<span style="color:#9ca3af">—</span>';
+  if (diff < 0) {
+    const style = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5';
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${Math.abs(diff)} hari lewat</span>`;
+  }
+  if (diff === 0) {
+    const style = 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">Hari ini</span>`;
+  }
+  const style = 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${diff} hari lagi</span>`;
+}
+
 function togglePAMRow(key) {
   var escaped = CSS.escape(key);
   var detailRows = document.querySelectorAll('.pam-detail-row[data-pam-key="' + escaped + '"]');
@@ -1111,7 +1166,7 @@ function renderOpenPAM(drafts) {
   var tbody = document.getElementById('open-pam-tbody');
   if (!tbody) return;
   if (!drafts || drafts.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">Tidak ada payment draft.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">Tidak ada payment draft.</td></tr>'; // 10 cols: cb, toggle, pam, tgl, due, days, pillar, ket, jml, total
     return;
   }
   var groups = groupDraftsByPAM(drafts);
@@ -1148,13 +1203,13 @@ function renderOpenPAM(drafts) {
       '</td>' +
       '<td><span class="pam-toggle" data-pam-key="' + pamKeyAttr + '">▶</span></td>' +
       '<td><code style="font-size:.8rem;color:#2563eb">' + esc(pamLabel) + '</code></td>' +
-      '<td>' + badgeHtml + '</td>' +
       '<td>' + esc(g.minDate || '--') + '</td>' +
       '<td>' + _dueDateBadge(g.dueDate) + '</td>' +
+      '<td>' + _dueDaysBadge(g.dueDate) + '</td>' +
+      '<td>' + badgeHtml + '</td>' +
       '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(buildKeterangan(g.items, 100)) + '">' + esc(keterangan) + '</td>' +
       '<td style="text-align:center">' + g.items.length + '</td>' +
       '<td class="num-right">' + fmtRupiah(g.total) + '</td>' +
-      '<td><span class="badge badge-gray" style="font-size:.75rem">Open</span></td>' +
       '</tr>';
     grandTotal += g.total;
 
@@ -1178,9 +1233,9 @@ function renderOpenPAM(drafts) {
 
   // Grand total row
   html += '<tr style="background:#f1f5f9;font-weight:700">' +
-    '<td colspan="8" style="text-align:right;padding:.5rem .75rem">Grand Total</td>' +
+    '<td colspan="9" style="text-align:right;padding:.5rem .75rem">Grand Total</td>' +
     '<td class="num-right" style="padding:.5rem .75rem">' + fmtRupiah(grandTotal) + '</td>' +
-    '<td></td></tr>';
+    '</tr>';
 
   tbody.innerHTML = html;
 }
@@ -1573,14 +1628,18 @@ async function loadFIORI() {
   const data   = await res.json();
   const tbody  = document.getElementById('fiori-tbody');
   const count  = document.getElementById('fiori-count');
+  _fioriSelected.clear();
+  _fioriSelectionMeta.clear();
+  fioriUpdateBulkBar();
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:#6b7280;">Belum ada data APP.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:#6b7280;">Belum ada data APP.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
   if (count) count.textContent = data.rows.length + ' baris';
   tbody.innerHTML = data.rows.map((r, i) => `
-    <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+    <tr class="fiori-row" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+      <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="fiori-cb" data-id="${r.id}" onchange="fioriToggleCb(this)"></td>
       <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
@@ -1698,22 +1757,16 @@ function fioriToggleCb(cb) {
   if (cb.checked) {
     _fioriSelected.add(id);
     if (tr) {
-      const label = tr.cells[1] ? tr.cells[1].textContent.trim() : '';
-      const cat1  = tr.cells[4] ? tr.cells[4].textContent.trim() : '';
-      _fioriSelectionMeta.set(id, { label, cat1 });
+      const label = tr.cells[1] ? tr.cells[1].textContent.trim() : String(id);
+      _fioriSelectionMeta.set(id, { label });
       tr.style.background = '#eff6ff';
-      if (tr.cells[5]) tr.cells[5].style.cssText = 'color:#1d4ed8;font-weight:600;padding:6px 8px';
     }
   } else {
     _fioriSelected.delete(id);
     _fioriSelectionMeta.delete(id);
-    if (tr) {
-      tr.style.background = '';
-      if (tr.cells[5]) tr.cells[5].style.cssText = 'padding:6px 8px';
-    }
+    if (tr) tr.style.background = '';
   }
-  fioriUpdateBtn();
-  fioriRenderChips();
+  fioriUpdateBulkBar();
 }
 
 function fioriToggleSelectAll(masterCb) {
@@ -1724,53 +1777,45 @@ function fioriToggleSelectAll(masterCb) {
     const id = parseInt(cb.dataset.id, 10);
     if (masterCb.checked) {
       _fioriSelected.add(id);
-      const label = row.cells[1] ? row.cells[1].textContent.trim() : '';
-      const cat1  = row.cells[4] ? row.cells[4].textContent.trim() : '';
-      _fioriSelectionMeta.set(id, { label, cat1 });
+      const label = row.cells[1] ? row.cells[1].textContent.trim() : String(id);
+      _fioriSelectionMeta.set(id, { label });
       row.style.background = '#eff6ff';
-      if (row.cells[5]) row.cells[5].style.cssText = 'color:#1d4ed8;font-weight:600;padding:6px 8px';
     } else {
       _fioriSelected.delete(id);
       _fioriSelectionMeta.delete(id);
       row.style.background = '';
-      if (row.cells[5]) row.cells[5].style.cssText = 'padding:6px 8px';
     }
   });
-  fioriUpdateBtn();
-  fioriRenderChips();
+  fioriUpdateBulkBar();
 }
 
-function fioriUpdateBtn() {
-  const btn = document.getElementById('fiori-update-btn');
-  if (!btn) return;
+function fioriUpdateBulkBar() {
+  const bar = document.getElementById('fiori-bulk-bar');
+  if (!bar) return;
   const n = _fioriSelected.size;
-  btn.textContent = `Update Terpilih (${n})`;
-  btn.disabled    = n === 0;
-  btn.style.opacity = n === 0 ? '0.5' : '1';
+  if (n === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const count = document.getElementById('fiori-bulk-count');
+  if (count) count.textContent = `${n} PAM dipilih:`;
+  const chips = document.getElementById('fiori-chips-row');
+  if (chips) chips.innerHTML = _fioriAllChipsHtml();
 }
 
-function fioriRenderChips() {
-  const row = document.getElementById('fiori-chips-row');
-  if (!row) return;
-  if (_fioriSelected.size === 0) { row.style.display = 'none'; return; }
+function _fioriAllChipsHtml() {
   const ids   = [..._fioriSelected];
   const LIMIT = 5;
   const hidden = ids.length > LIMIT + 1 ? ids.slice(LIMIT) : [];
   const shown  = hidden.length ? ids.slice(0, LIMIT) : ids;
   function chipHtml(id) {
-    const m = _fioriSelectionMeta.get(id) || { label: String(id), cat1: '' };
-    const cat = m.cat1 ? `<span style="font-size:9px;opacity:.65;margin-left:3px">${m.cat1}</span>` : '';
-    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${m.label}${cat}<span onclick="fioriRemoveChip(${id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+    const m = _fioriSelectionMeta.get(id) || { label: String(id) };
+    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${esc(m.label)}<span onclick="fioriRemoveChip(${id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
   }
-  let html = `<span style="font-size:10px;color:#1d4ed8;font-weight:700;white-space:nowrap;margin-right:2px">● Terpilih:</span>`;
-  html += shown.map(chipHtml).join('');
+  let html = shown.map(chipHtml).join('');
   if (hidden.length) {
     html += `<span id="fiori-chips-expand" onclick="fioriExpandChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
     html += `<span id="fiori-chips-hidden" style="display:none">` + hidden.map(chipHtml).join('') + `</span>`;
   }
-  html += `<span onclick="fioriClearAllChips()" style="font-size:10px;color:#dc2626;cursor:pointer;margin-left:6px;white-space:nowrap">Hapus semua</span>`;
-  row.innerHTML = html;
-  row.style.display = 'flex';
+  return html;
 }
 
 function fioriExpandChips() {
@@ -1789,61 +1834,48 @@ function fioriRemoveChip(id) {
   if (cb) {
     cb.checked = false;
     const tr = cb.closest('tr');
-    if (tr) { tr.style.background = ''; if (tr.cells[5]) tr.cells[5].style.cssText = 'padding:6px 8px'; }
+    if (tr) tr.style.background = '';
   }
-  fioriUpdateBtn();
-  fioriRenderChips();
+  fioriUpdateBulkBar();
 }
 
-function fioriClearAllChips() {
+function fioriClearAllSelection() {
   _fioriSelected.clear();
   _fioriSelectionMeta.clear();
   document.querySelectorAll('#fiori-tbody .fiori-cb').forEach(cb => {
     cb.checked = false;
     const tr = cb.closest('tr');
-    if (tr) { tr.style.background = ''; if (tr.cells[5]) tr.cells[5].style.cssText = 'padding:6px 8px'; }
+    if (tr) tr.style.background = '';
   });
   const sa = document.getElementById('fiori-select-all');
   if (sa) sa.checked = false;
-  fioriUpdateBtn();
-  fioriRenderChips();
+  fioriUpdateBulkBar();
 }
 
-function fioriClearDates() {
-  ['fiori-d-terima','fiori-d-input','fiori-d-verif',
-   'fiori-d-app1','fiori-d-app2','fiori-d-kirim','fiori-d-paid']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+async function fioriIsiTanggal() {
+  const field = document.getElementById('fiori-bulk-field')?.value;
+  const date  = document.getElementById('fiori-bulk-date')?.value;
+  if (!date) { showToast('Pilih tanggal terlebih dahulu.', 'error'); return; }
+  await _fioriDoBulkUpdate(field, date);
 }
 
-async function fioriBulkUpdate() {
-  if (_fioriSelected.size === 0) return;
-  if (!await confirmModal(`Update ${_fioriSelected.size} record Fiori terpilih?`, { confirmText: "Update" })) return;
-  const dates = {
-    terima_document: document.getElementById('fiori-d-terima').value,
-    input_aspiro:    document.getElementById('fiori-d-input').value,
-    verifikasi_tax:  document.getElementById('fiori-d-verif').value,
-    approval_1:      document.getElementById('fiori-d-app1').value,
-    approval_2:      document.getElementById('fiori-d-app2').value,
-    kirim_aspiro:    document.getElementById('fiori-d-kirim').value,
-    paid:            document.getElementById('fiori-d-paid').value,
-  };
-  if (!Object.values(dates).some(v => v)) {
-    showToast('Isi minimal satu field tanggal.', 'error'); return;
-  }
-  const res = await apiFetch('/payment-memo/fiori/bulk-update', {
+async function fioriHapusTanggal() {
+  const field = document.getElementById('fiori-bulk-field')?.value;
+  await _fioriDoBulkUpdate(field, null);
+}
+
+async function _fioriDoBulkUpdate(field, date) {
+  const ids = [..._fioriSelected];
+  if (!ids.length) return;
+  const res = await apiFetch('/payment-memo/pam-lines/bulk-update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: [..._fioriSelected], dates })
+    body: JSON.stringify({ pillar: 'APP', ids, field, value: date }),
   });
-  if (!res) return;
+  if (!res) { showToast('Gagal: network error.', 'error'); return; }
   const data = await res.json();
   showToast(data.pesan, data.ok ? 'success' : 'error');
-  if (data.ok) {
-    _fioriSelected.clear();
-    _fioriSelectionMeta.clear();
-    fioriRenderChips();
-    setTimeout(() => loadFIORI(), 600);
-  }
+  if (data.ok) setTimeout(() => loadFIORI(), 400);
 }
 
 // ── PAM Records ──────────────────────────────────────────────────────────────
@@ -3618,6 +3650,7 @@ async function ipaySavePa() {
 
   const saveBtn2 = document.getElementById("ipay-save-btn");
   if (saveBtn2) saveBtn2.disabled = true;
+  showLoading("Menyimpan PAM...");
   let res;
   try {
     res = await apiFetch("/payment-memo/ipay/save-pa", {
@@ -3625,6 +3658,7 @@ async function ipaySavePa() {
       body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
     });
   } finally {
+    hideLoading();
     if (saveBtn2) saveBtn2.disabled = false;
   }
   if (!res) return;
@@ -3921,6 +3955,7 @@ async function ipaySaveKlaim() {
 
   const btn = document.getElementById("klaim-save-btn");
   if (btn) btn.disabled = true;
+  showLoading("Menyimpan PAM Klaim Medis...");
   let res;
   try {
     res = await apiFetch("/payment-memo/ipay/save-klaim", {
@@ -3928,6 +3963,7 @@ async function ipaySaveKlaim() {
       body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
     });
   } finally {
+    hideLoading();
     if (btn) btn.disabled = false;
   }
   if (!res) return;
@@ -3978,6 +4014,7 @@ async function ipaySaveOthers() {
 
   const btn = document.getElementById("others-save-btn");
   if (btn) btn.disabled = true;
+  showLoading("Menyimpan PAM...");
   let res;
   try {
     res = await apiFetch("/payment-memo/ipay/save-others", {
@@ -3988,6 +4025,7 @@ async function ipaySaveOthers() {
       })
     });
   } finally {
+    hideLoading();
     if (btn) btn.disabled = false;
   }
   if (!res) return;

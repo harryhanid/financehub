@@ -20,7 +20,7 @@ from modules.payment_memo.service import (
     update_sml_status, cancel_sml_record,
     get_open_etf_pa_for_pam, create_pam_from_etf_pa, set_pam_complete_cascade,
     get_next_pam_no, save_pa_payment, check_pam_no_exists,
-    get_pam_by_pillar, upsert_pam_lines,
+    get_pam_by_pillar, upsert_pam_lines, bulk_update_pam_lines_dates,
     get_siswa_medical, save_klaim_payment, save_others_payment,
     bulk_complete_pams,
     get_pam_beasiswa_lines,
@@ -550,6 +550,24 @@ def update_pam_lines(pam_id):
         if "tidak ditemukan" in pesan.lower():
             return jsonify(result), 404
         return jsonify(result), 400
+    return jsonify(result)
+
+
+@bp.route("/pam-lines/bulk-update", methods=["POST"])
+@jwt_html_required
+def pam_lines_bulk_update():
+    """Bulk-set one date field in {pillar}_pam_lines for selected pam_records ids."""
+    company_id = session.get("company_id")
+    if not company_id:
+        return jsonify({"ok": False, "pesan": "Perusahaan belum dipilih."}), 400
+    data   = request.get_json(force=True) or {}
+    pillar = (data.get("pillar") or "").upper()
+    ids    = data.get("ids", [])
+    field  = data.get("field", "")
+    value  = data.get("value")
+    if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
+        return jsonify({"ok": False, "pesan": "Format ids tidak valid."}), 400
+    result = bulk_update_pam_lines_dates(pillar, ids, field, value, company_id)
     return jsonify(result)
 
 
