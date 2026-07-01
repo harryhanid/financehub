@@ -393,6 +393,57 @@ CREATE INDEX IF NOT EXISTS idx_setf_pam_lines_pam   ON setf_pam_lines(pam_id);
 CREATE INDEX IF NOT EXISTS idx_energy_pam_lines_pam ON energy_pam_lines(pam_id);
 CREATE INDEX IF NOT EXISTS idx_energy_pa_company    ON energy_pa(company_id);
 CREATE INDEX IF NOT EXISTS idx_energy_pa_lines_pa   ON energy_pa_lines(pa_id);
+
+CREATE TABLE IF NOT EXISTS budget_master (
+    id              TEXT PRIMARY KEY,
+    mm              INTEGER NOT NULL,
+    yy              INTEGER NOT NULL,
+    company         TEXT NOT NULL,
+    dept            TEXT,
+    gl_account      TEXT,
+    gl_description  TEXT,
+    budget_category TEXT,
+    activity        TEXT,
+    description     TEXT,
+    amount          REAL DEFAULT 0,
+    deadline        TEXT,
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TEXT
+);
+
+CREATE TABLE IF NOT EXISTS budget_realisasi (
+    trx_id            TEXT PRIMARY KEY,
+    budget_id         TEXT NOT NULL REFERENCES budget_master(id),
+    mm                INTEGER,
+    yy                INTEGER,
+    company           TEXT,
+    dept              TEXT,
+    gl_account        TEXT,
+    gl_description    TEXT,
+    budget_category   TEXT,
+    activity          TEXT,
+    description       TEXT,
+    amount            REAL DEFAULT 0,
+    tanggal_realisasi TEXT,
+    created_at        TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS budget_carryover_logs (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    budget_id         TEXT NOT NULL REFERENCES budget_master(id),
+    requested_by      TEXT,
+    request_date      TEXT,
+    status            TEXT DEFAULT 'Pending',
+    approval_date     TEXT,
+    extension_months  INTEGER DEFAULT 12,
+    reason            TEXT,
+    approved_by       TEXT,
+    type              TEXT DEFAULT 'Carryover',
+    additional_amount REAL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_budget_realisasi_budget_id ON budget_realisasi(budget_id);
+CREATE INDEX IF NOT EXISTS idx_budget_carryover_logs_budget_id ON budget_carryover_logs(budget_id);
 """
 
 VENDOR_SEED = [
