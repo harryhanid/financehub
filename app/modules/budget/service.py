@@ -234,3 +234,194 @@ def delete_realisasi(trx_id: str) -> dict:
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": "Transaksi dihapus."}
+
+
+def format_currency(num) -> str:
+    if num is None:
+        return "Rp 0"
+    try:
+        n = round(float(num))
+    except (TypeError, ValueError):
+        return "Rp 0"
+    return "Rp " + f"{n:,}".replace(",", ".")
+
+
+def _date_in_period(d: str, period_mode: str, period_month: int, period_year) -> bool:
+    if period_mode == "FULL":
+        return True
+    if not d:
+        return False
+    try:
+        dt = datetime.fromisoformat(d[:10])
+    except ValueError:
+        return False
+    if period_year is not None and dt.year != period_year:
+        return False
+    if period_mode == "YTD":
+        return dt.month <= period_month
+    if period_mode == "MTD":
+        return dt.month == period_month
+    return True
+
+
+def _month_in_period(mm, period_mode: str, period_month: int) -> bool:
+    if period_mode == "FULL":
+        return True
+    m = int(mm or 0)
+    if not m:
+        return True
+    if period_mode == "YTD":
+        return m <= period_month
+    if period_mode == "MTD":
+        return m == period_month
+    return True
+
+
+def _build_budget_data(filters: dict) -> list:
+    filters = filters or {}
+    conn = get_conn()
+    budget_rows = conn.execute("SELECT * FROM budget_master").fetchall()
+    realisasi_rows = conn.execute(
+        "SELECT budget_id, amount, tanggal_realisasi FROM budget_realisasi"
+    ).fetchall()
+    conn.close()
+
+    period_mode = str(filters.get("periodMode") or "FULL").upper()
+    period_month = int(filters.get("periodMonth") or datetime.now().month)
+    year_filter = filters.get("year")
+    period_year = int(year_filter) if year_filter and str(year_filter) != "ALL" else None
+
+    realized_map = {}
+    last_trx_map = {}
+    for r in realisasi_rows:
+        if not _date_in_period(r["tanggal_realisasi"], period_mode, period_month, period_year):
+            continue
+        realized_map[r["budget_id"]] = realized_map.get(r["budget_id"], 0) + (r["amount"] or 0)
+        if r["tanggal_realisasi"]:
+            last_trx_map.setdefault(r["budget_id"], []).append(r["tanggal_realisasi"])
+
+    company = filters.get("company")
+    dept = filters.get("dept")
+    category = filters.get("category")
+    activity = filters.get("activity")
+    now = datetime.now().date()
+
+    out = []
+    for row in budget_rows:
+        if company and company != "ALL" and row["company"] != company:
+            continue
+        if dept and dept != "ALL" and row["dept"] != dept:
+            continue
+        if year_filter and str(year_filter) != "ALL" and str(row["yy"]) != str(year_filter):
+            continue
+        if category and category != "ALL" and row["budget_category"] != category:
+            continue
+        if activity and activity != "ALL" and row["activity"] != activity:
+            continue
+        if not _month_in_period(row["mm"], period_mode, period_month):
+            continue
+
+        realized = realized_map.get(row["id"], 0)
+        amount = row["amount"] or 0
+        status = "Active"
+        days_to_deadline = 999
+        deadline_iso = row["deadline"] or ""
+        if row["deadline"]:
+            try:
+                deadline_date = datetime.fromisoformat(row["deadline"]).date()
+                days_to_deadline = (deadline_date - now).days
+                if now > deadline_date and amount > realized:
+                    status = "Expired"
+                elif now > deadline_date and realized >= amount:
+                    status = "Completed"
+                elif amount > 0 and (realized / amount) >= 0.9:
+                    status = "Near Limit"
+            except ValueError:
+                pass
+
+        out.append({
+            "id": row["id"], "mm": row["mm"], "yy": row["yy"],
+            "company": row["company"], "dept": row["dept"] or "",
+            "gl_acc": row["gl_account"] or "", "gl_desc": row["gl_description"] or "",
+            "category": row["budget_category"] or "", "activity": row["activity"] or "",
+            "desc": row["description"] or "", "amount": amount, "deadline": deadline_iso,
+            "realized": realized, "balance": amount - realized, "status": status,
+            "daysToDeadline": days_to_deadline,
+            "utilizationRate": (realized / amount * 100) if amount > 0 else 0,
+            "lastTransaction": max(last_trx_map[row["id"]]) if last_trx_map.get(row["id"]) else "",
+        })
+    return out
+
+
+def calculate_summary(data: list) -> dict:
+    total_budget = sum(d["amount"] for d in data)
+    total_realized = sum(d["realized"] for d in data)
+    total_expired = sum(1 for d in data if d["status"] == "Expired")
+    total_near_limit = sum(1 for d in data if d["status"] == "Near Limit")
+    total_completed = sum(1 for d in data if d["status"] == "Completed")
+    total_active = len(data) - total_expired - total_near_limit - total_completed
+    avg_util = (total_realized / total_budget * 100) if total_budget > 0 else 0
+    return {
+        "totalBudget": total_budget, "totalRealized": total_realized,
+        "remaining": total_budget - total_realized,
+        "totalExpired": total_expired, "totalNearLimit": total_near_limit,
+        "totalActive": total_active, "totalCompleted": total_completed,
+        "totalItems": len(data), "avgUtilization": avg_util,
+        "formatted": {
+            "totalBudget": format_currency(total_budget),
+            "totalRealized": format_currency(total_realized),
+            "remaining": format_currency(total_budget - total_realized),
+            "avgUtilization": f"{avg_util:.1f}%",
+        },
+    }
+
+
+def group_budget_vs_realized(data: list, key: str) -> dict:
+    agg = {}
+    for d in data:
+        k = d.get(key) or "(unset)"
+        if k not in agg:
+            agg[k] = {"budget": 0, "realized": 0, "count": 0}
+        agg[k]["budget"] += d["amount"]
+        agg[k]["realized"] += d["realized"]
+        agg[k]["count"] += 1
+    sorted_items = sorted(agg.items(), key=lambda x: x[1]["budget"], reverse=True)
+    return {
+        "labels": [k for k, _ in sorted_items],
+        "budget": [v["budget"] for _, v in sorted_items],
+        "realized": [v["realized"] for _, v in sorted_items],
+        "count": [v["count"] for _, v in sorted_items],
+    }
+
+
+def group_by_month(data: list) -> dict:
+    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    budget = [0] * 12
+    realized = [0] * 12
+    for d in data:
+        idx = int(d["mm"] or 0) - 1
+        if 0 <= idx < 12:
+            budget[idx] += d["amount"]
+            realized[idx] += d["realized"]
+    return {"labels": months, "budget": budget, "realized": realized}
+
+
+def group_by_company(data: list) -> dict:
+    companies = {"PO": {"budget": 0, "realized": 0}, "TF": {"budget": 0, "realized": 0}}
+    for d in data:
+        if d["company"] in companies:
+            companies[d["company"]]["budget"] += d["amount"]
+            companies[d["company"]]["realized"] += d["realized"]
+    return {
+        "labels": ["PO", "TF"],
+        "budget": [companies["PO"]["budget"], companies["TF"]["budget"]],
+        "realized": [companies["PO"]["realized"], companies["TF"]["realized"]],
+    }
+
+
+def group_by_status(data: list) -> dict:
+    statuses = {"Active": 0, "Near Limit": 0, "Expired": 0, "Completed": 0}
+    for d in data:
+        if d["status"] in statuses:
+            statuses[d["status"]] += 1
+    return {"labels": list(statuses.keys()), "values": list(statuses.values())}

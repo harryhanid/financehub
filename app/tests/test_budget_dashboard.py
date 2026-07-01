@@ -1,0 +1,83 @@
+# tests/test_budget_dashboard.py
+from modules.budget.service import (
+    format_currency, create_budget, create_realisasi, _build_budget_data,
+    calculate_summary, group_budget_vs_realized, group_by_month,
+    group_by_company, group_by_status,
+)
+
+
+def test_format_currency():
+    assert format_currency(0) == "Rp 0"
+    assert format_currency(1500000) == "Rp 1.500.000"
+    assert format_currency(None) == "Rp 0"
+
+
+def _seed_two_budgets():
+    b1 = create_budget({
+        "company": "PO", "dept": "Finance", "mm": 7, "yy": 2026,
+        "budget_category": "OpEx", "activity": "Audit Fee", "amount": 1000000,
+    })
+    b2 = create_budget({
+        "company": "TF", "dept": "IT", "mm": 8, "yy": 2026,
+        "budget_category": "CapEx", "activity": "Server Upgrade", "amount": 2000000,
+    })
+    create_realisasi({"budget_id": b1["id"], "amount": 400000, "tanggal_realisasi": "2026-07-10"})
+    create_realisasi({"budget_id": b2["id"], "amount": 500000, "tanggal_realisasi": "2026-08-10"})
+    return b1, b2
+
+
+def test_build_budget_data_computes_realized_and_balance():
+    b1, b2 = _seed_two_budgets()
+    data = _build_budget_data({"year": "2026"})
+    row1 = next(d for d in data if d["id"] == b1["id"])
+    assert row1["realized"] == 400000
+    assert row1["balance"] == 600000
+    assert row1["utilizationRate"] == 40.0
+
+
+def test_build_budget_data_filters_by_company():
+    _seed_two_budgets()
+    data = _build_budget_data({"company": "PO", "year": "2026"})
+    assert all(d["company"] == "PO" for d in data)
+
+
+def test_calculate_summary_totals():
+    _seed_two_budgets()
+    data = _build_budget_data({"year": "2026"})
+    summary = calculate_summary(data)
+    assert summary["totalBudget"] == 3000000
+    assert summary["totalRealized"] == 900000
+    assert summary["remaining"] == 2100000
+    assert summary["formatted"]["totalBudget"] == "Rp 3.000.000"
+
+
+def test_group_budget_vs_realized_by_activity():
+    _seed_two_budgets()
+    data = _build_budget_data({"year": "2026"})
+    grouped = group_budget_vs_realized(data, "activity")
+    assert "Audit Fee" in grouped["labels"]
+    assert "Server Upgrade" in grouped["labels"]
+    assert len(grouped["budget"]) == len(grouped["labels"])
+
+
+def test_group_by_month_places_amount_in_correct_index():
+    _seed_two_budgets()
+    data = _build_budget_data({"year": "2026"})
+    grouped = group_by_month(data)
+    assert grouped["budget"][6] == 1000000  # July = index 6
+    assert grouped["budget"][7] == 2000000  # August = index 7
+
+
+def test_group_by_company_splits_po_tf():
+    _seed_two_budgets()
+    data = _build_budget_data({"year": "2026"})
+    grouped = group_by_company(data)
+    assert grouped["labels"] == ["PO", "TF"]
+    assert grouped["budget"] == [1000000, 2000000]
+
+
+def test_group_by_status_counts_active_by_default():
+    _seed_two_budgets()
+    data = _build_budget_data({"year": "2026"})
+    grouped = group_by_status(data)
+    assert dict(zip(grouped["labels"], grouped["values"]))["Active"] == 2
