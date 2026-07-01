@@ -72,13 +72,21 @@ function budgetRenderSummary(summary) {
 
 function budgetRenderNotifications(notifications) {
   const el = document.getElementById("budget-notifications");
+  el.innerHTML = "";
   if (!notifications.length) {
-    el.innerHTML = "<li>Tidak ada notifikasi.</li>";
+    const empty = document.createElement("li");
+    empty.textContent = "Tidak ada notifikasi.";
+    el.appendChild(empty);
     return;
   }
-  el.innerHTML = notifications.map(function (n) {
-    return "<li><strong>" + n.title + ":</strong> " + n.message + "</li>";
-  }).join("");
+  notifications.forEach(function (n) {
+    const li = document.createElement("li");
+    const strong = document.createElement("strong");
+    strong.textContent = n.title + ":";
+    li.appendChild(strong);
+    li.appendChild(document.createTextNode(" " + n.message));
+    el.appendChild(li);
+  });
 }
 
 function budgetLoadLookups() {
@@ -89,6 +97,9 @@ function budgetLoadLookups() {
       budgetFillSelect("bf-year", data.years);
       budgetFillSelect("bf-category", data.categories);
       budgetFillSelect("bf-activity", data.activities);
+    })
+    .catch(function () {
+      showToast("Gagal memuat filter dashboard.", "error");
     });
 }
 
@@ -119,6 +130,9 @@ function budgetLoadDashboard() {
         ["#f97316", "#06b6d4"]);
       budgetRenderPieChart("chart-status", data.statusChart.labels, data.statusChart.values,
         ["#10b981", "#f59e0b", "#ef4444", "#3b82f6"]);
+    })
+    .catch(function () {
+      showToast("Gagal memuat data dashboard.", "error");
     });
 }
 
