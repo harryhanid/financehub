@@ -5,11 +5,44 @@
 {% endblock %}
 {% block content %}
 <div class="budget-page">
-<h1>Carryover & Additional Budget Requests</h1>
-<table><tbody>
-{% for log in logs %}
-  <tr><td>{{ log.budget_id }}</td><td>{{ log.type }}</td><td>{{ log.status }}</td></tr>
-{% endfor %}
-</tbody></table>
+  <h1>Carryover & Additional Budget Requests</h1>
+
+  <div class="budget-toolbar">
+    <input type="text" id="cr-budget-id" placeholder="Budget ID">
+    <input type="text" id="cr-reason" placeholder="Alasan">
+    <button class="budget-btn" onclick="budgetSubmitCarryover()">Request Carryover</button>
+    <input type="number" id="cr-amount" placeholder="Jumlah tambahan" min="0">
+    <button class="budget-btn" onclick="budgetSubmitAdditional()">Request Tambahan Anggaran</button>
+  </div>
+
+  <table class="budget-table">
+    <thead>
+      <tr>
+        <th>Budget ID</th><th>Type</th><th>Requested By</th><th>Request Date</th>
+        <th>Status</th><th>Reason</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr data-log-budget-id="{{ log.budget_id }}" data-log-type="{{ log.type }}">
+        <td>{{ log.budget_id }}</td>
+        <td>{{ log.type }}</td>
+        <td>{{ log.requested_by }}</td>
+        <td>{{ log.request_date }}</td>
+        <td><span class="budget-badge badge-status-{{ log.status|lower }}">{{ log.status }}</span></td>
+        <td>{{ log.reason }}</td>
+        <td>
+          {% if log.status == 'Pending' %}
+          <button class="budget-btn" onclick="budgetApproveRequest('{{ log.budget_id }}', '{{ log.type }}')">Approve</button>
+          <button class="budget-btn budget-btn-danger" onclick="budgetRejectRequest('{{ log.budget_id }}')">Reject</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/budget_carryover.js') }}"></script>
 {% endblock %}
