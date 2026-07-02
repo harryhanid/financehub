@@ -27,6 +27,7 @@
 #pam-table th.s2,#pam-table td.s2{left:207px;min-width:90px}
 #pam-table th.s3,#pam-table td.s3{left:297px;min-width:90px}
 #pam-table th.s4,#pam-table td.s4{left:387px;min-width:100px;box-shadow:3px 0 5px -2px rgba(0,0,0,.12)}
+#pam-table tr.agri-detail-rows{background:#f0f9ff;border-bottom:1px solid #e2e8f0}
 #pam-table tr.agri-detail-rows td.s0,#pam-table tr.agri-detail-rows td.s1,
 #pam-table tr.agri-detail-rows td.s2,#pam-table tr.agri-detail-rows td.s3,
 #pam-table tr.agri-detail-rows td.s4{background:#f0f9ff}
@@ -47,6 +48,7 @@
 [data-theme="dark"] #pam-table thead th.s0,[data-theme="dark"] #pam-table thead th.s1,
 [data-theme="dark"] #pam-table thead th.s2,[data-theme="dark"] #pam-table thead th.s3,
 [data-theme="dark"] #pam-table thead th.s4{background:#181b25 !important}
+[data-theme="dark"] #pam-table tr.agri-detail-rows{background:rgba(59,130,246,0.10)}
 [data-theme="dark"] #pam-table tr.agri-detail-rows td.s0,[data-theme="dark"] #pam-table tr.agri-detail-rows td.s1,
 [data-theme="dark"] #pam-table tr.agri-detail-rows td.s2,[data-theme="dark"] #pam-table tr.agri-detail-rows td.s3,
 [data-theme="dark"] #pam-table tr.agri-detail-rows td.s4{background:rgba(59,130,246,0.10) !important}
@@ -2160,15 +2162,13 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   }
 
   const d = v => v
-    ? `<span style="color:#1e293b">${esc(String(v))}</span>`
-    : '<span style="color:#94a3b8">—</span>';
+    ? `<span style="color:var(--text)">${esc(String(v))}</span>`
+    : '<span style="color:var(--text-muted)">—</span>';
 
   [...data.rows].reverse().forEach(r => {
     const tr = document.createElement('tr');
     tr.classList.add('agri-detail-rows');
     tr.dataset.pamId = pamId;
-    tr.style.background = '#f0f9ff';
-    tr.style.borderBottom = '1px solid #e2e8f0';
     tr.innerHTML =
       `<td class="s0" style="padding:4px 2px;text-align:center;vertical-align:middle">` +
         `<input type="checkbox" data-pb-id="${r.id}" style="cursor:pointer"` +
