@@ -1,15 +1,16 @@
 /* static/css/budget.css — Budget Monitoring module (glassmorphism, adapted from GAS Budget_Dashboard2) */
+/* Light mode (default — no [data-theme="dark"] on <html>) */
 .budget-page {
-  --bg-card: rgba(18, 24, 42, 0.75);
-  --bg-card-hover: rgba(22, 30, 52, 0.85);
-  --border-color: rgba(99, 102, 241, 0.12);
-  --border-hover: rgba(99, 102, 241, 0.25);
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
+  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-card-hover: rgba(255, 255, 255, 0.92);
+  --border-color: rgba(99, 102, 241, 0.15);
+  --border-hover: rgba(99, 102, 241, 0.3);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
   --text-muted: #64748b;
   --accent: #6366f1;
   --accent-light: #818cf8;
-  --accent-glow: rgba(99, 102, 241, 0.3);
+  --accent-glow: rgba(99, 102, 241, 0.18);
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -18,11 +19,27 @@
   --tf-color: #06b6d4;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
-  background: #070a12;
+  --shadow-md: 0 4px 20px rgba(15, 23, 42, 0.08);
+  --page-bg: #f8fafc;
+  background: var(--page-bg);
   color: var(--text-primary);
   padding: 1.5rem;
   border-radius: var(--radius-lg);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* Dark mode (GAS Budget_Dashboard2 original palette) */
+[data-theme="dark"] .budget-page {
+  --bg-card: rgba(18, 24, 42, 0.75);
+  --bg-card-hover: rgba(22, 30, 52, 0.85);
+  --border-color: rgba(99, 102, 241, 0.12);
+  --border-hover: rgba(99, 102, 241, 0.25);
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-glow: rgba(99, 102, 241, 0.3);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --page-bg: #070a12;
 }
 
 .budget-page h1, .budget-page h2, .budget-page h3 {
