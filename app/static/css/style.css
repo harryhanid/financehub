@@ -614,9 +614,9 @@ input[readonly], input[disabled] {
   transition: opacity .18s, transform .22s cubic-bezier(.34,1.56,.64,1);
 }
 #fh-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
-#fh-toast.fh-toast-error   { background:#FEF2F2; color:#991B1B; border-color:#FECACA; }
+#fh-toast.fh-toast-error   { background:var(--negative-surface); color:var(--negative); border-color:var(--negative-border); }
 #fh-toast.fh-toast-info    { background:var(--accent-surface); color:var(--accent-text); border-color:var(--accent-border); }
-#fh-toast.fh-toast-warning { background:#FFFBEB; color:#92400E; border-color:#FDE68A; }
+#fh-toast.fh-toast-warning { background:var(--caution-surface); color:var(--caution); border-color:var(--caution-border); }
 .fh-toast-ico { flex-shrink:0; display:flex; }
 
 /* Center success overlay */
@@ -639,7 +639,7 @@ input[readonly], input[disabled] {
 #fh-success-ov.show .fh-suc-card { transform: scale(1) translateY(0); }
 .fh-suc-icon {
   width: 68px; height: 68px; border-radius: 50%;
-  background: #F0FDF4; color: #16a34a;
+  background: var(--positive-surface); color: var(--positive);
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 1.125rem;
 }
@@ -855,11 +855,6 @@ input[readonly], input[disabled] {
   border-color: rgba(255,255,255,0.15);
   color: var(--sl-700);
 }
-
-/* Dark: navbar links */
-[data-theme="dark"] .navbar-link { color: var(--sl-500); }
-[data-theme="dark"] .navbar-link:hover { background: rgba(255,255,255,0.06); color: var(--sl-700); }
-[data-theme="dark"] .navbar-link.active { color: var(--accent-text); border-bottom-color: var(--accent); }
 
 /* Dark: cards */
 [data-theme="dark"] .card,
