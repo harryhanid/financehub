@@ -33,6 +33,27 @@
 #pam-table tbody tr:hover td.s0,#pam-table tbody tr:hover td.s1,
 #pam-table tbody tr:hover td.s2,#pam-table tbody tr:hover td.s3,
 #pam-table tbody tr:hover td.s4{background:#f1f5f9}
+
+/* ── AGRI frozen columns — dark mode ─────────────────────────────────── */
+/* Rows are JS-rendered (loadPAM()) and each sticky td gets its OWN inline */
+/* style="background:${i%2===0?'#fff':'#f8fafc'}" for zebra-striping — an  */
+/* inline style beats any selector-based rule, so every override below    */
+/* needs !important or it silently loses to the inline zebra color.       */
+[data-theme="dark"] #pam-table th.s0,[data-theme="dark"] #pam-table td.s0,
+[data-theme="dark"] #pam-table th.s1,[data-theme="dark"] #pam-table td.s1,
+[data-theme="dark"] #pam-table th.s2,[data-theme="dark"] #pam-table td.s2,
+[data-theme="dark"] #pam-table th.s3,[data-theme="dark"] #pam-table td.s3,
+[data-theme="dark"] #pam-table th.s4,[data-theme="dark"] #pam-table td.s4{background:var(--card) !important}
+[data-theme="dark"] #pam-table thead th.s0,[data-theme="dark"] #pam-table thead th.s1,
+[data-theme="dark"] #pam-table thead th.s2,[data-theme="dark"] #pam-table thead th.s3,
+[data-theme="dark"] #pam-table thead th.s4{background:#181b25 !important}
+[data-theme="dark"] #pam-table tr.agri-detail-rows td.s0,[data-theme="dark"] #pam-table tr.agri-detail-rows td.s1,
+[data-theme="dark"] #pam-table tr.agri-detail-rows td.s2,[data-theme="dark"] #pam-table tr.agri-detail-rows td.s3,
+[data-theme="dark"] #pam-table tr.agri-detail-rows td.s4{background:rgba(59,130,246,0.10) !important}
+[data-theme="dark"] #pam-table tbody tr:hover td.s0,[data-theme="dark"] #pam-table tbody tr:hover td.s1,
+[data-theme="dark"] #pam-table tbody tr:hover td.s2,[data-theme="dark"] #pam-table tbody tr:hover td.s3,
+[data-theme="dark"] #pam-table tbody tr:hover td.s4{background:var(--positive-surface-solid) !important}
+
 /* ── Open PAM accordion ── */
 .pam-master-row { cursor: pointer; }
 .pam-master-row:hover { background: var(--hover-bg, #f8fafc); }
@@ -179,7 +200,7 @@
                style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
       </div>
       <div class="form-group" style="margin:0">
-        <label>Catatan Payment <span style="font-size:.65rem;color:#6b7280;font-weight:400">(tampil di tab PAM)</span></label>
+        <label>Catatan Payment <span style="font-size:.65rem;color:var(--text-muted);font-weight:400">(tampil di tab PAM)</span></label>
         <input type="text" id="ipay-catatan" placeholder="Opsional — muncul di kolom Catatan PAM tab"
                style="border:1px solid #93c5fd;background:#fafeff">
       </div>
@@ -209,7 +230,7 @@
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="3" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem;color:#374151">Total Amount:</td>
+            <td colspan="3" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem;color:var(--text)">Total Amount:</td>
             <td id="ipay-total-amt" class="num-right" style="font-weight:700;color:#1a56db;white-space:nowrap">Rp 0</td>
             <td></td><td colspan="5"></td>
           </tr>
@@ -407,7 +428,7 @@
           </tr>
         </thead>
         <tbody id="pam-tbody">
-          <tr><td colspan="28" style="text-align:center;padding:20px;color:#6b7280;">
+          <tr><td colspan="28" style="text-align:center;padding:20px;color:var(--text-muted);">
             Memuat data...
           </td></tr>
         </tbody>
@@ -455,7 +476,7 @@
         <option value="others">Others</option>
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('APP')">&#8595; Export Excel</button>
-      <span id="fiori-count" style="font-size:11px;color:#6b7280"></span>
+      <span id="fiori-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
     <div id="fiori-bulk-bar" style="display:none;align-items:center;flex-wrap:wrap;gap:8px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:7px 12px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
@@ -512,7 +533,7 @@
           </tr>
         </thead>
         <tbody id="fiori-tbody">
-          <tr><td colspan="26" style="text-align:center;padding:20px;color:#6b7280;">Memuat data...</td></tr>
+          <tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Memuat data...</td></tr>
         </tbody>
       </table>
     </div>
@@ -558,7 +579,7 @@
         <option value="others">Others</option>
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('LAND')">&#8595; Export Excel</button>
-      <span id="sml-count" style="font-size:11px;color:#6b7280"></span>
+      <span id="sml-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -592,7 +613,7 @@
           </tr>
         </thead>
         <tbody id="sml-tbody">
-          <tr><td colspan="25" style="text-align:center;padding:20px;color:#6b7280;">Belum ada data LAND.</td></tr>
+          <tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data LAND.</td></tr>
         </tbody>
       </table>
     </div>
@@ -638,7 +659,7 @@
         <option value="others">Others</option>
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('SETF')">&#8595; Export Excel</button>
-      <span id="setf-count" style="font-size:11px;color:#6b7280"></span>
+      <span id="setf-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -672,7 +693,7 @@
           </tr>
         </thead>
         <tbody id="setf-tbody">
-          <tr><td colspan="25" style="text-align:center;padding:20px;color:#6b7280;">Belum ada data SETF.</td></tr>
+          <tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>
         </tbody>
       </table>
     </div>
@@ -681,7 +702,7 @@
   <!-- Format Memo Tab -->
   <div class="tab-panel" id="tab-draft-memo">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
-      <label style="font-size:13px;font-weight:600;color:#374151;white-space:nowrap">PAM No:</label>
+      <label style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap">PAM No:</label>
       <div style="position:relative;flex:1;max-width:380px">
         <input id="dm-pam-search" type="text" autocomplete="off"
                placeholder="Ketik PAM No atau nama PT..."
@@ -1097,7 +1118,7 @@ function buildKeterangan(items, max) {
 }
 
 function _pillarBadge(pillar) {
-  if (!pillar) return '<span style="color:#9ca3af">—</span>';
+  if (!pillar) return '<span style="color:var(--text-muted)">—</span>';
   const map = {
     AGRI:   'background:#fef3c7;color:#92400e;border:1px solid #d97706',
     APP:    'background:#ede9fe;color:#4c1d95;border:1px solid #7c3aed',
@@ -1112,7 +1133,7 @@ function _pillarBadge(pillar) {
 }
 
 function _dueDateBadge(dueDate) {
-  if (!dueDate) return '<span style="color:#9ca3af">—</span>';
+  if (!dueDate) return '<span style="color:var(--text-muted)">—</span>';
   const today = new Date().toISOString().slice(0, 10);
   const isOverdue = dueDate < today;
   const style = isOverdue
@@ -1138,9 +1159,9 @@ function _workingDaysDiff(dueDate) {
 }
 
 function _dueDaysBadge(dueDate) {
-  if (!dueDate) return '<span style="color:#9ca3af">—</span>';
+  if (!dueDate) return '<span style="color:var(--text-muted)">—</span>';
   const diff = _workingDaysDiff(dueDate);
-  if (diff === null) return '<span style="color:#9ca3af">—</span>';
+  if (diff === null) return '<span style="color:var(--text-muted)">—</span>';
   if (diff < 0) {
     const style = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5';
     return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${Math.abs(diff)} hari lewat</span>`;
@@ -1347,7 +1368,7 @@ async function loadSML() {
   const tbody  = document.getElementById('sml-tbody');
   const count  = document.getElementById('sml-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:#6b7280;">Belum ada data LAND.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data LAND.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -1574,7 +1595,7 @@ async function loadSETF() {
   const tbody  = document.getElementById('setf-tbody');
   const count  = document.getElementById('setf-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:#6b7280;">Belum ada data SETF.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -1632,7 +1653,7 @@ async function loadFIORI() {
   _fioriSelectionMeta.clear();
   fioriUpdateBulkBar();
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:#6b7280;">Belum ada data APP.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data APP.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -1943,7 +1964,7 @@ function _statusBadge(status) {
 // Inline-editable date cell for {pillar}_pam_lines
 function _plDate(pamId, pillar, field, val) {
   const v = val || '';
-  return `<td style="padding:6px 8px;cursor:pointer;white-space:nowrap;color:${v ? '#374151' : '#9ca3af'}" data-val="${esc(v)}" onclick="pamLineDateEdit(${pamId},'${pillar}','${field}',this)" title="Klik untuk edit">${esc(v || '-')}</td>`;
+  return `<td style="padding:6px 8px;cursor:pointer;white-space:nowrap;color:${v ? 'var(--text)' : 'var(--text-muted)'}" data-val="${esc(v)}" onclick="pamLineDateEdit(${pamId},'${pillar}','${field}',this)" title="Klik untuk edit">${esc(v || '-')}</td>`;
 }
 
 async function pamLineDateEdit(pamId, pillar, field, tdEl) {
@@ -2025,7 +2046,7 @@ async function loadPAM() {
   const data   = await res.json();
   const tbody  = document.getElementById('pam-tbody');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="28" style="text-align:center;padding:20px;color:#6b7280;">Belum ada PAM record AGRI.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="28" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada PAM record AGRI.</td></tr>';
     return;
   }
   _pamCache = {};
@@ -2155,7 +2176,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
       `</td>` +
       `<td class="s1" style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
       `<td class="s2" style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
-      `<td class="s3" style="padding:4px 8px;font-size:11px;color:#64748b;vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td class="s3" style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
       `<td class="s4" style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
       `<td colspan="11" style="padding:4px 8px;vertical-align:middle"></td>` +
       `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pengajuan)}</td>` +
@@ -2608,8 +2629,8 @@ async function dmSearch() {
           style="padding:7px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f1f5f9"
           onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
       <strong style="color:#1d4ed8">${esc(r.pam_no)}</strong>
-      <span style="color:#64748b;margin-left:6px">${esc(r.pt)}</span>
-      <span style="float:right;color:#374151;font-weight:600">Rp ${fmtRupiah(r.total_amount)}</span>
+      <span style="color:var(--text-muted);margin-left:6px">${esc(r.pt)}</span>
+      <span style="float:right;color:var(--text);font-weight:600">Rp ${fmtRupiah(r.total_amount)}</span>
     </div>`
   ).join('');
   dd.style.display = 'block';
@@ -2807,7 +2828,7 @@ function toggleLampiran() {
 
 function dmRenderLampiran(payments) {
   if (!payments || !payments.length)
-    return '<div style="padding:16px;text-align:center;color:#6b7280;font-size:12px">Tidak ada data pembayaran dalam PAM ini.</div>';
+    return '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Tidak ada data pembayaran dalam PAM ini.</div>';
 
   // Group by siswa, sum amounts
   const groupMap = {};
@@ -2869,7 +2890,7 @@ function toggleDetailPAM() {
 
 function dmRenderDetailPAM(detail) {
   if (!detail || !detail.length)
-    return '<div style="padding:16px;text-align:center;color:#6b7280;font-size:12px">Tidak ada data Detail PAM.</div>';
+    return '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Tidak ada data Detail PAM.</div>';
 
   const hdrs = ['No','Nama Siswa','Jenjang Studi','Keterangan','By Pendidikan','By Tunjangan','By Penelitian','Total Pbyran','Bank','No. Rekening','Sisa Pend','Sisa Tunj','Sisa Riset'];
   const aligns = ['center','left','center','left','right','right','right','right','left','left','right','right','right'];
@@ -3345,7 +3366,7 @@ function ipayAddRow() {
   const tr = document.createElement("tr");
   tr.dataset.rid = rid; tr.dataset.siswaCode = ""; tr._sisaBudget = {};
   const tdSisa = document.createElement("td");
-  tdSisa.style.cssText = "white-space:nowrap;font-size:.8rem;color:#6b7280;min-width:140px";
+  tdSisa.style.cssText = "white-space:nowrap;font-size:.8rem;color:var(--text-muted);min-width:140px";
   tdSisa.textContent = "—"; tr._sisaCell = tdSisa;
 
   function tdInput(type, placeholder, extra) {

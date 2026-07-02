@@ -88,7 +88,7 @@
 [data-theme="dark"] #pa-table tbody tr:hover td.s0,
 [data-theme="dark"] #pa-table tbody tr:hover td.s1,
 [data-theme="dark"] #pa-table tbody tr:hover td.s2,
-[data-theme="dark"] #pa-table tbody tr:hover td.s3 { background: #212533; }
+[data-theme="dark"] #pa-table tbody tr:hover td.s3 { background: var(--positive-surface-solid); }
 
 [data-theme="dark"] #pa-table tr.row-op td.s0,
 [data-theme="dark"] #pa-table tr.row-op td.s1,
@@ -296,7 +296,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
   </select>
   <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Reset</button>
   <button class="btn btn-success btn-sm" onclick="exportETFExcel()">&#8595; Export Excel</button>
-  <span id="f-count" style="font-size:11px;color:#6b7280"></span>
+  <span id="f-count" style="font-size:11px;color:var(--text-muted)"></span>
 </div>
 
 {# ── Bulk action toolbar ──────────────────────────────────────────────────── #}
@@ -533,9 +533,27 @@ body.pa-focus #pa-focus-exit { display: flex; }
 
 {# Filter bar #}
 <div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; margin-bottom:.75rem; padding:.65rem .75rem; background:var(--bg-muted,#f8f9fa); border-radius:6px; border:1px solid var(--border)">
-  <div class="form-group" style="margin:0; width:200px">
-    <label style="font-size:.72rem; font-weight:600">Cari Nama Student</label>
-    <input type="text" id="sf-nama" placeholder="Ketik nama..." oninput="renderSummary()" style="font-size:.82rem">
+  <div class="form-group" style="margin:0; width:170px">
+    <label style="font-size:.72rem; font-weight:600">No PA</label>
+    <input type="text" id="sf-pa-number" placeholder="Cari no PA..." oninput="renderSummary()" style="font-size:.82rem">
+  </div>
+  <div class="form-group" style="margin:0; width:100px">
+    <label style="font-size:.72rem; font-weight:600">Tahun PA</label>
+    <input type="number" id="sf-tahun-pa" min="2000" max="2099" placeholder="2026" oninput="renderSummary()" style="font-size:.82rem">
+  </div>
+  <div class="form-group" style="margin:0; width:130px">
+    <label style="font-size:.72rem; font-weight:600">Bulan PA</label>
+    <input type="month" id="sf-bulan-pa" onchange="renderSummary()" style="font-size:.82rem">
+  </div>
+  <div class="form-group" style="margin:0; width:120px">
+    <label style="font-size:.72rem; font-weight:600">Pillar</label>
+    <select id="sf-pillar" onchange="renderSummary()" style="font-size:.82rem">
+      <option value="">Semua Pillar</option>
+      <option value="agri">AGRI</option>
+      <option value="app">APP</option>
+      <option value="sml">LAND</option>
+      <option value="setf">SETF</option>
+    </select>
   </div>
   <div class="form-group" style="margin:0; width:150px">
     <label style="font-size:.72rem; font-weight:600">Status</label>
@@ -547,15 +565,17 @@ body.pa-focus #pa-focus-exit { display: flex; }
       <option value="complete">Complete</option>
     </select>
   </div>
-  <div class="form-group" style="margin:0; width:100px">
-    <label style="font-size:.72rem; font-weight:600">Tahun PA</label>
-    <input type="number" id="sf-tahun-pa" min="2000" max="2099" placeholder="2026" oninput="renderSummary()" style="font-size:.82rem">
+  <div class="form-group" style="margin:0; width:200px">
+    <label style="font-size:.72rem; font-weight:600">Cari Nama Student</label>
+    <input type="text" id="sf-nama" placeholder="Ketik nama..." oninput="renderSummary()" style="font-size:.82rem">
   </div>
-  <div class="form-group" style="margin:0; width:130px">
-    <label style="font-size:.72rem; font-weight:600">Bulan PA</label>
-    <input type="month" id="sf-bulan-pa" onchange="renderSummary()" style="font-size:.82rem">
+  <div class="form-group" style="margin:0; width:180px">
+    <label style="font-size:.72rem; font-weight:600">Jenis Pembayaran</label>
+    <select id="sf-jenis" onchange="renderSummary()" style="font-size:.82rem">
+      <option value="">Semua Jenis</option>
+    </select>
   </div>
-  <button class="btn btn-secondary" onclick="document.getElementById('sf-nama').value=''; document.getElementById('sf-status').value='active'; document.getElementById('sf-tahun-pa').value=''; document.getElementById('sf-bulan-pa').value=''; renderSummary();" style="font-size:.8rem; align-self:flex-end">Reset</button>
+  <button class="btn btn-secondary" onclick="document.getElementById('sf-pa-number').value=''; document.getElementById('sf-tahun-pa').value=''; document.getElementById('sf-bulan-pa').value=''; document.getElementById('sf-pillar').value=''; document.getElementById('sf-status').value='active'; document.getElementById('sf-nama').value=''; document.getElementById('sf-jenis').value=''; renderSummary();" style="font-size:.8rem; align-self:flex-end">Reset</button>
 </div>
 
 <div style="margin-top:.25rem">
@@ -567,13 +587,14 @@ body.pa-focus #pa-focus-exit { display: flex; }
           <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">#</th>
           <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">PA Number</th>
           <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Tgl PA</th>
-          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Nomor PAM</th>
+          <th style="padding:.5rem .6rem; text-align:right; white-space:nowrap; border-bottom:2px solid var(--border)">PA Days</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Pillar</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Status</th>
           <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Nama Student</th>
           <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Jenis Pembayaran</th>
           <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Semester</th>
           <th style="padding:.5rem .6rem; text-align:right; white-space:nowrap; border-bottom:2px solid var(--border)">Total (IDR)</th>
-          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Status</th>
-          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Tgl Bayar</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Nomor PAM</th>
           <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Keterangan</th>
         </tr>
       </thead>
@@ -587,24 +608,72 @@ body.pa-focus #pa-focus-exit { display: flex; }
 (function() {
   let _summaryRows = [];
 
+  const _PILLAR_STYLE = {
+    agri: 'background:#fef3c7;color:#92400e;border:1px solid #d97706',
+    app:  'background:#ede9fe;color:#4c1d95;border:1px solid #7c3aed',
+    sml:  'background:#d1fae5;color:#064e3b;border:1px solid #059669',
+    setf: 'background:#cffafe;color:#164e63;border:1px solid #0891b2',
+  };
+  const _PILLAR_LABEL = { agri:'AGRI', app:'APP', sml:'LAND', setf:'SETF' };
+  const _STATUS_STYLE = {
+    open:       'background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd',
+    on_process: 'background:#fef3c7;color:#92400e;border:1px solid #fbbf24',
+    complete:   'background:#d1fae5;color:#065f46;border:1px solid #6ee7b7',
+  };
+  const _STATUS_LABEL = { open:'Open', on_process:'On Process', complete:'Complete' };
+  const _BADGE_BASE = 'border-radius:.25rem;padding:.1rem .4rem;font-size:.7rem;font-weight:700;white-space:nowrap;display:inline-block';
+
+  function _pillarBadge(p) {
+    const s = _PILLAR_STYLE[p] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+    return `<span style="${s};${_BADGE_BASE}">${_PILLAR_LABEL[p] || (p||'').toUpperCase()}</span>`;
+  }
+  function _statusBadge(st) {
+    const k = (st||'').toLowerCase();
+    const s = _STATUS_STYLE[k] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+    return `<span style="${s};${_BADGE_BASE}">${_STATUS_LABEL[k] || st || '-'}</span>`;
+  }
+
+  function _workdays(fromStr) {
+    if (!fromStr) return '-';
+    const from = new Date(fromStr);
+    if (isNaN(from)) return '-';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    from.setHours(0, 0, 0, 0);
+    if (from > today) return '0';
+    let count = 0;
+    const cur = new Date(from);
+    while (cur <= today) {
+      const d = cur.getDay();
+      if (d !== 0 && d !== 6) count++;
+      cur.setDate(cur.getDate() + 1);
+    }
+    const color = count > 30 ? '#dc2626' : count > 14 ? '#d97706' : '#16a34a';
+    return `<span style="color:${color};font-weight:600">${count}</span>`;
+  }
+
   window.renderSummary = function() {
-    const nama   = (document.getElementById('sf-nama').value     || '').toLowerCase().trim();
-    const status = (document.getElementById('sf-status').value   || '').toLowerCase().trim();
-    const tahun  = (document.getElementById('sf-tahun-pa').value || '').trim(); // "YYYY"
-    const bulan  = (document.getElementById('sf-bulan-pa').value || '').trim(); // "YYYY-MM"
+    const nama     = (document.getElementById('sf-nama').value        || '').toLowerCase().trim();
+    const status   = (document.getElementById('sf-status').value      || '').toLowerCase().trim();
+    const tahun    = (document.getElementById('sf-tahun-pa').value    || '').trim();
+    const bulan    = (document.getElementById('sf-bulan-pa').value    || '').trim();
+    const pillar   = (document.getElementById('sf-pillar').value      || '').toLowerCase().trim();
+    const paNumber = (document.getElementById('sf-pa-number').value   || '').toLowerCase().trim();
+    const jenis    = (document.getElementById('sf-jenis').value       || '').toLowerCase().trim();
 
     const filtered = _summaryRows.filter(r => {
-      if (nama   && !(r.nama_student            || '').toLowerCase().includes(nama))   return false;
-      
+      if (nama     && !(r.nama_student            || '').toLowerCase().includes(nama))      return false;
+      if (paNumber && !(r.pa_number               || '').toLowerCase().includes(paNumber))  return false;
+      if (jenis    && (r.jenis_pembayaran         || '').toLowerCase() !== jenis)           return false;
       if (status === 'active') {
         const s = (r.status || '').toLowerCase();
         if (s !== 'open' && s !== 'on_process') return false;
       } else if (status && !(r.status || '').toLowerCase().includes(status)) {
         return false;
       }
-
-      if (tahun  && !(r.tgl_payment_application || '').includes(tahun))                return false;
-      if (bulan  && !(r.tgl_payment_application || '').includes(bulan))                return false;
+      if (tahun  && !(r.tgl_payment_application || '').includes(tahun))  return false;
+      if (bulan  && !(r.tgl_payment_application || '').includes(bulan))  return false;
+      if (pillar && (r.pillar || '') !== pillar)                          return false;
       return true;
     });
 
@@ -614,22 +683,31 @@ body.pa-focus #pa-focus-exit { display: flex; }
         <td style="padding:.4rem .6rem; color:var(--text-muted)">${i+1}</td>
         <td style="padding:.4rem .6rem; font-weight:600; white-space:nowrap">${r.pa_number || ''}</td>
         <td style="padding:.4rem .6rem; white-space:nowrap">${r.tgl_payment_application || '-'}</td>
-        <td style="padding:.4rem .6rem">${r.nomor_pam || '-'}</td>
+        <td style="padding:.4rem .6rem; text-align:right">${_workdays(r.tgl_payment_application)}</td>
+        <td style="padding:.4rem .6rem">${_pillarBadge(r.pillar)}</td>
+        <td style="padding:.4rem .6rem">${_statusBadge(r.status)}</td>
         <td style="padding:.4rem .6rem">${r.nama_student || '-'}</td>
         <td style="padding:.4rem .6rem">${r.jenis_pembayaran || '-'}</td>
         <td style="padding:.4rem .6rem">${r.semester || '-'}</td>
         <td style="padding:.4rem .6rem; text-align:right; font-variant-numeric:tabular-nums">${(r.jumlah_pembayaran||0).toLocaleString('id-ID')}</td>
-        <td style="padding:.4rem .6rem">${r.status || '-'}</td>
-        <td style="padding:.4rem .6rem; white-space:nowrap">${r.tanggal_bayar || '-'}</td>
+        <td style="padding:.4rem .6rem">${r.nomor_pam || '-'}</td>
         <td style="padding:.4rem .6rem">${r.keterangan || '-'}</td>
       </tr>`).join('');
-    document.getElementById('summary-count').textContent = `${filtered.length} PA Number${filtered.length < _summaryRows.length ? ' (dari ' + _summaryRows.length + ')' : ''}`;
+    document.getElementById('summary-count').textContent = `${filtered.length} PA${filtered.length < _summaryRows.length ? ' (dari ' + _summaryRows.length + ')' : ''}`;
   };
 
   fetch('/etf-payment-application/summary-data')
     .then(r => r.json())
     .then(rows => {
       _summaryRows = rows;
+      const jenisSet = [...new Set(rows.map(r => r.jenis_pembayaran || '').filter(Boolean))].sort();
+      const jenisEl = document.getElementById('sf-jenis');
+      jenisSet.forEach(v => {
+        const o = document.createElement('option');
+        o.value = v.toLowerCase();
+        o.textContent = v;
+        jenisEl.appendChild(o);
+      });
       document.getElementById('summary-loading').style.display = 'none';
       document.getElementById('summary-wrap').style.display = 'block';
       renderSummary();
