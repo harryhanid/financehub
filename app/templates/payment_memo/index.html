@@ -86,7 +86,7 @@
 
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
-  <h1 style="font-size:1.25rem; font-weight:700">Payment Approval Memo -- {{ company_name }}</h1>
+  <h1 style="font-size:1.25rem; font-weight:700">Payment Approval Memo</h1>
 </div>
 
 <div data-tabs>
@@ -334,7 +334,7 @@
 
   <!-- PAM Records Tab -->
   <div class="tab-panel" id="tab-pam">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
       <input id="pam-search" type="text" placeholder="Cari PAM No / PT / Siswa..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:200px;"
              oninput="loadPAMDebounced()">
@@ -401,7 +401,7 @@
           <tr>
             <th class="s0" style="padding:4px"></th>
             <th class="s1" style="padding:8px 10px;text-align:left;white-space:nowrap">PAM No</th>
-            <th class="s2" style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl PAM</th>
+            <th class="s2" style="padding:8px 10px;text-align:left;white-space:nowrap" data-sort="2">Tgl PAM</th>
             <th class="s3" style="padding:8px 10px;text-align:left">PT</th>
             <th class="s4" style="padding:8px 10px;text-align:left;white-space:nowrap">Cost Center</th>
             <th style="padding:8px 10px;min-width:220px;text-align:left;">GL Account</th>
@@ -410,8 +410,8 @@
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">Mata Uang</th>
             <th style="padding:8px 10px;text-align:right;">DPP</th>
             <th style="padding:8px 10px;text-align:right;">PPN</th>
-            <th style="padding:8px 10px;text-align:right;white-space:nowrap">Total (Rp)</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap">Due Date</th>
+            <th style="padding:8px 10px;text-align:right;white-space:nowrap" data-sort="11" data-sort-type="num">Total (Rp)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap" data-sort="12">Due Date</th>
             <th style="padding:8px 10px;text-align:left;">Status</th>
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl Bayar</th>
             <th style="padding:8px 10px;text-align:left;">Source</th>
@@ -440,7 +440,7 @@
 
   <!-- APP Tab -->
   <div class="tab-panel" id="tab-fiori">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;padding-top:.5rem">
       <input id="fiori-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
              oninput="loadFIORIDebounced()">
@@ -503,12 +503,12 @@
       <div id="fiori-chips-row" style="display:flex;flex-wrap:wrap;gap:4px;min-width:0;flex:1"></div>
     </div>
     <div class="pillar-table-wrap">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <table id="fiori-table" style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
             <th style="padding:7px 8px;text-align:center"><input type="checkbox" id="fiori-select-all" onchange="fioriToggleSelectAll(this)"></th>
             <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
-            <th style="padding:7px 8px;white-space:nowrap">Tgl PAM</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="2">Tgl PAM</th>
             <th style="padding:7px 8px;white-space:nowrap">GL Account</th>
             <th style="padding:7px 8px;white-space:nowrap">Cost Center</th>
             <th style="padding:7px 8px;">PT</th>
@@ -517,8 +517,8 @@
             <th style="padding:7px 8px;white-space:nowrap">Mata Uang</th>
             <th style="padding:7px 8px;text-align:right;">DPP</th>
             <th style="padding:7px 8px;text-align:right;">PPN</th>
-            <th style="padding:7px 8px;text-align:right;white-space:nowrap">Total (Rp)</th>
-            <th style="padding:7px 8px;white-space:nowrap">Due Date</th>
+            <th style="padding:7px 8px;text-align:right;white-space:nowrap" data-sort="11" data-sort-type="num">Total (Rp)</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="12">Due Date</th>
             <th style="padding:7px 8px;">Status</th>
             <th style="padding:7px 8px;white-space:nowrap">Tgl Bayar</th>
             <th style="padding:7px 8px;">Source</th>
@@ -543,7 +543,7 @@
 
   <!-- LAND Tab -->
   <div class="tab-panel" id="tab-sml">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
       <input id="sml-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
              oninput="loadSMLDebounced()">
@@ -584,11 +584,11 @@
       <span id="sml-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <table id="sml-table" style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
             <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
-            <th style="padding:7px 8px;white-space:nowrap">Tgl PAM</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="1">Tgl PAM</th>
             <th style="padding:7px 8px;white-space:nowrap">GL Account</th>
             <th style="padding:7px 8px;white-space:nowrap">Cost Center</th>
             <th style="padding:7px 8px;">PT</th>
@@ -597,8 +597,8 @@
             <th style="padding:7px 8px;white-space:nowrap">Mata Uang</th>
             <th style="padding:7px 8px;text-align:right;">DPP</th>
             <th style="padding:7px 8px;text-align:right;">PPN</th>
-            <th style="padding:7px 8px;text-align:right;white-space:nowrap">Total (Rp)</th>
-            <th style="padding:7px 8px;white-space:nowrap">Due Date</th>
+            <th style="padding:7px 8px;text-align:right;white-space:nowrap" data-sort="10" data-sort-type="num">Total (Rp)</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="11">Due Date</th>
             <th style="padding:7px 8px;">Status</th>
             <th style="padding:7px 8px;white-space:nowrap">Tgl Bayar</th>
             <th style="padding:7px 8px;">Source</th>
@@ -623,7 +623,7 @@
 
   <!-- SETF Tab -->
   <div class="tab-panel" id="tab-setf">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
       <input id="setf-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
              oninput="loadSETFDebounced()">
@@ -664,11 +664,11 @@
       <span id="setf-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <table id="setf-table" style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
             <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
-            <th style="padding:7px 8px;white-space:nowrap">Tgl PAM</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="1">Tgl PAM</th>
             <th style="padding:7px 8px;white-space:nowrap">GL Account</th>
             <th style="padding:7px 8px;white-space:nowrap">Cost Center</th>
             <th style="padding:7px 8px;">PT</th>
@@ -677,8 +677,8 @@
             <th style="padding:7px 8px;white-space:nowrap">Mata Uang</th>
             <th style="padding:7px 8px;text-align:right;">DPP</th>
             <th style="padding:7px 8px;text-align:right;">PPN</th>
-            <th style="padding:7px 8px;text-align:right;white-space:nowrap">Total (Rp)</th>
-            <th style="padding:7px 8px;white-space:nowrap">Due Date</th>
+            <th style="padding:7px 8px;text-align:right;white-space:nowrap" data-sort="10" data-sort-type="num">Total (Rp)</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="11">Due Date</th>
             <th style="padding:7px 8px;">Status</th>
             <th style="padding:7px 8px;white-space:nowrap">Tgl Bayar</th>
             <th style="padding:7px 8px;">Source</th>
@@ -1364,10 +1364,11 @@ async function loadSML() {
   const status  = (document.getElementById('sml-filter-status')?.value || '');
   const source  = (document.getElementById('sml-filter-source')?.value || '');
   const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('sml-tbody');
+  tbody.innerHTML = skeletonRows(25);
   const res     = await apiFetch('/payment-memo/by-pillar/LAND?' + params);
   if (!res) return;
   const data   = await res.json();
-  const tbody  = document.getElementById('sml-tbody');
   const count  = document.getElementById('sml-count');
   if (!data.ok || !data.rows.length) {
     tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data LAND.</td></tr>';
@@ -1404,6 +1405,7 @@ async function loadSML() {
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
+  makeSortable('sml-table');
 }
 
 function smlToggleCb(cb) {
@@ -1591,10 +1593,11 @@ async function loadSETF() {
   const status  = (document.getElementById('setf-filter-status')?.value || '');
   const source  = (document.getElementById('setf-filter-source')?.value || '');
   const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('setf-tbody');
+  tbody.innerHTML = skeletonRows(25);
   const res     = await apiFetch('/payment-memo/by-pillar/SETF?' + params);
   if (!res) return;
   const data   = await res.json();
-  const tbody  = document.getElementById('setf-tbody');
   const count  = document.getElementById('setf-count');
   if (!data.ok || !data.rows.length) {
     tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>';
@@ -1631,6 +1634,7 @@ async function loadSETF() {
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
+  makeSortable('setf-table');
 }
 
 // ── FIORI (APP) ───────────────────────────────────────────────────────────────
@@ -1646,10 +1650,11 @@ async function loadFIORI() {
   const status  = (document.getElementById('fiori-filter-status')?.value || '');
   const source  = (document.getElementById('fiori-filter-source')?.value || '');
   const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('fiori-tbody');
+  tbody.innerHTML = skeletonRows(26);
   const res     = await apiFetch('/payment-memo/by-pillar/APP?' + params);
   if (!res) return;
   const data   = await res.json();
-  const tbody  = document.getElementById('fiori-tbody');
   const count  = document.getElementById('fiori-count');
   _fioriSelected.clear();
   _fioriSelectionMeta.clear();
@@ -1690,6 +1695,7 @@ async function loadFIORI() {
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
+  makeSortable('fiori-table');
 }
 
 async function openEditFiori(id) {
@@ -2043,10 +2049,11 @@ async function loadPAM() {
   const status  = (document.getElementById('pam-filter-status')?.value || '');
   const source  = (document.getElementById('pam-filter-source')?.value || '');
   const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('pam-tbody');
+  tbody.innerHTML = skeletonRows(28);
   const res     = await apiFetch('/payment-memo/by-pillar/AGRI?' + params);
   if (!res) return;
   const data   = await res.json();
-  const tbody  = document.getElementById('pam-tbody');
   if (!data.ok || !data.rows.length) {
     tbody.innerHTML = '<tr><td colspan="28" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada PAM record AGRI.</td></tr>';
     return;
@@ -2097,6 +2104,7 @@ async function loadPAM() {
     const cell = document.getElementById('gl-cell-' + r.id);
     if (cell) cell.appendChild(buildGLDropdown(r.id, r.gl_account));
   });
+  makeSortable('pam-table');
 }
 
 let _pamBeasiswaCache = {};
