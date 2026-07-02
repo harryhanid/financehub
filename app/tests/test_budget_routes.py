@@ -195,3 +195,12 @@ def test_nav_shows_budget_link_after_company_selection(client):
     client.post("/select-company", data={"company_id": "2"})
     resp = client.get("/dashboard")
     assert b"/budget/" in resp.data
+
+
+def test_nav_stays_visible_on_budget_pages(client):
+    login(client)
+    client.post("/select-company", data={"company_id": "2"})
+    for url in ("/budget/", "/budget/master", "/budget/realisasi", "/budget/carryover"):
+        resp = client.get(url)
+        assert b'href="/dashboard"' in resp.data, f"nav missing on {url}"
+        assert b'href="/users"' in resp.data, f"nav missing on {url}"

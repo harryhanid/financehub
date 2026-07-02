@@ -1,5 +1,5 @@
 # modules/budget/routes.py
-from flask import Blueprint, render_template, request, jsonify, send_file
+from flask import Blueprint, render_template, request, jsonify, send_file, session
 import io
 from datetime import datetime as _dt
 from flask_jwt_extended import get_jwt
@@ -27,13 +27,27 @@ def _current_username() -> str:
         return ""
 
 
+def _ctx():
+    try:
+        claims = get_jwt()
+        return {
+            "current_user": claims.get("username", ""),
+            "current_role": claims.get("role", ""),
+            "company_id":   session.get("company_id"),
+            "company_code": session.get("company_code"),
+            "company_name": session.get("company_name"),
+        }
+    except Exception:
+        return {}
+
+
 @bp.route("/master")
 @jwt_html_required
 def master_list():
     company = request.args.get("company")
     budgets = list_budgets({"company": company} if company else None)
     return render_template("budget/master_list.html", budgets=budgets, active_page="budget",
-                            filter_company=company)
+                            filter_company=company, **_ctx())
 
 
 @bp.route("/master/<budget_id>")
@@ -74,7 +88,7 @@ def realisasi_list():
     company = request.args.get("company")
     realisasi = list_realisasi({"company": company} if company else None)
     return render_template("budget/realisasi_list.html", realisasi=realisasi, active_page="budget",
-                            filter_company=company)
+                            filter_company=company, **_ctx())
 
 
 @bp.route("/realisasi/create", methods=["POST"])
@@ -124,7 +138,7 @@ def _filters_from_query():
 @bp.route("/")
 @jwt_html_required
 def index():
-    return render_template("budget/dashboard.html", active_page="budget")
+    return render_template("budget/dashboard.html", active_page="budget", **_ctx())
 
 
 @bp.route("/api/dashboard-data")
@@ -148,7 +162,7 @@ def api_lookups():
 @jwt_html_required
 def carryover_page():
     from modules.budget.service import get_carryover_data
-    return render_template("budget/carryover.html", logs=get_carryover_data(), active_page="budget")
+    return render_template("budget/carryover.html", logs=get_carryover_data(), active_page="budget", **_ctx())
 
 
 @bp.route("/carryover/request", methods=["POST"])
