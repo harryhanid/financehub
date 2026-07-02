@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block head %}{% endblock %}
 </head>
-<body>
+<body data-module="{{ active_page or '' }}">
 <nav class="navbar">
   <a class="navbar-brand" href="/">
     <span class="navbar-brand-icon">
@@ -28,29 +28,11 @@
   <a class="navbar-company" href="/select-company" title="Ganti perusahaan">{{ company_name }}</a>
   {% endif %}
   {% if company_name %}
-  <span class="navbar-sep" style="margin:0 .25rem">|</span>
-  {% set co = company_code or '' %}
-  <nav class="navbar-links">
-    <a href="/dashboard" class="navbar-link {% if active_page == 'dashboard' %}active{% endif %}">Dashboard</a>
-    {% if co == 'ETF' %}
-    <a href="/beasiswa" class="navbar-link {% if active_page == 'beasiswa' %}active{% endif %}">Beasiswa</a>
-    {% endif %}
-    <a href="/payment-memo" class="navbar-link {% if active_page == 'payment_memo' %}active{% endif %}">Payment Approval Memo</a>
-    {% if co == 'ETF' %}
-    <a href="/etf-payment-application" class="navbar-link {% if active_page == 'etf_payment_app' %}active{% endif %}">Payment Application</a>
-    {% else %}
-    <a href="/payment-application" class="navbar-link {% if active_page == 'payment_app' %}active{% endif %}">Payment Application</a>
-    {% endif %}
-    <span class="navbar-sep" style="margin:0 .125rem">|</span>
-    <a class="navbar-link coming-soon" title="Coming Soon">Bank</a>
-    <a class="navbar-link coming-soon" title="Coming Soon">Account Payable</a>
-    <a class="navbar-link coming-soon" title="Coming Soon">Advance</a>
-    <a class="navbar-link coming-soon" title="Coming Soon">Petty Cash</a>
-    <a class="navbar-link coming-soon" title="Coming Soon">Sponsorship</a>
-    <a href="/budget/" class="navbar-link {% if active_page == 'budget' %}active{% endif %}">Budget</a>
-    <span class="navbar-sep" style="margin:0 .125rem">|</span>
-    <a href="/users" class="navbar-link {% if active_page == 'users' %}active{% endif %}">Users</a>
-  </nav>
+  <button id="fh-cmd-btn" class="fh-cmd-btn" title="Cari modul (Ctrl+K)">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    Cari modul
+    <kbd>Ctrl+K</kbd>
+  </button>
   {% endif %}
   <span class="navbar-user">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -149,6 +131,17 @@ function confirmModal(message, opts) {
   });
 }
 </script>
+<!-- ── Command Palette Overlay ─────────────────────────── -->
+<div id="fh-cmd-ov">
+  <div class="fh-cmd-modal">
+    <div class="fh-cmd-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="fh-cmd-input" type="text" placeholder="Cari modul..." autocomplete="off" spellcheck="false">
+      <kbd>Esc</kbd>
+    </div>
+    <div id="fh-cmd-results"></div>
+  </div>
+</div>
 {% block scripts %}{% endblock %}
 </body>
 </html>
