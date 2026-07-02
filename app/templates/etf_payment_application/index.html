@@ -415,7 +415,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
     <thead class="thead-primary">
       <tr>
         <th class="s0"><input type="checkbox" id="chk-all" onchange="toggleAll(this)" title="Pilih semua"></th>
-        <th class="s1">No. PA</th>
+        <th class="s1" data-sort="1">No. PA</th>
         <th class="s2">ID Siswa</th>
         <th class="s3">Nama PB</th>
         <th id="grp-siswa-toggle" onclick="toggleSiswaGroup()" title="Klik untuk expand/collapse kolom Data Siswa">
@@ -430,13 +430,13 @@ body.pa-focus #pa-focus-exit { display: flex; }
         <th class="col-siswa">Program</th>
         <th class="col-siswa">Fakultas</th>
         <th class="col-siswa">Program Studi</th>
-        <th>Tgl PA</th>
+        <th data-sort="13">Tgl PA</th>
         <th>Tgl Surat</th>
         <th>Jenis Bayar</th>
         <th>Semester</th>
         <th>Tahun Ajaran</th>
         <th>IPK Sblmnya</th>
-        <th class="num-right">Jumlah (Rp)</th>
+        <th class="num-right" data-sort="19" data-sort-type="num">Jumlah (Rp)</th>
         <th>Doc Recv Educ</th>
         <th>Recv PA Educ</th>
         <th>Checked Fincon</th>
@@ -1443,5 +1443,10 @@ function exportETFExcel() {
   if (tahunPa)  url.searchParams.set('tahun_pa', tahunPa);
   window.location.href = url.toString();
 }
+
+// Sort is DOM-based; call once after server-rendered rows are in the DOM
+document.addEventListener('DOMContentLoaded', function() {
+  makeSortable('pa-table');
+});
 </script>
 {% endblock %}

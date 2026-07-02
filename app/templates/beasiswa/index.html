@@ -281,7 +281,7 @@
 
     <div class="card">
       <div class="card-title">Daftar Payment</div>
-      <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:flex-end">
+      <div class="filter-bar" style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:flex-end;padding-top:.25rem">
         <div class="form-group" style="margin:0;flex:1;min-width:200px">
           <label>Cari / Kata Kunci</label>
           <input type="text" id="pay-search" placeholder="Nama, kode, kategori, PAM, pillar..." oninput="loadPaymentList()">
@@ -342,7 +342,7 @@
           <thead>
             <tr>
               <th>Kode</th><th>Nama Siswa</th><th>Program</th><th>Kategori 1</th><th>Kategori 2</th>
-              <th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th>
+              <th data-sort="5">Tanggal</th><th>Pillar</th><th class="num-right" data-sort="7" data-sort-type="num">Amount</th>
               <th>PAM</th><th>Perusahaan</th><th>Status</th><th>Aksi</th>
             </tr>
           </thead>
@@ -1180,7 +1180,7 @@ async function loadPaymentList() {
     const program = document.getElementById("pay-filter-program")?.value || "";
     const params  = new URLSearchParams({ search, cat1, pillar, bulan, tahun, status, program });
     const tbody   = document.getElementById("pay-tbody");
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
+    tbody.innerHTML = skeletonRows(12);
     const d = await (await apiFetch(`/beasiswa/payment/list?${params}`)).json();
     _renderTabSummary('pay', d.budget_totals, d.totals);
     if (!d.ok || !d.rows?.length) {
@@ -1211,6 +1211,7 @@ async function loadPaymentList() {
         <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="payDeleteRow(${r.id})">Hapus</button>
       </td>
     </tr>`).join("");
+    makeSortable('pay-table');
   }, 300);
 }
 
