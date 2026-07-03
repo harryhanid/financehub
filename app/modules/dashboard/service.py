@@ -86,10 +86,11 @@ def _pa_actions(conn, company_id: int, today: date) -> list:
     for tab, pillar, pa_tbl, lines_tbl in PA_SOURCES:
         rows = conn.execute(
             f"""SELECT p.*,
-                       COUNT(l.id)                           AS jml_siswa,
+                       GROUP_CONCAT(DISTINCT s.nama)         AS nama_student,
                        COALESCE(SUM(l.jumlah_pembayaran), 0) AS total_bayar
                 FROM {pa_tbl} p
                 LEFT JOIN {lines_tbl} l ON l.pa_id = p.id
+                LEFT JOIN siswa s ON s.id = l.student_id
                 WHERE p.company_id = ? AND p.status IN ('open','on_process')
                 GROUP BY p.id""",
             (company_id,),
@@ -101,15 +102,15 @@ def _pa_actions(conn, company_id: int, today: date) -> list:
                         or _parse_date(row.get("tgl_payment_application"))
                         or _parse_date(row.get("created_at")))
             items.append({
-                "tab":       tab,
-                "pillar":    pillar,
-                "pa_id":     row["id"],
-                "pa_number": row["pa_number"],
-                "stage":     awaited or "Semua tanggal terisi",
-                "days":      _days_since(baseline, today),
-                "jml_siswa": row["jml_siswa"],
-                "total":     row["total_bayar"],
-                "status":    row["status"],
+                "tab":         tab,
+                "pillar":      pillar,
+                "pa_id":       row["id"],
+                "pa_number":   row["pa_number"],
+                "nama_student": row["nama_student"] or "-",
+                "stage":       awaited or "Semua tanggal terisi",
+                "days":        _days_since(baseline, today),
+                "total":       row["total_bayar"],
+                "status":      row["status"],
             })
     return items
 

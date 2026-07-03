@@ -534,6 +534,21 @@ input[readonly], input[disabled] {
 .badge-blue   { background: var(--accent-surface);   color: var(--accent-text); border-color: var(--accent-border); }
 .badge-gray   { background: var(--sl-100); color: var(--sl-600); border-color: var(--sl-200); }
 
+/* ── Pillar badges ───────────────────────────────────── */
+.pillar-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 99px;
+  font-size: 10.5px; font-weight: 700;
+  border: 1px solid;
+}
+.pillar-agri   { background: rgba(34,197,94,.15);  color: #16A34A; border-color: rgba(34,197,94,.35); }
+.pillar-app    { background: rgba(59,130,246,.15); color: #2563EB; border-color: rgba(59,130,246,.35); }
+.pillar-energy { background: rgba(249,115,22,.15); color: #EA580C; border-color: rgba(249,115,22,.35); }
+.pillar-land,
+.pillar-sml    { background: rgba(20,184,166,.15); color: #0D9488; border-color: rgba(20,184,166,.35); }
+.pillar-setf   { background: rgba(168,85,247,.15); color: #9333EA; border-color: rgba(168,85,247,.35); }
+
 /* ── Modals ──────────────────────────────────────────── */
 .modal-overlay {
   display: none; position: fixed; inset: 0;

@@ -68,11 +68,11 @@
     <table style="width:100%;border-collapse:collapse;font-size:12.5px">
       <thead class="thead-primary">
         <tr>
-          <th style="padding:8px 10px;text-align:left">Pilar</th>
           <th style="padding:8px 10px;text-align:left">No. PA</th>
+          <th style="padding:8px 10px;text-align:left">Pilar</th>
+          <th style="padding:8px 10px;text-align:left">Nama Student</th>
           <th style="padding:8px 10px;text-align:left">Stage ditunggu</th>
           <th style="padding:8px 10px;text-align:right">Hari</th>
-          <th style="padding:8px 10px;text-align:right">Jml Siswa</th>
           <th style="padding:8px 10px;text-align:right">Total (Rp)</th>
           <th style="padding:8px 10px;text-align:left">Status</th>
         </tr>
@@ -82,11 +82,11 @@
         <tr style="cursor:pointer;border-bottom:1px solid var(--border)"
             onclick="window.location='/etf-payment-application/?tab={{ it.tab }}&sf=active&open_pa={{ it.pa_id }}'"
             title="Buka PA ini">
-          <td style="padding:7px 10px"><span style="display:inline-block;padding:1px 8px;border-radius:99px;font-size:10.5px;font-weight:700;background:var(--bg-muted);border:1px solid var(--border)">{{ it.pillar }}</span></td>
           <td style="padding:7px 10px;font-family:var(--mono);font-size:11.5px;white-space:nowrap">{{ it.pa_number }}</td>
+          <td style="padding:7px 10px"><span class="pillar-badge pillar-{{ it.pillar|lower }}">{{ it.pillar }}</span></td>
+          <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ it.nama_student }}">{{ it.nama_student }}</td>
           <td style="padding:7px 10px">{{ it.stage }}</td>
           <td style="padding:7px 10px;text-align:right;font-weight:700">{{ it.days }}</td>
-          <td style="padding:7px 10px;text-align:right">{{ it.jml_siswa }}</td>
           <td style="padding:7px 10px;text-align:right">{{ "{:,.0f}".format(it.total) }}</td>
           <td style="padding:7px 10px;white-space:nowrap">{{ 'On Process' if it.status == 'on_process' else 'Open' }}</td>
         </tr>
@@ -123,7 +123,7 @@
             onclick="window.location='/payment-memo/?pam_pillar={{ it.pillar }}&pam_no={{ it.pam_no|urlencode }}'"
             title="Buka PAM ini">
           <td style="padding:7px 10px;font-family:var(--mono);font-size:11.5px;white-space:nowrap">{{ it.pam_no }}</td>
-          <td style="padding:7px 10px"><span style="display:inline-block;padding:1px 8px;border-radius:99px;font-size:10.5px;font-weight:700;background:var(--bg-muted);border:1px solid var(--border)">{{ it.pillar }}</span></td>
+          <td style="padding:7px 10px"><span class="pillar-badge pillar-{{ it.pillar|lower }}">{{ it.pillar }}</span></td>
           <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ it.keterangan }}">{{ it.keterangan or '-' }}</td>
           <td style="padding:7px 10px;text-align:center;white-space:nowrap">{{ it.vendor_done }}/{{ it.vendor_total }} selesai</td>
           <td style="padding:7px 10px">{{ it.stage }}{% if it.vendor %} — {{ it.vendor }}{% endif %}</td>

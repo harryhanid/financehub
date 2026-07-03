@@ -197,6 +197,7 @@ def summary_data():
         rows = get_pa_flat(company_id, tab=t)
         for r in rows:
             r['nama_student'] = r.get('nama', '')
+            r['pillar'] = t
             all_data.append(r)
     # Urutkan berdasarkan pa_number descending
     all_data.sort(key=lambda x: x.get('pa_number', ''), reverse=True)

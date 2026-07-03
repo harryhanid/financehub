@@ -14,6 +14,16 @@ const FH_MODULES = [
 ];
 const FH_RECENT_KEY = 'fh_recent_modules';
 
+/* Always block the browser's native Ctrl/Cmd+K (focus omnibox) first, in the
+   capture phase — runs before any page-specific script can stopPropagation
+   during the bubble phase, and before initCommandPalette() has even wired up
+   (so it works even on pages where the palette DOM/JS fails for any reason). */
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+  }
+}, true);
+
 function _fhGetRecent() {
   try { return JSON.parse(localStorage.getItem(FH_RECENT_KEY) || '[]'); } catch (e) { return []; }
 }

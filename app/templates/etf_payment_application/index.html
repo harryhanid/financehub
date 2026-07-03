@@ -330,8 +330,8 @@ body.pa-focus #pa-focus-exit { display: flex; }
   <h2 style="font-size:1rem; font-weight:700; margin-bottom:1rem">Buat Payment Application Baru</h2>
 
   {# ── Jenis PA ── #}
-  <div style="margin-bottom:1rem; padding:.65rem .85rem; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px">
-    <div style="font-size:.8rem; font-weight:700; color:#0369a1; margin-bottom:.45rem">Pilih Jenis PA *</div>
+  <div style="margin-bottom:1rem; padding:.65rem .85rem; background:var(--accent-surface); border:1px solid var(--accent-border); border-radius:6px">
+    <div style="font-size:.8rem; font-weight:700; color:var(--accent-text); margin-bottom:.45rem">Pilih Jenis PA *</div>
     <div style="display:flex; gap:1.25rem; flex-wrap:wrap">
       {% for t, lbl in [('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
       <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
@@ -343,24 +343,24 @@ body.pa-focus #pa-focus-exit { display: flex; }
   </div>
 
   {# ── Siswa + IPK ── #}
-  <div style="margin-bottom:.75rem;padding:.6rem .75rem;background:#f8fafc;border:1px solid var(--border);border-radius:6px">
+  <div style="margin-bottom:.75rem;padding:.6rem .75rem;background:var(--bg-muted);border:1px solid var(--border);border-radius:6px">
     <div style="display:grid;grid-template-columns:1fr 160px;gap:.5rem;align-items:end">
       <div class="form-group" style="margin:0;position:relative">
         <label style="font-weight:600">Nama Siswa *</label>
         <input type="text" id="pa-siswa-search" placeholder="Cari nama atau kode siswa..." autocomplete="off">
         <input type="hidden" id="pa-siswa-id">
         <input type="hidden" id="pa-siswa-code">
-        <div id="pa-siswa-sugg" style="display:none;position:absolute;background:#fff;border:1px solid var(--border);border-radius:4px;z-index:200;max-height:200px;overflow-y:auto;width:100%;top:100%;left:0"></div>
+        <div id="pa-siswa-sugg" style="display:none;position:absolute;background:var(--card,#fff);border:1px solid var(--border);border-radius:4px;z-index:200;max-height:200px;overflow-y:auto;width:100%;top:100%;left:0"></div>
       </div>
       <div class="form-group" style="margin:0">
         <label>IPK Sem Sblmnya</label>
         <input type="number" id="pa-siswa-ipk" step="0.01" min="0" max="4" readonly
-               style="background:var(--bg-muted);font-weight:700;color:#1d4ed8">
+               style="background:var(--bg-muted);font-weight:700;color:var(--accent-text)">
       </div>
     </div>
     <div id="pa-siswa-info" style="font-size:.75rem;color:var(--text-muted);margin-top:.3rem"></div>
     <div id="pa-siswa-ipk-strip" style="display:none;align-items:center;gap:6px;margin-top:.3rem;flex-wrap:wrap">
-      <span id="pa-siswa-ipk-badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:1px 8px;font-size:.68rem;font-weight:700"></span>
+      <span id="pa-siswa-ipk-badge" style="background:var(--accent-surface);color:var(--accent-text);border:1px solid var(--accent-border);border-radius:4px;padding:1px 8px;font-size:.68rem;font-weight:700"></span>
       <span id="pa-siswa-ipk-warn" style="display:none;font-size:.68rem;color:#dc2626;font-weight:600">⚠ IPK belum ada</span>
       <button type="button" id="pa-siswa-edit-btn" class="btn btn-sm" style="padding:1px 8px;font-size:.68rem;line-height:1.5">✏ Update Siswa</button>
     </div>
@@ -783,7 +783,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
 
 {# ── Template baris pembayaran (payline) ─────────────────────────────────── #}
 <template id="payline-template">
-  <div class="payline-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.5rem;align-items:end;margin-bottom:.35rem;padding:.4rem .5rem;background:#f8fafc;border:1px solid var(--border);border-radius:5px">
+  <div class="payline-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.5rem;align-items:end;margin-bottom:.35rem;padding:.4rem .5rem;background:var(--bg-muted);border:1px solid var(--border);border-radius:5px">
     <div class="form-group" style="margin:0"><label style="font-size:.75rem">Jenis Bayar</label>
       <select class="pl-jenis-bayar">
         <option value="">-- Pilih --</option>
