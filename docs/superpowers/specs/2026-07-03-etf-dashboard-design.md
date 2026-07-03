@@ -1,6 +1,6 @@
 # ETF Dashboard Redesign — Design
 
-> **Status: all sections (1–5) discussed and approved by user, 2026-07-03.** Awaiting final user sign-off on this written file, then proceed to the writing-plans skill. Do NOT start implementation before that.
+> **Status: APPROVED (user sign-off 2026-07-03).** Implementation plan written: `docs/superpowers/plans/2026-07-03-etf-dashboard.md`. Planning refined the §4 working param names — PAM vendor-line dates are edited inline in the pillar tabs (not a modal), so the PAM deep link became `?pam_pillar=<PILLAR>&pam_no=<no>`; see the plan's "Deviations from spec" note. Implementation not yet started.
 
 ## Context / Why
 
