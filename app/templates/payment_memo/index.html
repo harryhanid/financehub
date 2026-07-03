@@ -4228,5 +4228,24 @@ function exportPillarExcel(pillar) {
 
 // Render Open PAM accordion on page load
 renderOpenPAM(OPEN_PAM_DRAFTS);
+
+/* Deep link from dashboard: ?pam_pillar=AGRI&pam_no=... lands on the pillar
+   tab with the search pre-filtered to that memo's rows (inline-editable). */
+document.addEventListener('DOMContentLoaded', function () {
+  const params = new URLSearchParams(window.location.search);
+  const pillar = (params.get('pam_pillar') || '').toUpperCase();
+  if (!pillar) return;
+  const cfg = {
+    AGRI: ['tab-pam',   'pam-search'],
+    APP:  ['tab-fiori', 'fiori-search'],
+    LAND: ['tab-sml',   'sml-search'],
+    SETF: ['tab-setf',  'setf-search'],
+  }[pillar];
+  if (!cfg) return;
+  const pamNo = params.get('pam_no') || '';
+  const inp = document.getElementById(cfg[1]);
+  if (inp && pamNo) inp.value = pamNo;
+  document.querySelector(`[data-tab="${cfg[0]}"]`)?.click();
+});
 </script>
 {% endblock %}

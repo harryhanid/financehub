@@ -1446,5 +1446,16 @@ function exportETFExcel() {
 document.addEventListener('DOMContentLoaded', function() {
   makeSortable('pa-table');
 });
+
+/* Deep link from dashboard: ?open_pa=<pa_id> auto-opens that PA's edit modal */
+document.addEventListener('DOMContentLoaded', function () {
+  const openPa = new URLSearchParams(window.location.search).get('open_pa');
+  if (!openPa) return;
+  const tr = document.querySelector(`#pa-table tbody tr[data-pa-id="${CSS.escape(openPa)}"]`);
+  if (!tr) return;
+  tr.scrollIntoView({ block: 'center' });
+  const btn = tr.querySelector("button[onclick^='openEditById']");
+  if (btn) btn.click();
+});
 </script>
 {% endblock %}
