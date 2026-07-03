@@ -1225,7 +1225,7 @@ function renderOpenPAM(drafts) {
         hiddenChecks +
       '</td>' +
       '<td><span class="pam-toggle" data-pam-key="' + pamKeyAttr + '">▶</span></td>' +
-      '<td><code style="font-size:.8rem;color:#2563eb">' + esc(pamLabel) + '</code></td>' +
+      '<td><code style="font-size:.8rem;color:var(--accent-text)">' + esc(pamLabel) + '</code></td>' +
       '<td>' + esc(g.minDate || '--') + '</td>' +
       '<td>' + _dueDateBadge(g.dueDate) + '</td>' +
       '<td>' + _dueDaysBadge(g.dueDate) + '</td>' +
@@ -1667,7 +1667,7 @@ async function loadFIORI() {
   if (count) count.textContent = data.rows.length + ' baris';
   tbody.innerHTML = data.rows.map((r, i) => `
     <tr class="fiori-row" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
-      <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="fiori-cb" data-id="${r.id}" onchange="fioriToggleCb(this)"></td>
+      <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="fiori-cb" data-id="${r.id}" style="cursor:pointer;vertical-align:middle" onchange="fioriToggleCb(this)"></td>
       <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
