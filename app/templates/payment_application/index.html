@@ -35,7 +35,6 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Payment Application</h1>
-    {% if company_name %}<div class="page-meta">{{ company_name }}</div>{% endif %}
   </div>
   {% if approved_memos %}
   <button class="btn btn-primary" onclick="document.getElementById('app-submitted-at').value=new Date().toISOString().slice(0,10); openModal('modal-buat-app')">+ Buat Application</button>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}ETF Payment Application{% endblock %}
+{% block title %}Payment Application{% endblock %}
 
 {% block head %}
 <style>
@@ -217,9 +217,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
 <div id="pa-page-header">
 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; margin-bottom:.25rem">
   <div>
-    <h1 class="page-title" style="margin-bottom:0">ETF Payment Application
-      {% if company_name %}<span class="page-meta" style="font-weight:400; margin-left:.5rem">{{ company_name }}</span>{% endif %}
-    </h1>
+    <h1 class="page-title" style="margin-bottom:0">Payment Application</h1>
   </div>
   {% if active_tab not in ('input', 'summary') %}
   <button id="pa-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
