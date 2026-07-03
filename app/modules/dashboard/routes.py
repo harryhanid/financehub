@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, sessio
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from database import get_conn
+from modules.dashboard.service import get_etf_dashboard_data
 import config
 
 bp = Blueprint("dashboard", __name__)
@@ -50,6 +51,7 @@ def index():
     conn       = get_conn()
     company_id = session["company_id"]
     stats      = {}
+    dash       = None
 
     if session.get("company_code") == "ETF":
         stats["total_siswa"]   = conn.execute(
@@ -64,13 +66,16 @@ def index():
         stats["total_payment"] = conn.execute(
             "SELECT COALESCE(SUM(amount),0) FROM payment_beasiswa WHERE company_id = ?", (company_id,)
         ).fetchone()[0]
+        conn.close()
+        dash = get_etf_dashboard_data(company_id)
+    else:
+        stats["total_memo"] = conn.execute(
+            "SELECT COUNT(*) FROM payment_memo WHERE company_id = ?", (company_id,)
+        ).fetchone()[0]
+        stats["memo_draft"] = conn.execute(
+            "SELECT COUNT(*) FROM payment_memo WHERE company_id = ? AND status = 'open'", (company_id,)
+        ).fetchone()[0]
+        conn.close()
 
-    stats["total_memo"] = conn.execute(
-        "SELECT COUNT(*) FROM payment_memo WHERE company_id = ?", (company_id,)
-    ).fetchone()[0]
-    stats["memo_draft"] = conn.execute(
-        "SELECT COUNT(*) FROM payment_memo WHERE company_id = ? AND status = 'open'", (company_id,)
-    ).fetchone()[0]
-    conn.close()
-
-    return render_template("dashboard/index.html", stats=stats, active_page="dashboard", **get_ctx())
+    return render_template("dashboard/index.html", stats=stats, dash=dash,
+                           active_page="dashboard", **get_ctx())
