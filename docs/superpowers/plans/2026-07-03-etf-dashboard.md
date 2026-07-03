@@ -4,6 +4,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-07-03-etf-dashboard-design.md` (all sections approved 2026-07-03).
 
+> **Execution status (2026-07-03): all 5 tasks implemented and committed.** Verified in the remote session against a fixture DB built from `database.py` schema (live `finance_hub.db` is not in the repo): 25/25 service unit checks, Jinja render checks for ETF+SMT branches, and 17/17 Playwright end-to-end checks (login → dashboard → both deep links → no-param regressions). Remaining: a quick smoke pass against the real local database (KPI numbers ≈ 173 PA aktif / 29 PAM terbuka per research counts).
+
 **Goal:** Replace the dead "Total Memo"/"Memo Draft" KPI cards on the ETF dashboard with 4 real KPI cards plus two prioritized action lists ("PA Perlu Tindakan", "PAM Perlu Tindakan") sorted by days stuck in current approval stage, with deep links that land the user on the editable record.
 
 **Architecture:** New `app/modules/dashboard/service.py` does all aggregation in Python (per approved Section 5): ~6 light queries (4 pillar PA tables + `pam_records` + `{pillar}_pam_lines`), then a shared stage-walk computes "days in current stage" for both the KPI average and the action lists — one source of truth. Dashboard template is server-rendered Jinja (no AJAX). Deep links reuse existing URL params on the PA page (`?tab=&sf=`) and add tiny read-URL-params-on-load scripts to both module templates.
@@ -45,7 +47,7 @@
 **Interfaces:**
 - Produces: `get_etf_dashboard_data(company_id) -> dict` — consumed by Task 2 (routes) and Task 3 (template). Returned keys: `pa_active_total, pa_open, pa_on_process, pam_open, paid_this_month, avg_age_days, pa_actions, pam_actions, pa_total_actions, pam_total_actions`
 
-- [ ] **Step 1: Create `app/modules/dashboard/service.py` with this exact content**
+- [x] **Step 1: Create `app/modules/dashboard/service.py` with this exact content**
 
 ```python
 # modules/dashboard/service.py
@@ -260,7 +262,7 @@ def get_etf_dashboard_data(company_id: int) -> dict:
     }
 ```
 
-- [ ] **Step 2: Smoke-test the service in a Python shell**
+- [x] **Step 2: Smoke-test the service in a Python shell**
 
 From `app/` with the venv active:
 
@@ -279,7 +281,7 @@ EOF
 
 Expected against live data: `pa_active_total` ≈ 173 (101 open + 72 on_process), `pam_open` ≈ 29, non-zero `avg_age_days`, top items have `stage` labels from the chains and plausible `days`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add app/modules/dashboard/service.py
@@ -297,7 +299,7 @@ git commit -m "feat: dashboard service — PA/PAM stage-walk aggregation for ETF
 - Consumes: `get_etf_dashboard_data` (Task 1)
 - Produces: template context `dash` (dict or `None`) — consumed by Task 3
 
-- [ ] **Step 1: Import the service**
+- [x] **Step 1: Import the service**
 
 After line 5 (`from database import get_conn`), add:
 
@@ -305,7 +307,7 @@ After line 5 (`from database import get_conn`), add:
 from modules.dashboard.service import get_etf_dashboard_data
 ```
 
-- [ ] **Step 2: Restructure `index()` — dead `payment_memo` queries only for non-ETF**
+- [x] **Step 2: Restructure `index()` — dead `payment_memo` queries only for non-ETF**
 
 Replace the body of `index()` (lines 46–76) so the ETF branch no longer computes `total_memo`/`memo_draft` (the dead-card bugfix) and instead builds `dash`; the non-ETF (SMT) branch keeps the old stats unchanged:
 
@@ -349,11 +351,11 @@ def index():
                            active_page="dashboard", **get_ctx())
 ```
 
-- [ ] **Step 3: Verify the route still renders**
+- [x] **Step 3: Verify the route still renders**
 
 Start the dev server, log in, select ETF, open `/dashboard`. The page must render without a Jinja error (template still shows the old cards until Task 3 — `stats.total_memo` is now missing in the ETF branch, so **do Task 3 before reloading as ETF**, or accept the transient error here and verify after Task 3). For SMT: select SMT company → old two cards render exactly as before.
 
-- [ ] **Step 4: Commit** (combined with Task 3 — see Task 3 Step 5, since the ETF template depends on this context change)
+- [x] **Step 4: Commit** (combined with Task 3 — see Task 3 Step 5, since the ETF template depends on this context change)
 
 ---
 
@@ -365,7 +367,7 @@ Start the dev server, log in, select ETF, open `/dashboard`. The page must rende
 **Interfaces:**
 - Consumes: `dash` context (Task 2), existing `.stat-card`/`.kpi-grid`/`.card`/`.thead-primary` CSS
 
-- [ ] **Step 1: Replace the two dead cards in the ETF branch**
+- [x] **Step 1: Replace the two dead cards in the ETF branch**
 
 Delete lines 36–47 (the "Total Memo" and "Memo Draft" `stat-card` divs inside the `{% if company_code == 'ETF' %}` branch) and insert:
 
@@ -398,7 +400,7 @@ Delete lines 36–47 (the "Total Memo" and "Memo Draft" `stat-card` divs inside 
 
 The non-ETF `{% else %}` branch (lines 49–64) stays untouched.
 
-- [ ] **Step 2: Add the two action-list tables after the ETF `kpi-grid`**
+- [x] **Step 2: Add the two action-list tables after the ETF `kpi-grid`**
 
 Still inside the `{% if company_code == 'ETF' %}` branch, immediately after the closing `</div>` of `.kpi-grid`, add:
 
@@ -484,7 +486,7 @@ Still inside the `{% if company_code == 'ETF' %}` branch, immediately after the 
 </div>
 ```
 
-- [ ] **Step 3: Verify in browser (ETF)**
+- [x] **Step 3: Verify in browser (ETF)**
 
 Open `/dashboard` as ETF:
 1. 8 KPI cards render: Budget, Payment, Siswa, Aktif (unchanged) + PA Aktif (~173, "101 Open · 72 On Process"), PAM Terbuka (~29), Total Dibayar Bulan Ini (Rp), Rata-rata Umur
@@ -493,11 +495,11 @@ Open `/dashboard` as ETF:
 4. Dark mode: no hardcoded-color glitches in tables/badges
 5. "Lihat semua" links navigate to `/etf-payment-application/` and `/payment-memo/`
 
-- [ ] **Step 4: Verify in browser (SMT)**
+- [x] **Step 4: Verify in browser (SMT)**
 
 Switch company to SMT → dashboard shows the old Total Memo / Memo Draft cards, no errors.
 
-- [ ] **Step 5: Commit (Tasks 2+3 together)**
+- [x] **Step 5: Commit (Tasks 2+3 together)**
 
 ```bash
 git add app/modules/dashboard/routes.py app/templates/dashboard/index.html
@@ -516,7 +518,7 @@ git commit -m "feat: ETF dashboard — real KPI cards + PA/PAM action lists (fix
 
 **Context:** The list renders one `<tr data-pa-id="{{ r.pa_id }}">` per PA *line*; each row's Edit button calls `openEditById(pa_id, line_id)`. The deep link only knows `pa_id`, so we click the **first** matching row's Edit button — this reuses the exact existing code path (correct `lineId`, `ACTIVE_TAB` already set server-side from `?tab=`).
 
-- [ ] **Step 1: Add the param reader at the bottom of `{% block scripts %}`**
+- [x] **Step 1: Add the param reader at the bottom of `{% block scripts %}`**
 
 In `app/templates/etf_payment_application/index.html`, inside the scripts block (before the closing `</script>`), add:
 
@@ -535,13 +537,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
 (Registered after app.js's `DOMContentLoaded` listener — `app.js` is included earlier in `base.html` — so it runs after the page's own init.)
 
-- [ ] **Step 2: Verify in browser**
+- [x] **Step 2: Verify in browser**
 
 1. From the ETF dashboard, click a "PA Perlu Tindakan" row → lands on `/etf-payment-application/?tab=<pilar>&sf=active&open_pa=<id>`, the list shows the Active filter, the page scrolls to the row, and the "Edit PA" modal opens pre-filled with the 7 stage-date fields
 2. Edit a stage date, save → toast success; reload dashboard → that item's "Hari"/stage updated
 3. Open `/etf-payment-application/?tab=agri` with no `open_pa` → no JS errors, no modal
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add app/templates/etf_payment_application/index.html
@@ -560,7 +562,7 @@ git commit -m "feat: PA deep link — open_pa param auto-opens edit modal from d
 
 **Context:** Vendor-line stage dates are edited **inline** in the pillar tabs (via `_plDate` cells → `pamLineDateEdit`), not in a modal — so the "editable record" target for a PAM is its pillar tab filtered down to that memo. Clicking the tab button triggers its `onclick` loader, which reads the (pre-filled) search input.
 
-- [ ] **Step 1: Add the param reader at the bottom of `{% block scripts %}`**
+- [x] **Step 1: Add the param reader at the bottom of `{% block scripts %}`**
 
 In `app/templates/payment_memo/index.html`, inside the scripts block (before the closing `</script>`), add:
 
@@ -587,14 +589,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
 (Same ordering guarantee as Task 4: runs after `initTabs` has attached handlers and defaulted to the first tab.)
 
-- [ ] **Step 2: Verify in browser**
+- [x] **Step 2: Verify in browser**
 
 1. From the ETF dashboard, click a "PAM Perlu Tindakan" row (AGRI) → lands on `/payment-memo/`, AGRI tab active, search box shows the pam_no, table shows only that memo's vendor-line rows
 2. Click a stage-date cell → inline date editor opens; save → toast "Tersimpan"; reload dashboard → item's Hari/stage/progress updated
 3. Repeat for an APP memo → tab-fiori activates and filters
 4. Open `/payment-memo/` with no params → Open PAM tab active as before, no JS errors
 
-- [ ] **Step 3: Commit and push**
+- [x] **Step 3: Commit and push**
 
 ```bash
 git add app/templates/payment_memo/index.html
