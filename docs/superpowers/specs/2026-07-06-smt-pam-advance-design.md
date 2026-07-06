@@ -37,7 +37,7 @@ Dua alternatif yang dipertimbangkan dan ditolak:
 Tidak ada perubahan skema `pam_records` — cukup memakai 2 nilai `pillar` baru: `"SMT"` dan
 `"ADVANCE"`.
 
-### `smt_pam_lines` (baru — identik struktur `setf_pam_lines`)
+### `smt_pam_lines` (baru — struktur `setf_pam_lines` + 1 kolom tambahan)
 ```
 id                 INTEGER PK
 pam_id             INTEGER  -- FK ke pam_records.id
@@ -50,6 +50,7 @@ tgl_approval_1     TEXT
 tgl_approval_2     TEXT
 tgl_approval_3     TEXT
 tgl_kirim          TEXT
+tgl_realisasi      TEXT   -- hanya terisi untuk record yang berasal dari konversi Advance (lihat §1.1)
 created_at         TEXT DEFAULT CURRENT_TIMESTAMP
 updated_at         TEXT
 ```
@@ -72,11 +73,27 @@ updated_at     TEXT
 ```
 `Tanggal PAM` tidak diduplikasi — sudah ada di `pam_records.pam_date`.
 
-### Status Advance
+### 1.1 Realisasi Advance → konversi ke pillar SMT
 Model status sederhana: `pam_records.status` mengikuti flow yang sama dengan pillar lain
-(`open → on_process → complete`). "Realized" = saat `tgl_paid` diisi, cascade set
-`pam_records.status = 'complete'` — pola yang sama seperti pillar lain saat tanggal tahap terakhir
-terisi (mirror `set_pam_complete_cascade` yang sudah ada).
+(`open → on_process → complete`).
+
+"Realized" bukan cuma perubahan status — begitu user mengisi `tgl_paid` di `advance_pam_lines`
+(lewat tab Advance), sistem otomatis menjalankan cascade (mirror pola `set_pam_complete_cascade`
+yang sudah ada, tapi dengan efek tambahan pindah pillar):
+
+1. `pam_records.pillar` untuk record itu diubah dari `"ADVANCE"` → `"SMT"`.
+2. Baris baru dibuat di `smt_pam_lines` untuk `pam_id` yang sama: `no_vendor`/`nama_vendor` di-carry
+   dari baris `advance_pam_lines` lama, `tgl_realisasi` diisi dari nilai `tgl_paid` tadi, 7 kolom
+   tanggal standar SMT (`tgl_terima_doc` s/d `tgl_kirim`) dimulai **kosong** — proses tahap SMT
+   berjalan dari awal setelah advance realized.
+3. `pam_records.status` di-set `'complete'`.
+4. Baris `advance_pam_lines` lama **tidak dihapus** — tetap tersimpan sebagai arsip/riwayat, tapi
+   tidak lagi muncul di tab Advance karena `pam_records.pillar` sudah `"SMT"` (query `get_pam_by_pillar`
+   filter berdasarkan `pillar` saat ini, bukan riwayat).
+
+Efek UI: record yang baru saja realized otomatis "pindah" dari tab Advance ke tab SMT pada saat
+tab di-reload, dengan `tgl_realisasi` terlihat sebagai kolom tambahan di tab SMT untuk membedakannya
+dari record SMT yang dari awal memang di-input sebagai `"SMT"` (yang `tgl_realisasi`-nya NULL).
 
 ## 2. Input Flow
 
@@ -86,7 +103,8 @@ terisi (mirror `set_pam_complete_cascade` yang sudah ada).
   tanpa perubahan — pillar yang dikirim jadi `"SMT"` atau `"ADVANCE"` sesuai pilihan Tipe PAM.
   Field vendor (`no_vendor`/`nama_vendor`) tetap terisi dari selector "Perusahaan" (vendor search)
   yang sudah ada di header Input, sama seperti pillar lain.
-- Nomor PAM: tambah entry baru di `_IPAY_PAM_PREFIX`: `"smt": "SMT"`, `"advance": "ADV"`.
+- Nomor PAM: tambah entry baru di `_IPAY_PAM_PREFIX`: `"smt": "SMT"`, `"advance": "SMT"` (prefix
+  nomor Advance sama dengan SMT — keduanya berbagi urutan penomoran yang sama).
 - `_PILLAR_LINES_TABLE` / `_VALID_PILLARS` di `service.py` ditambah:
   `"SMT": "smt_pam_lines"`, `"ADVANCE": "advance_pam_lines"`.
 
