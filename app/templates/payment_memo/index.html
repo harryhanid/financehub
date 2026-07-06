@@ -4336,7 +4336,10 @@ async function ipaySaveOthers() {
   if (data.ok) {
     othersReset();
     ipayReset();
-    document.querySelector('[data-tab="tab-pam"]')?.click();
+    // SMT/Advance don't have a #tab-pam panel — land on whichever of the
+    // two SMT tabs matches what was just saved instead.
+    const landTab = (type === "smt") ? "tab-smt" : (type === "advance") ? "tab-advance" : "tab-pam";
+    document.querySelector(`[data-tab="${landTab}"]`)?.click();
   }
 }
 
