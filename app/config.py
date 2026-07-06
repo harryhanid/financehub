@@ -149,3 +149,55 @@ PAM_DEFAULT_GL        = "70110230"
 PAM_DEFAULT_REQUESTOR = "Jany Turkanda"
 PAM_APPROVED_BY_1 = "Hong Tjhin"
 PAM_APPROVED_BY_2 = "Tenti Kidjo"
+
+# COA-PAM lookup — SMT GL/Advance "Jenis Biaya" classification (Statutory Report /
+# Management Report labels) + the GL code to use depending on Transaksi type.
+# Seed data from C:\Users\25010160\Downloads\COA.xlsx (44 rows).
+# Tuple shape: (klasifikasi_sr, klasifikasi_mr, coa_advance, coa_expense)
+# coa_advance is None where the row only applies to GL (Expense) transactions.
+COA_PAM_SEED = [
+    ("Beasiswa", "Scholarship Expense", None, "70110230"),
+    ("Biaya Listrik", "Electrical Expense", None, "70103200"),
+    ("Biaya Organisasi Profesional", "Biaya Organisasi Profesional", None, "70110110"),
+    ("Consumption", "Office Consumption", None, "70107600"),
+    ("CSR", "CSR Expense", None, "70110220"),
+    ("Entertainment", "Entertainment Expense", None, "70107200"),
+    ("Equipment", "Office Equipment Expense", None, "70108100"),
+    ("Fotocopy", "Biaya Fotocopy", None, "70108110"),
+    ("Gift", "Gift Expense", None, "70119310"),
+    ("Iklan Media Cetak / Digital", "Biaya Iklan Media Cetak", None, "70004113"),
+    ("Iklan Media Digital", "Biaya Iklan Media Digital", None, "70004113"),
+    ("Iklan Metro TV", "Biaya Spot Iklan TV & Radio", None, "70004111"),
+    ("Jasa Advokasi", "Biaya Jasa Konsultan – Affiliasi", None, "70111132"),
+    ("Jasa Konsultan", "Consultant Fee", None, "70111130"),
+    ("Link Net", "Communication Expense - 3rd Party", None, "70109100"),
+    ("Local Transport", "Local Transportation Expense", None, "70106100"),
+    ("Majalah", "Biaya Langganan Majalah", None, "70110400"),
+    ("Memberhip International", "Professional International Organization Expense", None, "70110100"),
+    ("Membership National", "Professional National Organization Expense", None, "70110110"),
+    ("Office Supplies", "Office Supplies", None, "70108100"),
+    ("Perbaikan Perabot", "Repair And Maintenance Expense (Material)", None, "70101114"),
+    ("Perdin Dalam Negeri", "Local Travel Expense", None, "70106200"),
+    ("Perdin Luar Negeri", "Overseas Travel Expense", None, "70106300"),
+    ("Piutang Lainnya", "Other Receivable", None, "13001710"),
+    ("Rapimnas Kadin daftar acara", "Local Conference Expense", None, "70110500"),
+    ("Saham", "Pernyertaan Saham dengan Metode Biaya", None, "25001100"),
+    ("Sewa Kendaraan dan Perlengkapan", "Equipment Rent Expense - 3rd Party", None, "70105120"),
+    ("Sewa Peralatan", "Equipment Rent Expense - 3rd P", None, "70105120"),
+    ("Sponsor", "Sponsorship Expense", None, "70107800"),
+    ("Sumbangan", "Social Donation Expense", None, "70107500"),
+    ("Advance Others - Sponsor", "Advance Others", "15000900", "70107800"),
+    ("Advance Perdin - Perdin Lokal", "Advance Perdin", "16001100", "70106200"),
+    ("Advance for Training", "Advance Training", "16001300", "70110200"),
+    ("Advance Others - CSR", "Advance Others", "15000900", "70110220"),
+    ("Advance Others - Office Equipment", "Advance Others", "15000900", "70108100"),
+    ("Advance Uang Muka Lainnya", "Advance Uang Muka Lainnya", "16001810", "70108100"),
+    ("Advance Uang Muka Lainnya - Vendor", "Advance Uang Muka Lainnya - Vendor", "16001800", "70108100"),
+    ("Advance Uang Muka Lainnya - Karyawan", "Advance Uang Muka Lainnya - Karyawan", "16001810", "70108100"),
+    ("Advance Others - Jasa Konsultan", "Advance Others - Jasa Konsultan", "16001810", "70111130"),
+    ("Advance Others - Sewa Kendaraan dan Perlengkapan", "Advance Others - Equipment Rent Expense - 3rd Party", "16001810", "70105120"),
+    ("Advance - CSR", "Advance Uang Muka CSR", "16001810", "70110220"),
+    ("Advance Others - Ceremonial exp", "Advance Others - Ceremonial exp", "16001810", "70101700"),
+    ("Advance Membership Organisasi Nasional", "Advance Membership Organisasi Nasional", "15000900", "70110110"),
+    ("Advance Others - Biaya Promosi Iklan", "Advance Others", "15000900", "70004110"),
+]

@@ -203,6 +203,34 @@ CREATE TABLE IF NOT EXISTS vendors (
     cost_center TEXT DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS coa_pam (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    klasifikasi_sr  TEXT NOT NULL UNIQUE,
+    klasifikasi_mr  TEXT NOT NULL,
+    coa_advance     TEXT,
+    coa_expense     TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pam_transaction_lines (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    pam_id          INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
+    coa_pam_id      INTEGER REFERENCES coa_pam(id),
+    klasifikasi_sr  TEXT,
+    klasifikasi_mr  TEXT,
+    gl_account      TEXT,
+    tipe_dokumen    TEXT,
+    no_invoice      TEXT,
+    dpp             REAL DEFAULT 0,
+    ppn             REAL DEFAULT 0,
+    total_amount    REAL DEFAULT 0,
+    cost_center     TEXT,
+    budget_activity TEXT,
+    keterangan      TEXT,
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pam_transaction_lines_pam_id ON pam_transaction_lines(pam_id);
+
 CREATE TABLE IF NOT EXISTS etf_pa (
     id                       INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id               INTEGER NOT NULL REFERENCES companies(id),
@@ -616,6 +644,47 @@ def migrate_db():
                 "INSERT OR IGNORE INTO coa (gl_code, gl_name) VALUES (?, ?)",
                 (entry["gl_code"], entry["gl_name"])
             )
+        conn.commit()
+    except Exception:
+        pass
+
+    # coa_pam table (new) — SMT GL/Advance "Jenis Biaya" lookup
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS coa_pam ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "klasifikasi_sr TEXT NOT NULL UNIQUE,"
+            "klasifikasi_mr TEXT NOT NULL,"
+            "coa_advance TEXT,"
+            "coa_expense TEXT NOT NULL)"
+        )
+        for sr, mr, adv, exp in config.COA_PAM_SEED:
+            conn.execute(
+                "INSERT OR IGNORE INTO coa_pam (klasifikasi_sr, klasifikasi_mr, coa_advance, coa_expense) "
+                "VALUES (?, ?, ?, ?)",
+                (sr, mr, adv, exp)
+            )
+        conn.commit()
+    except Exception:
+        pass
+
+    # pam_transaction_lines table (new) — itemized financial breakdown per PAM
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS pam_transaction_lines ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "pam_id INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,"
+            "coa_pam_id INTEGER REFERENCES coa_pam(id),"
+            "klasifikasi_sr TEXT, klasifikasi_mr TEXT, gl_account TEXT,"
+            "tipe_dokumen TEXT, no_invoice TEXT,"
+            "dpp REAL DEFAULT 0, ppn REAL DEFAULT 0, total_amount REAL DEFAULT 0,"
+            "cost_center TEXT, budget_activity TEXT, keterangan TEXT,"
+            "created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_pam_transaction_lines_pam_id "
+            "ON pam_transaction_lines(pam_id)"
+        )
         conn.commit()
     except Exception:
         pass
@@ -1166,6 +1235,12 @@ def init_db():
         conn.execute(
             "INSERT OR IGNORE INTO coa (gl_code, gl_name) VALUES (?, ?)",
             (entry["gl_code"], entry["gl_name"])
+        )
+    for sr, mr, adv, exp in config.COA_PAM_SEED:
+        conn.execute(
+            "INSERT OR IGNORE INTO coa_pam (klasifikasi_sr, klasifikasi_mr, coa_advance, coa_expense) "
+            "VALUES (?, ?, ?, ?)",
+            (sr, mr, adv, exp)
         )
     for name, pillar, cc in VENDOR_SEED:
         conn.execute(
