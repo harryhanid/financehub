@@ -243,13 +243,37 @@ def _add_one_month(date_str: str) -> str:
 
 
 _PILLAR_LINES_TABLE = {
-    "AGRI":   "agri_pam_lines",
-    "APP":    "app_pam_lines",
-    "LAND":   "land_pam_lines",
-    "ENERGY": "energy_pam_lines",
-    "SETF":   "setf_pam_lines",
+    "AGRI":     "agri_pam_lines",
+    "APP":      "app_pam_lines",
+    "LAND":     "land_pam_lines",
+    "ENERGY":   "energy_pam_lines",
+    "SETF":     "setf_pam_lines",
+    "SMT":      "smt_pam_lines",
+    "ADVANCE":  "advance_pam_lines",
 }
 _VALID_PILLARS = set(_PILLAR_LINES_TABLE)
+
+_STANDARD_LINE_FIELDS = [
+    "no_vendor", "nama_vendor", "tgl_terima_doc", "tgl_proses",
+    "tgl_verifikasi_tax", "tgl_approval_1", "tgl_approval_2",
+    "tgl_approval_3", "tgl_kirim",
+]
+_ADVANCE_LINE_FIELDS = [
+    "no_vendor", "nama_vendor", "tgl_received", "tgl_a0", "tgl_a1",
+    "tgl_a2", "tgl_a3", "tgl_a4", "tgl_paid",
+]
+# Columns SELECTed per pillar in get_pam_by_pillar (SMT adds tgl_realisasi,
+# which is system-set only — see _PILLAR_ALLOWED_FIELDS below, it is
+# deliberately NOT user-editable via upsert_pam_lines).
+_PILLAR_SELECT_FIELDS = {
+    "ADVANCE": _ADVANCE_LINE_FIELDS,
+    "SMT":     _STANDARD_LINE_FIELDS + ["tgl_realisasi"],
+}
+# Columns upsert_pam_lines is allowed to write per pillar.
+_PILLAR_ALLOWED_FIELDS = {
+    "ADVANCE": set(_ADVANCE_LINE_FIELDS),
+}
+_DEFAULT_ALLOWED_FIELDS = set(_STANDARD_LINE_FIELDS)
 
 _BEASISWA_PAID_COL = {
     "APP":    "tgl_Paid_APP",
@@ -262,10 +286,12 @@ _JENJANG_SORT = {"S3": 0, "S2": 1, "S1": 2}
 
 # Tab → pam_prefix mapping (mirrors etf_payment_application._TAB_CFG)
 _IPAY_PAM_PREFIX = {
-    "agri":  "ETF",
-    "app":   "APP",
-    "sml":   "LAND",
-    "setf":  "SETF",
+    "agri":     "ETF",
+    "app":      "APP",
+    "sml":      "LAND",
+    "setf":     "SETF",
+    "smt":      "SMT",
+    "advance":  "SMT",
 }
 
 
@@ -275,14 +301,13 @@ def get_pam_by_pillar(company_id: int, pillar: str,
     """Return pam_records LEFT JOIN {pillar}_pam_lines filtered by pillar."""
     if pillar not in _VALID_PILLARS:
         return []
-    tbl = _PILLAR_LINES_TABLE[pillar]
+    tbl         = _PILLAR_LINES_TABLE[pillar]
+    line_fields = _PILLAR_SELECT_FIELDS.get(pillar, _STANDARD_LINE_FIELDS)
+    line_select = ", ".join(f"pl.{f}" for f in line_fields)
     sql = f"""
         SELECT pr.*,
                pl.id         AS lines_id,
-               pl.no_vendor, pl.nama_vendor,
-               pl.tgl_terima_doc, pl.tgl_proses, pl.tgl_verifikasi_tax,
-               pl.tgl_approval_1, pl.tgl_approval_2, pl.tgl_approval_3,
-               pl.tgl_kirim,
+               {line_select},
                sla.sub_total,
                sla.cnt_tgl_pengajuan, sla.cnt_tgl_receive,
                sla.cnt_tgl_pa,        sla.cnt_tgl_final,
@@ -338,9 +363,7 @@ def upsert_pam_lines(pam_id: int, pillar: str, data: dict, company_id: int) -> d
     if pillar not in _VALID_PILLARS:
         return {"ok": False, "pesan": f"Pillar tidak valid: {pillar}"}
     tbl = _PILLAR_LINES_TABLE[pillar]
-    ALLOWED = {"no_vendor", "nama_vendor", "tgl_terima_doc", "tgl_proses",
-               "tgl_verifikasi_tax", "tgl_approval_1", "tgl_approval_2",
-               "tgl_approval_3", "tgl_kirim"}
+    ALLOWED = _PILLAR_ALLOWED_FIELDS.get(pillar, _DEFAULT_ALLOWED_FIELDS)
     fields = {k: v for k, v in data.items() if k in ALLOWED}
     if not fields:
         return {"ok": False, "pesan": "Tidak ada field yang valid."}
