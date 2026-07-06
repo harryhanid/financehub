@@ -321,6 +321,39 @@ CREATE TABLE IF NOT EXISTS setf_pam_lines (
     updated_at         TEXT
 );
 
+CREATE TABLE IF NOT EXISTS smt_pam_lines (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    pam_id             INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
+    no_vendor          TEXT,
+    nama_vendor        TEXT,
+    tgl_terima_doc     TEXT,
+    tgl_proses         TEXT,
+    tgl_verifikasi_tax TEXT,
+    tgl_approval_1     TEXT,
+    tgl_approval_2     TEXT,
+    tgl_approval_3     TEXT,
+    tgl_kirim          TEXT,
+    tgl_realisasi      TEXT,
+    created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS advance_pam_lines (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    pam_id         INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
+    no_vendor      TEXT,
+    nama_vendor    TEXT,
+    tgl_received   TEXT,
+    tgl_a0         TEXT,
+    tgl_a1         TEXT,
+    tgl_a2         TEXT,
+    tgl_a3         TEXT,
+    tgl_a4         TEXT,
+    tgl_paid       TEXT,
+    created_at     TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TEXT
+);
+
 CREATE TABLE IF NOT EXISTS energy_pam_lines (
     id                 INTEGER PRIMARY KEY AUTOINCREMENT,
     pam_id             INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
@@ -391,6 +424,8 @@ CREATE INDEX IF NOT EXISTS idx_app_pam_lines_pam    ON app_pam_lines(pam_id);
 CREATE INDEX IF NOT EXISTS idx_land_pam_lines_pam   ON land_pam_lines(pam_id);
 CREATE INDEX IF NOT EXISTS idx_setf_pam_lines_pam   ON setf_pam_lines(pam_id);
 CREATE INDEX IF NOT EXISTS idx_energy_pam_lines_pam ON energy_pam_lines(pam_id);
+CREATE INDEX IF NOT EXISTS idx_smt_pam_lines_pam      ON smt_pam_lines(pam_id);
+CREATE INDEX IF NOT EXISTS idx_advance_pam_lines_pam  ON advance_pam_lines(pam_id);
 CREATE INDEX IF NOT EXISTS idx_energy_pa_company    ON energy_pa(company_id);
 CREATE INDEX IF NOT EXISTS idx_energy_pa_lines_pa   ON energy_pa_lines(pa_id);
 
