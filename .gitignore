@@ -19,6 +19,9 @@ venv/
 .planning/
 node_modules/
 
+# Worktrees
+.worktrees/
+
 # OS
 .DS_Store
 Thumbs.db
