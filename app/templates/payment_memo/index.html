@@ -635,6 +635,83 @@
     </div>
   </div>
 
+  {% if company_code == 'SMT' %}
+  <!-- SMT Tab -->
+  <div class="tab-panel" id="tab-smt">
+    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
+      <input id="smt-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
+             style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
+             oninput="loadSMTDebounced()">
+      <select id="smt-filter-bulan" onchange="loadSMTDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px">
+        <option value="">Bulan</option>
+        <option value="01">Jan</option><option value="02">Feb</option>
+        <option value="03">Mar</option><option value="04">Apr</option>
+        <option value="05">Mei</option><option value="06">Jun</option>
+        <option value="07">Jul</option><option value="08">Agu</option>
+        <option value="09">Sep</option><option value="10">Okt</option>
+        <option value="11">Nov</option><option value="12">Des</option>
+      </select>
+      <select id="smt-filter-tahun" onchange="loadSMTDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:76px">
+        <option value="">Tahun</option>
+        <option value="2024">2024</option><option value="2025">2025</option>
+        <option value="2026">2026</option><option value="2027">2027</option>
+      </select>
+      <select id="smt-filter-status" onchange="loadSMTDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+        <option value="">Semua Status</option>
+        <option value="open">Open</option>
+        <option value="on_process">On Process</option>
+        <option value="complete">Complete</option>
+      </select>
+      <select id="smt-filter-source" onchange="loadSMTDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+        <option value="">Semua Source</option>
+        <option value="others">Others</option>
+      </select>
+      <button class="btn btn-success btn-sm" onclick="exportPillarExcel('SMT')">&#8595; Export Excel</button>
+      <span id="smt-count" style="font-size:11px;color:var(--text-muted)"></span>
+    </div>
+    <div class="pillar-table-wrap">
+      <table id="smt-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead class="thead-primary">
+          <tr>
+            <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="1">Tgl PAM</th>
+            <th style="padding:7px 8px;white-space:nowrap">GL Account</th>
+            <th style="padding:7px 8px;white-space:nowrap">Cost Center</th>
+            <th style="padding:7px 8px;">PT</th>
+            <th style="padding:7px 8px;">Requestor</th>
+            <th style="padding:7px 8px;min-width:160px;">Keterangan</th>
+            <th style="padding:7px 8px;white-space:nowrap">Mata Uang</th>
+            <th style="padding:7px 8px;text-align:right;">DPP</th>
+            <th style="padding:7px 8px;text-align:right;">PPN</th>
+            <th style="padding:7px 8px;text-align:right;white-space:nowrap" data-sort="10" data-sort-type="num">Total (Rp)</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="11">Due Date</th>
+            <th style="padding:7px 8px;">Status</th>
+            <th style="padding:7px 8px;white-space:nowrap">Tgl Bayar</th>
+            <th style="padding:7px 8px;">Source</th>
+            <th style="padding:7px 8px;white-space:nowrap">No. Vendor</th>
+            <th style="padding:7px 8px;min-width:140px;">Nama Vendor</th>
+            <th style="padding:7px 8px;white-space:nowrap">Terima Dok</th>
+            <th style="padding:7px 8px;white-space:nowrap">Proses</th>
+            <th style="padding:7px 8px;white-space:nowrap">Verif Tax</th>
+            <th style="padding:7px 8px;white-space:nowrap">App 1</th>
+            <th style="padding:7px 8px;white-space:nowrap">App 2</th>
+            <th style="padding:7px 8px;white-space:nowrap">App 3</th>
+            <th style="padding:7px 8px;white-space:nowrap">Kirim</th>
+            <th style="padding:7px 8px;white-space:nowrap">Tgl Realisasi</th>
+            <th style="padding:7px 8px;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="smt-tbody">
+          <tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- SETF Tab -->
   <div class="tab-panel" id="tab-setf">
     <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
@@ -1649,6 +1726,61 @@ async function loadSETF() {
     </tr>
   `).join('');
   makeSortable('setf-table');
+}
+
+// ── SMT ────────────────────────────────────────────────────────────────────────
+function loadSMTDebounced() { clearTimeout(_smtDebounce); _smtDebounce = setTimeout(loadSMT, 300); }
+let _smtDebounce;
+async function loadSMT() {
+  const search  = (document.getElementById('smt-search')?.value || '').trim();
+  const bulan   = (document.getElementById('smt-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('smt-filter-tahun')?.value || '');
+  const status  = (document.getElementById('smt-filter-status')?.value || '');
+  const source  = (document.getElementById('smt-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('smt-tbody');
+  tbody.innerHTML = skeletonRows(26);
+  const res     = await apiFetch('/payment-memo/by-pillar/SMT?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  const count  = document.getElementById('smt-count');
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map((r, i) => `
+    <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
+      <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.no_vendor || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
+      ${_plDate(r.id,'SMT','tgl_terima_doc',r.tgl_terima_doc)}
+      ${_plDate(r.id,'SMT','tgl_proses',r.tgl_proses)}
+      ${_plDate(r.id,'SMT','tgl_verifikasi_tax',r.tgl_verifikasi_tax)}
+      ${_plDate(r.id,'SMT','tgl_approval_1',r.tgl_approval_1)}
+      ${_plDate(r.id,'SMT','tgl_approval_2',r.tgl_approval_2)}
+      ${_plDate(r.id,'SMT','tgl_approval_3',r.tgl_approval_3)}
+      ${_plDate(r.id,'SMT','tgl_kirim',r.tgl_kirim)}
+      <td style="padding:6px 8px;white-space:nowrap;color:${r.tgl_realisasi ? 'var(--text)' : 'var(--text-muted)'}">${esc(r.tgl_realisasi || '-')}</td>
+      <td style="padding:6px 8px">${_aksiCell(r)}</td>
+    </tr>
+  `).join('');
+  makeSortable('smt-table');
 }
 
 // ── FIORI (APP) ───────────────────────────────────────────────────────────────
@@ -4239,7 +4371,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 });
 
 function exportPillarExcel(pillar) {
-  const prefix = { AGRI: 'pam', APP: 'fiori', LAND: 'sml', SETF: 'setf' }[pillar] || 'pam';
+  const prefix = { AGRI: 'pam', APP: 'fiori', LAND: 'sml', SETF: 'setf', SMT: 'smt', ADVANCE: 'advance' }[pillar] || 'pam';
   const url    = new URL('/payment-memo/export/pam', window.location.origin);
   url.searchParams.set('pillar', pillar);
   const search = (document.getElementById(prefix + '-search')?.value || '').trim();
