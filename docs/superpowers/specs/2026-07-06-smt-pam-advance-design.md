@@ -112,8 +112,11 @@ dari record SMT yang dari awal memang di-input sebagai `"SMT"` (yang `tgl_realis
 
 - **Tab SMT**: mirror persis tab SETF (`loadSETF()` → `loadSMT()`) — search, filter bulan/tahun/
   status/source, tabel dengan 7 kolom tanggal + bulk-update tanggal (mirror `_plDate` helper).
-- **Tab Advance**: pola tab sama, tapi kolom tanggal custom 7 kolom (Received, A0–A4, Paid) +
-  badge status outstanding (kalau `tgl_paid` kosong) / realized (kalau terisi).
+- **Tab Advance**: pola tab sama, tapi kolom tanggal custom 7 kolom (Received, A0–A4, Paid). Tidak
+  perlu badge outstanding/realized — begitu `tgl_paid` diisi, cascade §1.1 langsung memindahkan
+  record itu keluar dari pillar `ADVANCE` ke `SMT`, jadi tab Advance secara alami hanya pernah
+  menampilkan record yang masih outstanding (yang sudah realized tidak lagi muncul di query
+  `get_pam_by_pillar(..., 'ADVANCE')` karena pillar-nya sudah berubah).
 - Tab **SMT**, **Advance**, dan **Print Memo** (versi SMT) hanya dirender kalau
   `session.company_code == 'SMT'`. Tab **AGRI/APP/LAND/SETF** tetap hanya untuk `company_code ==
   'ETF'`. Tab **MR tidak dibuat di fase ini**.
@@ -123,11 +126,16 @@ dari record SMT yang dari awal memang di-input sebagai `"SMT"` (yang `tgl_realis
 
 ## 4. Print Memo & Export
 
-- Print Memo (PDF per-memo, `export_pam_pdf_custom`) sudah generic berdasarkan `pam_id` — jalan
-  otomatis untuk pillar SMT/ADVANCE tanpa perubahan kode.
-- Export Excel bulk per-pillar (mirror `export_sml_excel`) ditambah 2 fungsi baru:
-  `export_smt_excel` (7 kolom sama seperti SETF) dan `export_advance_excel` (7 kolom custom Advance
-  + kolom status outstanding/realized).
+- Print Memo ("Format Memo" tab / `dm-*` search-by-PAM-No) sudah generic berdasarkan `pam_no` —
+  jalan otomatis untuk pillar SMT/ADVANCE tanpa perubahan kode.
+- Export Excel bulk (tombol "Export Excel" di tiap tab pillar) sudah generic juga: `exportPillarExcel(pillar)`
+  di JS memanggil `/payment-memo/export/pam?pillar=<PILLAR>`, yang di backend jalan lewat
+  `export_pam_tab_excel()` → `get_pam_list(..., pillar=...)` — keduanya sudah pillar-agnostic
+  (filter pakai parameter `pillar`, bukan tabel per-pillar). **Tidak perlu fungsi export baru** —
+  cukup tambah entry `SMT: 'smt'` dan `ADVANCE: 'advance'` di object mapping
+  `{AGRI:'pam',APP:'fiori',LAND:'sml',SETF:'setf'}` di `exportPillarExcel()`, dan pastikan filter
+  input di tab SMT/Advance memakai prefix id yang sama (`smt-search`, `advance-search`, dst.,
+  mengikuti pola `setf-*`).
 
 ## Out of Scope
 
