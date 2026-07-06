@@ -15,11 +15,6 @@ def clean_db():
             pass
     init_db()
     yield
-    try:
-        # Attempt to close any lingering connections
-        sqlite3.reset_runtime_stats()
-    except:
-        pass
     if os.path.exists(config.DB_PATH):
         try:
             os.remove(config.DB_PATH)
