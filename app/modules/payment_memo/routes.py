@@ -6,6 +6,7 @@ from modules.payment_memo.service import (
     get_draft_payments, create_memo, get_memo_list, get_memo_detail,
     update_memo_status, export_memo_pdf,
     get_pam_list, get_coa_list, update_pam_gl_account,
+    get_coa_pam_list, save_smt_pam_transaction, get_pam_transaction_lines,
     update_pam_status, update_pam_record,
     get_pam_detail, get_pam_payments, get_pam_payments_detail,
     update_pam_and_application,
@@ -72,6 +73,7 @@ def index():
         pam_approved_by_2=config.PAM_APPROVED_BY_2,
         siswa_list=get_siswa_list(company_id),
         vendor_list=get_vendors(),
+        coa_pam_list=get_coa_pam_list(),
         jenjang=config.JENJANG,
         program=config.PROGRAM,
         status_siswa=config.STATUS_SISWA,
@@ -194,6 +196,7 @@ def get_pam_detail_route(pam_id):
         return jsonify({"ok": False, "pesan": "PAM record tidak ditemukan."}), 404
     detail["payments"] = get_pam_payments(detail["pam_no"], company_id)
     detail["payments_detail"] = get_pam_payments_detail(detail["pam_no"], company_id)
+    detail["transaction_lines"] = get_pam_transaction_lines(pam_id)
     return jsonify({"ok": True, "data": detail})
 
 
@@ -676,6 +679,16 @@ def ipay_save_others():
     company_id   = session.get("company_id", 0)
     company_code = session.get("company_code", "ETF")
     result = save_others_payment(company_id, company_code, data)
+    return jsonify(result)
+
+
+@bp.route("/ipay/save-smt-lines", methods=["POST"])
+@jwt_html_required
+def ipay_save_smt_lines():
+    data         = request.get_json(force=True) or {}
+    company_id   = session.get("company_id", 0)
+    company_code = session.get("company_code", "SMT")
+    result = save_smt_pam_transaction(company_id, company_code, data)
     return jsonify(result)
 
 @bp.route("/open-pam/mark-complete", methods=["POST"])
