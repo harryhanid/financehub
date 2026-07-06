@@ -3399,13 +3399,23 @@ let _ipayRowId = 0;
 
 function ipayReset() {
   const txEl = document.getElementById("ipay-tx");
-  if (txEl) { txEl.value = "beasiswa"; ipayOnTxChange(); }
+  // SMT/Advance only ever offer "others" in the Transaksi dropdown (see
+  // the Jinja branch above) — "beasiswa" isn't a valid option there, so
+  // resetting to it would leave the select on no option and show the
+  // wrong panel via ipayOnTxChange()'s "|| 'beasiswa'" fallback.
+  if (txEl) { txEl.value = (COMPANY_CODE === "SMT") ? "others" : "beasiswa"; ipayOnTxChange(); }
   document.querySelectorAll("[data-ipaysugg]").forEach(el => el.remove());
   document.getElementById("ipay-tgl").value = new Date().toISOString().slice(0, 10);
   document.getElementById("ipay-pam-full").value = "";
   document.getElementById("ipay-perusahaan-search").value = "";
   document.getElementById("ipay-perusahaan").value = "";
-  document.getElementById("ipay-pillar").value = "";
+  // SMT/Advance: pillar is driven directly by the Tipe PAM selection (no
+  // per-vendor pillar tagging concept there), so re-derive it here instead
+  // of blanking it — otherwise this reset (called at the end of
+  // ipayOnTypeChange()) would immediately wipe out the pillar it just set.
+  document.getElementById("ipay-pillar").value = (COMPANY_CODE === "SMT")
+    ? (document.getElementById("ipay-type")?.value || "").toUpperCase()
+    : "";
   document.getElementById("ipay-vendor-sugg").style.display = "none";
   const catatanEl = document.getElementById("ipay-catatan");
   if (catatanEl) catatanEl.value = "";
@@ -3500,13 +3510,9 @@ function ipayOnTypeChange() {
   if (badge) badge.textContent = `(auto ${lbl})`;
   const saveBtn = document.getElementById("ipay-save-btn");
   if (saveBtn) saveBtn.textContent = `\u{1F4BE} Simpan PAM ${lbl}`;
-  // SMT/Advance are free-type: pillar comes directly from the Tipe PAM
-  // choice, not from vendor auto-fill (see ipayVendorSearch below) —
-  // there is no per-vendor pillar tagging concept for SMT's flow.
-  if (COMPANY_CODE === "SMT") {
-    const pillarEl = document.getElementById("ipay-pillar");
-    if (pillarEl) pillarEl.value = type.toUpperCase();
-  }
+  // SMT/Advance pillar wiring (no per-vendor pillar tagging there) is
+  // handled inside ipayReset() below, since it must win over that
+  // function's own field-clearing — see ipayReset()'s comment.
   ipayReset();
 }
 
