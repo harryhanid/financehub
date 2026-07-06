@@ -631,6 +631,83 @@ def save_others_payment(company_id: int, company_code: str, data: dict) -> dict:
     return {"ok": True, "pesan": f"PAM {pam_no} berhasil dibuat.", "pam_no": pam_no}
 
 
+def save_smt_pam_transaction(company_id: int, company_code: str, data: dict) -> dict:
+    """Itemized GL/Advance PAM save for SMT — replaces save_others_payment for
+    company SMT only. ETF keeps using save_others_payment unchanged."""
+    tanggal    = data.get("tanggal") or _ts()[:10]
+    pam_no     = (data.get("pam_no") or "").strip()
+    perusahaan = data.get("perusahaan") or ""
+    pillar     = (data.get("pillar") or "").upper()
+    transaksi  = (data.get("transaksi") or "gl").lower()
+    rows       = data.get("rows") or []
+
+    if not pam_no:
+        return {"ok": False, "pesan": "No. PAM wajib diisi."}
+    if not rows:
+        return {"ok": False, "pesan": "Minimal 1 baris transaksi."}
+
+    for row in rows:
+        if not (row.get("klasifikasi_sr") or "").strip():
+            return {"ok": False, "pesan": "Setiap baris wajib memilih Jenis Biaya (SR)."}
+        try:
+            dpp = float(row.get("dpp") or 0)
+        except (TypeError, ValueError):
+            dpp = 0
+        if dpp <= 0:
+            return {"ok": False, "pesan": "Setiap baris wajib DPP lebih dari 0."}
+        if not (row.get("keterangan") or "").strip():
+            return {"ok": False, "pesan": "Setiap baris wajib diisi Keterangan."}
+
+    conn = get_conn()
+    try:
+        grand_dpp = 0.0
+        grand_ppn = 0.0
+        line_data = []
+        for row in rows:
+            dpp = float(row.get("dpp") or 0)
+            ppn = float(row.get("ppn") or 0)
+            grand_dpp += dpp
+            grand_ppn += ppn
+            line_data.append((row, dpp, ppn, dpp + ppn))
+        grand_total = grand_dpp + grand_ppn
+
+        due_date = _add_one_month(tanggal)
+        cur = conn.execute(
+            """INSERT INTO pam_records
+               (company_id, pam_no, pam_date, requestors_name, keterangan,
+                total_amount, due_date, pillar, source, pt,
+                mata_uang, dpp, ppn, status, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (company_id, pam_no, tanggal,
+             config.PAM_DEFAULT_REQUESTOR, "Lihat rincian baris",
+             grand_total, due_date, pillar, transaksi, perusahaan,
+             "IDR", grand_dpp, grand_ppn, "open", _ts())
+        )
+        pam_id = cur.lastrowid
+
+        for row, dpp, ppn, total in line_data:
+            conn.execute(
+                """INSERT INTO pam_transaction_lines
+                   (pam_id, coa_pam_id, klasifikasi_sr, klasifikasi_mr, gl_account,
+                    tipe_dokumen, no_invoice, dpp, ppn, total_amount,
+                    cost_center, budget_activity, keterangan, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (pam_id, row.get("coa_pam_id"), row.get("klasifikasi_sr"),
+                 row.get("klasifikasi_mr"), row.get("gl_account"),
+                 row.get("tipe_dokumen"), row.get("no_invoice"),
+                 dpp, ppn, total, row.get("cost_center"),
+                 row.get("budget_activity"), row.get("keterangan"), _ts())
+            )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return {"ok": False, "pesan": f"Gagal menyimpan: {e}"}
+
+    conn.close()
+    return {"ok": True, "pesan": f"PAM {pam_no} berhasil dibuat.", "pam_no": pam_no}
+
+
 def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
     """
     Unified save for Input PA (AGRI/APP/SML/SETF):
@@ -814,6 +891,30 @@ def get_coa_list() -> list:
     ).fetchall()]
     conn.close()
     return rows
+
+
+def get_coa_pam_list(search: str = "") -> list:
+    conn = get_conn()
+    if search:
+        rows = conn.execute(
+            """SELECT * FROM coa_pam
+               WHERE klasifikasi_sr LIKE ? OR klasifikasi_mr LIKE ?
+               ORDER BY klasifikasi_sr""",
+            (f"%{search}%", f"%{search}%")
+        ).fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM coa_pam ORDER BY klasifikasi_sr").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_pam_transaction_lines(pam_id: int) -> list:
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT * FROM pam_transaction_lines WHERE pam_id=? ORDER BY id", (pam_id,)
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def update_pam_gl_account(pam_id: int, gl_account: str,
