@@ -94,7 +94,7 @@
     <button class="tab-btn" data-tab="tab-draft-pay">Open PAM ({{ drafts|length }})</button>
     <button class="tab-btn" data-tab="tab-input-payment" onclick="ipayReset()">Input</button>
     {% if company_code == 'SMT' %}
-    <button class="tab-btn" data-tab="tab-smt" onclick="loadSMT()">SMT</button>
+    <button class="tab-btn" data-tab="tab-smt" onclick="loadSMT()">PAM List</button>
     <button class="tab-btn" data-tab="tab-advance" onclick="loadAdvance()">Advance</button>
     {% else %}
     <button class="tab-btn" data-tab="tab-pam" onclick="loadPAM()">AGRI</button>
@@ -154,28 +154,31 @@
   <!-- TAB INPUT PAYMENT -->
   <div class="tab-panel" id="tab-input-payment">
     {# ── Shared header (always visible for all transaksi types) ── #}
-    <div style="display:grid;grid-template-columns:120px 150px 160px minmax(200px,1fr) 180px;gap:.75rem;margin-bottom:.5rem;align-items:end;max-width:980px">
+    <div style="display:grid;grid-template-columns:{{ '160px 160px minmax(200px,1fr) 180px' if company_code == 'SMT' else '120px 150px 160px minmax(200px,1fr) 180px' }};gap:.75rem;margin-bottom:.5rem;align-items:end;max-width:980px">
+      {% if company_code == 'SMT' %}
+      <select id="ipay-type" style="display:none">
+        <option value="smt">SMT</option>
+        <option value="advance">Advance</option>
+      </select>
+      {% else %}
       <div class="form-group" style="margin:0">
         <label>Tipe PAM</label>
         <select id="ipay-type" onchange="ipayOnTypeChange()"
                 style="width:100%;border:1.5px solid #3b82f6;color:#1d4ed8;font-weight:700;background:#eff6ff">
-          {% if company_code == 'SMT' %}
-          <option value="smt">SMT</option>
-          <option value="advance">Advance</option>
-          {% else %}
           <option value="agri">AGRI</option>
           <option value="app">APP</option>
           <option value="sml">LAND</option>
           <option value="setf">SETF</option>
-          {% endif %}
         </select>
       </div>
+      {% endif %}
       <div class="form-group" style="margin:0">
         <label>Transaksi</label>
         <select id="ipay-tx" onchange="ipayOnTxChange()"
                 style="width:100%;border:1.5px solid #10b981;color:#065f46;font-weight:700;background:#ecfdf5">
           {% if company_code == 'SMT' %}
-          <option value="others">Others</option>
+          <option value="gl">GL</option>
+          <option value="advance">Advance</option>
           {% else %}
           {% for tx in transaksi_types %}
           <option value="{{ tx|lower|replace(' ','_') }}">{{ tx }}</option>
@@ -3399,11 +3402,11 @@ let _ipayRowId = 0;
 
 function ipayReset() {
   const txEl = document.getElementById("ipay-tx");
-  // SMT/Advance only ever offer "others" in the Transaksi dropdown (see
-  // the Jinja branch above) — "beasiswa" isn't a valid option there, so
-  // resetting to it would leave the select on no option and show the
-  // wrong panel via ipayOnTxChange()'s "|| 'beasiswa'" fallback.
-  if (txEl) { txEl.value = (COMPANY_CODE === "SMT") ? "others" : "beasiswa"; ipayOnTxChange(); }
+  // SMT offers "gl"/"advance" in the Transaksi dropdown (see the Jinja
+  // branch above) — "beasiswa" isn't a valid option there, so resetting to
+  // it would leave the select on no option and show the wrong panel via
+  // ipayOnTxChange()'s "|| 'beasiswa'" fallback.
+  if (txEl) { txEl.value = (COMPANY_CODE === "SMT") ? "gl" : "beasiswa"; ipayOnTxChange(); }
   document.querySelectorAll("[data-ipaysugg]").forEach(el => el.remove());
   document.getElementById("ipay-tgl").value = new Date().toISOString().slice(0, 10);
   document.getElementById("ipay-pam-full").value = "";
@@ -3446,7 +3449,7 @@ function _ipayUpdateSisaCell(tr) {
   tr._sisaCell.style.color = amt > sisa ? "var(--danger)" : "#15803d";
 }
 
-const _PAM_RE = /^PAM-\d{3}-(ETF|APP|LAND|SETF)-\d{2}-\d{4}$/;
+const _PAM_RE = /^PAM-\d{3}-(ETF|APP|LAND|SETF|SMT)-\d{2}-\d{4}$/;
 
 function _ipayResetPamState() {
   const pamEl = document.getElementById("ipay-pam-full");
@@ -3516,8 +3519,25 @@ function ipayOnTypeChange() {
   ipayReset();
 }
 
+function _smtSyncTypeFromTx() {
+  const tx     = document.getElementById("ipay-tx")?.value || "gl";
+  const typeEl = document.getElementById("ipay-type");
+  const type   = (tx === "advance") ? "advance" : "smt";
+  if (typeEl) typeEl.value = type;
+  const lbl = _IPAY_LABEL[type] || type.toUpperCase();
+  const badge = document.getElementById("ipay-pam-type-badge");
+  if (badge) badge.textContent = `(auto ${lbl})`;
+  const saveBtn = document.getElementById("ipay-save-btn");
+  if (saveBtn) saveBtn.textContent = `\u{1F4BE} Simpan PAM ${lbl}`;
+  const pillarEl = document.getElementById("ipay-pillar");
+  if (pillarEl) pillarEl.value = type.toUpperCase();
+  ipayFetchNextPamNo();
+  if (typeof smtLinesRecalcGlAccounts === "function") smtLinesRecalcGlAccounts();
+}
+
 function ipayOnTxChange() {
   const tx = document.getElementById("ipay-tx")?.value || "beasiswa";
+  if (COMPANY_CODE === "SMT") _smtSyncTypeFromTx();
   const panels = {
     "beasiswa":    "#ipay-panel-beasiswa",
     "klaim_medis": "#ipay-panel-klaim",
@@ -3525,8 +3545,10 @@ function ipayOnTxChange() {
     "etf":         "#ipay-panel-others",
     "sponsor":     "#ipay-panel-others",
     "others":      "#ipay-panel-others",
+    "gl":          "#ipay-panel-smt-lines",
+    "advance":     "#ipay-panel-smt-lines",
   };
-  ["#ipay-panel-beasiswa","#ipay-panel-klaim","#ipay-panel-others"].forEach(id => {
+  ["#ipay-panel-beasiswa","#ipay-panel-klaim","#ipay-panel-others","#ipay-panel-smt-lines"].forEach(id => {
     const el = document.querySelector(id);
     if (el) el.style.display = "none";
   });
