@@ -390,9 +390,39 @@ def upsert_pam_lines(pam_id: int, pillar: str, data: dict, company_id: int) -> d
         ph   = ", ".join(["?"] * (len(fields) + 2))
         vals = [pam_id] + list(fields.values()) + [now]
         conn.execute(f"INSERT INTO {tbl} ({cols}) VALUES ({ph})", vals)
+
+    if pillar == "ADVANCE" and fields.get("tgl_paid"):
+        _convert_advance_to_smt(conn, pam_id, fields["tgl_paid"], now)
+
     conn.commit()
     conn.close()
     return {"ok": True}
+
+
+def _convert_advance_to_smt(conn, pam_id: int, tgl_realisasi: str, now: str) -> None:
+    """Advance realized (tgl_paid filled) -> flip pillar to SMT.
+
+    Carries vendor into a fresh smt_pam_lines row (7 standard stage dates
+    start empty, tgl_realisasi records when the advance was realized).
+    The old advance_pam_lines row is left in place as an archive — it is
+    simply no longer reachable via get_pam_by_pillar('ADVANCE') once the
+    pillar flips, since that query filters by pam_records.pillar.
+    """
+    adv = conn.execute(
+        "SELECT no_vendor, nama_vendor FROM advance_pam_lines WHERE pam_id=?",
+        (pam_id,)
+    ).fetchone()
+    no_vendor   = adv["no_vendor"]   if adv else None
+    nama_vendor = adv["nama_vendor"] if adv else None
+    conn.execute(
+        "UPDATE pam_records SET pillar='SMT', status='complete', updated_at=? WHERE id=?",
+        (now, pam_id)
+    )
+    conn.execute(
+        """INSERT INTO smt_pam_lines (pam_id, no_vendor, nama_vendor, tgl_realisasi, created_at)
+           VALUES (?,?,?,?,?)""",
+        (pam_id, no_vendor, nama_vendor, tgl_realisasi, now)
+    )
 
 
 def bulk_update_pam_lines_dates(pillar: str, ids: list, field: str,

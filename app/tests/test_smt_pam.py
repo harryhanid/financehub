@@ -155,3 +155,66 @@ def test_smt_and_advance_share_pam_number_sequence():
     advance_no  = get_next_pam_no(SMT_COMPANY_ID, "SMT", "advance", "2026-07-01")
     assert smt_no     == "PAM-001-SMT-07-2026"
     assert advance_no == "PAM-001-SMT-07-2026"  # same prefix, would collide if both were "open" same day — expected, matches confirmed design (shared sequence)
+
+
+def test_advance_realization_converts_to_smt():
+    conn = get_conn()
+    pam_id = _seed_pam(conn, "PAM-006-SMT-07-2026", "ADVANCE")
+    conn.execute(
+        """INSERT INTO advance_pam_lines (pam_id, no_vendor, nama_vendor, tgl_received)
+           VALUES (?,?,?,?)""",
+        (pam_id, "V-400", "PT. Karya Mandiri", "2026-07-01")
+    )
+    conn.commit()
+    conn.close()
+
+    result = upsert_pam_lines(pam_id, "ADVANCE", {"tgl_paid": "2026-07-10"}, SMT_COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pr = conn.execute(
+        "SELECT pillar, status FROM pam_records WHERE id=?", (pam_id,)
+    ).fetchone()
+    assert pr["pillar"] == "SMT"
+    assert pr["status"] == "complete"
+
+    smt_line = conn.execute(
+        "SELECT no_vendor, nama_vendor, tgl_realisasi, tgl_terima_doc FROM smt_pam_lines WHERE pam_id=?",
+        (pam_id,)
+    ).fetchone()
+    assert smt_line is not None
+    assert smt_line["no_vendor"]     == "V-400"
+    assert smt_line["nama_vendor"]   == "PT. Karya Mandiri"
+    assert smt_line["tgl_realisasi"] == "2026-07-10"
+    assert smt_line["tgl_terima_doc"] is None  # standard SMT stages start empty
+
+    # Old advance_pam_lines row is archived, not deleted
+    adv_line = conn.execute(
+        "SELECT tgl_received, tgl_paid FROM advance_pam_lines WHERE pam_id=?", (pam_id,)
+    ).fetchone()
+    assert adv_line is not None
+    assert adv_line["tgl_received"] == "2026-07-01"
+    assert adv_line["tgl_paid"]     == "2026-07-10"
+    conn.close()
+
+    # Record no longer shows up under ADVANCE pillar queries
+    rows = get_pam_by_pillar(SMT_COMPANY_ID, "ADVANCE")
+    assert rows == []
+
+    # ...but does show up under SMT pillar queries
+    rows = get_pam_by_pillar(SMT_COMPANY_ID, "SMT")
+    assert len(rows) == 1
+    assert rows[0]["pam_no"] == "PAM-006-SMT-07-2026"
+
+
+def test_advance_partial_update_without_tgl_paid_does_not_convert():
+    conn = get_conn()
+    pam_id = _seed_pam(conn, "PAM-007-SMT-07-2026", "ADVANCE")
+    conn.close()
+    result = upsert_pam_lines(pam_id, "ADVANCE", {"tgl_received": "2026-07-01"}, SMT_COMPANY_ID)
+    assert result["ok"] is True
+    conn = get_conn()
+    pr = conn.execute("SELECT pillar, status FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    conn.close()
+    assert pr["pillar"] == "ADVANCE"
+    assert pr["status"] == "open"
