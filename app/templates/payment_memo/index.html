@@ -93,10 +93,15 @@
   <div class="tabs">
     <button class="tab-btn" data-tab="tab-draft-pay">Open PAM ({{ drafts|length }})</button>
     <button class="tab-btn" data-tab="tab-input-payment" onclick="ipayReset()">Input</button>
+    {% if company_code == 'SMT' %}
+    <button class="tab-btn" data-tab="tab-smt" onclick="loadSMT()">SMT</button>
+    <button class="tab-btn" data-tab="tab-advance" onclick="loadAdvance()">Advance</button>
+    {% else %}
     <button class="tab-btn" data-tab="tab-pam" onclick="loadPAM()">AGRI</button>
     <button class="tab-btn" data-tab="tab-fiori" onclick="loadFIORI()">APP</button>
     <button class="tab-btn" data-tab="tab-sml" onclick="loadSML()">LAND</button>
     <button class="tab-btn" data-tab="tab-setf" onclick="loadSETF()">SETF</button>
+    {% endif %}
     <button class="tab-btn" data-tab="tab-draft-memo">Print Memo</button>
   </div>
 
@@ -154,19 +159,28 @@
         <label>Tipe PAM</label>
         <select id="ipay-type" onchange="ipayOnTypeChange()"
                 style="width:100%;border:1.5px solid #3b82f6;color:#1d4ed8;font-weight:700;background:#eff6ff">
+          {% if company_code == 'SMT' %}
+          <option value="smt">SMT</option>
+          <option value="advance">Advance</option>
+          {% else %}
           <option value="agri">AGRI</option>
           <option value="app">APP</option>
           <option value="sml">LAND</option>
           <option value="setf">SETF</option>
+          {% endif %}
         </select>
       </div>
       <div class="form-group" style="margin:0">
         <label>Transaksi</label>
         <select id="ipay-tx" onchange="ipayOnTxChange()"
                 style="width:100%;border:1.5px solid #10b981;color:#065f46;font-weight:700;background:#ecfdf5">
+          {% if company_code == 'SMT' %}
+          <option value="others">Others</option>
+          {% else %}
           {% for tx in transaksi_types %}
           <option value="{{ tx|lower|replace(' ','_') }}">{{ tx }}</option>
           {% endfor %}
+          {% endif %}
         </select>
       </div>
       <div class="form-group" style="margin:0">
@@ -3000,13 +3014,21 @@ function ipayVendorSearch() {
   const inp  = document.getElementById("ipay-perusahaan-search");
   const sugg = document.getElementById("ipay-vendor-sugg");
   const q    = inp.value.toLowerCase().trim();
-  if (!q) { sugg.style.display="none"; document.getElementById("ipay-perusahaan").value=""; document.getElementById("ipay-pillar").value=""; return; }
+  if (!q) {
+    sugg.style.display="none";
+    document.getElementById("ipay-perusahaan").value="";
+    if (COMPANY_CODE !== "SMT") document.getElementById("ipay-pillar").value="";
+    return;
+  }
   const hits = VENDOR_LIST.filter(v => v.name.toLowerCase().includes(q)).slice(0,15);
   if (!hits.length) { sugg.style.display="none"; return; }
   _vendorSuggRender(hits, sugg, v => {
     document.getElementById("ipay-perusahaan-search").value = v.name;
     document.getElementById("ipay-perusahaan").value = v.name;
-    document.getElementById("ipay-pillar").value = v.pillar;
+    // SMT/Advance: pillar stays whatever Tipe PAM set it to (see
+    // ipayOnTypeChange) — don't let the vendor's own (ETF-pillar) tag
+    // clobber it.
+    if (COMPANY_CODE !== "SMT") document.getElementById("ipay-pillar").value = v.pillar;
     sugg.style.display = "none";
   });
   _vendorPos(inp, sugg); sugg.style.display = "block";
@@ -3232,7 +3254,7 @@ async function ipayCheckPamCollision() {
   } catch { /* ignore */ }
 }
 
-const _IPAY_LABEL = { agri: 'AGRI', app: 'APP', sml: 'LAND', setf: 'SETF' };
+const _IPAY_LABEL = { agri: 'AGRI', app: 'APP', sml: 'LAND', setf: 'SETF', smt: 'SMT', advance: 'Advance' };
 function ipayOnTypeChange() {
   const type  = document.getElementById("ipay-type")?.value || "agri";
   const lbl   = _IPAY_LABEL[type] || type.toUpperCase();
@@ -3240,6 +3262,13 @@ function ipayOnTypeChange() {
   if (badge) badge.textContent = `(auto ${lbl})`;
   const saveBtn = document.getElementById("ipay-save-btn");
   if (saveBtn) saveBtn.textContent = `\u{1F4BE} Simpan PAM ${lbl}`;
+  // SMT/Advance are free-type: pillar comes directly from the Tipe PAM
+  // choice, not from vendor auto-fill (see ipayVendorSearch below) —
+  // there is no per-vendor pillar tagging concept for SMT's flow.
+  if (COMPANY_CODE === "SMT") {
+    const pillarEl = document.getElementById("ipay-pillar");
+    if (pillarEl) pillarEl.value = type.toUpperCase();
+  }
   ipayReset();
 }
 
