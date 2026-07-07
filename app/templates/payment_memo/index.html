@@ -2994,6 +2994,12 @@ async function dmSelectPAM(pamId, pamNo) {
   }
 }
 
+function _dmTipeDokumenConsensus(p) {
+  const lines = p.transaction_lines || [];
+  const values = [...new Set(lines.map(l => l.tipe_dokumen).filter(Boolean))];
+  return values.length === 1 ? values[0] : null;
+}
+
 function dmRenderForm(p) {
   const inp = (id, val, type, extra) => {
     type  = type  || 'text';
@@ -3059,9 +3065,9 @@ function dmRenderForm(p) {
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="dm-f-bu-corporate"  class="dm-cb" checked> Corporate</label>
     </div>
     ${sectionH('Type of Request')}
-    ${cbRow('dm-f-type-dp',  'Downpayment to vendor', false)}
-    ${cbRow('dm-f-type-inv', 'Invoice Payment – Non PO Invoice', true)}
-    ${cbRow('dm-f-type-adv', 'Employee Advance / Reimbursement (Fund Transfer)', false)}
+    ${cbRow('dm-f-type-dp',  'Downpayment to vendor', _dmTipeDokumenConsensus(p) === 'Downpayment to vendor')}
+    ${cbRow('dm-f-type-inv', 'Invoice Payment – Non PO Invoice', _dmTipeDokumenConsensus(p) === 'Invoice Payment – Non PO Invoice')}
+    ${cbRow('dm-f-type-adv', 'Employee Advance / Reimbursement (Fund Transfer)', _dmTipeDokumenConsensus(p) === 'Employee Advance / Reimbursement (Fund Transfer)')}
     ${sectionH('Invoice Information')}
     <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e2e8f0">
       <div style="border-right:1px solid #e2e8f0">
