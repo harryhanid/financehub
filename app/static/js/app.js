@@ -34,11 +34,15 @@ function _fhRecordVisit(url) {
   localStorage.setItem(FH_RECENT_KEY, JSON.stringify(recent.slice(0, 5)));
 }
 
-function initCommandPalette() {
-  /* Record current page in recently-visited */
-  var currentMod = FH_MODULES.find(function(m) {
+function getCurrentModule() {
+  return FH_MODULES.find(function(m) {
     return m.active && m.url && window.location.pathname.replace(/\/$/, '') === m.url.replace(/\/$/, '');
   });
+}
+
+function initCommandPalette() {
+  /* Record current page in recently-visited */
+  var currentMod = getCurrentModule();
   if (currentMod) _fhRecordVisit(currentMod.url);
 
   var ov      = document.getElementById('fh-cmd-ov');
@@ -169,6 +173,81 @@ function initCommandPalette() {
 
   ov.addEventListener('click', function(e) { if (e.target === ov) close(); });
   if (btn) btn.addEventListener('click', open);
+}
+
+function initTitleDropdown() {
+  var cmdBtn = document.getElementById('fh-cmd-btn');
+  if (!cmdBtn) return; // no company context on this page (e.g. login, select-company)
+
+  var titleEl = document.querySelector('.main h1');
+  if (!titleEl || titleEl.classList.contains('fh-title-trigger')) return;
+
+  var activeMods = FH_MODULES.filter(function(m) { return m.active; });
+  if (activeMods.length < 2) return; // nothing to switch to
+
+  var currentMod = getCurrentModule();
+
+  /* Wrap the h1 so the dropdown panel can position itself relative to
+     just the title's box, not the full-width row it usually sits in. */
+  var wrap = document.createElement('div');
+  wrap.className = 'fh-title-wrap';
+  titleEl.parentNode.insertBefore(wrap, titleEl);
+  wrap.appendChild(titleEl);
+
+  titleEl.classList.add('fh-title-trigger');
+  titleEl.setAttribute('role', 'button');
+  titleEl.setAttribute('tabindex', '0');
+  titleEl.setAttribute('aria-haspopup', 'listbox');
+  titleEl.setAttribute('aria-expanded', 'false');
+
+  var chevron = document.createElement('span');
+  chevron.className = 'fh-title-chevron';
+  chevron.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+  titleEl.appendChild(chevron);
+
+  var panel = document.createElement('div');
+  panel.className = 'fh-title-dd';
+  panel.setAttribute('role', 'listbox');
+
+  activeMods.forEach(function(m) {
+    var isCurrent = !!currentMod && m.url === currentMod.url;
+    var item = document.createElement('div');
+    item.className = 'fh-title-dd-item' + (isCurrent ? ' current' : '');
+    item.setAttribute('role', 'option');
+    item.innerHTML = '<span>' + m.name + '</span>' + (isCurrent
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+      : '');
+    if (!isCurrent) {
+      item.addEventListener('click', function() {
+        _fhRecordVisit(m.url);
+        window.location.href = m.url;
+      });
+    }
+    panel.appendChild(item);
+  });
+  wrap.appendChild(panel);
+
+  function open() {
+    panel.classList.add('open');
+    titleEl.setAttribute('aria-expanded', 'true');
+  }
+  function close() {
+    panel.classList.remove('open');
+    titleEl.setAttribute('aria-expanded', 'false');
+  }
+  function toggle(e) {
+    e.stopPropagation();
+    if (panel.classList.contains('open')) close(); else open();
+  }
+
+  titleEl.addEventListener('click', toggle);
+  titleEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); }
+    else if (e.key === 'Escape') { close(); }
+  });
+  document.addEventListener('click', function(e) {
+    if (!wrap.contains(e.target)) close();
+  });
 }
 
 /* ── Skeleton loading ──────────────────────────────────── */
@@ -306,6 +385,7 @@ function animateCounter(el, duration = 700) {
 
 document.addEventListener("DOMContentLoaded", () => {
   initCommandPalette();
+  initTitleDropdown();
   document.querySelectorAll("[data-tabs]").forEach(initTabs);
   document.querySelectorAll(".modal-overlay").forEach(overlay => {
     overlay.addEventListener("click", e => { if (e.target === overlay) overlay.classList.remove("open"); });

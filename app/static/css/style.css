@@ -246,6 +246,63 @@ button { font-family: inherit; }
   font-size: .85rem;
 }
 
+/* ── Title-click module dropdown ───────────────────────── */
+.fh-title-wrap {
+  position: relative;
+  display: inline-block;
+}
+.fh-title-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  padding: .125rem .375rem;
+  margin: -.125rem -.375rem;
+  transition: background .12s;
+}
+.fh-title-trigger:hover { background: var(--bg-muted); }
+.fh-title-chevron {
+  display: inline-flex;
+  color: var(--text-muted);
+  transition: transform .15s;
+}
+.fh-title-trigger[aria-expanded="true"] .fh-title-chevron { transform: rotate(180deg); }
+
+.fh-title-dd {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: .375rem;
+  min-width: 220px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-lg);
+  padding: .375rem 0;
+  z-index: 60;
+}
+.fh-title-dd.open { display: block; }
+
+.fh-title-dd-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .5rem .75rem;
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--ink);
+  gap: .5rem;
+  cursor: pointer;
+  transition: background .08s;
+}
+.fh-title-dd-item:hover { background: var(--accent-surface); color: var(--accent-text); }
+.fh-title-dd-item.current {
+  cursor: default;
+  font-weight: 700;
+}
+.fh-title-dd-item.current:hover { background: transparent; color: var(--ink); }
+.fh-title-dd-item svg { flex-shrink: 0; }
+
 /* ── Skeleton loading ───────────────────────────────────── */
 .fh-skel {
   height: 11px; border-radius: 4px;
