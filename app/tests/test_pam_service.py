@@ -680,3 +680,38 @@ def test_save_pa_payment_advance_tags_pa_lines_route():
     line = conn.execute("SELECT route FROM etf_pa_lines WHERE id=?", (line_id,)).fetchone()
     conn.close()
     assert line["route"] == "advance"
+
+
+def test_get_advance_payments_returns_quarantined_lines_only():
+    from modules.payment_memo.service import save_pa_payment, get_advance_payments
+    save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "route": "advance", "tanggal": "2026-07-07",
+        "pam_no": "PAM-020-ETF-07-2026", "keterangan": "adv",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+                  "amount": 2_500_000}],
+    })
+    save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "tanggal": "2026-07-07",   # route=gl (default) — must NOT show up
+        "pam_no": "PAM-021-ETF-07-2026", "keterangan": "gl",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+                  "amount": 1_000_000}],
+    })
+    rows = get_advance_payments(COMPANY_ID)
+    assert len(rows) == 1
+    assert rows[0]["pam"]    == "PAM-020-ETF-07-2026"
+    assert rows[0]["amount"] == 2_500_000
+
+
+def test_get_advance_payments_filters_by_status():
+    from modules.payment_memo.service import save_pa_payment, get_advance_payments
+    save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "route": "advance", "tanggal": "2026-07-07",
+        "pam_no": "PAM-022-ETF-07-2026", "keterangan": "adv",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+                  "amount": 1_500_000}],
+    })
+    assert get_advance_payments(COMPANY_ID, status="open") != []
+    assert get_advance_payments(COMPANY_ID, status="paid") == []

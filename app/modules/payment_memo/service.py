@@ -358,6 +358,37 @@ def get_pam_by_pillar(company_id: int, pillar: str,
     return rows
 
 
+def get_advance_payments(company_id: int, status: str = "", search: str = "",
+                         bulan: str = "", tahun: str = "") -> list:
+    """Per-line view of payment_beasiswa rows quarantined under pillar ADVANCE."""
+    sql = """
+        SELECT pb.*, s.nama, pr.pam_date
+        FROM payment_beasiswa pb
+        JOIN pam_records pr ON pr.pam_no = pb.pam AND pr.company_id = pb.company_id
+        LEFT JOIN siswa s ON s.company_id = pb.company_id AND s.code = pb.siswa_code
+        WHERE pb.company_id = ? AND pr.pillar = 'ADVANCE'
+    """
+    params = [company_id]
+    if status:
+        sql    += " AND pb.status = ?"
+        params += [status]
+    if search:
+        q       = f"%{search}%"
+        sql    += " AND (pb.pam LIKE ? OR s.nama LIKE ?)"
+        params += [q, q]
+    if bulan:
+        sql    += " AND strftime('%m', pb.tanggal) = ?"
+        params += [bulan.zfill(2)]
+    if tahun:
+        sql    += " AND strftime('%Y', pb.tanggal) = ?"
+        params += [tahun]
+    sql += " ORDER BY pb.tanggal DESC"
+    conn = get_conn()
+    rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
+    conn.close()
+    return rows
+
+
 def upsert_pam_lines(pam_id: int, pillar: str, data: dict, company_id: int) -> dict:
     """Insert or update one lines row for the given pam_id and pillar."""
     if pillar not in _VALID_PILLARS:
