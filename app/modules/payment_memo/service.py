@@ -726,6 +726,7 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
     perusahaan = data.get("perusahaan") or ""
     pillar     = data.get("pillar") or ""
     rows       = data.get("rows") or []
+    route      = (data.get("route") or "gl").lower()
 
     if not pam_no:
         return {"ok": False, "pesan": "No. PAM wajib diisi."}
@@ -738,7 +739,7 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
     try:
         # 1. Insert payment rows — does NOT create pam_record
         ins = insert_payment_rows(conn, company_id, company_code,
-                                  tanggal, pillar, perusahaan, rows)
+                                  tanggal, pillar, perusahaan, rows, route=route)
         if not ins.get("ok"):
             conn.close()
             return ins
@@ -749,6 +750,7 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
         # 2. Create pam_records entry FIRST (FK must exist before UPDATE payment_beasiswa)
         due_date    = _add_one_month(tanggal)
         cost_center = config.COST_CENTER_MAP.get(perusahaan, "")
+        pillar_for_pam = "ADVANCE" if route == "advance" else pillar
         conn.execute(
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
@@ -758,7 +760,7 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
             (company_id, pam_no, tanggal,
              config.PAM_DEFAULT_REQUESTOR, keterangan,
              total, total, 0.0,
-             due_date, pillar, "beasiswa",
+             due_date, pillar_for_pam, "beasiswa",
              perusahaan, cost_center, _ts())
         )
 
@@ -787,6 +789,10 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
                     f" WHERE id IN ({ph2}) AND company_id=?",
                     [pam_no] + list(pa_ids) + [company_id]
                 )
+            conn.execute(
+                f"UPDATE {lines_tbl} SET route=? WHERE id IN ({ph})",
+                [route] + list(line_ids)
+            )
 
         conn.commit()
     except Exception as e:
