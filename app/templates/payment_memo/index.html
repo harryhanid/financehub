@@ -352,6 +352,49 @@
   </div>
 </div>{# end ipay-panel-others #}
 
+{# ── Panel SMT Lines (GL / Advance itemized) ── #}
+<div id="ipay-panel-smt-lines" style="display:none">
+  <div class="table-wrap">
+    <table id="smt-lines-table" style="min-width:1500px">
+      <thead>
+        <tr>
+          <th style="min-width:200px">Jenis Biaya (SR)</th>
+          <th style="min-width:200px">Jenis Biaya (MR)</th>
+          <th style="min-width:110px">GL Account</th>
+          <th style="min-width:220px">Tipe Dokumen</th>
+          <th style="min-width:120px">No. Invoice</th>
+          <th style="min-width:120px">DPP</th>
+          <th style="min-width:100px">PPN</th>
+          <th style="min-width:120px">Total</th>
+          <th style="min-width:130px">Cost Center</th>
+          <th style="min-width:150px">Budget Activity</th>
+          <th style="min-width:200px">Keterangan</th>
+          <th style="width:32px"></th>
+        </tr>
+      </thead>
+      <tbody id="smt-lines-tbody">
+        <tr id="smt-lines-empty-row">
+          <td colspan="12" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="7" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem">Total Amount:</td>
+          <td id="smt-lines-total-amt" class="num-right" style="font-weight:700;color:#1a56db;white-space:nowrap">Rp 0</td>
+          <td colspan="4"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <div style="display:flex;gap:.5rem;margin-top:.75rem;align-items:center">
+    <button class="btn btn-secondary btn-sm" onclick="smtLinesAddRow()">+ Tambah Baris</button>
+    <button id="smt-lines-save-btn" class="btn btn-primary" onclick="ipaySaveSmtLines()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.35rem;vertical-align:-.1em"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Simpan PAM
+    </button>
+  </div>
+</div>{# end ipay-panel-smt-lines #}
+
   </div>
 
   <!-- PAM Records Tab -->
@@ -1177,6 +1220,18 @@ const PAM_APPROVED_BY_1 = {{ pam_approved_by_1 | tojson }};
 const PAM_APPROVED_BY_2 = {{ pam_approved_by_2 | tojson }};
 const VENDOR_LIST = {{ vendor_list | tojson }};
 const SISWA_LIST  = {{ siswa_list | tojson }};
+const COA_PAM_LIST = {{ coa_pam_list | tojson }};
+const SMT_PAM_COST_CENTERS = [
+  "POCCOM","POEAMR","POICOM","POITDC","POSPON","TFOPEX","POCFAD","POOFFM",
+  "POCPRO","POCSOS","POSMED","POITEC","POSENG","POSKHU - DF","POSKHU - JB",
+  "POSKHU - LS","POSKHU - YP","POEDIR","POMDIN","POMDEX","PORLIT","TFDPLA",
+  "TFECEM","TFEGGM","TFEDIR","TFEDUC","TFSCHO","TFSHSE","TFVOED","TFKHAR","TFFCON",
+];
+const SMT_PAM_TIPE_DOKUMEN = [
+  "Downpayment to vendor",
+  "Invoice Payment – Non PO Invoice",
+  "Employee Advance / Reimbursement (Fund Transfer)",
+];
 const COMPANY_CODE = "{{ company_code }}";
 const CAT3_MEDICAL         = {{ cat3_medical | tojson }};
 const KELAS_MEDICAL        = {{ kelas_medical | tojson }};
@@ -3436,6 +3491,7 @@ function ipayReset() {
   _ipayRowId = 0;
   if (typeof klaimReset === "function") klaimReset();
   if (typeof othersReset === "function") othersReset();
+  if (typeof smtLinesReset === "function") smtLinesReset();
   ipayFetchNextPamNo();
 }
 
@@ -4369,6 +4425,200 @@ async function ipaySaveOthers() {
     // two SMT tabs matches what was just saved instead.
     const landTab = (type === "smt") ? "tab-smt" : (type === "advance") ? "tab-advance" : "tab-pam";
     document.querySelector(`[data-tab="${landTab}"]`)?.click();
+  }
+}
+
+// ── Input SMT Lines (GL/Advance itemized) tab ────────────────────────────
+let _smtLinesRowId = 0;
+
+function smtLinesReset() {
+  document.getElementById("smt-lines-tbody").innerHTML =
+    `<tr id="smt-lines-empty-row"><td colspan="12" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
+  const el = document.getElementById("smt-lines-total-amt");
+  if (el) el.textContent = "Rp 0";
+  _smtLinesRowId = 0;
+}
+
+function smtLinesUpdateTotal() {
+  let total = 0;
+  document.getElementById("smt-lines-tbody").querySelectorAll("tr[data-rid]").forEach(tr => {
+    total += (parseFloat(tr._inpDpp.value) || 0) + (parseFloat(tr._inpPpn.value) || 0);
+  });
+  const el = document.getElementById("smt-lines-total-amt");
+  if (el) el.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(total);
+}
+
+function _smtLinesUpdateRowTotal(tr) {
+  const dpp = parseFloat(tr._inpDpp.value) || 0;
+  const ppn = parseFloat(tr._inpPpn.value) || 0;
+  tr._totalCell.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(dpp + ppn);
+  smtLinesUpdateTotal();
+}
+
+function _smtLinesGlAccountFor(coaRow) {
+  const tx = document.getElementById("ipay-tx")?.value || "gl";
+  if (!coaRow) return "";
+  return (tx === "advance") ? (coaRow.coa_advance || "") : (coaRow.coa_expense || "");
+}
+
+function smtLinesRecalcGlAccounts() {
+  document.getElementById("smt-lines-tbody").querySelectorAll("tr[data-rid]").forEach(tr => {
+    if (!tr.dataset.coaPamId) return;
+    const coaRow = COA_PAM_LIST.find(c => String(c.id) === tr.dataset.coaPamId);
+    tr._inpGl.value = _smtLinesGlAccountFor(coaRow);
+  });
+}
+
+function smtLinesAddRow() {
+  const empty = document.getElementById("smt-lines-empty-row");
+  if (empty) empty.remove();
+  const rid = ++_smtLinesRowId;
+  const tr = document.createElement("tr");
+  tr.dataset.rid = rid;
+
+  function td(child) { const d = document.createElement("td"); d.appendChild(child); return d; }
+  function textInp(placeholder) {
+    const i = document.createElement("input");
+    i.type = "text"; i.placeholder = placeholder || "";
+    i.style.cssText = "width:100%;box-sizing:border-box";
+    return i;
+  }
+  function numInp() {
+    const i = document.createElement("input");
+    i.type = "number"; i.min = "0"; i.placeholder = "0";
+    i.style.cssText = "width:100%;box-sizing:border-box;text-align:right";
+    return i;
+  }
+  function selInp(options, placeholder) {
+    const s = document.createElement("select");
+    s.style.cssText = "width:100%;box-sizing:border-box";
+    s.innerHTML = `<option value="">${placeholder}</option>` +
+      options.map(o => `<option value="${o}">${o}</option>`).join("");
+    return s;
+  }
+
+  // Jenis Biaya (SR) — search input + suggestion list
+  const srWrap = document.createElement("div");
+  srWrap.style.cssText = "position:relative";
+  const srInp = textInp("Cari jenis biaya...");
+  srInp.autocomplete = "off";
+  const srSugg = document.createElement("div");
+  srSugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:240px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  document.body.appendChild(srSugg);
+  srInp.addEventListener("input", () => {
+    const q = srInp.value.toLowerCase().trim();
+    tr.dataset.coaPamId = "";
+    if (!q) { srSugg.style.display = "none"; return; }
+    const hits = COA_PAM_LIST.filter(c => c.klasifikasi_sr.toLowerCase().includes(q)).slice(0, 15);
+    if (!hits.length) { srSugg.style.display = "none"; return; }
+    srSugg.innerHTML = "";
+    hits.forEach(c => {
+      const d = document.createElement("div");
+      d.style.cssText = "padding:6px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid #f3f4f6";
+      d.textContent = c.klasifikasi_sr;
+      d.addEventListener("mousedown", () => {
+        srInp.value = c.klasifikasi_sr;
+        tr.dataset.coaPamId = String(c.id);
+        tr._inpMr.value = c.klasifikasi_mr;
+        tr._inpGl.value = _smtLinesGlAccountFor(c);
+        srSugg.style.display = "none";
+      });
+      srSugg.appendChild(d);
+    });
+    const r = srInp.getBoundingClientRect();
+    srSugg.style.top = (r.bottom + 2) + "px"; srSugg.style.left = r.left + "px"; srSugg.style.width = r.width + "px";
+    srSugg.style.display = "block";
+  });
+  srInp.addEventListener("blur", () => setTimeout(() => { srSugg.style.display = "none"; }, 200));
+  srWrap.appendChild(srInp);
+
+  const mrInp = textInp("(auto)");
+  const glInp = textInp("(auto)"); glInp.readOnly = true; glInp.style.background = "#f3f4f6";
+  const tipeSel = selInp(SMT_PAM_TIPE_DOKUMEN, "— Tipe Dokumen —");
+  const invInp = textInp("No. Invoice");
+  const dppInp = numInp();
+  const ppnInp = numInp();
+  const totalCell = document.createElement("div");
+  totalCell.style.cssText = "text-align:right;font-weight:700;color:#1a56db;white-space:nowrap";
+  totalCell.textContent = "Rp 0";
+  const ccSel = selInp(SMT_PAM_COST_CENTERS, "— Cost Center —");
+  const activityInp = textInp("Budget Activity");
+  const ketInp = textInp("Keterangan");
+
+  dppInp.addEventListener("input", () => _smtLinesUpdateRowTotal(tr));
+  ppnInp.addEventListener("input", () => _smtLinesUpdateRowTotal(tr));
+
+  const delBtn = document.createElement("button");
+  delBtn.className = "btn btn-sm"; delBtn.style.cssText = "background:#ef4444;color:#fff;padding:2px 8px";
+  delBtn.textContent = "✕";
+  delBtn.addEventListener("click", () => {
+    srSugg.remove(); tr.remove();
+    if (!document.getElementById("smt-lines-tbody").querySelector("tr[data-rid]")) smtLinesReset();
+    smtLinesUpdateTotal();
+  });
+
+  tr._inpSr = srInp; tr._inpMr = mrInp; tr._inpGl = glInp; tr._inpDpp = dppInp; tr._inpPpn = ppnInp; tr._totalCell = totalCell;
+  const totalTd = document.createElement("td"); totalTd.appendChild(totalCell);
+  [td(srWrap), td(mrInp), td(glInp), td(tipeSel), td(invInp), td(dppInp), td(ppnInp),
+   totalTd, td(ccSel), td(activityInp), td(ketInp), td(delBtn)]
+    .forEach(cell => tr.appendChild(cell));
+
+  tr._selTipe = tipeSel; tr._inpInv = invInp; tr._selCc = ccSel; tr._inpActivity = activityInp; tr._inpKet = ketInp;
+  document.getElementById("smt-lines-tbody").appendChild(tr);
+}
+
+async function ipaySaveSmtLines() {
+  if (!await confirmModal("Simpan PAM ini?")) return;
+
+  const tanggal    = document.getElementById("ipay-tgl").value;
+  const pam_no     = document.getElementById("ipay-pam-full").value.trim();
+  const perusahaan = document.getElementById("ipay-perusahaan").value;
+  const pillar     = document.getElementById("ipay-pillar").value;
+  const transaksi  = document.getElementById("ipay-tx")?.value || "gl";
+
+  if (!tanggal || !pam_no || pam_no === "Memuat...") {
+    showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
+  }
+
+  const rows = [...document.getElementById("smt-lines-tbody").querySelectorAll("tr[data-rid]")].map(tr => ({
+    coa_pam_id:      tr.dataset.coaPamId ? parseInt(tr.dataset.coaPamId, 10) : null,
+    klasifikasi_sr:  tr._inpSr.value,
+    klasifikasi_mr:  tr._inpMr.value,
+    gl_account:      tr._inpGl.value,
+    tipe_dokumen:    tr._selTipe.value,
+    no_invoice:      tr._inpInv.value,
+    dpp:             parseFloat(tr._inpDpp.value) || 0,
+    ppn:             parseFloat(tr._inpPpn.value) || 0,
+    cost_center:     tr._selCc.value,
+    budget_activity: tr._inpActivity.value,
+    keterangan:      tr._inpKet.value,
+  }));
+
+  if (!rows.length) { showToast("Minimal 1 baris transaksi.", "error"); return; }
+  if (rows.some(r => !r.klasifikasi_sr)) { showToast("Setiap baris wajib memilih Jenis Biaya.", "error"); return; }
+  if (rows.some(r => r.dpp <= 0)) { showToast("Setiap baris wajib DPP lebih dari 0.", "error"); return; }
+  if (rows.some(r => !r.keterangan.trim())) { showToast("Setiap baris wajib diisi Keterangan.", "error"); return; }
+
+  const btn = document.getElementById("smt-lines-save-btn");
+  if (btn) btn.disabled = true;
+  showLoading("Menyimpan PAM...");
+  let res;
+  try {
+    res = await apiFetch("/payment-memo/ipay/save-smt-lines", {
+      method: "POST",
+      body: JSON.stringify({ tanggal, pam_no, perusahaan, pillar, transaksi, rows })
+    });
+  } finally {
+    hideLoading();
+    if (btn) btn.disabled = false;
+  }
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) {
+    smtLinesReset();
+    ipayReset();
+    document.querySelector('[data-tab="tab-smt"]')?.click();
   }
 }
 
