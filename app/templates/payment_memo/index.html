@@ -1983,7 +1983,11 @@ async function submitRealize(paymentId, realizedAmount, tglRealisasi) {
 function openRealizeModal(paymentId, advanceAmount) {
   const realizedStr = prompt(`Advance amount: ${fmtRupiah(advanceAmount)}\nMasukkan realized amount:`);
   if (realizedStr === null) return;
-  const realizedAmount = parseFloat(realizedStr.replace(/[^0-9.]/g, ''));
+  // Strip ALL non-digit characters (not just non-numeric) — Rupiah amounts
+  // are always whole numbers in this app, and users commonly type the same
+  // dot-thousands format this prompt just displayed to them (e.g. "5.000.000"),
+  // which parseFloat would otherwise misparse as 5.0 (stops at the 2nd '.').
+  const realizedAmount = parseFloat(realizedStr.replace(/[^0-9]/g, ''));
   if (!realizedAmount || realizedAmount <= 0) { alert('Realized amount tidak valid.'); return; }
   const tglRealisasi = prompt('Tanggal realisasi (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
   if (!tglRealisasi) return;
