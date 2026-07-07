@@ -446,6 +446,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
         <th>Tgl Bayar</th>
         <th style="min-width:260px">Keterangan</th>
         <th>Status</th>
+        <th>Route</th>
         <th>
           <div class="th-aksi-wrap">
             <span>Aksi</span>
@@ -508,13 +509,14 @@ body.pa-focus #pa-focus-exit { display: flex; }
             {{ r.status | replace('_', ' ') | title }}
           </span>
         </td>
+        <td>{{ r.route or '-' }}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-primary btn-sm" onclick="openEditById({{ r.pa_id }}, {{ r.line_id }})">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deletePa({{ r.pa_id }}, '{{ r.pa_number }}')">Hapus</button>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="32"><div class="empty-state">
+      <tr><td colspan="33"><div class="empty-state">
         <svg class="empty-state-icon" viewBox="0 0 48 48" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <rect x="6" y="10" width="36" height="30" rx="3"/><line x1="6" y1="20" x2="42" y2="20"/><line x1="15" y1="10" x2="15" y2="40"/>
           <line x1="19" y1="28" x2="36" y2="28"/><line x1="19" y1="33" x2="30" y2="33"/>

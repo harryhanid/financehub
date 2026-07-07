@@ -101,6 +101,7 @@
     <button class="tab-btn" data-tab="tab-fiori" onclick="loadFIORI()">APP</button>
     <button class="tab-btn" data-tab="tab-sml" onclick="loadSML()">LAND</button>
     <button class="tab-btn" data-tab="tab-setf" onclick="loadSETF()">SETF</button>
+    <button class="tab-btn" data-tab="tab-pa-advance" onclick="loadPaAdvance()">Advance</button>
     {% endif %}
     <button class="tab-btn" data-tab="tab-draft-memo">Print Memo</button>
   </div>
@@ -212,7 +213,7 @@
         </div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:200px 140px 1fr;gap:.75rem;margin-bottom:1rem;align-items:end;max-width:900px">
+    <div style="display:grid;grid-template-columns:200px 140px 140px 1fr;gap:.75rem;margin-bottom:1rem;align-items:end;max-width:900px">
       <div class="form-group" style="margin:0">
         <label>Pillar</label>
         <input type="text" id="ipay-pillar" readonly placeholder="Auto dari vendor"
@@ -222,6 +223,13 @@
         <label>CC</label>
         <input type="text" id="ipay-cc" readonly placeholder="Auto dari vendor"
                style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:2px;">Route</label>
+        <select id="ipay-route" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;">
+          <option value="gl" selected>GL</option>
+          <option value="advance">Advance</option>
+        </select>
       </div>
       <div class="form-group" style="margin:0">
         <label>Catatan Payment <span style="font-size:.65rem;color:var(--text-muted);font-weight:400">(tampil di tab PAM)</span></label>
@@ -900,6 +908,67 @@
         </thead>
         <tbody id="setf-tbody">
           <tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Advance Tab (ETF PA quarantine-until-realized route) -->
+  <div class="tab-panel" id="tab-pa-advance">
+    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
+      <input id="pa-advance-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
+             style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
+             oninput="loadPaAdvanceDebounced()">
+      <select id="pa-advance-filter-bulan" onchange="loadPaAdvanceDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px">
+        <option value="">Bulan</option>
+        <option value="01">Jan</option><option value="02">Feb</option>
+        <option value="03">Mar</option><option value="04">Apr</option>
+        <option value="05">Mei</option><option value="06">Jun</option>
+        <option value="07">Jul</option><option value="08">Agu</option>
+        <option value="09">Sep</option><option value="10">Okt</option>
+        <option value="11">Nov</option><option value="12">Des</option>
+      </select>
+      <select id="pa-advance-filter-tahun" onchange="loadPaAdvanceDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:76px">
+        <option value="">Tahun</option>
+        <option value="2024">2024</option><option value="2025">2025</option>
+        <option value="2026">2026</option><option value="2027">2027</option>
+      </select>
+      <select id="pa-advance-filter-status" onchange="loadPaAdvanceDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+        <option value="">Semua Status</option>
+        <option value="open">Open</option>
+        <option value="paid">Paid</option>
+        <option value="complete">Complete</option>
+      </select>
+      <span id="pa-advance-count" style="font-size:11px;color:var(--text-muted)"></span>
+    </div>
+    <div class="pillar-table-wrap">
+      <table id="pa-advance-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead class="thead-primary">
+          <tr>
+            <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="1">Date</th>
+            <th style="padding:7px 8px;white-space:nowrap">GL</th>
+            <th style="padding:7px 8px;white-space:nowrap">CC</th>
+            <th style="padding:7px 8px;">PT</th>
+            <th style="padding:7px 8px;">Requestor</th>
+            <th style="padding:7px 8px;min-width:160px;">Keterangan</th>
+            <th style="padding:7px 8px;white-space:nowrap">Mata Uang</th>
+            <th style="padding:7px 8px;text-align:right;">DPP</th>
+            <th style="padding:7px 8px;text-align:right;">PPN</th>
+            <th style="padding:7px 8px;text-align:right;white-space:nowrap" data-sort="10" data-sort-type="num">Total (Rp)</th>
+            <th style="padding:7px 8px;white-space:nowrap">Due Date</th>
+            <th style="padding:7px 8px;">Status</th>
+            <th style="padding:7px 8px;white-space:nowrap">Tanggal Bayar</th>
+            <th style="padding:7px 8px;text-align:right;white-space:nowrap">Advance Amount</th>
+            <th style="padding:7px 8px;text-align:right;white-space:nowrap">Realized Amount</th>
+            <th style="padding:7px 8px;">Realisasi</th>
+          </tr>
+        </thead>
+        <tbody id="pa-advance-tbody">
+          <tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1851,6 +1920,74 @@ async function loadSETF() {
     </tr>
   `).join('');
   makeSortable('setf-table');
+}
+
+// ── PA Advance (ETF PA quarantine-until-realized route) ────────────────────────
+let _paAdvanceDebounce;
+function loadPaAdvanceDebounced() { clearTimeout(_paAdvanceDebounce); _paAdvanceDebounce = setTimeout(loadPaAdvance, 300); }
+async function loadPaAdvance() {
+  const status = (document.getElementById('pa-advance-filter-status')?.value || '');
+  const search = (document.getElementById('pa-advance-search')?.value || '').trim();
+  const bulan  = (document.getElementById('pa-advance-filter-bulan')?.value || '');
+  const tahun  = (document.getElementById('pa-advance-filter-tahun')?.value || '');
+  const params = new URLSearchParams({ status, search, bulan, tahun });
+  const tbody  = document.getElementById('pa-advance-tbody');
+  tbody.innerHTML = skeletonRows(17);
+  const res  = await apiFetch('/payment-memo/advance/list?' + params);
+  if (!res) return;
+  const data = await res.json();
+  const count = document.getElementById('pa-advance-count');
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map(r => `
+    <tr>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.pam)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || r.tanggal || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.perusahaan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.mata_uang || '-')}</td>
+      <td style="padding:6px 8px;text-align:right">${esc(r.dpp ? fmtRupiah(r.dpp) : '-')}</td>
+      <td style="padding:6px 8px;text-align:right">${esc(r.ppn ? fmtRupiah(r.ppn) : '-')}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.amount)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.status)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.advance_amount)}</td>
+      <td style="padding:6px 8px;text-align:right">${r.realized_amount != null ? fmtRupiah(r.realized_amount) : '-'}</td>
+      <td style="padding:6px 8px">${r.status === 'paid'
+        ? `<button class="btn btn-sm btn-primary" onclick="openRealizeModal(${r.id}, ${r.advance_amount})">Realisasi</button>`
+        : '-'}</td>
+    </tr>`).join('');
+}
+
+async function submitRealize(paymentId, realizedAmount, tglRealisasi) {
+  const res = await apiFetch(`/payment-memo/advance/${paymentId}/realize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ realized_amount: realizedAmount, tgl_realisasi: tglRealisasi }),
+  });
+  if (!res) return;
+  const data = await res.json();
+  if (!data.ok) { alert(data.pesan); return; }
+  alert(`Realisasi tersimpan. Selisih: ${fmtRupiah(data.selisih)}`);
+  loadPaAdvance();
+}
+
+function openRealizeModal(paymentId, advanceAmount) {
+  const realizedStr = prompt(`Advance amount: ${fmtRupiah(advanceAmount)}\nMasukkan realized amount:`);
+  if (realizedStr === null) return;
+  const realizedAmount = parseFloat(realizedStr.replace(/[^0-9.]/g, ''));
+  if (!realizedAmount || realizedAmount <= 0) { alert('Realized amount tidak valid.'); return; }
+  const tglRealisasi = prompt('Tanggal realisasi (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+  if (!tglRealisasi) return;
+  submitRealize(paymentId, realizedAmount, tglRealisasi);
 }
 
 // ── SMT ────────────────────────────────────────────────────────────────────────
@@ -4044,9 +4181,10 @@ async function ipaySavePa() {
   showLoading("Menyimpan PAM...");
   let res;
   try {
+    const route = document.getElementById('ipay-route')?.value || 'gl';
     res = await apiFetch("/payment-memo/ipay/save-pa", {
       method: "POST",
-      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
+      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows, route })
     });
   } finally {
     hideLoading();
@@ -4804,6 +4942,7 @@ document.addEventListener('DOMContentLoaded', function () {
     APP:  ['tab-fiori', 'fiori-search'],
     LAND: ['tab-sml',   'sml-search'],
     SETF: ['tab-setf',  'setf-search'],
+    ADVANCE: ['tab-pa-advance', 'pa-advance-search'],
   }[pillar];
   if (!cfg) return;
   const pamNo = params.get('pam_no') || '';

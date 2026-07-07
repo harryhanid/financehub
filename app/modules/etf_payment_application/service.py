@@ -158,7 +158,8 @@ def get_pa_flat(company_id: int, tab: str = "agri", status_filter: str = "",
                   p.keterangan,
                   p.status,
                   p.pa_number,
-                  l.id               AS line_id
+                  l.id               AS line_id,
+                  l.route
            FROM {pa_tbl} p
            JOIN {lines_tbl} l ON l.pa_id = p.id
            JOIN siswa s ON s.id = l.student_id
