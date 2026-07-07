@@ -41,6 +41,16 @@
       {% endfor %}
     </tbody>
   </table>
+
+  {% if total_pages and total_pages > 1 %}
+  <div class="budget-pagination">
+    <span class="budget-pagination-info">Halaman {{ page }} dari {{ total_pages }} ({{ total_count }} data)</span>
+    <div class="budget-pagination-nav">
+      <a class="budget-btn {% if page <= 1 %}disabled{% endif %}" href="?page={{ page - 1 }}">‹ Prev</a>
+      <a class="budget-btn {% if page >= total_pages %}disabled{% endif %}" href="?page={{ page + 1 }}">Next ›</a>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 {% block scripts %}

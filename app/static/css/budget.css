@@ -175,3 +175,28 @@
 }
 .budget-btn:hover { box-shadow: 0 6px 24px var(--accent-glow); }
 .budget-btn-danger { background: linear-gradient(135deg, var(--danger), #f87171); box-shadow: none; }
+
+.budget-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+.budget-pagination-info {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.budget-pagination-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+.budget-pagination-nav a.budget-btn {
+  text-decoration: none;
+  display: inline-block;
+}
+.budget-pagination-nav a.budget-btn.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}

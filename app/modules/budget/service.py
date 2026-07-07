@@ -59,15 +59,28 @@ def _apply_common_filters(query: str, params: list, filters: dict, id_col: str =
     return query, params
 
 
-def list_budgets(filters: dict = None) -> list:
+def list_budgets(filters: dict = None, limit: int = None, offset: int = None) -> list:
     filters = filters or {}
     conn = get_conn()
     query = "SELECT * FROM budget_master WHERE 1=1"
     query, params = _apply_common_filters(query, [], filters)
     query += " ORDER BY yy DESC, mm DESC"
+    if limit is not None:
+        query += " LIMIT ? OFFSET ?"
+        params = params + [limit, offset or 0]
     rows = [dict(r) for r in conn.execute(query, params).fetchall()]
     conn.close()
     return rows
+
+
+def count_budgets(filters: dict = None) -> int:
+    filters = filters or {}
+    conn = get_conn()
+    query = "SELECT COUNT(*) FROM budget_master WHERE 1=1"
+    query, params = _apply_common_filters(query, [], filters)
+    total = conn.execute(query, params).fetchone()[0]
+    conn.close()
+    return total
 
 
 def get_budget(budget_id: str):
@@ -172,15 +185,28 @@ def delete_budget(budget_id: str) -> dict:
     return {"ok": True, "pesan": f"Budget {budget_id} dihapus."}
 
 
-def list_realisasi(filters: dict = None) -> list:
+def list_realisasi(filters: dict = None, limit: int = None, offset: int = None) -> list:
     filters = filters or {}
     conn = get_conn()
     query = "SELECT * FROM budget_realisasi WHERE 1=1"
     query, params = _apply_common_filters(query, [], filters)
     query += " ORDER BY tanggal_realisasi DESC"
+    if limit is not None:
+        query += " LIMIT ? OFFSET ?"
+        params = params + [limit, offset or 0]
     rows = [dict(r) for r in conn.execute(query, params).fetchall()]
     conn.close()
     return rows
+
+
+def count_realisasi(filters: dict = None) -> int:
+    filters = filters or {}
+    conn = get_conn()
+    query = "SELECT COUNT(*) FROM budget_realisasi WHERE 1=1"
+    query, params = _apply_common_filters(query, [], filters)
+    total = conn.execute(query, params).fetchone()[0]
+    conn.close()
+    return total
 
 
 def create_realisasi(payload: dict) -> dict:
@@ -485,7 +511,7 @@ def analyze_expired_budgets(data: list) -> dict:
     }
 
 
-def get_carryover_data(status: str = None) -> list:
+def get_carryover_data(status: str = None, limit: int = None, offset: int = None) -> list:
     conn = get_conn()
     query = "SELECT * FROM budget_carryover_logs"
     params = []
@@ -493,9 +519,24 @@ def get_carryover_data(status: str = None) -> list:
         query += " WHERE status = ?"
         params.append(status)
     query += " ORDER BY request_date DESC"
+    if limit is not None:
+        query += " LIMIT ? OFFSET ?"
+        params = params + [limit, offset or 0]
     rows = [dict(r) for r in conn.execute(query, params).fetchall()]
     conn.close()
     return rows
+
+
+def count_carryover_logs(status: str = None) -> int:
+    conn = get_conn()
+    query = "SELECT COUNT(*) FROM budget_carryover_logs"
+    params = []
+    if status:
+        query += " WHERE status = ?"
+        params.append(status)
+    total = conn.execute(query, params).fetchone()[0]
+    conn.close()
+    return total
 
 
 def analyze_compliance(budget_data: list, carryover_data: list) -> dict:

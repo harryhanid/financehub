@@ -5,12 +5,13 @@ from datetime import datetime as _dt
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required, role_required
 from modules.budget.service import (
-    list_budgets, get_budget, create_budget, update_budget, delete_budget,
-    list_realisasi, create_realisasi, update_realisasi, delete_realisasi,
+    list_budgets, count_budgets, get_budget, create_budget, update_budget, delete_budget,
+    list_realisasi, count_realisasi, create_realisasi, update_realisasi, delete_realisasi,
     get_dashboard_data, get_available_years, get_available_categories,
     get_available_departments, get_available_activities,
     request_carryover, request_additional_budget,
     approve_carryover, approve_additional_budget, reject_request,
+    count_carryover_logs,
 )
 from modules.budget.exports import (
     export_transactions_csv, export_realization_csv, export_department_report_csv,
@@ -18,6 +19,15 @@ from modules.budget.exports import (
 )
 
 bp = Blueprint("budget", __name__, url_prefix="/budget")
+
+PER_PAGE = 100
+
+
+def _paginate(total):
+    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    page = request.args.get("page", 1, type=int) or 1
+    page = max(1, min(page, total_pages))
+    return page, total_pages
 
 
 def _current_username() -> str:
@@ -45,9 +55,13 @@ def _ctx():
 @jwt_html_required
 def master_list():
     company = request.args.get("company")
-    budgets = list_budgets({"company": company} if company else None)
+    filters = {"company": company} if company else None
+    total = count_budgets(filters)
+    page, total_pages = _paginate(total)
+    budgets = list_budgets(filters, limit=PER_PAGE, offset=(page - 1) * PER_PAGE)
     return render_template("budget/master_list.html", budgets=budgets, active_page="budget",
-                            filter_company=company, **_ctx())
+                            filter_company=company, page=page, total_pages=total_pages,
+                            total_count=total, **_ctx())
 
 
 @bp.route("/master/<budget_id>")
@@ -86,9 +100,13 @@ def master_delete(budget_id):
 @jwt_html_required
 def realisasi_list():
     company = request.args.get("company")
-    realisasi = list_realisasi({"company": company} if company else None)
+    filters = {"company": company} if company else None
+    total = count_realisasi(filters)
+    page, total_pages = _paginate(total)
+    realisasi = list_realisasi(filters, limit=PER_PAGE, offset=(page - 1) * PER_PAGE)
     return render_template("budget/realisasi_list.html", realisasi=realisasi, active_page="budget",
-                            filter_company=company, **_ctx())
+                            filter_company=company, page=page, total_pages=total_pages,
+                            total_count=total, **_ctx())
 
 
 @bp.route("/realisasi/create", methods=["POST"])
@@ -162,7 +180,11 @@ def api_lookups():
 @jwt_html_required
 def carryover_page():
     from modules.budget.service import get_carryover_data
-    return render_template("budget/carryover.html", logs=get_carryover_data(), active_page="budget", **_ctx())
+    total = count_carryover_logs()
+    page, total_pages = _paginate(total)
+    logs = get_carryover_data(limit=PER_PAGE, offset=(page - 1) * PER_PAGE)
+    return render_template("budget/carryover.html", logs=logs, active_page="budget",
+                            page=page, total_pages=total_pages, total_count=total, **_ctx())
 
 
 @bp.route("/carryover/request", methods=["POST"])
