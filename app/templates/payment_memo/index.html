@@ -3596,8 +3596,6 @@ function _smtSyncTypeFromTx() {
   const lbl = _IPAY_LABEL[type] || type.toUpperCase();
   const badge = document.getElementById("ipay-pam-type-badge");
   if (badge) badge.textContent = `(auto ${lbl})`;
-  const saveBtn = document.getElementById("ipay-save-btn");
-  if (saveBtn) saveBtn.textContent = `\u{1F4BE} Simpan PAM ${lbl}`;
   const pillarEl = document.getElementById("ipay-pillar");
   if (pillarEl) pillarEl.value = type.toUpperCase();
   ipayFetchNextPamNo();
@@ -4604,6 +4602,7 @@ async function ipaySaveSmtLines() {
   if (rows.some(r => !r.klasifikasi_sr)) { showToast("Setiap baris wajib memilih Jenis Biaya.", "error"); return; }
   if (rows.some(r => r.dpp <= 0)) { showToast("Setiap baris wajib DPP lebih dari 0.", "error"); return; }
   if (rows.some(r => !r.keterangan.trim())) { showToast("Setiap baris wajib diisi Keterangan.", "error"); return; }
+  if (rows.some(r => !r.gl_account)) { showToast("Jenis Biaya yang dipilih tidak punya kode GL untuk Advance — pilih jenis biaya lain atau ganti Transaksi ke GL.", "error"); return; }
 
   const btn = document.getElementById("smt-lines-save-btn");
   if (btn) btn.disabled = true;
