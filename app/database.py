@@ -1038,6 +1038,25 @@ def migrate_db():
             pass
     conn.commit()
 
+    # ── route + advance realization columns (2026-07-07) ──────────────────
+    for pa_lines_tbl in ["etf_pa_lines", "app_pa_lines", "sml_pa_lines", "setf_pa_lines"]:
+        try:
+            conn.execute(f"ALTER TABLE {pa_lines_tbl} ADD COLUMN route TEXT")
+            conn.commit()
+        except Exception:
+            pass
+    for col in ["advance_amount", "realized_amount"]:
+        try:
+            conn.execute(f"ALTER TABLE payment_beasiswa ADD COLUMN {col} REAL")
+            conn.commit()
+        except Exception:
+            pass
+    try:
+        conn.execute("ALTER TABLE payment_beasiswa ADD COLUMN tgl_realisasi TEXT")
+        conn.commit()
+    except Exception:
+        pass
+
     # rekam_medis table (new — safe to run on existing DBs)
     try:
         conn.execute(
