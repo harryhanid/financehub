@@ -2195,19 +2195,25 @@ def set_pam_complete_cascade(pam_id: int, tanggal_bayar: str, company_id: int) -
 
     # 3. Cascade ke payment_beasiswa + PA tables untuk beasiswa iPay flow
     else:
-        pillar   = pam.get("pillar") or ""
-        paid_col = _BEASISWA_PAID_COL.get(pillar)
-        if paid_col:
+        pillar = pam.get("pillar") or ""
+        if pillar == "ADVANCE":
             conn.execute(
-                f'UPDATE payment_beasiswa SET status=\'complete\', "{paid_col}"=? '
-                f'WHERE pam=? AND company_id=?',
-                (tanggal_bayar, pam_no, company_id)
-            )
-        else:
-            conn.execute(
-                "UPDATE payment_beasiswa SET status='complete' WHERE pam=? AND company_id=?",
+                "UPDATE payment_beasiswa SET status='paid' WHERE pam=? AND company_id=?",
                 (pam_no, company_id)
             )
+        else:
+            paid_col = _BEASISWA_PAID_COL.get(pillar)
+            if paid_col:
+                conn.execute(
+                    f'UPDATE payment_beasiswa SET status=\'complete\', "{paid_col}"=? '
+                    f'WHERE pam=? AND company_id=?',
+                    (tanggal_bayar, pam_no, company_id)
+                )
+            else:
+                conn.execute(
+                    "UPDATE payment_beasiswa SET status='complete' WHERE pam=? AND company_id=?",
+                    (pam_no, company_id)
+                )
         line_ids = [
             r[0] for r in conn.execute(
                 "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa "

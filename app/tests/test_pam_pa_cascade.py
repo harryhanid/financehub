@@ -410,3 +410,24 @@ def test_payment_beasiswa_has_tgl_paid_columns():
     assert "tgl_Paid_LAND"   in cols, "Missing tgl_Paid_LAND in payment_beasiswa"
     assert "tgl_Paid_ENERGY" in cols, "Missing tgl_Paid_ENERGY in payment_beasiswa"
     assert "tgl_Paid_SETF"   in cols, "Missing tgl_Paid_SETF in payment_beasiswa"
+
+
+def test_set_pam_complete_cascade_advance_pillar_sets_paid_not_complete():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pam_id, pa_id = _insert_pam_beasiswa(conn, "etf_pa", "etf_pa_lines", "ETF", "ADVANCE", sid)
+    conn.close()
+
+    result = set_pam_complete_cascade(pam_id, "2026-07-10", COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pam = conn.execute("SELECT status, pillar FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    pb  = conn.execute(
+        "SELECT status FROM payment_beasiswa WHERE pam=?", ("PAM-ETF-06-2026-001",)
+    ).fetchone()
+    conn.close()
+
+    assert pam["status"] == "complete"   # header flow unchanged
+    assert pam["pillar"] == "ADVANCE"    # not yet moved — realization hasn't happened
+    assert pb["status"]  == "paid"       # NOT 'complete' — quarantined until realize
