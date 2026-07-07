@@ -336,7 +336,7 @@ def add_payment_batch(company_id: int, siswa_code: str, tanggal: str,
 
 def insert_payment_rows(conn, company_id: int, company_code: str,
                         tanggal: str, pillar: str, perusahaan: str,
-                        rows: list) -> dict:
+                        rows: list, route: str = "gl") -> dict:
     """Insert payment_beasiswa rows and update linked PA status → on_process.
 
     Caller owns conn (no commit, no close here). Does NOT create pam_record.
@@ -375,15 +375,17 @@ def insert_payment_rows(conn, company_id: int, company_code: str,
         cur = conn.execute(
             """INSERT INTO payment_beasiswa
                (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,
-                tgl_pengajuan,tgl_receive,tgl_pa,tgl_final,cat3,cat4,etf_pa_line_id,status)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'open')""",
+                tgl_pengajuan,tgl_receive,tgl_pa,tgl_final,cat3,cat4,etf_pa_line_id,
+                advance_amount,status)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'open')""",
             (company_id, siswa_code,
              row.get("cat1", ""), row.get("cat2", ""),
              tanggal, amount, pillar, perusahaan,
              row.get("tgl_pengajuan", ""), row.get("tgl_receive", ""),
              row.get("tgl_pa", ""),        row.get("tgl_final", ""),
              row.get("cat3", ""),          row.get("cat4", ""),
-             etf_pa_line_id)
+             etf_pa_line_id,
+             amount if route == "advance" else None)
         )
         payment_ids.append(cur.lastrowid)
         total += amount

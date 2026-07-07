@@ -562,3 +562,34 @@ def test_set_paid_cascades_to_payment_beasiswa():
     assert pr["tanggal_bayar"] == "2026-06-20"
     assert pb is not None, "payment_beasiswa row not found"
     assert pb["status"] == "complete", f"Expected complete, got {pb['status']!r}"
+
+
+def test_insert_payment_rows_advance_route_sets_advance_amount():
+    from modules.beasiswa.service import insert_payment_rows
+    conn = get_conn()
+    rows = [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 5_000_000}]
+    result = insert_payment_rows(conn, COMPANY_ID, COMPANY_CODE, "2026-07-07", "AGRI", "PT. ABC",
+                                  rows, route="advance")
+    conn.commit()
+    assert result["ok"] is True
+    row = conn.execute(
+        "SELECT advance_amount, realized_amount, pillar FROM payment_beasiswa WHERE id=?",
+        (result["payment_ids"][0],)
+    ).fetchone()
+    conn.close()
+    assert row["advance_amount"]  == 5_000_000
+    assert row["realized_amount"] is None
+    assert row["pillar"]          == "AGRI"   # target pillar unchanged, never "ADVANCE" here
+
+
+def test_insert_payment_rows_default_route_gl_leaves_advance_amount_null():
+    from modules.beasiswa.service import insert_payment_rows
+    conn = get_conn()
+    rows = [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 5_000_000}]
+    result = insert_payment_rows(conn, COMPANY_ID, COMPANY_CODE, "2026-07-07", "AGRI", "PT. ABC", rows)
+    conn.commit()
+    row = conn.execute(
+        "SELECT advance_amount FROM payment_beasiswa WHERE id=?", (result["payment_ids"][0],)
+    ).fetchone()
+    conn.close()
+    assert row["advance_amount"] is None
