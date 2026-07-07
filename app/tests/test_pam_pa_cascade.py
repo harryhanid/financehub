@@ -518,3 +518,75 @@ def test_realize_advance_payment_rejects_non_advance_row():
 
     result = realize_advance_payment(payment_id, 900_000, "2026-07-20", COMPANY_ID)
     assert result["ok"] is False
+
+
+def test_realize_advance_payment_multi_line_partial_realization_does_not_close_pillar():
+    """One Advance PAM with TWO payment_beasiswa lines (two students).
+
+    Realizing only the first line must NOT flip pam_records.pillar back from
+    'ADVANCE' — the second line is still 'paid', not 'complete'. Only after
+    BOTH lines are realized should the pillar flip to the target pillar.
+    """
+    from modules.payment_memo.service import realize_advance_payment
+
+    pam_no = "PAM-033-ETF-07-2026"
+    result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "route": "advance", "tanggal": "2026-07-07",
+        "pam_no": pam_no, "keterangan": "adv-multi",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [
+            {"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+             "amount": 3_000_000},
+            {"siswa_code": "S002", "cat1": "By Pendidikan", "cat2": "Semester 1",
+             "amount": 2_000_000},
+        ],
+    })
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pam_id = conn.execute(
+        "SELECT id FROM pam_records WHERE company_id=? AND pam_no=?", (COMPANY_ID, pam_no)
+    ).fetchone()["id"]
+    payment_rows = conn.execute(
+        "SELECT id, siswa_code FROM payment_beasiswa WHERE pam=? ORDER BY id", (pam_no,)
+    ).fetchall()
+    conn.close()
+
+    assert len(payment_rows) == 2, "expected two payment_beasiswa rows under one pam_no"
+    payment_id_1 = payment_rows[0]["id"]
+    payment_id_2 = payment_rows[1]["id"]
+
+    # Move both rows to status='paid' (quarantined) via the normal cascade.
+    cascade_result = set_pam_complete_cascade(pam_id, "2026-07-10", COMPANY_ID)
+    assert cascade_result["ok"] is True
+
+    conn = get_conn()
+    statuses = [r["status"] for r in conn.execute(
+        "SELECT status FROM payment_beasiswa WHERE pam=?", (pam_no,)
+    ).fetchall()]
+    conn.close()
+    assert statuses == ["paid", "paid"]
+
+    # Realize FIRST row only — pillar must stay ADVANCE (second row still 'paid').
+    result1 = realize_advance_payment(payment_id_1, 2_800_000, "2026-07-20", COMPANY_ID)
+    assert result1["ok"] is True
+
+    conn = get_conn()
+    pam = conn.execute("SELECT pillar FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    row2 = conn.execute(
+        "SELECT status FROM payment_beasiswa WHERE id=?", (payment_id_2,)
+    ).fetchone()
+    conn.close()
+    assert pam["pillar"] == "ADVANCE", \
+        "pillar must NOT close after only 1 of 2 lines is realized"
+    assert row2["status"] == "paid"
+
+    # Realize SECOND row — now every line is 'complete', pillar should flip.
+    result2 = realize_advance_payment(payment_id_2, 1_900_000, "2026-07-21", COMPANY_ID)
+    assert result2["ok"] is True
+
+    conn = get_conn()
+    pam = conn.execute("SELECT pillar FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    conn.close()
+    assert pam["pillar"] == "AGRI", \
+        "pillar must flip to target pillar once all lines are complete"
