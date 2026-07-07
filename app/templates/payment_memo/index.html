@@ -212,10 +212,15 @@
         </div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:200px 1fr;gap:.75rem;margin-bottom:1rem;align-items:end;max-width:900px">
+    <div style="display:grid;grid-template-columns:200px 140px 1fr;gap:.75rem;margin-bottom:1rem;align-items:end;max-width:900px">
       <div class="form-group" style="margin:0">
         <label>Pillar</label>
         <input type="text" id="ipay-pillar" readonly placeholder="Auto dari vendor"
+               style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>CC</label>
+        <input type="text" id="ipay-cc" readonly placeholder="Auto dari vendor"
                style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
       </div>
       <div class="form-group" style="margin:0">
@@ -3266,6 +3271,7 @@ function ipayVendorSearch() {
   _vendorSuggRender(hits, sugg, v => {
     document.getElementById("ipay-perusahaan-search").value = v.name;
     document.getElementById("ipay-perusahaan").value = v.name;
+    document.getElementById("ipay-cc").value = v.cost_center || "";
     // SMT/Advance: pillar stays whatever Tipe PAM set it to (see
     // ipayOnTypeChange) — don't let the vendor's own (ETF-pillar) tag
     // clobber it.
@@ -3412,6 +3418,7 @@ function ipayReset() {
   document.getElementById("ipay-pam-full").value = "";
   document.getElementById("ipay-perusahaan-search").value = "";
   document.getElementById("ipay-perusahaan").value = "";
+  document.getElementById("ipay-cc").value = "";
   // SMT/Advance: pillar is driven directly by the Tipe PAM selection (no
   // per-vendor pillar tagging concept there), so re-derive it here instead
   // of blanking it — otherwise this reset (called at the end of
