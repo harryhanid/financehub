@@ -362,7 +362,7 @@ function closeModal(id) { const el = document.getElementById(id); if (el) el.cla
 function staggerRows(tbody) {
   Array.from(tbody.querySelectorAll("tr")).forEach((row, i) => {
     row.classList.add("stagger-row");
-    row.style.animationDelay = `${i * 28}ms`;
+    row.style.animationDelay = `${Math.min(i, 20) * 28}ms`;
     row.style.animationFillMode = "both";
   });
 }
