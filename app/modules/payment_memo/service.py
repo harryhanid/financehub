@@ -362,7 +362,9 @@ def get_advance_payments(company_id: int, status: str = "", search: str = "",
                          bulan: str = "", tahun: str = "") -> list:
     """Per-line view of payment_beasiswa rows quarantined under pillar ADVANCE."""
     sql = """
-        SELECT pb.*, s.nama, pr.pam_date
+        SELECT pb.*, s.nama, pr.pam_date, pr.gl_account, pr.cost_center,
+               pr.requestors_name, pr.keterangan, pr.mata_uang, pr.dpp, pr.ppn,
+               pr.due_date, pr.tanggal_bayar
         FROM payment_beasiswa pb
         JOIN pam_records pr ON pr.pam_no = pb.pam AND pr.company_id = pb.company_id
         LEFT JOIN siswa s ON s.company_id = pb.company_id AND s.code = pb.siswa_code

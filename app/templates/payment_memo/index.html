@@ -1953,8 +1953,8 @@ async function loadPaAdvance() {
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
       <td style="padding:6px 8px">${esc(r.mata_uang || '-')}</td>
-      <td style="padding:6px 8px;text-align:right">${esc(r.dpp ? fmtRupiah(r.dpp) : '-')}</td>
-      <td style="padding:6px 8px;text-align:right">${esc(r.ppn ? fmtRupiah(r.ppn) : '-')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
       <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.amount)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
       <td style="padding:6px 8px">${esc(r.status)}</td>
