@@ -423,3 +423,24 @@ def test_dop_search_no_session(client):
     rv = client.get("/payment-memo/days-of-pam/search?pam=PAM-001-ETF-05-2026",
                     headers={"Authorization": f"Bearer {token}"})
     assert rv.status_code == 400
+
+
+def test_advance_list_route_returns_ok(client):
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    rv = client.get("/payment-memo/advance/list",
+                    headers={"Authorization": f"Bearer {token}"})
+    assert rv.status_code == 200
+    assert rv.get_json()["ok"] is True
+    assert rv.get_json()["rows"] == []
+
+
+def test_advance_realize_route_rejects_missing_body(client):
+    token = _login(client)
+    with client.session_transaction() as sess:
+        sess["company_id"] = 2
+    rv = client.post("/payment-memo/advance/999999/realize", json={},
+                     headers={"Authorization": f"Bearer {token}"})
+    assert rv.status_code == 200
+    assert rv.get_json()["ok"] is False

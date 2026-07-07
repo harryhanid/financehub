@@ -25,6 +25,7 @@ from modules.payment_memo.service import (
     get_siswa_medical, save_klaim_payment, save_others_payment,
     bulk_complete_pams,
     get_pam_beasiswa_lines,
+    get_advance_payments, realize_advance_payment,
 )
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
@@ -650,6 +651,31 @@ def ipay_save_pa():
     company_id   = session.get("company_id", 0)
     company_code = session.get("company_code", "ETF")
     result = save_pa_payment(company_id, company_code, data)
+    return jsonify(result)
+
+
+@bp.route("/advance/list")
+@jwt_html_required
+def advance_list():
+    company_id = session.get("company_id")
+    if not company_id:
+        return jsonify({"ok": False, "pesan": "Company belum dipilih."}), 400
+    status = request.args.get("status", "").strip()
+    search = request.args.get("search", "").strip()
+    bulan  = request.args.get("bulan", "").strip()
+    tahun  = request.args.get("tahun", "").strip()
+    rows   = get_advance_payments(company_id, status, search, bulan, tahun)
+    return jsonify({"ok": True, "rows": rows})
+
+
+@bp.route("/advance/<int:payment_id>/realize", methods=["POST"])
+@jwt_html_required
+def advance_realize(payment_id):
+    company_id      = session.get("company_id", 0)
+    data            = request.get_json(force=True) or {}
+    realized_amount = data.get("realized_amount")
+    tgl_realisasi   = data.get("tgl_realisasi", "")
+    result = realize_advance_payment(payment_id, realized_amount, tgl_realisasi, company_id)
     return jsonify(result)
 
 
