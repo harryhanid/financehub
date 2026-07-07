@@ -2274,6 +2274,69 @@ def set_pam_complete_cascade(pam_id: int, tanggal_bayar: str, company_id: int) -
     return {"ok": True, "pesan": "Tgl Paid disimpan, PAM selesai."}
 
 
+def realize_advance_payment(payment_id: int, realized_amount, tgl_realisasi: str,
+                            company_id: int) -> dict:
+    """Realization of Advance payment: correct amount and close pillar cascade.
+
+    Updates the target row's `amount`, `realized_amount`, `tgl_realisasi`, `status='complete'`;
+    once every `payment_beasiswa` row sharing that `pam` is `complete`, updates
+    `pam_records.pillar` from `"ADVANCE"` to the row's own `payment_beasiswa.pillar`.
+
+    Returns {"ok": True, "pesan": "...", "selisih": <float>} on success, or
+            {"ok": False, "pesan": "..."} on validation failure.
+    """
+    if not tgl_realisasi:
+        return {"ok": False, "pesan": "Tanggal realisasi wajib diisi."}
+    try:
+        realized_amount = float(realized_amount)
+    except (TypeError, ValueError):
+        return {"ok": False, "pesan": "Realized amount tidak valid."}
+    if realized_amount <= 0:
+        return {"ok": False, "pesan": "Realized amount harus > 0."}
+
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id, pam, pillar, status, advance_amount FROM payment_beasiswa "
+        "WHERE id=? AND company_id=?",
+        (payment_id, company_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Payment tidak ditemukan."}
+    if row["advance_amount"] is None:
+        conn.close()
+        return {"ok": False, "pesan": "Baris ini bukan payment Advance."}
+    if row["status"] != "paid":
+        conn.close()
+        return {"ok": False, "pesan": "Payment belum berstatus 'paid', tidak bisa direalisasi."}
+
+    pam_no        = row["pam"]
+    target_pillar = row["pillar"]
+    selisih       = row["advance_amount"] - realized_amount
+    ts            = _ts()
+
+    conn.execute(
+        """UPDATE payment_beasiswa
+           SET realized_amount=?, tgl_realisasi=?, amount=?, status='complete'
+           WHERE id=?""",
+        (realized_amount, tgl_realisasi, realized_amount, payment_id)
+    )
+
+    remaining = conn.execute(
+        "SELECT COUNT(*) FROM payment_beasiswa WHERE pam=? AND company_id=? AND status != 'complete'",
+        (pam_no, company_id)
+    ).fetchone()[0]
+    if remaining == 0:
+        conn.execute(
+            "UPDATE pam_records SET pillar=?, updated_at=? WHERE pam_no=? AND company_id=?",
+            (target_pillar, ts, pam_no, company_id)
+        )
+
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Realisasi tersimpan.", "selisih": selisih}
+
+
 def check_pam_no_exists(company_id: int, pam_no: str) -> dict:
     conn = get_conn()
     row = conn.execute(

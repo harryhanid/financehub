@@ -431,3 +431,90 @@ def test_set_pam_complete_cascade_advance_pillar_sets_paid_not_complete():
     assert pam["status"] == "complete"   # header flow unchanged
     assert pam["pillar"] == "ADVANCE"    # not yet moved — realization hasn't happened
     assert pb["status"]  == "paid"       # NOT 'complete' — quarantined until realize
+
+
+# ── realize_advance_payment tests ────────────────────────────────────────────
+
+from modules.payment_memo.service import save_pa_payment
+
+
+def _setup_paid_advance(pam_no="PAM-030-ETF-07-2026", amount=3_000_000):
+    """Helper: create + pay one Advance payment_beasiswa row. Returns (payment_id, pam_id)."""
+    save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "route": "advance", "tanggal": "2026-07-07",
+        "pam_no": pam_no, "keterangan": "adv",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+                  "amount": amount}],
+    })
+    conn = get_conn()
+    pam_id     = conn.execute(
+        "SELECT id FROM pam_records WHERE company_id=? AND pam_no=?", (COMPANY_ID, pam_no)
+    ).fetchone()["id"]
+    payment_id = conn.execute(
+        "SELECT id FROM payment_beasiswa WHERE pam=?", (pam_no,)
+    ).fetchone()["id"]
+    conn.close()
+    set_pam_complete_cascade(pam_id, "2026-07-10", COMPANY_ID)
+    return payment_id, pam_id
+
+
+def test_realize_advance_payment_updates_amount_and_closes_pillar():
+    from modules.payment_memo.service import realize_advance_payment
+    payment_id, pam_id = _setup_paid_advance()
+
+    result = realize_advance_payment(payment_id, 2_700_000, "2026-07-20", COMPANY_ID)
+    assert result["ok"] is True
+    assert result["selisih"] == 300_000   # 3_000_000 advance - 2_700_000 realized
+
+    conn = get_conn()
+    pb  = conn.execute(
+        "SELECT amount, realized_amount, tgl_realisasi, status FROM payment_beasiswa WHERE id=?",
+        (payment_id,)
+    ).fetchone()
+    pam = conn.execute("SELECT pillar FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    conn.close()
+
+    assert pb["amount"]          == 2_700_000
+    assert pb["realized_amount"] == 2_700_000
+    assert pb["tgl_realisasi"]   == "2026-07-20"
+    assert pb["status"]          == "complete"
+    assert pam["pillar"]         == "AGRI"   # moved out of ADVANCE
+
+
+def test_realize_advance_payment_rejects_not_yet_paid():
+    from modules.payment_memo.service import realize_advance_payment
+    save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "route": "advance", "tanggal": "2026-07-07",
+        "pam_no": "PAM-031-ETF-07-2026", "keterangan": "adv",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+                  "amount": 1_000_000}],
+    })
+    conn = get_conn()
+    payment_id = conn.execute(
+        "SELECT id FROM payment_beasiswa WHERE pam=?", ("PAM-031-ETF-07-2026",)
+    ).fetchone()["id"]
+    conn.close()
+
+    result = realize_advance_payment(payment_id, 900_000, "2026-07-20", COMPANY_ID)
+    assert result["ok"] is False
+
+
+def test_realize_advance_payment_rejects_non_advance_row():
+    from modules.payment_memo.service import realize_advance_payment
+    save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "tanggal": "2026-07-07",   # route=gl
+        "pam_no": "PAM-032-ETF-07-2026", "keterangan": "gl",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+                  "amount": 1_000_000}],
+    })
+    conn = get_conn()
+    payment_id = conn.execute(
+        "SELECT id FROM payment_beasiswa WHERE pam=?", ("PAM-032-ETF-07-2026",)
+    ).fetchone()["id"]
+    conn.close()
+
+    result = realize_advance_payment(payment_id, 900_000, "2026-07-20", COMPANY_ID)
+    assert result["ok"] is False
