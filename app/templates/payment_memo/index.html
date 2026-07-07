@@ -4624,7 +4624,11 @@ async function ipaySaveSmtLines() {
   if (data.ok) {
     smtLinesReset();
     ipayReset();
-    document.querySelector('[data-tab="tab-smt"]')?.click();
+    // Mirror ipaySaveOthers()'s landing logic: GL saves land on the PAM
+    // List tab (pillar SMT), Advance saves land on the Advance tab
+    // (pillar ADVANCE) — the two pillars are shown in different tabs.
+    const landTab = (transaksi === "advance") ? "tab-advance" : "tab-smt";
+    document.querySelector(`[data-tab="${landTab}"]`)?.click();
   }
 }
 
