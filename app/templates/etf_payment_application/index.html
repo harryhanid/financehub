@@ -342,6 +342,21 @@ body.pa-focus #pa-focus-exit { display: flex; }
     </div>
   </div>
 
+  {# ── Route ── #}
+  <div style="margin-bottom:1rem; padding:.65rem .85rem; background:var(--bg-muted); border:1px solid var(--border); border-radius:6px">
+    <div style="font-size:.8rem; font-weight:700; margin-bottom:.45rem">Route *</div>
+    <div style="display:flex; gap:1.25rem; flex-wrap:wrap">
+      <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
+        <input type="radio" name="pa-route" value="gl" checked style="width:15px;height:15px;accent-color:#1d4ed8">
+        GL
+      </label>
+      <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
+        <input type="radio" name="pa-route" value="advance" style="width:15px;height:15px;accent-color:#1d4ed8">
+        Advance
+      </label>
+    </div>
+  </div>
+
   {# ── Siswa + IPK ── #}
   <div style="margin-bottom:.75rem;padding:.6rem .75rem;background:var(--bg-muted);border:1px solid var(--border);border-radius:6px">
     <div style="display:grid;grid-template-columns:1fr 160px;gap:.5rem;align-items:end">
@@ -1323,6 +1338,7 @@ async function submitPA() {
       jumlah_pembayaran:  parseInt(row.querySelector('.pl-jumlah').value) || 0,
     });
   }
+  const selectedRoute = document.querySelector('input[name="pa-route"]:checked')?.value || 'gl';
   const resp = await apiFetch(`/etf-payment-application/create?tab=${selectedTab}`, {
     method: 'POST',
     body: JSON.stringify({
@@ -1331,6 +1347,7 @@ async function submitPA() {
       keterangan:              document.getElementById('pa-keterangan').value,
       doc_received_by_educ:    document.getElementById('pa-doc-recv').value,
       received_pa_from_educ:   document.getElementById('pa-recv-pa').value,
+      route:                   selectedRoute,
       lines,
     })
   });

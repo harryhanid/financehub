@@ -106,7 +106,10 @@ def create():
         "received_pa_from_educ":   data.get("received_pa_from_educ", ""),
     }
     lines = data.get("lines", [])
-    return jsonify(create_pa(company_id, header, lines, tab))
+    route = (data.get("route") or "gl").lower()
+    if route not in ("gl", "advance"):
+        route = "gl"
+    return jsonify(create_pa(company_id, header, lines, tab, route=route))
 
 
 @bp.route("/<int:pa_id>/update", methods=["POST"])
