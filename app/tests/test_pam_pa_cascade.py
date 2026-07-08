@@ -443,11 +443,28 @@ def test_set_pam_complete_cascade_advance_pillar_sets_paid_not_complete():
     pb  = conn.execute(
         "SELECT status FROM payment_beasiswa WHERE pam=?", ("PAM-ETF-06-2026-001",)
     ).fetchone()
+    pa  = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
     conn.close()
 
     assert pam["status"] == "complete"   # header flow unchanged
     assert pam["pillar"] == "ADVANCE"    # not yet moved — realization hasn't happened
     assert pb["status"]  == "paid"       # NOT 'complete' — quarantined until realize
+    assert pa["status"]  == "paid"       # PA header juga quarantine, bukan 'complete'
+
+
+def test_set_pam_complete_cascade_non_advance_pillar_still_completes_pa_header():
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pam_id, pa_id = _insert_pam_beasiswa(conn, "etf_pa", "etf_pa_lines", "ETF", "AGRI", sid)
+    conn.close()
+
+    result = set_pam_complete_cascade(pam_id, "2026-07-10", COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pa = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert pa["status"] == "complete"
 
 
 # ── realize_advance_payment tests ────────────────────────────────────────────

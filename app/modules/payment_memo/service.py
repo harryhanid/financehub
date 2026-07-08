@@ -2246,6 +2246,7 @@ def set_pam_complete_cascade(pam_id: int, tanggal_bayar: str, company_id: int) -
                 "UPDATE payment_beasiswa SET status='paid' WHERE pam=? AND company_id=?",
                 (pam_no, company_id)
             )
+            pa_header_status = "paid"
         else:
             paid_col = _BEASISWA_PAID_COL.get(pillar)
             if paid_col:
@@ -2259,6 +2260,7 @@ def set_pam_complete_cascade(pam_id: int, tanggal_bayar: str, company_id: int) -
                     "UPDATE payment_beasiswa SET status='complete' WHERE pam=? AND company_id=?",
                     (pam_no, company_id)
                 )
+            pa_header_status = "complete"
         line_ids = [
             r[0] for r in conn.execute(
                 "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa "
@@ -2276,11 +2278,11 @@ def set_pam_complete_cascade(pam_id: int, tanggal_bayar: str, company_id: int) -
                 ("setf_pa_lines",   "setf_pa"),
             ]:
                 conn.execute(
-                    f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status='complete', updated_at=?
+                    f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status=?, updated_at=?
                         WHERE id IN (
                             SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})
                         ) AND company_id=?""",
-                    [tanggal_bayar, ts] + line_ids + [company_id]
+                    [tanggal_bayar, pa_header_status, ts] + line_ids + [company_id]
                 )
 
     conn.commit()
