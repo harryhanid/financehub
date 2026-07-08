@@ -1057,6 +1057,14 @@ def migrate_db():
     except Exception:
         pass
 
+    # ── route pada PA header — sumber kebenaran GL/Advance (2026-07-08) ────
+    for pa_hdr_tbl in ["etf_pa", "app_pa", "sml_pa", "setf_pa"]:
+        try:
+            conn.execute(f"ALTER TABLE {pa_hdr_tbl} ADD COLUMN route TEXT DEFAULT 'gl'")
+            conn.commit()
+        except Exception:
+            pass
+
     # rekam_medis table (new — safe to run on existing DBs)
     try:
         conn.execute(

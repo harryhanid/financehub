@@ -43,3 +43,24 @@ def test_migrate_db_idempotent_for_new_columns():
     cols = [r[1] for r in conn.execute("PRAGMA table_info(payment_beasiswa)").fetchall()]
     conn.close()
     assert "advance_amount" in cols
+
+
+@pytest.mark.parametrize("table", ["etf_pa", "app_pa", "sml_pa", "setf_pa"])
+def test_pa_header_has_route_column(table):
+    conn = get_conn()
+    cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    conn.close()
+    assert "route" in cols, f"{table} missing 'route' column"
+
+
+def test_pa_header_route_defaults_to_gl():
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, status, created_at) VALUES (2,'PA/TEST/999/2026','open','2026-07-08T00:00:00')"
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT route FROM etf_pa WHERE pa_number='PA/TEST/999/2026'"
+    ).fetchone()
+    conn.close()
+    assert row["route"] == "gl"
