@@ -405,7 +405,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
     <button class="btn btn-primary" onclick="submitPA()">Simpan PA</button>
   </div>
 </div>
-{% elif active_tab not in ('input', 'summary') %}{# data tabs: AGRI / APP / SML / SETF #}
+{% elif active_tab not in ('input', 'summary', 'advance') %}{# data tabs: AGRI / APP / SML / SETF #}
 {% if active_tab == 'setf' and not pa_rows %}
 <div style="margin:3rem auto;max-width:400px">
   <div class="empty-state">
