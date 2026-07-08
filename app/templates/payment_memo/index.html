@@ -213,7 +213,7 @@
         </div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:200px 140px 140px 1fr;gap:.75rem;margin-bottom:1rem;align-items:end;max-width:900px">
+    <div style="display:grid;grid-template-columns:200px 140px 1fr;gap:.75rem;margin-bottom:1rem;align-items:end;max-width:900px">
       <div class="form-group" style="margin:0">
         <label>Pillar</label>
         <input type="text" id="ipay-pillar" readonly placeholder="Auto dari vendor"
@@ -223,13 +223,6 @@
         <label>CC</label>
         <input type="text" id="ipay-cc" readonly placeholder="Auto dari vendor"
                style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
-      </div>
-      <div>
-        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:2px;">Route</label>
-        <select id="ipay-route" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;">
-          <option value="gl" selected>GL</option>
-          <option value="advance">Advance</option>
-        </select>
       </div>
       <div class="form-group" style="margin:0">
         <label>Catatan Payment <span style="font-size:.65rem;color:var(--text-muted);font-weight:400">(tampil di tab PAM)</span></label>
@@ -4185,10 +4178,9 @@ async function ipaySavePa() {
   showLoading("Menyimpan PAM...");
   let res;
   try {
-    const route = document.getElementById('ipay-route')?.value || 'gl';
     res = await apiFetch("/payment-memo/ipay/save-pa", {
       method: "POST",
-      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows, route })
+      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
     });
   } finally {
     hideLoading();
