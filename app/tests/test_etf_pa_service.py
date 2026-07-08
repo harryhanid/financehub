@@ -321,3 +321,44 @@ def test_pa_summary_view_aggregates():
     nomor_pam_vals = set(row["nomor_pam"].split(","))
     assert "PAM-A" in nomor_pam_vals
     assert "PAM-B" in nomor_pam_vals
+
+
+def test_create_pa_route_advance_stamps_header_and_lines():
+    sid = _student_id("1230001")
+    result = create_pa(COMPANY_ID, {
+        "tgl_payment_application": "2026-07-08",
+    }, [
+        {"student_id": sid, "jenis_pembayaran": "By Pendidikan",
+         "semester": "Semester 3", "tahun_ajaran": "2025/2026",
+         "ipk_sem_sebelumnya": 3.6, "jumlah_pembayaran": 5000000}
+    ], route="advance")
+    assert result["ok"] is True
+
+    conn = get_conn()
+    header = conn.execute(
+        "SELECT route FROM etf_pa WHERE id=?", (result["pa_id"],)
+    ).fetchone()
+    line = conn.execute(
+        "SELECT route FROM etf_pa_lines WHERE pa_id=?", (result["pa_id"],)
+    ).fetchone()
+    conn.close()
+    assert header["route"] == "advance"
+    assert line["route"]   == "advance"
+
+
+def test_create_pa_default_route_is_gl():
+    sid = _student_id("1230001")
+    result = create_pa(COMPANY_ID, {
+        "tgl_payment_application": "2026-07-08",
+    }, [
+        {"student_id": sid, "jenis_pembayaran": "By Pendidikan",
+         "semester": "Semester 3", "tahun_ajaran": "2025/2026",
+         "ipk_sem_sebelumnya": 3.6, "jumlah_pembayaran": 1000000}
+    ])
+    assert result["ok"] is True
+    conn = get_conn()
+    header = conn.execute(
+        "SELECT route FROM etf_pa WHERE id=?", (result["pa_id"],)
+    ).fetchone()
+    conn.close()
+    assert header["route"] == "gl"

@@ -343,7 +343,8 @@ def get_pa_lines(pa_id: int, company_id: int, tab: str = "agri") -> list:
     return [dict(r) for r in rows]
 
 
-def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri") -> dict:
+def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri",
+              route: str = "gl") -> dict:
     if not lines:
         return {"ok": False, "pesan": "Minimal 1 siswa harus diisi."}
 
@@ -366,14 +367,15 @@ def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri") -> 
     cur = conn.execute(
         f"""INSERT INTO {pa_tbl}
             (company_id, pa_number, tgl_payment_application, tgl_surat_pengajuan,
-             keterangan, doc_received_by_educ, received_pa_from_educ, status, created_at)
-            VALUES (?,?,?,?,?,?,?,'open',?)""",
+             keterangan, doc_received_by_educ, received_pa_from_educ, status, route, created_at)
+            VALUES (?,?,?,?,?,?,?,'open',?,?)""",
         (company_id, pa_number,
          header.get("tgl_payment_application", ""),
          header.get("tgl_surat_pengajuan", ""),
          header.get("keterangan", ""),
          header.get("doc_received_by_educ", ""),
          header.get("received_pa_from_educ", ""),
+         route,
          ts)
     )
     pa_id = cur.lastrowid
@@ -382,15 +384,16 @@ def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri") -> 
         conn.execute(
             f"""INSERT INTO {lines_tbl}
                 (pa_id, student_id, jenis_pembayaran, semester,
-                 tahun_ajaran, ipk_sem_sebelumnya, jumlah_pembayaran)
-                VALUES (?,?,?,?,?,?,?)""",
+                 tahun_ajaran, ipk_sem_sebelumnya, jumlah_pembayaran, route)
+                VALUES (?,?,?,?,?,?,?,?)""",
             (pa_id,
              line.get("student_id"),
              line.get("jenis_pembayaran", ""),
              line.get("semester", ""),
              line.get("tahun_ajaran", ""),
              line.get("ipk_sem_sebelumnya") or 0,
-             line.get("jumlah_pembayaran") or 0)
+             line.get("jumlah_pembayaran") or 0,
+             route)
         )
 
     conn.commit()
