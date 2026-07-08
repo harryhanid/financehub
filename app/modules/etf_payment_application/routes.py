@@ -205,3 +205,23 @@ def summary_data():
     # Urutkan berdasarkan pa_number descending
     all_data.sort(key=lambda x: x.get('pa_number', ''), reverse=True)
     return jsonify(all_data)
+
+
+@bp.route("/advance-data")
+@jwt_html_required
+def advance_data():
+    company_id = session.get("company_id")
+    status     = request.args.get("status", "").strip().lower()
+    all_data   = []
+    for t in VALID_TABS:
+        rows = get_pa_flat(company_id, tab=t)
+        for r in rows:
+            if (r.get("route") or "gl") != "advance":
+                continue
+            if status and (r.get("status") or "").lower() != status:
+                continue
+            r['nama_student'] = r.get('nama', '')
+            r['pillar'] = t
+            all_data.append(r)
+    all_data.sort(key=lambda x: x.get('pa_number', ''), reverse=True)
+    return jsonify(all_data)
