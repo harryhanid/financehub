@@ -596,17 +596,37 @@ def test_insert_payment_rows_default_route_gl_leaves_advance_amount_null():
 
 
 def test_save_pa_payment_route_advance_quarantines_pam_records():
+    """Sekarang route berasal dari PA header, bukan request body — setup lewat PA nyata."""
     from modules.payment_memo.service import save_pa_payment
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S001", "Test Siswa 001")
+    )
+    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/TEST/001/2026", "open", "advance", "2026-07-07T00:00:00")
+    )
+    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
+        (pa_id, sid, "By Pendidikan", 2_000_000, "advance")
+    )
+    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
     result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
         "tab":        "agri",
-        "route":      "advance",
         "tanggal":    "2026-07-07",
         "pam_no":     "PAM-001-ETF-07-2026",
         "keterangan": "Advance test",
         "perusahaan": "PT. ABC",
         "pillar":     "AGRI",
         "rows":       [{"siswa_code": "S001", "cat1": "By Pendidikan",
-                        "cat2": "Semester 1", "amount": 2_000_000}],
+                        "cat2": "Semester 1", "amount": 2_000_000,
+                        "etf_pa_line_id": line_id}],
     })
     assert result["ok"] is True
     conn = get_conn()
@@ -655,13 +675,13 @@ def test_save_pa_payment_advance_tags_pa_lines_route():
     )
     sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.execute(
-        "INSERT INTO etf_pa (company_id, pa_number, status, created_at) VALUES (?,?,?,?)",
-        (COMPANY_ID, "PA/TEST/001/2026", "on_process", "2026-07-07T00:00:00")
+        "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/TEST/001/2026", "on_process", "advance", "2026-07-07T00:00:00")
     )
     pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.execute(
-        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
-        (pa_id, sid, "By Pendidikan", 3_000_000)
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
+        (pa_id, sid, "By Pendidikan", 3_000_000, "advance")
     )
     line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.commit()
@@ -684,12 +704,31 @@ def test_save_pa_payment_advance_tags_pa_lines_route():
 
 def test_get_advance_payments_returns_quarantined_lines_only():
     from modules.payment_memo.service import save_pa_payment, get_advance_payments
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S001", "Test Siswa 001")
+    )
+    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/TEST/020/2026", "open", "advance", "2026-07-07T00:00:00")
+    )
+    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
+        (pa_id, sid, "By Pendidikan", 2_500_000, "advance")
+    )
+    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
     save_pa_payment(COMPANY_ID, COMPANY_CODE, {
-        "tab": "agri", "route": "advance", "tanggal": "2026-07-07",
+        "tab": "agri", "tanggal": "2026-07-07",
         "pam_no": "PAM-020-ETF-07-2026", "keterangan": "adv",
         "perusahaan": "PT. ABC", "pillar": "AGRI",
         "rows": [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
-                  "amount": 2_500_000}],
+                  "amount": 2_500_000, "etf_pa_line_id": line_id}],
     })
     save_pa_payment(COMPANY_ID, COMPANY_CODE, {
         "tab": "agri", "tanggal": "2026-07-07",   # route=gl (default) — must NOT show up
@@ -706,12 +745,190 @@ def test_get_advance_payments_returns_quarantined_lines_only():
 
 def test_get_advance_payments_filters_by_status():
     from modules.payment_memo.service import save_pa_payment, get_advance_payments
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S001", "Test Siswa 001")
+    )
+    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/TEST/022/2026", "open", "advance", "2026-07-07T00:00:00")
+    )
+    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
+        (pa_id, sid, "By Pendidikan", 1_500_000, "advance")
+    )
+    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
     save_pa_payment(COMPANY_ID, COMPANY_CODE, {
-        "tab": "agri", "route": "advance", "tanggal": "2026-07-07",
+        "tab": "agri", "tanggal": "2026-07-07",
         "pam_no": "PAM-022-ETF-07-2026", "keterangan": "adv",
         "perusahaan": "PT. ABC", "pillar": "AGRI",
         "rows": [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
-                  "amount": 1_500_000}],
+                  "amount": 1_500_000, "etf_pa_line_id": line_id}],
     })
     assert get_advance_payments(COMPANY_ID, status="open") != []
     assert get_advance_payments(COMPANY_ID, status="paid") == []
+
+
+def test_save_pa_payment_derives_route_from_pa_header_advance():
+    from modules.payment_memo.service import save_pa_payment
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S011", "Test Siswa Derive")
+    )
+    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/TEST/010/2026", "open", "advance", "2026-07-08T00:00:00")
+    )
+    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
+        (pa_id, sid, "By Pendidikan", 4_000_000, "advance")
+    )
+    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
+    result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "tanggal": "2026-07-08",
+        "pam_no": "PAM-050-ETF-07-2026", "keterangan": "derive-test",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [{"siswa_code": "S011", "cat1": "By Pendidikan", "cat2": "Semester 1",
+                  "amount": 4_000_000, "etf_pa_line_id": line_id}],
+    })
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT pillar FROM pam_records WHERE company_id=? AND pam_no=?",
+        (COMPANY_ID, "PAM-050-ETF-07-2026")
+    ).fetchone()
+    pb = conn.execute(
+        "SELECT advance_amount FROM payment_beasiswa WHERE pam=?",
+        ("PAM-050-ETF-07-2026",)
+    ).fetchone()
+    conn.close()
+    assert pam["pillar"] == "ADVANCE"       # derived from PA header, not request body
+    assert pb["advance_amount"] == 4_000_000
+
+
+def test_save_pa_payment_ignores_client_supplied_route():
+    """Client tries to force route='advance' via request body, but the PA lines are all
+    route='gl' — the PA header must win, request body route is ignored entirely."""
+    from modules.payment_memo.service import save_pa_payment
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S012", "Test Siswa Spoof")
+    )
+    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/TEST/011/2026", "open", "gl", "2026-07-08T00:00:00")
+    )
+    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
+        (pa_id, sid, "By Pendidikan", 1_000_000, "gl")
+    )
+    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
+    result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "route": "advance",  # spoofed, must be ignored
+        "tanggal": "2026-07-08",
+        "pam_no": "PAM-051-ETF-07-2026", "keterangan": "spoof-test",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [{"siswa_code": "S012", "cat1": "By Pendidikan", "cat2": "Semester 1",
+                  "amount": 1_000_000, "etf_pa_line_id": line_id}],
+    })
+    assert result["ok"] is True
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT pillar FROM pam_records WHERE company_id=? AND pam_no=?",
+        (COMPANY_ID, "PAM-051-ETF-07-2026")
+    ).fetchone()
+    conn.close()
+    assert pam["pillar"] == "AGRI"   # NOT "ADVANCE" — PA header route (gl) wins
+
+
+def test_save_pa_payment_rejects_mixed_route_selection():
+    from modules.payment_memo.service import save_pa_payment
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S013", "Test Siswa Mixed")
+    )
+    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/TEST/012/2026", "open", "gl", "2026-07-08T00:00:00")
+    )
+    pa_gl_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
+        (pa_gl_id, sid, "By Pendidikan", 1_000_000, "gl")
+    )
+    line_gl_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/TEST/013/2026", "open", "advance", "2026-07-08T00:00:00")
+    )
+    pa_adv_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
+        (pa_adv_id, sid, "By Pendidikan", 2_000_000, "advance")
+    )
+    line_adv_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
+    result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "tanggal": "2026-07-08",
+        "pam_no": "PAM-052-ETF-07-2026", "keterangan": "mixed-test",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [
+            {"siswa_code": "S013", "cat1": "By Pendidikan", "cat2": "Semester 1",
+             "amount": 1_000_000, "etf_pa_line_id": line_gl_id},
+            {"siswa_code": "S013", "cat1": "By Pendidikan", "cat2": "Semester 2",
+             "amount": 2_000_000, "etf_pa_line_id": line_adv_id},
+        ],
+    })
+    assert result["ok"] is False
+    assert "route berbeda" in result["pesan"]
+
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT id FROM pam_records WHERE company_id=? AND pam_no=?",
+        (COMPANY_ID, "PAM-052-ETF-07-2026")
+    ).fetchone()
+    conn.close()
+    assert pam is None   # nothing committed — rejected before any INSERT
+
+
+def test_save_pa_payment_no_pa_line_id_defaults_to_gl():
+    """Rows without etf_pa_line_id (not pulled from any PA) are treated as route='gl'."""
+    from modules.payment_memo.service import save_pa_payment
+    result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "agri", "tanggal": "2026-07-08",
+        "pam_no": "PAM-053-ETF-07-2026", "keterangan": "no-line-id",
+        "perusahaan": "PT. ABC", "pillar": "AGRI",
+        "rows": [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+                  "amount": 500_000}],
+    })
+    assert result["ok"] is True
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT pillar FROM pam_records WHERE company_id=? AND pam_no=?",
+        (COMPANY_ID, "PAM-053-ETF-07-2026")
+    ).fetchone()
+    conn.close()
+    assert pam["pillar"] == "AGRI"

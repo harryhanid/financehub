@@ -759,7 +759,6 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
     perusahaan = data.get("perusahaan") or ""
     pillar     = data.get("pillar") or ""
     rows       = data.get("rows") or []
-    route      = (data.get("route") or "gl").lower()
 
     if not pam_no:
         return {"ok": False, "pesan": "No. PAM wajib diisi."}
@@ -770,6 +769,23 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
 
     conn = get_conn()
     try:
+        # 0. Derive route from the PA header of the lines being pulled — route is a
+        #    decision made at create_pa() time, not here. Reject if the selected rows
+        #    span PA headers with different routes.
+        line_ids_for_route = [r.get("etf_pa_line_id") for r in rows if r.get("etf_pa_line_id")]
+        route = "gl"
+        if line_ids_for_route:
+            ph0 = ",".join("?" * len(line_ids_for_route))
+            route_rows = conn.execute(
+                f"SELECT DISTINCT route FROM {lines_tbl} WHERE id IN ({ph0})",
+                line_ids_for_route
+            ).fetchall()
+            distinct_routes = {(r[0] or "gl") for r in route_rows}
+            if len(distinct_routes) > 1:
+                conn.close()
+                return {"ok": False, "pesan": "Baris yang dipilih berasal dari PA dengan route berbeda (GL dan Advance tidak bisa digabung dalam satu PAM). Pisahkan submission-nya."}
+            route = distinct_routes.pop() if distinct_routes else "gl"
+
         # 1. Insert payment rows — does NOT create pam_record
         ins = insert_payment_rows(conn, company_id, company_code,
                                   tanggal, pillar, perusahaan, rows, route=route)
@@ -822,10 +838,6 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
                     f" WHERE id IN ({ph2}) AND company_id=?",
                     [pam_no] + list(pa_ids) + [company_id]
                 )
-            conn.execute(
-                f"UPDATE {lines_tbl} SET route=? WHERE id IN ({ph})",
-                [route] + list(line_ids)
-            )
 
         conn.commit()
     except Exception as e:

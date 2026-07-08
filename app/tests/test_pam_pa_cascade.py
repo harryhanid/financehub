@@ -39,19 +39,36 @@ def _insert_siswa(conn) -> int:
     return sid
 
 
-def _insert_pa(conn, pa_tbl, lines_tbl, pa_prefix, siswa_id, status="on_process"):
-    """Insert one PA header + one line. Returns (pa_id, line_id)."""
-    cur = conn.execute(
-        f"INSERT INTO {pa_tbl} (company_id, pa_number, tgl_payment_application, status, created_at)"
-        f" VALUES (?,?,?,?,?)",
-        (COMPANY_ID, f"PA/{pa_prefix}/001/2026", "2026-06-01", status, _ts())
-    )
+def _insert_pa(conn, pa_tbl, lines_tbl, pa_prefix, siswa_id, status="on_process", route="gl"):
+    """Insert one PA header + one line. route is only written for tables that have the
+    column (etf_pa/app_pa/sml_pa/setf_pa) — other pillar tables (e.g. energy_pa) don't have
+    it, so we fall back to the original INSERT shape for those. Returns (pa_id, line_id)."""
+    has_route_col = pa_tbl in ("etf_pa", "app_pa", "sml_pa", "setf_pa")
+    if has_route_col:
+        cur = conn.execute(
+            f"INSERT INTO {pa_tbl} (company_id, pa_number, tgl_payment_application, status, route, created_at)"
+            f" VALUES (?,?,?,?,?,?)",
+            (COMPANY_ID, f"PA/{pa_prefix}/001/2026", "2026-06-01", status, route, _ts())
+        )
+    else:
+        cur = conn.execute(
+            f"INSERT INTO {pa_tbl} (company_id, pa_number, tgl_payment_application, status, created_at)"
+            f" VALUES (?,?,?,?,?)",
+            (COMPANY_ID, f"PA/{pa_prefix}/001/2026", "2026-06-01", status, _ts())
+        )
     pa_id = cur.lastrowid
-    cur2 = conn.execute(
-        f"INSERT INTO {lines_tbl} (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran)"
-        f" VALUES (?,?,?,?)",
-        (pa_id, siswa_id, "By Pendidikan", 5000000)
-    )
+    if has_route_col:
+        cur2 = conn.execute(
+            f"INSERT INTO {lines_tbl} (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route)"
+            f" VALUES (?,?,?,?,?)",
+            (pa_id, siswa_id, "By Pendidikan", 5000000, route)
+        )
+    else:
+        cur2 = conn.execute(
+            f"INSERT INTO {lines_tbl} (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran)"
+            f" VALUES (?,?,?,?)",
+            (pa_id, siswa_id, "By Pendidikan", 5000000)
+        )
     line_id = cur2.lastrowid
     conn.commit()
     return pa_id, line_id
@@ -440,12 +457,22 @@ from modules.payment_memo.service import save_pa_payment
 
 def _setup_paid_advance(pam_no="PAM-030-ETF-07-2026", amount=3_000_000):
     """Helper: create + pay one Advance payment_beasiswa row. Returns (payment_id, pam_id)."""
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S001", "Test Siswa 001")
+    )
+    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    _, line_id = _insert_pa(conn, "etf_pa", "etf_pa_lines", "ETF", sid, route="advance")
+    conn.close()
+
     save_pa_payment(COMPANY_ID, COMPANY_CODE, {
-        "tab": "agri", "route": "advance", "tanggal": "2026-07-07",
+        "tab": "agri", "tanggal": "2026-07-07",
         "pam_no": pam_no, "keterangan": "adv",
         "perusahaan": "PT. ABC", "pillar": "AGRI",
         "rows": [{"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
-                  "amount": amount}],
+                  "amount": amount, "etf_pa_line_id": line_id}],
     })
     conn = get_conn()
     pam_id     = conn.execute(
@@ -529,16 +556,47 @@ def test_realize_advance_payment_multi_line_partial_realization_does_not_close_p
     """
     from modules.payment_memo.service import realize_advance_payment
 
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S001", "Test Siswa 001")
+    )
+    sid1 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "S002", "Test Siswa 002")
+    )
+    sid2 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    # One PA header, route='advance', with two lines (two students).
+    conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/ETF/033/2026", "open", "advance", "2026-07-07T00:00:00")
+    )
+    pa_id_hdr = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
+        (pa_id_hdr, sid1, "By Pendidikan", 3_000_000, "advance")
+    )
+    line_id_1 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
+        (pa_id_hdr, sid2, "By Pendidikan", 2_000_000, "advance")
+    )
+    line_id_2 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
     pam_no = "PAM-033-ETF-07-2026"
     result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
-        "tab": "agri", "route": "advance", "tanggal": "2026-07-07",
+        "tab": "agri", "tanggal": "2026-07-07",
         "pam_no": pam_no, "keterangan": "adv-multi",
         "perusahaan": "PT. ABC", "pillar": "AGRI",
         "rows": [
             {"siswa_code": "S001", "cat1": "By Pendidikan", "cat2": "Semester 1",
-             "amount": 3_000_000},
+             "amount": 3_000_000, "etf_pa_line_id": line_id_1},
             {"siswa_code": "S002", "cat1": "By Pendidikan", "cat2": "Semester 1",
-             "amount": 2_000_000},
+             "amount": 2_000_000, "etf_pa_line_id": line_id_2},
         ],
     })
     assert result["ok"] is True
