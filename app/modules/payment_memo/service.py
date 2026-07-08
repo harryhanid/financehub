@@ -281,6 +281,17 @@ _BEASISWA_PAID_COL = {
     "ENERGY": "tgl_Paid_ENERGY",
     "SETF":   "tgl_Paid_SETF",
 }
+# pillar -> (pa_lines table, pa header table). `id` is a per-table AUTOINCREMENT primary
+# key, so the same numeric id can legitimately exist in several of these tables — never
+# resolve a PA line/header by trying tables in sequence and taking the first match; always
+# go straight to the one table the row's own `pillar` says it belongs to.
+_PILLAR_PA_TBL = {
+    "AGRI":   ("etf_pa_lines",    "etf_pa"),
+    "APP":    ("app_pa_lines",    "app_pa"),
+    "LAND":   ("sml_pa_lines",    "sml_pa"),
+    "ENERGY": ("energy_pa_lines", "energy_pa"),
+    "SETF":   ("setf_pa_lines",   "setf_pa"),
+}
 _JENJANG_SORT = {"S3": 0, "S2": 1, "S1": 2}
 
 
@@ -2261,29 +2272,31 @@ def set_pam_complete_cascade(pam_id: int, tanggal_bayar: str, company_id: int) -
                     (pam_no, company_id)
                 )
             pa_header_status = "complete"
-        line_ids = [
-            r[0] for r in conn.execute(
-                "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa "
-                "WHERE pam=? AND company_id=? AND etf_pa_line_id IS NOT NULL",
-                (pam_no, company_id)
-            ).fetchall()
-        ]
-        if line_ids:
-            ph = ",".join("?" * len(line_ids))
-            for lines_tbl, pa_tbl in [
-                ("etf_pa_lines",    "etf_pa"),
-                ("app_pa_lines",    "app_pa"),
-                ("sml_pa_lines",    "sml_pa"),
-                ("energy_pa_lines", "energy_pa"),
-                ("setf_pa_lines",   "setf_pa"),
-            ]:
-                conn.execute(
-                    f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status=?, updated_at=?
-                        WHERE id IN (
-                            SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})
-                        ) AND company_id=?""",
-                    [tanggal_bayar, pa_header_status, ts] + line_ids + [company_id]
-                )
+        line_rows = conn.execute(
+            "SELECT DISTINCT etf_pa_line_id, pillar FROM payment_beasiswa "
+            "WHERE pam=? AND company_id=? AND etf_pa_line_id IS NOT NULL",
+            (pam_no, company_id)
+        ).fetchall()
+        # Group by each row's OWN pillar (never "ADVANCE" — that's only pam_records.pillar)
+        # so each PA line id is only ever looked up in the one table it actually belongs
+        # to. `id` is a per-table AUTOINCREMENT key, so trying every table in sequence
+        # would risk matching an unrelated PA line/header that happens to share the id.
+        ids_by_pillar: dict = {}
+        for r in line_rows:
+            ids_by_pillar.setdefault(r["pillar"], []).append(r["etf_pa_line_id"])
+        for line_pillar, ids in ids_by_pillar.items():
+            pair = _PILLAR_PA_TBL.get(line_pillar)
+            if not pair:
+                continue
+            lines_tbl, pa_tbl = pair
+            ph = ",".join("?" * len(ids))
+            conn.execute(
+                f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status=?, updated_at=?
+                    WHERE id IN (
+                        SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})
+                    ) AND company_id=?""",
+                [tanggal_bayar, pa_header_status, ts] + ids + [company_id]
+            )
 
     conn.commit()
     conn.close()
@@ -2349,42 +2362,40 @@ def realize_advance_payment(payment_id: int, realized_amount, tgl_realisasi: str
         )
 
     # Update the originating PA line's amount, and close the PA header once every
-    # payment_beasiswa row tracing back to that PA header is 'complete'.
+    # payment_beasiswa row tracing back to that PA header is 'complete'. Resolve the
+    # table directly from `target_pillar` (payment_beasiswa.pillar, always the real
+    # pillar, never "ADVANCE") — never guess by trying each pillar table in turn: `id`
+    # is a per-table AUTOINCREMENT key, so the same pa_line_id can exist in more than
+    # one table, and matching the wrong one would silently corrupt an unrelated PA.
     pa_line_id = row["etf_pa_line_id"]
-    if pa_line_id:
-        for lines_tbl, pa_tbl in [
-            ("etf_pa_lines",    "etf_pa"),
-            ("app_pa_lines",    "app_pa"),
-            ("sml_pa_lines",    "sml_pa"),
-            ("energy_pa_lines", "energy_pa"),
-            ("setf_pa_lines",   "setf_pa"),
-        ]:
-            updated = conn.execute(
-                f"UPDATE {lines_tbl} SET jumlah_pembayaran=? WHERE id=?",
-                (realized_amount, pa_line_id)
-            )
-            if updated.rowcount:
-                pa_id_row = conn.execute(
-                    f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (pa_line_id,)
-                ).fetchone()
-                pa_id = pa_id_row[0]
-                sibling_line_ids = [
-                    r[0] for r in conn.execute(
-                        f"SELECT id FROM {lines_tbl} WHERE pa_id=?", (pa_id,)
-                    ).fetchall()
-                ]
-                ph2 = ",".join("?" * len(sibling_line_ids))
-                still_open = conn.execute(
-                    f"""SELECT COUNT(*) FROM payment_beasiswa
-                        WHERE etf_pa_line_id IN ({ph2}) AND status != 'complete'""",
-                    sibling_line_ids
-                ).fetchone()[0]
-                if still_open == 0:
-                    conn.execute(
-                        f"UPDATE {pa_tbl} SET status='complete', updated_at=? WHERE id=?",
-                        (ts, pa_id)
-                    )
-                break  # found the table this line belongs to, no need to try the rest
+    pair = _PILLAR_PA_TBL.get(target_pillar)
+    if pa_line_id and pair:
+        lines_tbl, pa_tbl = pair
+        conn.execute(
+            f"UPDATE {lines_tbl} SET jumlah_pembayaran=? WHERE id=?",
+            (realized_amount, pa_line_id)
+        )
+        pa_id_row = conn.execute(
+            f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (pa_line_id,)
+        ).fetchone()
+        if pa_id_row:
+            pa_id = pa_id_row[0]
+            sibling_line_ids = [
+                r[0] for r in conn.execute(
+                    f"SELECT id FROM {lines_tbl} WHERE pa_id=?", (pa_id,)
+                ).fetchall()
+            ]
+            ph2 = ",".join("?" * len(sibling_line_ids))
+            still_open = conn.execute(
+                f"""SELECT COUNT(*) FROM payment_beasiswa
+                    WHERE etf_pa_line_id IN ({ph2}) AND status != 'complete'""",
+                sibling_line_ids
+            ).fetchone()[0]
+            if still_open == 0:
+                conn.execute(
+                    f"UPDATE {pa_tbl} SET status='complete', updated_at=? WHERE id=?",
+                    (ts, pa_id)
+                )
 
     conn.commit()
     conn.close()

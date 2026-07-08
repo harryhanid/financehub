@@ -677,3 +677,92 @@ def test_realize_advance_payment_multi_line_partial_realization_does_not_close_p
         "pillar must flip to target pillar once all lines are complete"
     assert pa_hdr["status"] == "complete", \
         "PA header must be complete once all sibling lines are realized"
+
+
+# ── cross-pillar id-collision regression ─────────────────────────────────────
+#
+# `id` on every *_pa_lines table is a per-table AUTOINCREMENT primary key, so the
+# same numeric id can legitimately exist in more than one pillar's table (e.g. the
+# first row ever inserted into etf_pa_lines and the first row ever inserted into
+# sml_pa_lines are BOTH id=1). realize_advance_payment / set_pam_complete_cascade
+# must resolve which table a payment_beasiswa row's `etf_pa_line_id` belongs to
+# from that row's own `pillar` — never by trying tables in sequence and taking the
+# first match, which would silently corrupt an unrelated PA on collision.
+
+def test_realize_advance_payment_land_pillar_does_not_corrupt_colliding_agri_line():
+    """Force an id collision: create an AGRI PA (etf_pa_lines id=1) and a LAND PA
+    (sml_pa_lines id=1, own independent autoincrement) side by side, realize the
+    LAND payment, and assert the AGRI PA/line — which happens to share the same
+    numeric id in a different table — is completely untouched."""
+    from modules.payment_memo.service import realize_advance_payment
+
+    conn = get_conn()
+    sid_agri = _insert_siswa(conn)
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "1250003", "Siswa LAND")
+    )
+    sid_land = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+
+    # AGRI PA — etf_pa_lines gets id=1 (first row in this test's fresh DB). Left
+    # 'open' (never pulled into any PAM) so it stays a clean baseline to assert
+    # against.
+    agri_pa_id, agri_line_id = _insert_pa(conn, "etf_pa", "etf_pa_lines", "ETF",
+                                          sid_agri, status="open", route="advance")
+    # LAND PA — sml_pa_lines has its OWN independent autoincrement, so this also
+    # gets id=1, colliding with agri_line_id.
+    land_pa_id, land_line_id = _insert_pa(conn, "sml_pa", "sml_pa_lines", "SML",
+                                          sid_land, route="advance")
+    conn.close()
+    assert agri_line_id == land_line_id == 1, \
+        "test setup requires the collision — both tables' first row must be id=1"
+
+    # Pull only the LAND line into a PAM and realize it — the AGRI PA is never
+    # touched by any save_pa_payment/realize call in this test.
+    pam_no = "PAM-034-LAND-07-2026"
+    result = save_pa_payment(COMPANY_ID, COMPANY_CODE, {
+        "tab": "sml", "tanggal": "2026-07-08",
+        "pam_no": pam_no, "keterangan": "land-collision-check",
+        "perusahaan": "PT. ABC", "pillar": "LAND",
+        "rows": [{"siswa_code": "1250003", "cat1": "By Pendidikan", "cat2": "Semester 1",
+                  "amount": 4_000_000, "etf_pa_line_id": land_line_id}],
+    })
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pam_id = conn.execute(
+        "SELECT id FROM pam_records WHERE company_id=? AND pam_no=?", (COMPANY_ID, pam_no)
+    ).fetchone()["id"]
+    payment_id = conn.execute(
+        "SELECT id FROM payment_beasiswa WHERE pam=?", (pam_no,)
+    ).fetchone()["id"]
+    conn.close()
+
+    cascade = set_pam_complete_cascade(pam_id, "2026-07-10", COMPANY_ID)
+    assert cascade["ok"] is True
+
+    realize = realize_advance_payment(payment_id, 3_500_000, "2026-07-20", COMPANY_ID)
+    assert realize["ok"] is True
+
+    conn = get_conn()
+    land_pa   = conn.execute("SELECT status FROM sml_pa WHERE id=?", (land_pa_id,)).fetchone()
+    land_line = conn.execute(
+        "SELECT jumlah_pembayaran FROM sml_pa_lines WHERE id=?", (land_line_id,)
+    ).fetchone()
+    agri_pa   = conn.execute("SELECT status, route FROM etf_pa WHERE id=?", (agri_pa_id,)).fetchone()
+    agri_line = conn.execute(
+        "SELECT jumlah_pembayaran, route FROM etf_pa_lines WHERE id=?", (agri_line_id,)
+    ).fetchone()
+    conn.close()
+
+    # LAND side: correctly updated by the realization.
+    assert land_pa["status"] == "complete"
+    assert land_line["jumlah_pembayaran"] == 3_500_000
+
+    # AGRI side (the collision target): must be completely untouched — still its
+    # original 'open' status and unrealized jumlah_pembayaran from _insert_pa.
+    assert agri_pa["status"] == "open", \
+        "AGRI PA header was incorrectly closed by the LAND realization (id collision bug)"
+    assert agri_line["jumlah_pembayaran"] == 5_000_000, \
+        "AGRI PA line amount was incorrectly overwritten by the LAND realization (id collision bug)"

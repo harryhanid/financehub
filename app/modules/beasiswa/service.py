@@ -11,6 +11,18 @@ def _ts():
 
 _CAT2_MEDICAL = {"Rawat Jalan", "Rawat Inap"}
 
+# pillar -> (pa_lines table, pa header table), scoped to exactly the 3 pillars this
+# module's PA-status cascade has always covered (APP/LAND cascade support was never
+# added for SETF/ENERGY here — preserved as-is, not expanded by this fix). `id` is a
+# per-table AUTOINCREMENT primary key, so the same numeric id can exist in more than
+# one of these tables — always resolve via the row's own `pillar`, never by trying
+# each table in turn and taking the first/any match.
+_PILLAR_PA_TBL = {
+    "AGRI": ("etf_pa_lines", "etf_pa"),
+    "APP":  ("app_pa_lines", "app_pa"),
+    "LAND": ("sml_pa_lines", "sml_pa"),
+}
+
 
 def get_vendors(search: str = "") -> list:
     conn = get_conn()
@@ -415,13 +427,11 @@ def insert_payment_rows(conn, company_id: int, company_code: str,
            float(str(row.get("amount", 0)).replace(",", "") or 0) > 0
     ]
     if pa_line_ids:
-        ph = ",".join("?" * len(pa_line_ids))
-        ts_op = _ts()
-        for lines_tbl, pa_tbl in [
-            ("etf_pa_lines", "etf_pa"),
-            ("app_pa_lines", "app_pa"),
-            ("sml_pa_lines", "sml_pa"),
-        ]:
+        pair = _PILLAR_PA_TBL.get((pillar or "").upper())
+        if pair:
+            lines_tbl, pa_tbl = pair
+            ph = ",".join("?" * len(pa_line_ids))
+            ts_op = _ts()
             conn.execute(
                 f"""UPDATE {pa_tbl} SET status = 'on_process', updated_at = ?
                     WHERE id IN (

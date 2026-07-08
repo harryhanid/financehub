@@ -218,7 +218,9 @@ def advance_data():
     for t in VALID_TABS:
         rows = get_pa_flat(company_id, tab=t)
         for r in rows:
-            if (r.get("route") or "gl") != "advance":
+            # Filter on the PA header's own route (source of truth), not the
+            # denormalized per-line copy — the header is authoritative per design.
+            if (r.get("pa_route") or "gl") != "advance":
                 continue
             if status and (r.get("status") or "").lower() != status:
                 continue
