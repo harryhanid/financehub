@@ -26,12 +26,14 @@ def _ctx():
         return {}
 
 
-def _tab(allow_input: bool = False, allow_summary: bool = False):
+def _tab(allow_input: bool = False, allow_summary: bool = False, allow_advance: bool = False):
     t = request.args.get("tab", "summary").lower()
     if allow_input and t == "input":
         return "input"
     if allow_summary and t == "summary":
         return "summary"
+    if allow_advance and t == "advance":
+        return "advance"
     return t if t in VALID_TABS else "summary"
 
 
@@ -41,10 +43,10 @@ def index():
     if not session.get("company_id"):
         return redirect(url_for("dashboard.select_company"))
     company_id = session["company_id"]
-    tab = _tab(allow_input=True, allow_summary=True)
+    tab = _tab(allow_input=True, allow_summary=True, allow_advance=True)
     sf = ""
     pa_rows = []
-    if tab not in ("input", "summary"):
+    if tab not in ("input", "summary", "advance"):
         sf = request.args.get("sf", "active").lower()
         if sf not in ("open", "on_process", "complete", "active", ""):
             sf = "active"

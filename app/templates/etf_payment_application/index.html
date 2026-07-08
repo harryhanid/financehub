@@ -219,7 +219,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
   <div>
     <h1 class="page-title" style="margin-bottom:0">Payment Application</h1>
   </div>
-  {% if active_tab not in ('input', 'summary') %}
+  {% if active_tab not in ('input', 'summary', 'advance') %}
   <button id="pa-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
     Full Screen
@@ -228,7 +228,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
 </div>
 {# ── Tab navigation ── #}
 <div class="tabs" style="margin-bottom:.5rem">
-  {% for t, label in [('summary','Open PA'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
+  {% for t, label in [('summary','Open PA'),('advance','Advance'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
   <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
      class="tab-btn{% if active_tab == t %} active{% endif %}"
      style="text-decoration:none"
@@ -237,7 +237,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
 </div>
 
 {# ── Filter + bulk bar: only on data tabs ────────────────────────────────── #}
-{% if active_tab not in ('input', 'summary') %}
+{% if active_tab not in ('input', 'summary', 'advance') %}
 <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
   <input type="text" id="f-nama" placeholder="Cari nama PB..." oninput="applyFiltersDebounced()"
          style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:170px">
@@ -733,6 +733,125 @@ body.pa-focus #pa-focus-exit { display: flex; }
 })();
 </script>
 
+{% elif active_tab == 'advance' %}
+{# ── Advance Tab (cross-pillar) ────────────────────────────────── #}
+
+<div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; margin-bottom:.75rem; padding:.65rem .75rem; background:var(--bg-muted,#f8f9fa); border-radius:6px; border:1px solid var(--border)">
+  <div class="form-group" style="margin:0; width:170px">
+    <label style="font-size:.72rem; font-weight:600">No PA</label>
+    <input type="text" id="adv-pa-number" placeholder="Cari no PA..." oninput="renderAdvance()" style="font-size:.82rem">
+  </div>
+  <div class="form-group" style="margin:0; width:150px">
+    <label style="font-size:.72rem; font-weight:600">Status</label>
+    <select id="adv-status" onchange="renderAdvance()" style="font-size:.82rem">
+      <option value="">Semua</option>
+      <option value="open">Open</option>
+      <option value="on_process">On Process</option>
+      <option value="paid">Paid (Menunggu Realisasi)</option>
+      <option value="complete">Complete</option>
+    </select>
+  </div>
+  <div class="form-group" style="margin:0; width:200px">
+    <label style="font-size:.72rem; font-weight:600">Cari Nama Student</label>
+    <input type="text" id="adv-nama" placeholder="Ketik nama..." oninput="renderAdvance()" style="font-size:.82rem">
+  </div>
+  <button class="btn btn-secondary" onclick="document.getElementById('adv-pa-number').value=''; document.getElementById('adv-status').value=''; document.getElementById('adv-nama').value=''; renderAdvance();" style="font-size:.8rem; align-self:flex-end">Reset</button>
+</div>
+
+<div style="margin-top:.25rem">
+  <div id="advance-loading" style="text-align:center; padding:2rem; color:var(--text-muted)">Memuat data Advance...</div>
+  <div id="advance-wrap" style="display:none; overflow-x:auto; max-height:calc(100vh - 230px); overflow-y:auto">
+    <table id="advance-table" style="width:100%; border-collapse:collapse; font-size:.8rem">
+      <thead>
+        <tr style="background:var(--bg-muted); position:sticky; top:0; z-index:2">
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">#</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">PA Number</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Pillar</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Tgl PA</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Status</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Nama Student</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Jenis Pembayaran</th>
+          <th style="padding:.5rem .6rem; text-align:right; white-space:nowrap; border-bottom:2px solid var(--border)">Jumlah (IDR)</th>
+          <th style="padding:.5rem .6rem; text-align:left; white-space:nowrap; border-bottom:2px solid var(--border)">Nomor PAM</th>
+        </tr>
+      </thead>
+      <tbody id="advance-tbody"></tbody>
+    </table>
+  </div>
+  <div id="advance-count" style="margin-top:.4rem; font-size:.75rem; color:var(--text-muted)"></div>
+</div>
+
+<script>
+(function() {
+  let _advanceRows = [];
+
+  const _PILLAR_STYLE = {
+    agri: 'background:#fef3c7;color:#92400e;border:1px solid #d97706',
+    app:  'background:#ede9fe;color:#4c1d95;border:1px solid #7c3aed',
+    sml:  'background:#d1fae5;color:#064e3b;border:1px solid #059669',
+    setf: 'background:#cffafe;color:#164e63;border:1px solid #0891b2',
+  };
+  const _PILLAR_LABEL = { agri:'AGRI', app:'APP', sml:'LAND', setf:'SETF' };
+  const _STATUS_STYLE = {
+    open:       'background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd',
+    on_process: 'background:#fef3c7;color:#92400e;border:1px solid #fbbf24',
+    paid:       'background:#ffe4e6;color:#9f1239;border:1px solid #fb7185',
+    complete:   'background:#d1fae5;color:#065f46;border:1px solid #6ee7b7',
+  };
+  const _STATUS_LABEL = { open:'Open', on_process:'On Process', paid:'Paid', complete:'Complete' };
+  const _BADGE_BASE = 'border-radius:.25rem;padding:.1rem .4rem;font-size:.7rem;font-weight:700;white-space:nowrap;display:inline-block';
+
+  function _pillarBadge(p) {
+    const s = _PILLAR_STYLE[p] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+    return `<span style="${s};${_BADGE_BASE}">${_PILLAR_LABEL[p] || (p||'').toUpperCase()}</span>`;
+  }
+  function _statusBadge(st) {
+    const k = (st||'').toLowerCase();
+    const s = _STATUS_STYLE[k] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+    return `<span style="${s};${_BADGE_BASE}">${_STATUS_LABEL[k] || st || '-'}</span>`;
+  }
+
+  window.renderAdvance = function() {
+    const paNumber = (document.getElementById('adv-pa-number').value || '').toLowerCase().trim();
+    const status   = (document.getElementById('adv-status').value    || '').toLowerCase().trim();
+    const nama     = (document.getElementById('adv-nama').value      || '').toLowerCase().trim();
+
+    const filtered = _advanceRows.filter(r => {
+      if (paNumber && !(r.pa_number    || '').toLowerCase().includes(paNumber)) return false;
+      if (status   && (r.status        || '').toLowerCase() !== status)         return false;
+      if (nama     && !(r.nama_student || '').toLowerCase().includes(nama))     return false;
+      return true;
+    });
+
+    const tbody = document.getElementById('advance-tbody');
+    tbody.innerHTML = filtered.map((r, i) => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:.4rem .6rem; color:var(--text-muted)">${i+1}</td>
+        <td style="padding:.4rem .6rem; font-weight:600; white-space:nowrap">${r.pa_number || ''}</td>
+        <td style="padding:.4rem .6rem">${_pillarBadge(r.pillar)}</td>
+        <td style="padding:.4rem .6rem; white-space:nowrap">${r.tgl_payment_application || '-'}</td>
+        <td style="padding:.4rem .6rem">${_statusBadge(r.status)}</td>
+        <td style="padding:.4rem .6rem">${r.nama_student || '-'}</td>
+        <td style="padding:.4rem .6rem">${r.jenis_pembayaran || '-'}</td>
+        <td style="padding:.4rem .6rem; text-align:right; font-variant-numeric:tabular-nums">${(r.jumlah_pembayaran||0).toLocaleString('id-ID')}</td>
+        <td style="padding:.4rem .6rem">${r.nomor_pam || '-'}</td>
+      </tr>`).join('');
+    document.getElementById('advance-count').textContent = `${filtered.length} PA Advance${filtered.length < _advanceRows.length ? ' (dari ' + _advanceRows.length + ')' : ''}`;
+  };
+
+  fetch('/etf-payment-application/advance-data')
+    .then(r => r.json())
+    .then(rows => {
+      _advanceRows = rows;
+      document.getElementById('advance-loading').style.display = 'none';
+      document.getElementById('advance-wrap').style.display = 'block';
+      renderAdvance();
+    })
+    .catch(err => {
+      document.getElementById('advance-loading').textContent = 'Gagal memuat data: ' + err.message;
+    });
+})();
+</script>
 {% endif %}{# end input/data tab conditional #}
 
 {# ── Modal Edit PA ──────────────────────────────────────────────────────── #}
