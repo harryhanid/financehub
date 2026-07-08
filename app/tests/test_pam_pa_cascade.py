@@ -473,7 +473,7 @@ from modules.payment_memo.service import save_pa_payment
 
 
 def _setup_paid_advance(pam_no="PAM-030-ETF-07-2026", amount=3_000_000):
-    """Helper: create + pay one Advance payment_beasiswa row. Returns (payment_id, pam_id)."""
+    """Helper: create + pay one Advance payment_beasiswa row. Returns (payment_id, pam_id, pa_id)."""
     conn = get_conn()
     conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
@@ -481,7 +481,7 @@ def _setup_paid_advance(pam_no="PAM-030-ETF-07-2026", amount=3_000_000):
     )
     sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.commit()
-    _, line_id = _insert_pa(conn, "etf_pa", "etf_pa_lines", "ETF", sid, route="advance")
+    pa_id, line_id = _insert_pa(conn, "etf_pa", "etf_pa_lines", "ETF", sid, route="advance")
     conn.close()
 
     save_pa_payment(COMPANY_ID, COMPANY_CODE, {
@@ -500,12 +500,12 @@ def _setup_paid_advance(pam_no="PAM-030-ETF-07-2026", amount=3_000_000):
     ).fetchone()["id"]
     conn.close()
     set_pam_complete_cascade(pam_id, "2026-07-10", COMPANY_ID)
-    return payment_id, pam_id
+    return payment_id, pam_id, pa_id
 
 
 def test_realize_advance_payment_updates_amount_and_closes_pillar():
     from modules.payment_memo.service import realize_advance_payment
-    payment_id, pam_id = _setup_paid_advance()
+    payment_id, pam_id, pa_id = _setup_paid_advance()
 
     result = realize_advance_payment(payment_id, 2_700_000, "2026-07-20", COMPANY_ID)
     assert result["ok"] is True
@@ -517,13 +517,19 @@ def test_realize_advance_payment_updates_amount_and_closes_pillar():
         (payment_id,)
     ).fetchone()
     pam = conn.execute("SELECT pillar FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    pa  = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    line = conn.execute(
+        "SELECT jumlah_pembayaran FROM etf_pa_lines WHERE pa_id=?", (pa_id,)
+    ).fetchone()
     conn.close()
 
     assert pb["amount"]          == 2_700_000
     assert pb["realized_amount"] == 2_700_000
     assert pb["tgl_realisasi"]   == "2026-07-20"
     assert pb["status"]          == "complete"
-    assert pam["pillar"]         == "AGRI"   # moved out of ADVANCE
+    assert pam["pillar"]         == "AGRI"      # moved out of ADVANCE
+    assert pa["status"]          == "complete"  # PA header ditutup
+    assert line["jumlah_pembayaran"] == 2_700_000  # angka PA line ikut di-update
 
 
 def test_realize_advance_payment_rejects_not_yet_paid():
@@ -651,10 +657,13 @@ def test_realize_advance_payment_multi_line_partial_realization_does_not_close_p
     row2 = conn.execute(
         "SELECT status FROM payment_beasiswa WHERE id=?", (payment_id_2,)
     ).fetchone()
+    pa_hdr = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa_id_hdr,)).fetchone()
     conn.close()
     assert pam["pillar"] == "ADVANCE", \
         "pillar must NOT close after only 1 of 2 lines is realized"
     assert row2["status"] == "paid"
+    assert pa_hdr["status"] == "paid", \
+        "PA header must NOT be complete until all sibling lines are realized"
 
     # Realize SECOND row — now every line is 'complete', pillar should flip.
     result2 = realize_advance_payment(payment_id_2, 1_900_000, "2026-07-21", COMPANY_ID)
@@ -662,6 +671,9 @@ def test_realize_advance_payment_multi_line_partial_realization_does_not_close_p
 
     conn = get_conn()
     pam = conn.execute("SELECT pillar FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    pa_hdr = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa_id_hdr,)).fetchone()
     conn.close()
     assert pam["pillar"] == "AGRI", \
         "pillar must flip to target pillar once all lines are complete"
+    assert pa_hdr["status"] == "complete", \
+        "PA header must be complete once all sibling lines are realized"

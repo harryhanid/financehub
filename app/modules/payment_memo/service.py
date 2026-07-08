@@ -2312,7 +2312,7 @@ def realize_advance_payment(payment_id: int, realized_amount, tgl_realisasi: str
 
     conn = get_conn()
     row = conn.execute(
-        "SELECT id, pam, pillar, status, advance_amount FROM payment_beasiswa "
+        "SELECT id, pam, pillar, status, advance_amount, etf_pa_line_id FROM payment_beasiswa "
         "WHERE id=? AND company_id=?",
         (payment_id, company_id)
     ).fetchone()
@@ -2347,6 +2347,44 @@ def realize_advance_payment(payment_id: int, realized_amount, tgl_realisasi: str
             "UPDATE pam_records SET pillar=?, updated_at=? WHERE pam_no=? AND company_id=?",
             (target_pillar, ts, pam_no, company_id)
         )
+
+    # Update the originating PA line's amount, and close the PA header once every
+    # payment_beasiswa row tracing back to that PA header is 'complete'.
+    pa_line_id = row["etf_pa_line_id"]
+    if pa_line_id:
+        for lines_tbl, pa_tbl in [
+            ("etf_pa_lines",    "etf_pa"),
+            ("app_pa_lines",    "app_pa"),
+            ("sml_pa_lines",    "sml_pa"),
+            ("energy_pa_lines", "energy_pa"),
+            ("setf_pa_lines",   "setf_pa"),
+        ]:
+            updated = conn.execute(
+                f"UPDATE {lines_tbl} SET jumlah_pembayaran=? WHERE id=?",
+                (realized_amount, pa_line_id)
+            )
+            if updated.rowcount:
+                pa_id_row = conn.execute(
+                    f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (pa_line_id,)
+                ).fetchone()
+                pa_id = pa_id_row[0]
+                sibling_line_ids = [
+                    r[0] for r in conn.execute(
+                        f"SELECT id FROM {lines_tbl} WHERE pa_id=?", (pa_id,)
+                    ).fetchall()
+                ]
+                ph2 = ",".join("?" * len(sibling_line_ids))
+                still_open = conn.execute(
+                    f"""SELECT COUNT(*) FROM payment_beasiswa
+                        WHERE etf_pa_line_id IN ({ph2}) AND status != 'complete'""",
+                    sibling_line_ids
+                ).fetchone()[0]
+                if still_open == 0:
+                    conn.execute(
+                        f"UPDATE {pa_tbl} SET status='complete', updated_at=? WHERE id=?",
+                        (ts, pa_id)
+                    )
+                break  # found the table this line belongs to, no need to try the rest
 
     conn.commit()
     conn.close()
