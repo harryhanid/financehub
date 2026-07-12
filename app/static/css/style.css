@@ -582,6 +582,26 @@ input[readonly], input[disabled] {
   margin-left: auto;
   display: flex; align-items: center; gap: .5rem; flex-shrink: 0;
 }
+
+/* ── Filter toggle button + active-filter count badge ───────────── */
+.btn-filter-toggle.active {
+  background: var(--accent-surface);
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+}
+.filter-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.05rem; height: 1.05rem;
+  padding: 0 .3rem; margin-left: .3rem;
+  background: var(--accent); color: #fff;
+  border-radius: 999px;
+  font-size: .65rem; font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Collapsible variant of .filter-bar — hidden until toggled open ── */
+.filter-bar.collapsible { display: none; }
+.filter-bar.collapsible.open { display: flex; }
 @keyframes tab-in {
   from { opacity: 0; }
   to   { opacity: 1; }

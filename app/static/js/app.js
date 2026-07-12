@@ -383,6 +383,30 @@ function animateCounter(el, duration = 700) {
   requestAnimationFrame(step);
 }
 
+function toggleFilterPanel(panelId, btnId) {
+  const panel = document.getElementById(panelId);
+  const btn = document.getElementById(btnId);
+  if (!panel) return;
+  const open = panel.classList.toggle("open");
+  if (btn) btn.classList.toggle("active", open);
+}
+
+function updateFilterBadge(btnId, count) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  let badge = btn.querySelector(".filter-badge");
+  if (count > 0) {
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "filter-badge";
+      btn.appendChild(badge);
+    }
+    badge.textContent = count;
+  } else if (badge) {
+    badge.remove();
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initCommandPalette();
   initTitleDropdown();

@@ -227,6 +227,10 @@ body.pa-focus #pa-focus-exit { display: flex; }
   </div>
   {% if active_tab not in ('input', 'summary', 'advance') %}
   <div class="page-toolbar-actions">
+    <button id="pa-filter-toggle" class="btn btn-secondary btn-sm btn-filter-toggle" onclick="toggleFilterPanel('pa-filter-panel','pa-filter-toggle')" title="Tampilkan/sembunyikan filter">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filter
+    </button>
     <button id="pa-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
       Full Screen
@@ -237,7 +241,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
 
 {# ── Filter + bulk bar: only on data tabs ────────────────────────────────── #}
 {% if active_tab not in ('input', 'summary', 'advance') %}
-<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+<div id="pa-filter-panel" class="filter-bar collapsible">
   <input type="text" id="f-nama" placeholder="Cari nama PB..." oninput="applyFiltersDebounced()"
          style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:170px">
   <select id="f-status" onchange="statusFilterChanged(this)"
@@ -1107,6 +1111,8 @@ function applyFilters() {
     document.getElementById("f-count").textContent = `${visible} / ${rows.length} baris`;
     renderPaChips();
   });
+  const activeCount = [nama, jenjang, program, angkatan, jenis, pam, bulanPa, tahunPa].filter(Boolean).length;
+  updateFilterBadge("pa-filter-toggle", activeCount);
 }
 function resetFilters() {
   const url = new URL(window.location);
