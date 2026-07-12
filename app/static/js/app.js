@@ -407,6 +407,18 @@ function updateFilterBadge(btnId, count) {
   }
 }
 
+function enterFocusMode() {
+  document.body.classList.add('fh-focus');
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 240); // wait for navbar collapse transition
+}
+function exitFocusMode() {
+  document.body.classList.remove('fh-focus');
+  setTimeout(() => window.dispatchEvent(new Event('resize')), 240);
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('fh-focus')) exitFocusMode();
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   initCommandPalette();
   initTitleDropdown();

@@ -119,17 +119,24 @@
 }
 
 /* ── Focus / fullscreen mode ────────────────────────────────────── */
-/* Applied by adding .pa-focus class to <body> */
-body.pa-focus .navbar {
+/* Applied by adding .fh-focus class to <body>. Hides navbar + filter   */
+/* panel only — .page-toolbar (title+tabs) stays visible so users can   */
+/* still switch sub-modules without leaving focus mode.                 */
+body.fh-focus .navbar {
   height: 0; overflow: hidden; padding: 0; min-height: 0;
   border-bottom: none;
   transition: height .22s ease, padding .22s ease;
 }
-body:not(.pa-focus) .navbar {
+body:not(.fh-focus) .navbar {
   transition: height .22s ease, padding .22s ease;
 }
-body.pa-focus #pa-page-header { display: none !important; }
-#pa-focus-exit {
+body.fh-focus .filter-bar.collapsible { display: none !important; }
+/* Navbar collapses to 0 height in focus mode — reclaim the space .main  */
+/* normally reserves for it, and un-pin #pa-page-header's sticky offset  */
+/* (both otherwise still assume a 52px navbar and leave a dead gap).     */
+body.fh-focus .main { margin-top: 0; }
+body.fh-focus #pa-page-header { top: 0; }
+#fh-focus-exit {
   display: none;
   position: fixed; top: .6rem; right: 1rem; z-index: 9999;
   align-items: center; gap: .4rem;
@@ -139,8 +146,8 @@ body.pa-focus #pa-page-header { display: none !important; }
   cursor: pointer; backdrop-filter: blur(4px);
   box-shadow: 0 2px 8px rgba(0,0,0,.25);
 }
-#pa-focus-exit:hover { background: rgba(30,41,59,.95); }
-body.pa-focus #pa-focus-exit { display: flex; }
+#fh-focus-exit:hover { background: rgba(30,41,59,.95); }
+body.fh-focus #fh-focus-exit { display: flex; }
 
 /* checkbox size */
 .row-chk, #chk-all { width:18px; height:18px; cursor:pointer; accent-color:#3b82f6; }
@@ -208,7 +215,7 @@ body.pa-focus #pa-focus-exit { display: flex; }
 
 {% block content %}
 {# ── Focus mode exit button (fixed, visible only in focus mode) ─────────── #}
-<button id="pa-focus-exit" onclick="exitFocusMode()" title="Keluar Focus Mode (Esc)">
+<button id="fh-focus-exit" onclick="exitFocusMode()" title="Keluar Focus Mode (Esc)">
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
   Tampilkan Filter
 </button>
@@ -1022,23 +1029,6 @@ body.pa-focus #pa-focus-exit { display: flex; }
 <script>
 const TODAY   = new Date().toISOString().slice(0,10);
 const ACTIVE_TAB = "{{ active_tab }}";
-
-// ─── Focus / fullscreen mode ──────────────────────────────────────────────────
-function enterFocusMode() {
-  document.body.classList.add('pa-focus');
-  setTimeout(sizeWrap, 240); // wait for navbar collapse transition
-}
-function exitFocusMode() {
-  document.body.classList.remove('pa-focus');
-  setTimeout(sizeWrap, 240);
-}
-
-// Auto focus mode disabled — manual only via button
-
-// Escape key exits focus mode
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.body.classList.contains('pa-focus')) exitFocusMode();
-});
 
 // ─── Size pa-scroll-wrap to fill the entire remaining viewport ───────────────
 // pa-scroll-wrap has overflow:auto — both X and Y scroll happen inside it.
