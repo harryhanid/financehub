@@ -213,27 +213,26 @@ body.pa-focus #pa-focus-exit { display: flex; }
   Tampilkan Filter
 </button>
 
-{# ── Header ─────────────────────────────────────────────────────────────── #}
+{# ── Header: title + tabs + actions in one row ───────────────────────────── #}
 <div id="pa-page-header">
-<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; margin-bottom:.25rem">
-  <div>
-    <h1 class="page-title" style="margin-bottom:0">Payment Application</h1>
+<div class="page-toolbar">
+  <h1 class="page-title" style="margin-bottom:0">Payment Application</h1>
+  <div class="tabs" style="margin-bottom:0">
+    {% for t, label in [('summary','Open PA'),('advance','Advance'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
+    <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
+       class="tab-btn{% if active_tab == t %} active{% endif %}"
+       style="text-decoration:none"
+    >{{ label }}</a>
+    {% endfor %}
   </div>
   {% if active_tab not in ('input', 'summary', 'advance') %}
-  <button id="pa-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-    Full Screen
-  </button>
+  <div class="page-toolbar-actions">
+    <button id="pa-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      Full Screen
+    </button>
+  </div>
   {% endif %}
-</div>
-{# ── Tab navigation ── #}
-<div class="tabs" style="margin-bottom:.5rem">
-  {% for t, label in [('summary','Open PA'),('advance','Advance'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
-  <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
-     class="tab-btn{% if active_tab == t %} active{% endif %}"
-     style="text-decoration:none"
-  >{{ label }}</a>
-  {% endfor %}
 </div>
 
 {# ── Filter + bulk bar: only on data tabs ────────────────────────────────── #}
