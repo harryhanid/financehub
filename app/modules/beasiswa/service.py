@@ -836,6 +836,58 @@ def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
     return {"ok": True, "pesan": "Baris payment dihapus."}
 
 
+def update_payment_row(company_id: int, row_id: int, pam: str = None, tanggal_bayar: str = None) -> dict:
+    """Edit terbatas untuk baris payment_beasiswa: No PAM (payment_beasiswa.pam)
+    dan Tanggal Bayar (pam_records.tanggal_bayar, di-lookup lewat pam_no).
+    Field lain (kategori, amount, pillar, dll) tidak bisa diedit lewat sini."""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id, status, pam FROM payment_beasiswa WHERE id=? AND company_id=?",
+        (row_id, company_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Baris payment tidak ditemukan."}
+
+    effective_pam = row["pam"]
+    ts = _ts()
+
+    if pam is not None and pam != row["pam"]:
+        if row["status"] == "complete":
+            conn.close()
+            return {"ok": False, "pesan": "Payment yang sudah selesai, No PAM tidak bisa diubah."}
+        target = conn.execute(
+            "SELECT id FROM pam_records WHERE pam_no=? AND company_id=?",
+            (pam, company_id)
+        ).fetchone()
+        if not target:
+            conn.close()
+            return {"ok": False, "pesan": "Nomor PAM tidak ditemukan."}
+        conn.execute(
+            "UPDATE payment_beasiswa SET pam=? WHERE id=?",
+            (pam, row_id)
+        )
+        effective_pam = pam
+
+    if tanggal_bayar is not None:
+        if not effective_pam:
+            conn.rollback()
+            conn.close()
+            return {"ok": False, "pesan": "Isi No PAM dulu sebelum mengisi tanggal bayar."}
+        cur = conn.execute(
+            "UPDATE pam_records SET tanggal_bayar=?, updated_at=? WHERE pam_no=? AND company_id=?",
+            (tanggal_bayar, ts, effective_pam, company_id)
+        )
+        if cur.rowcount == 0:
+            conn.rollback()
+            conn.close()
+            return {"ok": False, "pesan": "Nomor PAM tidak ditemukan."}
+
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Payment berhasil diupdate."}
+
+
 def get_payment(company_id: int, siswa_code: str = "", status: str = "") -> list:
     sql    = ("SELECT pb.*, s.nama FROM payment_beasiswa pb "
               "LEFT JOIN siswa s ON s.company_id=pb.company_id AND s.code=pb.siswa_code "
