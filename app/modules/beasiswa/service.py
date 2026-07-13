@@ -601,8 +601,10 @@ def get_payment_list(company_id: int, search: str = "", bulan: str = "",
                      tahun: str = "", status: str = "", cat1: str = "",
                      pillar: str = "", program: str = "", limit: int = 500) -> dict:
     sql    = (
-        "SELECT pb.*, s.nama, s.program FROM payment_beasiswa pb "
+        "SELECT pb.*, s.nama, s.program, pr.tanggal_bayar AS tgl_bayar_pam "
+        "FROM payment_beasiswa pb "
         "LEFT JOIN siswa s ON s.company_id=pb.company_id AND s.code=pb.siswa_code "
+        "LEFT JOIN pam_records pr ON pr.pam_no=pb.pam AND pr.company_id=pb.company_id "
         "WHERE pb.company_id=?"
     )
     params = [company_id]
@@ -632,7 +634,7 @@ def get_payment_list(company_id: int, search: str = "", bulan: str = "",
         params += [status]
     conn  = get_conn()
     agg_sql = sql.replace(
-        "SELECT pb.*, s.nama, s.program FROM",
+        "SELECT pb.*, s.nama, s.program, pr.tanggal_bayar AS tgl_bayar_pam FROM",
         "SELECT pb.cat1, SUM(pb.amount) AS total FROM"
     ) + " GROUP BY pb.cat1"
     totals = {r[0]: r[1] for r in conn.execute(agg_sql, params).fetchall()}

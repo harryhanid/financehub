@@ -606,3 +606,48 @@ def test_add_payment_multi_fills_nomor_pam_in_etf_pa():
         f"etf_pa.nomor_pam expected '{pam_no}', got '{pa_row['nomor_pam']}'"
     )
     assert pa_row["status"] == "on_process"
+
+
+def test_get_payment_list_includes_tgl_bayar_pam():
+    add_siswa(COMPANY_ID, {
+        "code": "1250001", "nama": "Harry Santoso", "jenjang": "S1",
+        "angkatan": 2025, "program": "SMART", "fakultas": "Teknik",
+        "universitas": "UI", "bank": "BCA", "norek": "111", "namarek": "Harry",
+        "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    rows = [{"siswa_code": "1250001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+             "amount": "3000000", "cat3": "", "cat4": "",
+             "tgl_pengajuan": "", "tgl_receive": "", "tgl_pa": "", "tgl_final": ""}]
+    result = add_payment_multi(company_id=COMPANY_ID, company_code="ETF",
+                                tanggal="2026-05-31", pillar="AGRI",
+                                perusahaan="PT. SMART Tbk", rows=rows)
+    pam_no = result["pam_no"]
+
+    conn = get_conn()
+    conn.execute("UPDATE pam_records SET tanggal_bayar=? WHERE pam_no=?",
+                 ("2026-06-15", pam_no))
+    conn.commit()
+    conn.close()
+
+    data = get_payment_list(COMPANY_ID)
+    row = next(r for r in data["rows"] if r["pam"] == pam_no)
+    assert row["tgl_bayar_pam"] == "2026-06-15"
+
+
+def test_get_payment_list_tgl_bayar_pam_none_when_unset():
+    add_siswa(COMPANY_ID, {
+        "code": "1250002", "nama": "Joni Pratama", "jenjang": "S1",
+        "angkatan": 2025, "program": "SMART", "fakultas": "Ekonomi",
+        "universitas": "UGM", "bank": "BNI", "norek": "222", "namarek": "Joni",
+        "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    rows = [{"siswa_code": "1250002", "cat1": "By Pendidikan", "cat2": "Semester 1",
+             "amount": "3500000", "cat3": "", "cat4": "",
+             "tgl_pengajuan": "", "tgl_receive": "", "tgl_pa": "", "tgl_final": ""}]
+    add_payment_multi(company_id=COMPANY_ID, company_code="ETF",
+                       tanggal="2026-05-31", pillar="AGRI",
+                       perusahaan="PT. SMART Tbk", rows=rows)
+
+    data = get_payment_list(COMPANY_ID)
+    row = data["rows"][0]
+    assert row["tgl_bayar_pam"] is None
