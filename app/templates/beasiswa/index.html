@@ -11,7 +11,7 @@
 <div class="fh-page-header">
   <div class="page-toolbar">
     <h1 class="page-title" style="margin-bottom:0">Beasiswa</h1>
-    <div class="tabs" style="margin-bottom:0">
+    <div class="tabs" style="margin-bottom:0" title="Alt+&#8592; / Alt+&#8594; untuk pindah tab">
       <button class="tab-btn" data-tab="tab-siswa" onclick="loadRekap()">Data Siswa</button>
       <button class="tab-btn" data-tab="tab-budget" onclick="loadBudgetList()">Data Budget</button>
       <button class="tab-btn" data-tab="tab-payment" onclick="loadPaymentList()">Data Payment</button>
@@ -23,6 +23,7 @@
               onclick="toggleActiveTabFilter(this.closest('[data-tabs]'), 'bsw-filter-toggle')" title="Tampilkan/sembunyikan filter">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
         Filter
+        <kbd class="fh-kbd">F</kbd>
       </button>
       <button id="bsw-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
