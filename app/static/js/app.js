@@ -470,6 +470,36 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.body.classList.contains('fh-focus')) exitFocusMode();
 });
 
+// Steps the active .tab-btn within `.tabs` by `delta` positions (wraps around
+// at either end) and clicks the resulting tab. Works for both server-rendered
+// <a href> tabs (ETF PA — .click() navigates) and client-side <button
+// data-tab> tabs (Payment Memo/Beasiswa — .click() triggers initTabs()'s own
+// listener) since it delegates to whatever the tab element already does.
+function pressTabStep(delta) {
+  const tabs = [...document.querySelectorAll('.tabs .tab-btn')];
+  if (!tabs.length) return;
+  const activeIdx = tabs.findIndex(t => t.classList.contains('active'));
+  const from = activeIdx === -1 ? 0 : activeIdx;
+  const next = (from + delta + tabs.length) % tabs.length;
+  tabs[next].click();
+}
+
+// Global shortcuts: F toggles the filter panel, Alt+←/→ steps tabs. Skipped
+// entirely while focus is in a typing field so normal typing (including the
+// letter "f") is never hijacked — see docs/superpowers/specs/2026-07-13-financehub-keyboard-shortcuts-design.md §2.2
+document.addEventListener('keydown', e => {
+  const el = document.activeElement;
+  const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+  if (typing) return;
+  if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault();
+    pressTabStep(e.key === 'ArrowRight' ? 1 : -1);
+  } else if (!e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'f') {
+    e.preventDefault();
+    document.querySelector('.btn-filter-toggle')?.click();
+  }
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   initCommandPalette();
   initTitleDropdown();
