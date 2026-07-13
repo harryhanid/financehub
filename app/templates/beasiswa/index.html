@@ -359,11 +359,11 @@
             <tr>
               <th>Kode</th><th>Nama Siswa</th><th>Program</th><th>Kategori 1</th><th>Kategori 2</th>
               <th data-sort="5">Tanggal</th><th>Pillar</th><th class="num-right" data-sort="7" data-sort-type="num">Amount</th>
-              <th>PAM</th><th>Perusahaan</th><th>Status</th><th>Aksi</th>
+              <th>PAM</th><th>Tgl Bayar</th><th>Perusahaan</th><th>Status</th><th>Aksi</th>
             </tr>
           </thead>
           <tbody id="pay-tbody">
-            <tr><td colspan="12" style="text-align:center;color:var(--text-muted)">Klik tab Data Payment untuk memuat data.</td></tr>
+            <tr><td colspan="13" style="text-align:center;color:var(--text-muted)">Klik tab Data Payment untuk memuat data.</td></tr>
           </tbody>
         </table>
       </div>
@@ -1196,11 +1196,11 @@ async function loadPaymentList() {
     const program = document.getElementById("pay-filter-program")?.value || "";
     const params  = new URLSearchParams({ search, cat1, pillar, bulan, tahun, status, program });
     const tbody   = document.getElementById("pay-tbody");
-    tbody.innerHTML = skeletonRows(12);
+    tbody.innerHTML = skeletonRows(13);
     const d = await (await apiFetch(`/beasiswa/payment/list?${params}`)).json();
     _renderTabSummary('pay', d.budget_totals, d.totals);
     if (!d.ok || !d.rows?.length) {
-      tbody.innerHTML = _emptyHtml(12, 'Tidak ada data');
+      tbody.innerHTML = _emptyHtml(13, 'Tidak ada data');
       document.getElementById("pay-list-info").textContent = "";
       return;
     }
@@ -1221,6 +1221,7 @@ async function loadPaymentList() {
       <td>${r.pillar||""}</td>
       <td class="num-right">${fmtRupiah(r.amount||0)}</td>
       <td style="font-size:.8rem">${r.pam||""}</td>
+      <td style="white-space:nowrap">${r.tgl_bayar_pam||"—"}</td>
       <td style="font-size:.8rem">${r.perusahaan||""}</td>
       <td>${BADGE[r.status] || r.status||""}</td>
       <td style="white-space:nowrap">
