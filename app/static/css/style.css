@@ -158,8 +158,8 @@ button { font-family: inherit; }
 }
 
 /* ── Inline keyboard-shortcut hint badge — same look as the navbar's        */
-/* Ctrl+K badge (.fh-cmd-btn kbd), reused wherever a button also has a       */
-/* single-key shortcut (see app.js's global F / Alt+arrow listener).        */
+/* command-palette badge (.fh-cmd-btn kbd), reused wherever a button also   */
+/* has a single-key shortcut (see app.js's global F / Alt+arrow listener).  */
 .fh-kbd {
   font-size: .65rem; padding: .1rem .3rem;
   margin-left: .3rem;
