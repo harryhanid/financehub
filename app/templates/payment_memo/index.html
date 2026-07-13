@@ -8,8 +8,15 @@
 .dm-inp[type=number]{text-align:right}
 .dm-inp[type=date]{font-size:10px}
 .dm-cb{width:14px;height:14px;cursor:pointer;accent-color:#1e3a5f;flex-shrink:0}
-/* Pillar tabs — scrollable table with frozen header */
-.pillar-table-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 220px)}
+/* Pillar tabs — scrollable table with frozen header. Explicit width (same     */
+/* calc as ETF PA's #pa-scroll-wrap) keeps the table area maximally wide       */
+/* instead of shrinking to whatever .main naturally gets, and pairs with each  */
+/* table's min-width below so columns stay comfortably readable and scroll     */
+/* horizontally instead of being squeezed to fit like the old width:100% did.  */
+/* Height is set dynamically per-instance by sizePillarWraps() (fills the      */
+/* remaining viewport below the compact toolbar) — no static max-height here,  */
+/* it would just cap the JS-computed height right back down.                  */
+.pillar-table-wrap{overflow-x:auto;overflow-y:auto;width:calc(100vw - 3.5rem)}
 .pillar-table-wrap .thead-primary th{position:sticky;top:0;z-index:3}
 /* ── AGRI: frozen columns ─────────────────────────────────────────────── */
 /* border-collapse:separate required — collapse breaks position:sticky    */
@@ -85,31 +92,49 @@
 {% endblock %}
 
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem">
-  <h1 style="font-size:1.25rem; font-weight:700">Payment Approval Memo</h1>
-</div>
+{# ── Focus mode exit button (fixed, visible only in focus mode) ─────────── #}
+<button id="fh-focus-exit" onclick="exitFocusMode()" title="Keluar Focus Mode (Esc)">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
+  Tampilkan Filter
+</button>
 
 <div data-tabs>
-  <div class="tabs">
-    <button class="tab-btn" data-tab="tab-draft-pay">Open PAM ({{ drafts|length }})</button>
-    <button class="tab-btn" data-tab="tab-input-payment" onclick="ipayReset()">Input</button>
-    {% if company_code == 'SMT' %}
-    <button class="tab-btn" data-tab="tab-smt" onclick="loadSMT()">PAM List</button>
-    <button class="tab-btn" data-tab="tab-advance" onclick="loadAdvance()">Advance</button>
-    {% else %}
-    <button class="tab-btn" data-tab="tab-pam" onclick="loadPAM()">AGRI</button>
-    <button class="tab-btn" data-tab="tab-fiori" onclick="loadFIORI()">APP</button>
-    <button class="tab-btn" data-tab="tab-sml" onclick="loadSML()">LAND</button>
-    <button class="tab-btn" data-tab="tab-setf" onclick="loadSETF()">SETF</button>
-    <button class="tab-btn" data-tab="tab-pa-advance" onclick="loadPaAdvance()">Advance</button>
-    {% endif %}
-    <button class="tab-btn" data-tab="tab-draft-memo">Print Memo</button>
+<div class="fh-page-header">
+  <div class="page-toolbar">
+    <h1 style="font-size:1.25rem; font-weight:700; margin-bottom:0">Payment Approval Memo</h1>
+    <div class="tabs" style="margin-bottom:0">
+      <button class="tab-btn" data-tab="tab-draft-pay">Open PAM ({{ drafts|length }})</button>
+      <button class="tab-btn" data-tab="tab-input-payment" onclick="ipayReset()">Input</button>
+      {% if company_code == 'SMT' %}
+      <button class="tab-btn" data-tab="tab-smt" onclick="loadSMT()">PAM List</button>
+      <button class="tab-btn" data-tab="tab-advance" onclick="loadAdvance()">Advance</button>
+      {% else %}
+      <button class="tab-btn" data-tab="tab-pam" onclick="loadPAM()">AGRI</button>
+      <button class="tab-btn" data-tab="tab-fiori" onclick="loadFIORI()">APP</button>
+      <button class="tab-btn" data-tab="tab-sml" onclick="loadSML()">LAND</button>
+      <button class="tab-btn" data-tab="tab-setf" onclick="loadSETF()">SETF</button>
+      <button class="tab-btn" data-tab="tab-pa-advance" onclick="loadPaAdvance()">Advance</button>
+      {% endif %}
+      <button class="tab-btn" data-tab="tab-draft-memo">Print Memo</button>
+    </div>
+    <div class="page-toolbar-actions">
+      <button id="pam-filter-toggle" class="btn btn-secondary btn-sm btn-filter-toggle"
+              onclick="toggleActiveTabFilter(this.closest('[data-tabs]'), 'pam-filter-toggle')" title="Tampilkan/sembunyikan filter">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filter
+      </button>
+      <button id="pam-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        Full Screen
+      </button>
+    </div>
   </div>
+</div>
 
   <div class="tab-panel" id="tab-draft-pay">
-    <div style="margin-bottom:1rem; display:flex; align-items:center; justify-content:space-between; gap:.5rem; flex-wrap:wrap">
+    <div id="pam-filter-draft-pay" class="filter-bar collapsible">
       <span style="font-size:.875rem; color:var(--text-muted)">Daftar payment yang belum diproses (status Open).</span>
-      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-left:auto">
         <input type="text" id="open-pam-search" placeholder="Cari No. PAM / Keterangan…"
                oninput="filterOpenPAM()"
                style="padding:.3rem .6rem;border:1px solid #cbd5e1;border-radius:.375rem;font-size:.85rem;min-width:220px">
@@ -400,7 +425,7 @@
 
   <!-- PAM Records Tab -->
   <div class="tab-panel" id="tab-pam">
-    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
+    <div id="pam-filter-pam" class="filter-bar collapsible" style="align-items:center;gap:6px">
       <input id="pam-search" type="text" placeholder="Cari PAM No / PT / Siswa..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:200px;"
              oninput="loadPAMDebounced()">
@@ -462,7 +487,7 @@
       <div id="agri-chips-row" style="display:flex;flex-wrap:wrap;gap:4px;min-width:0;flex:1"></div>
     </div>
     <div class="pillar-table-wrap">
-      <table id="pam-table" style="width:100%;font-size:13px;">
+      <table id="pam-table" style="min-width:2650px;font-size:13px;">
         <thead class="thead-primary">
           <tr>
             <th class="s0" style="padding:4px"></th>
@@ -506,7 +531,7 @@
 
   <!-- APP Tab -->
   <div class="tab-panel" id="tab-fiori">
-    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;padding-top:.5rem">
+    <div id="pam-filter-fiori" class="filter-bar collapsible" style="align-items:center;gap:6px">
       <input id="fiori-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
              oninput="loadFIORIDebounced()">
@@ -569,7 +594,7 @@
       <div id="fiori-chips-row" style="display:flex;flex-wrap:wrap;gap:4px;min-width:0;flex:1"></div>
     </div>
     <div class="pillar-table-wrap">
-      <table id="fiori-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+      <table id="fiori-table" style="min-width:2450px;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
             <th style="padding:7px 8px;text-align:center"><input type="checkbox" id="fiori-select-all" onchange="fioriToggleSelectAll(this)"></th>
@@ -609,7 +634,7 @@
 
   <!-- LAND Tab -->
   <div class="tab-panel" id="tab-sml">
-    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
+    <div id="pam-filter-sml" class="filter-bar collapsible" style="align-items:center;gap:6px">
       <input id="sml-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
              oninput="loadSMLDebounced()">
@@ -650,7 +675,7 @@
       <span id="sml-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
-      <table id="sml-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+      <table id="sml-table" style="min-width:2350px;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
             <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
@@ -690,7 +715,7 @@
   {% if company_code == 'SMT' %}
   <!-- SMT Tab -->
   <div class="tab-panel" id="tab-smt">
-    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
+    <div id="pam-filter-smt" class="filter-bar collapsible" style="align-items:center;gap:6px">
       <input id="smt-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
              oninput="loadSMTDebounced()">
@@ -766,7 +791,7 @@
 
   <!-- Advance Tab -->
   <div class="tab-panel" id="tab-advance">
-    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
+    <div id="pam-filter-advance" class="filter-bar collapsible" style="align-items:center;gap:6px">
       <input id="advance-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
              oninput="loadAdvanceDebounced()">
@@ -796,7 +821,7 @@
       <span id="advance-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
-      <table id="advance-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+      <table id="advance-table" style="min-width:1600px;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
             <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
@@ -828,7 +853,7 @@
 
   <!-- SETF Tab -->
   <div class="tab-panel" id="tab-setf">
-    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
+    <div id="pam-filter-setf" class="filter-bar collapsible" style="align-items:center;gap:6px">
       <input id="setf-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
              oninput="loadSETFDebounced()">
@@ -869,7 +894,7 @@
       <span id="setf-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
-      <table id="setf-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+      <table id="setf-table" style="min-width:2350px;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
             <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
@@ -908,7 +933,7 @@
 
   <!-- Advance Tab (ETF PA quarantine-until-realized route) -->
   <div class="tab-panel" id="tab-pa-advance">
-    <div class="filter-bar" style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;padding-top:.5rem">
+    <div id="pam-filter-pa-advance" class="filter-bar collapsible" style="align-items:center;gap:6px">
       <input id="pa-advance-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
              oninput="loadPaAdvanceDebounced()">
@@ -938,7 +963,7 @@
       <span id="pa-advance-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
-      <table id="pa-advance-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+      <table id="pa-advance-table" style="min-width:1600px;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
             <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
@@ -1289,6 +1314,31 @@ const SMT_PAM_COST_CENTERS = [
   "POSKHU - LS","POSKHU - YP","POEDIR","POMDIN","POMDEX","PORLIT","TFDPLA",
   "TFECEM","TFEGGM","TFEDIR","TFEDUC","TFSCHO","TFSHSE","TFVOED","TFKHAR","TFFCON",
 ];
+// ── Dynamic height for the AGRI/APP/LAND/SMT/Advance/SETF pillar tables ──────
+// Same rationale as ETF PA's sizeWrap(): a hardcoded max-height (the old
+// `calc(100vh - 220px)`) doesn't adapt to the now-much-shorter compact
+// toolbar, the filter panel opening/closing, or Full Screen mode — so
+// compute the remaining viewport space from each wrap's own current
+// position instead. Only one .pillar-table-wrap is visible at a time (the
+// active tab's), offsetParent is null while hidden so inactive ones are
+// skipped cheaply.
+function sizePillarWraps() {
+  requestAnimationFrame(() => {
+    const mainPadBottom = 28; // .main { padding: 1.75rem } → 1.75×16 = 28px
+    document.querySelectorAll('.pillar-table-wrap').forEach(wrap => {
+      if (!wrap.offsetParent) return;
+      wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top - mainPadBottom) + 'px';
+    });
+  });
+}
+window.addEventListener('load', sizePillarWraps);
+window.addEventListener('resize', sizePillarWraps);
+document.addEventListener('DOMContentLoaded', () => {
+  sizePillarWraps();
+  const ph = document.querySelector('.fh-page-header');
+  if (ph && window.ResizeObserver) new ResizeObserver(sizePillarWraps).observe(ph);
+});
+
 const SMT_PAM_TIPE_DOKUMEN = [
   "Downpayment to vendor",
   "Invoice Payment – Non PO Invoice",
