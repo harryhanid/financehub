@@ -174,7 +174,7 @@
 <div id="pa-page-header" class="fh-page-header">
 <div class="page-toolbar">
   <h1 class="page-title" style="margin-bottom:0">Payment Application</h1>
-  <div class="tabs" style="margin-bottom:0">
+  <div class="tabs" style="margin-bottom:0" title="Alt+&#8592; / Alt+&#8594; untuk pindah tab">
     {% for t, label in [('summary','Open PA'),('advance','Advance'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
     <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
        class="tab-btn{% if active_tab == t %} active{% endif %}"
@@ -187,6 +187,7 @@
     <button id="pa-filter-toggle" class="btn btn-secondary btn-sm btn-filter-toggle" onclick="toggleFilterPanel('pa-filter-panel','pa-filter-toggle')" title="Tampilkan/sembunyikan filter">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
       Filter
+      <kbd class="fh-kbd">F</kbd>
     </button>
     {% if active_tab not in ('summary', 'advance') %}
     <button id="pa-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
