@@ -7,6 +7,7 @@ from modules.beasiswa.service import (
     add_siswa, update_siswa, update_siswa_catatan, update_siswa_catatan_payment, delete_siswa,
     add_budget_batch, get_budget, delete_budget_row, update_budget_row,
     add_payment_batch, add_payment_multi, get_payment, get_payment_list, delete_payment_row,
+    update_payment_row,
     get_sisa_budget, get_rekap, get_budget_list, get_laporan_siswa,
     get_financial_summary,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
@@ -410,6 +411,17 @@ def payment_export_pdf():
 @jwt_html_required
 def payment_hapus(row_id):
     return jsonify(delete_payment_row(_cid(), row_id))
+
+
+@bp.route("/payment/<int:row_id>/edit", methods=["POST"])
+@jwt_html_required
+def payment_edit(row_id):
+    data = request.get_json(force=True) or {}
+    return jsonify(update_payment_row(
+        _cid(), row_id,
+        pam=data.get("pam"),
+        tanggal_bayar=data.get("tanggal_bayar"),
+    ))
 
 
 @bp.route("/payment/tambah", methods=["POST"])

@@ -359,11 +359,11 @@
             <tr>
               <th>Kode</th><th>Nama Siswa</th><th>Program</th><th>Kategori 1</th><th>Kategori 2</th>
               <th data-sort="5">Tanggal</th><th>Pillar</th><th class="num-right" data-sort="7" data-sort-type="num">Amount</th>
-              <th>PAM</th><th>Perusahaan</th><th>Status</th><th>Aksi</th>
+              <th>PAM</th><th>Tgl Bayar</th><th>Perusahaan</th><th>Status</th><th>Aksi</th>
             </tr>
           </thead>
           <tbody id="pay-tbody">
-            <tr><td colspan="12" style="text-align:center;color:var(--text-muted)">Klik tab Data Payment untuk memuat data.</td></tr>
+            <tr><td colspan="13" style="text-align:center;color:var(--text-muted)">Klik tab Data Payment untuk memuat data.</td></tr>
           </tbody>
         </table>
       </div>
@@ -639,6 +639,42 @@
           </tfoot>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Edit Payment (No PAM + Tanggal Bayar, terbatas) -->
+<div class="modal-overlay" id="modal-edit-payment">
+  <div class="modal" style="width:min(480px,95vw)">
+    <div class="modal-header">
+      <span class="modal-title">Edit Payment</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-payment')">✕</button>
+    </div>
+    <input type="hidden" id="edit-payment-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem;font-size:.85rem">
+      <div><strong>Kode:</strong> <span id="edit-payment-ro-kode"></span></div>
+      <div><strong>Nama:</strong> <span id="edit-payment-ro-nama"></span></div>
+      <div><strong>Amount:</strong> <span id="edit-payment-ro-amount"></span></div>
+      <div><strong>Status:</strong> <span id="edit-payment-ro-status"></span></div>
+    </div>
+    <div class="form-group" style="margin:0 0 .25rem">
+      <label>No PAM</label>
+      <input type="text" id="edit-payment-pam" style="width:100%">
+      <div id="edit-payment-pam-note" style="display:none;font-size:.75rem;color:#d97706;margin-top:.25rem">
+        Payment sudah selesai — No PAM tidak bisa diubah.
+      </div>
+    </div>
+    <div class="form-group" style="margin:.75rem 0 .25rem">
+      <label>Tanggal Bayar</label>
+      <input type="date" id="edit-payment-tanggal-bayar" style="width:100%">
+      <div id="edit-payment-tgl-note" style="display:none;font-size:.75rem;color:#d97706;margin-top:.25rem">
+        Isi No PAM dulu.
+      </div>
+    </div>
+    <div id="edit-payment-warning" style="display:none;font-size:.8rem;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:.375rem;padding:.5rem .75rem;margin:.5rem 0"></div>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem">
+      <button class="btn btn-primary btn-sm" onclick="submitEditPayment()">Simpan</button>
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-edit-payment')">Batal</button>
     </div>
   </div>
 </div>
@@ -1189,6 +1225,7 @@ function exportInputBudget(fmt) {
   window.location.href = `/beasiswa/budget/siswa/${_ibgtCode}/export/${fmt}`;
 }
 
+let PAYMENT_LIST_ROWS = [];
 let _paySearchTimer = null;
 async function loadPaymentList() {
   clearTimeout(_paySearchTimer);
@@ -1202,14 +1239,16 @@ async function loadPaymentList() {
     const program = document.getElementById("pay-filter-program")?.value || "";
     const params  = new URLSearchParams({ search, cat1, pillar, bulan, tahun, status, program });
     const tbody   = document.getElementById("pay-tbody");
-    tbody.innerHTML = skeletonRows(12);
+    tbody.innerHTML = skeletonRows(13);
     const d = await (await apiFetch(`/beasiswa/payment/list?${params}`)).json();
     _renderTabSummary('pay', d.budget_totals, d.totals);
     if (!d.ok || !d.rows?.length) {
-      tbody.innerHTML = _emptyHtml(12, 'Tidak ada data');
+      tbody.innerHTML = _emptyHtml(13, 'Tidak ada data');
       document.getElementById("pay-list-info").textContent = "";
+      PAYMENT_LIST_ROWS = [];
       return;
     }
+    PAYMENT_LIST_ROWS = d.rows;
     document.getElementById("pay-list-info").textContent =
       `Menampilkan ${d.rows.length.toLocaleString("id-ID")} dari ${d.total.toLocaleString("id-ID")} record`;
     const BADGE = {
@@ -1227,9 +1266,11 @@ async function loadPaymentList() {
       <td>${r.pillar||""}</td>
       <td class="num-right">${fmtRupiah(r.amount||0)}</td>
       <td style="font-size:.8rem">${r.pam||""}</td>
+      <td style="white-space:nowrap">${r.tgl_bayar_pam||"—"}</td>
       <td style="font-size:.8rem">${r.perusahaan||""}</td>
       <td>${BADGE[r.status] || r.status||""}</td>
       <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="openEditPayment(${r.id})">Edit</button>
         <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="payDeleteRow(${r.id})">Hapus</button>
       </td>
     </tr>`).join("");
@@ -1242,6 +1283,59 @@ async function payDeleteRow(id) {
   const d = await (await apiFetch(`/beasiswa/payment/${id}/hapus`, { method: "POST" })).json();
   showToast(d.pesan, d.ok ? "success" : "error");
   if (d.ok) await loadPaymentList();
+}
+
+function openEditPayment(id) {
+  const r = PAYMENT_LIST_ROWS.find(x => x.id === id);
+  if (!r) return;
+
+  document.getElementById('edit-payment-id').value = r.id;
+  document.getElementById('edit-payment-ro-kode').textContent = r.siswa_code || '--';
+  document.getElementById('edit-payment-ro-nama').textContent = r.nama || '--';
+  document.getElementById('edit-payment-ro-amount').textContent = fmtRupiah(r.amount || 0);
+  document.getElementById('edit-payment-ro-status').textContent = r.status || '--';
+
+  const pamInput = document.getElementById('edit-payment-pam');
+  pamInput.value = r.pam || '';
+  const isComplete = r.status === 'complete';
+  pamInput.disabled = isComplete;
+  document.getElementById('edit-payment-pam-note').style.display = isComplete ? 'block' : 'none';
+
+  const tglInput = document.getElementById('edit-payment-tanggal-bayar');
+  tglInput.value = r.tgl_bayar_pam || '';
+  const hasPam = !!(r.pam || '').trim();
+  tglInput.disabled = !hasPam;
+  document.getElementById('edit-payment-tgl-note').style.display = hasPam ? 'none' : 'block';
+
+  const siblingCount = PAYMENT_LIST_ROWS.filter(x => x.pam && x.pam === r.pam && x.id !== r.id).length;
+  const warnEl = document.getElementById('edit-payment-warning');
+  if (hasPam && siblingCount > 0) {
+    warnEl.textContent = `Tanggal ini berlaku untuk ${siblingCount} siswa lain dengan PAM yang sama (${r.pam}).`;
+    warnEl.style.display = 'block';
+  } else {
+    warnEl.style.display = 'none';
+  }
+
+  openModal('modal-edit-payment');
+}
+
+async function submitEditPayment() {
+  const id       = parseInt(document.getElementById('edit-payment-id').value);
+  const pamInput = document.getElementById('edit-payment-pam');
+  const tglInput = document.getElementById('edit-payment-tanggal-bayar');
+  if (!await confirmModal("Simpan perubahan payment ini?")) return;
+
+  const payload = {};
+  if (!pamInput.disabled && pamInput.value.trim()) payload.pam = pamInput.value.trim();
+  if (!tglInput.disabled && tglInput.value) payload.tanggal_bayar = tglInput.value;
+
+  const res = await apiFetch(`/beasiswa/payment/${id}/edit`, {
+    method: 'POST', body: JSON.stringify(payload)
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) { closeModal('modal-edit-payment'); await loadPaymentList(); }
 }
 
 function _renderTabSummary(prefix, bgtTotals, payTotals) {

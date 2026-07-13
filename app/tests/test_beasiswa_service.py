@@ -10,7 +10,7 @@ from modules.beasiswa.service import (
     add_budget_batch, add_payment_batch, get_rekap, get_sisa_budget,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
     add_payment_multi, get_budget_list, get_payment_list,
-    delete_payment_beasiswa,
+    delete_payment_beasiswa, update_payment_row,
 )
 
 COMPANY_ID = 2  # ETF
@@ -606,3 +606,166 @@ def test_add_payment_multi_fills_nomor_pam_in_etf_pa():
         f"etf_pa.nomor_pam expected '{pam_no}', got '{pa_row['nomor_pam']}'"
     )
     assert pa_row["status"] == "on_process"
+
+
+def test_get_payment_list_includes_tgl_bayar_pam():
+    add_siswa(COMPANY_ID, {
+        "code": "1250001", "nama": "Harry Santoso", "jenjang": "S1",
+        "angkatan": 2025, "program": "SMART", "fakultas": "Teknik",
+        "universitas": "UI", "bank": "BCA", "norek": "111", "namarek": "Harry",
+        "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    rows = [{"siswa_code": "1250001", "cat1": "By Pendidikan", "cat2": "Semester 1",
+             "amount": "3000000", "cat3": "", "cat4": "",
+             "tgl_pengajuan": "", "tgl_receive": "", "tgl_pa": "", "tgl_final": ""}]
+    result = add_payment_multi(company_id=COMPANY_ID, company_code="ETF",
+                                tanggal="2026-05-31", pillar="AGRI",
+                                perusahaan="PT. SMART Tbk", rows=rows)
+    pam_no = result["pam_no"]
+
+    conn = get_conn()
+    conn.execute("UPDATE pam_records SET tanggal_bayar=? WHERE pam_no=?",
+                 ("2026-06-15", pam_no))
+    conn.commit()
+    conn.close()
+
+    data = get_payment_list(COMPANY_ID)
+    row = next(r for r in data["rows"] if r["pam"] == pam_no)
+    assert row["tgl_bayar_pam"] == "2026-06-15"
+
+
+def test_get_payment_list_tgl_bayar_pam_none_when_unset():
+    add_siswa(COMPANY_ID, {
+        "code": "1250002", "nama": "Joni Pratama", "jenjang": "S1",
+        "angkatan": 2025, "program": "SMART", "fakultas": "Ekonomi",
+        "universitas": "UGM", "bank": "BNI", "norek": "222", "namarek": "Joni",
+        "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    rows = [{"siswa_code": "1250002", "cat1": "By Pendidikan", "cat2": "Semester 1",
+             "amount": "3500000", "cat3": "", "cat4": "",
+             "tgl_pengajuan": "", "tgl_receive": "", "tgl_pa": "", "tgl_final": ""}]
+    add_payment_multi(company_id=COMPANY_ID, company_code="ETF",
+                       tanggal="2026-05-31", pillar="AGRI",
+                       perusahaan="PT. SMART Tbk", rows=rows)
+
+    data = get_payment_list(COMPANY_ID)
+    row = data["rows"][0]
+    assert row["tgl_bayar_pam"] is None
+
+
+def _seed_one_payment(code="1250001", nama="Harry Santoso", amount="3000000"):
+    add_siswa(COMPANY_ID, {
+        "code": code, "nama": nama, "jenjang": "S1",
+        "angkatan": 2025, "program": "SMART", "fakultas": "Teknik",
+        "universitas": "UI", "bank": "BCA", "norek": "111", "namarek": nama,
+        "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    rows = [{"siswa_code": code, "cat1": "By Pendidikan", "cat2": "Semester 1",
+              "amount": amount, "cat3": "", "cat4": "",
+              "tgl_pengajuan": "", "tgl_receive": "", "tgl_pa": "", "tgl_final": ""}]
+    result = add_payment_multi(company_id=COMPANY_ID, company_code="ETF",
+                                tanggal="2026-05-31", pillar="AGRI",
+                                perusahaan="PT. SMART Tbk", rows=rows)
+    conn = get_conn()
+    pb_id = conn.execute(
+        "SELECT id FROM payment_beasiswa WHERE company_id=? AND siswa_code=?",
+        (COMPANY_ID, code)
+    ).fetchone()["id"]
+    conn.close()
+    return pb_id, result["pam_no"]
+
+
+def _set_status(pb_id, status):
+    conn = get_conn()
+    conn.execute("UPDATE payment_beasiswa SET status=? WHERE id=?", (status, pb_id))
+    conn.commit()
+    conn.close()
+
+
+def test_update_payment_row_pam_success():
+    pb_id, pam_no = _seed_one_payment()
+    _, other_pam_no = _seed_one_payment(code="1250002", nama="Joni Pratama")
+
+    result = update_payment_row(COMPANY_ID, pb_id, pam=other_pam_no)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    row = conn.execute("SELECT pam FROM payment_beasiswa WHERE id=?", (pb_id,)).fetchone()
+    conn.close()
+    assert row["pam"] == other_pam_no
+
+
+def test_update_payment_row_pam_blocked_when_complete():
+    pb_id, pam_no = _seed_one_payment()
+    _, other_pam_no = _seed_one_payment(code="1250002", nama="Joni Pratama")
+    _set_status(pb_id, "complete")
+
+    result = update_payment_row(COMPANY_ID, pb_id, pam=other_pam_no)
+    assert result["ok"] is False
+    assert "sudah selesai" in result["pesan"]
+
+    conn = get_conn()
+    row = conn.execute("SELECT pam FROM payment_beasiswa WHERE id=?", (pb_id,)).fetchone()
+    conn.close()
+    assert row["pam"] == pam_no  # unchanged
+
+
+def test_update_payment_row_pam_invalid_target():
+    pb_id, pam_no = _seed_one_payment()
+
+    result = update_payment_row(COMPANY_ID, pb_id, pam="PAM-DOES-NOT-EXIST")
+    assert result["ok"] is False
+    assert "tidak ditemukan" in result["pesan"]
+
+    conn = get_conn()
+    row = conn.execute("SELECT pam FROM payment_beasiswa WHERE id=?", (pb_id,)).fetchone()
+    conn.close()
+    assert row["pam"] == pam_no  # unchanged
+
+
+def test_update_payment_row_tanggal_bayar_success_even_when_complete():
+    pb_id, pam_no = _seed_one_payment()
+    _set_status(pb_id, "complete")
+
+    result = update_payment_row(COMPANY_ID, pb_id, tanggal_bayar="2026-06-20")
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pam = conn.execute("SELECT tanggal_bayar FROM pam_records WHERE pam_no=?", (pam_no,)).fetchone()
+    pb  = conn.execute("SELECT status FROM payment_beasiswa WHERE id=?", (pb_id,)).fetchone()
+    conn.close()
+    assert pam["tanggal_bayar"] == "2026-06-20"
+    assert pb["status"] == "complete"  # untouched, still whatever it was
+
+
+def test_update_payment_row_tanggal_bayar_requires_pam():
+    pb_id, _ = _seed_one_payment()
+    conn = get_conn()
+    conn.execute("UPDATE payment_beasiswa SET pam=NULL WHERE id=?", (pb_id,))
+    conn.commit()
+    conn.close()
+
+    result = update_payment_row(COMPANY_ID, pb_id, tanggal_bayar="2026-06-20")
+    assert result["ok"] is False
+    assert "Isi No PAM dulu" in result["pesan"]
+
+
+def test_update_payment_row_not_found():
+    result = update_payment_row(COMPANY_ID, 999999, tanggal_bayar="2026-06-20")
+    assert result["ok"] is False
+    assert "tidak ditemukan" in result["pesan"]
+
+
+def test_update_payment_row_both_fields_uses_new_pam_for_tanggal_bayar():
+    pb_id, old_pam_no = _seed_one_payment()
+    _, new_pam_no = _seed_one_payment(code="1250002", nama="Joni Pratama")
+
+    result = update_payment_row(COMPANY_ID, pb_id, pam=new_pam_no, tanggal_bayar="2026-06-20")
+    assert result["ok"] is True
+
+    conn = get_conn()
+    old_pam = conn.execute("SELECT tanggal_bayar FROM pam_records WHERE pam_no=?", (old_pam_no,)).fetchone()
+    new_pam = conn.execute("SELECT tanggal_bayar FROM pam_records WHERE pam_no=?", (new_pam_no,)).fetchone()
+    conn.close()
+    assert old_pam["tanggal_bayar"] is None       # old PAM untouched
+    assert new_pam["tanggal_bayar"] == "2026-06-20"  # new PAM got the date
