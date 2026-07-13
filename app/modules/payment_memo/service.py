@@ -267,11 +267,12 @@ _ADVANCE_LINE_FIELDS = [
 # deliberately NOT user-editable via upsert_pam_lines).
 _PILLAR_SELECT_FIELDS = {
     "ADVANCE": _ADVANCE_LINE_FIELDS,
-    "SMT":     _STANDARD_LINE_FIELDS + ["tgl_realisasi"],
+    "SMT":     _ADVANCE_LINE_FIELDS,
 }
 # Columns upsert_pam_lines is allowed to write per pillar.
 _PILLAR_ALLOWED_FIELDS = {
     "ADVANCE": set(_ADVANCE_LINE_FIELDS),
+    "SMT":     set(_ADVANCE_LINE_FIELDS) - {"tgl_paid"},
 }
 _DEFAULT_ALLOWED_FIELDS = set(_STANDARD_LINE_FIELDS)
 
@@ -319,6 +320,8 @@ def get_pam_by_pillar(company_id: int, pillar: str,
         SELECT pr.*,
                pl.id         AS lines_id,
                {line_select},
+               (SELECT GROUP_CONCAT(DISTINCT vendor) FROM pam_transaction_lines WHERE pam_id = pr.id AND vendor IS NOT NULL AND vendor != '') AS aggregated_vendors,
+               (SELECT GROUP_CONCAT(DISTINCT no_invoice) FROM pam_transaction_lines WHERE pam_id = pr.id AND no_invoice IS NOT NULL AND no_invoice != '') AS aggregated_invoices,
                sla.sub_total,
                sla.cnt_tgl_pengajuan, sla.cnt_tgl_receive,
                sla.cnt_tgl_pa,        sla.cnt_tgl_final,
@@ -463,7 +466,7 @@ def _convert_advance_to_smt(conn, pam_id: int, tgl_realisasi: str, now: str) -> 
         (now, pam_id)
     )
     conn.execute(
-        """INSERT INTO smt_pam_lines (pam_id, no_vendor, nama_vendor, tgl_realisasi, created_at)
+        """INSERT INTO smt_pam_lines (pam_id, no_vendor, nama_vendor, tgl_paid, created_at)
            VALUES (?,?,?,?,?)""",
         (pam_id, no_vendor, nama_vendor, tgl_realisasi, now)
     )
@@ -476,8 +479,7 @@ def bulk_update_pam_lines_dates(pillar: str, ids: list, field: str,
     Upserts per id (via upsert_pam_lines) rather than a single UPDATE, since a
     lines row may not exist yet for a given pam_id.
     """
-    ALLOWED = {"tgl_terima_doc", "tgl_proses", "tgl_verifikasi_tax",
-               "tgl_approval_1", "tgl_approval_2", "tgl_approval_3", "tgl_kirim"}
+    ALLOWED = set(_STANDARD_LINE_FIELDS) | set(_ADVANCE_LINE_FIELDS) | {"tanggal_bayar"}
     if pillar not in _VALID_PILLARS:
         return {"ok": False, "pesan": f"Pillar tidak valid: {pillar}"}
     if field not in ALLOWED:
@@ -485,10 +487,20 @@ def bulk_update_pam_lines_dates(pillar: str, ids: list, field: str,
     if not ids:
         return {"ok": False, "pesan": "Tidak ada baris yang dipilih."}
     updated = 0
+    now = _ts()
     for pam_id in ids:
-        result = upsert_pam_lines(pam_id, pillar, {field: value or None}, company_id)
-        if result.get("ok"):
-            updated += 1
+        if field == "tanggal_bayar":
+            conn = get_conn()
+            res = conn.execute("UPDATE pam_records SET tanggal_bayar=?, updated_at=? WHERE id=? AND company_id=?", 
+                               (value or None, now, pam_id, company_id))
+            conn.commit()
+            if res.rowcount > 0:
+                updated += 1
+            conn.close()
+        else:
+            result = upsert_pam_lines(pam_id, pillar, {field: value or None}, company_id)
+            if result.get("ok"):
+                updated += 1
     return {"ok": True, "updated": updated,
             "pesan": f"{updated} dari {len(ids)} baris berhasil diperbarui."}
 
@@ -638,10 +650,11 @@ def save_others_payment(company_id: int, company_code: str, data: dict) -> dict:
     mata_uang  = data.get("mata_uang") or "IDR"
 
     try:
-        dpp = float(data.get("dpp") or 0)
-        ppn = float(data.get("ppn") or 0)
+        dpp    = float(data.get("dpp") or 0)
+        ppn    = float(data.get("ppn") or 0)
+        others = float(data.get("others") or 0)
     except (ValueError, TypeError):
-        dpp, ppn = 0.0, 0.0
+        dpp, ppn, others = 0.0, 0.0, 0.0
 
     if not pam_no:
         return {"ok": False, "pesan": "No. PAM wajib diisi."}
@@ -650,7 +663,7 @@ def save_others_payment(company_id: int, company_code: str, data: dict) -> dict:
     if dpp <= 0:
         return {"ok": False, "pesan": "DPP harus lebih dari 0."}
 
-    total    = dpp + ppn
+    total    = dpp + ppn + others
     due_date = _add_one_month(tanggal)
     conn     = get_conn()
     try:
@@ -658,12 +671,12 @@ def save_others_payment(company_id: int, company_code: str, data: dict) -> dict:
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
                 total_amount, due_date, pillar, source, pt,
-                mata_uang, dpp, ppn, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                mata_uang, dpp, ppn, others, status, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (company_id, pam_no, tanggal,
              config.PAM_DEFAULT_REQUESTOR, keterangan,
              total, due_date, pillar, transaksi, perusahaan,
-             mata_uang, dpp, ppn, "open", _ts())
+             mata_uang, dpp, ppn, others, "open", _ts())
         )
         conn.commit()
     except Exception as e:
@@ -681,9 +694,22 @@ def save_smt_pam_transaction(company_id: int, company_code: str, data: dict) -> 
     tanggal    = data.get("tanggal") or _ts()[:10]
     pam_no     = (data.get("pam_no") or "").strip()
     perusahaan = data.get("perusahaan") or ""
+    cc         = data.get("cc") or ""
     pillar     = (data.get("pillar") or "").upper()
     transaksi  = (data.get("transaksi") or "gl").lower()
     rows       = data.get("rows") or []
+    catatan    = (data.get("catatan") or "").strip()
+
+    if catatan:
+        pam_keterangan = catatan
+    else:
+        # Fallback: derive from unique line keterangans when no header note given.
+        row_kets = []
+        for r in rows:
+            ket = (r.get("keterangan") or "").strip()
+            if ket and ket not in row_kets:
+                row_kets.append(ket)
+        pam_keterangan = ", ".join(row_kets) if row_kets else "Lihat rincian baris"
 
     if not pam_no:
         return {"ok": False, "pesan": "No. PAM wajib diisi."}
@@ -706,41 +732,44 @@ def save_smt_pam_transaction(company_id: int, company_code: str, data: dict) -> 
     try:
         grand_dpp = 0.0
         grand_ppn = 0.0
+        grand_others = 0.0
         line_data = []
         for row in rows:
-            dpp = float(row.get("dpp") or 0)
-            ppn = float(row.get("ppn") or 0)
-            grand_dpp += dpp
-            grand_ppn += ppn
-            line_data.append((row, dpp, ppn, dpp + ppn))
-        grand_total = grand_dpp + grand_ppn
+            dpp    = float(row.get("dpp") or 0)
+            ppn    = float(row.get("ppn") or 0)
+            others = float(row.get("others") or 0)
+            grand_dpp    += dpp
+            grand_ppn    += ppn
+            grand_others += others
+            line_data.append((row, dpp, ppn, others, dpp + ppn + others))
+        grand_total = grand_dpp + grand_ppn + grand_others
 
         due_date = _add_one_month(tanggal)
         cur = conn.execute(
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
-                total_amount, due_date, pillar, source, pt,
-                mata_uang, dpp, ppn, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                total_amount, due_date, pillar, source, pt, cost_center,
+                mata_uang, dpp, ppn, others, status, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (company_id, pam_no, tanggal,
-             config.PAM_DEFAULT_REQUESTOR, "Lihat rincian baris",
-             grand_total, due_date, pillar, transaksi, perusahaan,
-             "IDR", grand_dpp, grand_ppn, "open", _ts())
+             config.PAM_DEFAULT_REQUESTOR, pam_keterangan,
+             grand_total, due_date, pillar, transaksi, perusahaan, cc,
+             "IDR", grand_dpp, grand_ppn, grand_others, "open", _ts())
         )
         pam_id = cur.lastrowid
 
-        for row, dpp, ppn, total in line_data:
+        for row, dpp, ppn, others, total in line_data:
             conn.execute(
                 """INSERT INTO pam_transaction_lines
                    (pam_id, coa_pam_id, klasifikasi_sr, klasifikasi_mr, gl_account,
-                    tipe_dokumen, no_invoice, dpp, ppn, total_amount,
-                    cost_center, budget_activity, keterangan, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    tipe_dokumen, no_invoice, dpp, ppn, others, total_amount,
+                    cost_center, budget_activity, vendor, keterangan, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (pam_id, row.get("coa_pam_id"), row.get("klasifikasi_sr"),
                  row.get("klasifikasi_mr"), row.get("gl_account"),
                  row.get("tipe_dokumen"), row.get("no_invoice"),
-                 dpp, ppn, total, row.get("cost_center"),
-                 row.get("budget_activity"), row.get("keterangan"), _ts())
+                 dpp, ppn, others, total, row.get("cost_center"),
+                 row.get("budget_activity"), row.get("vendor"), row.get("keterangan"), _ts())
             )
         conn.commit()
     except Exception as e:
@@ -970,10 +999,20 @@ def get_coa_pam_list(search: str = "") -> list:
     return [dict(r) for r in rows]
 
 
+def get_budget_activities() -> list:
+    conn = get_conn()
+    rows = conn.execute("SELECT DISTINCT activity FROM budget_master WHERE activity IS NOT NULL AND activity != '' ORDER BY activity").fetchall()
+    conn.close()
+    return [r["activity"] for r in rows]
+
+
 def get_pam_transaction_lines(pam_id: int) -> list:
     conn = get_conn()
     rows = conn.execute(
-        "SELECT * FROM pam_transaction_lines WHERE pam_id=? ORDER BY id", (pam_id,)
+        """SELECT t.*, v.Bank_Account_Name, v.Bank_Name, v.Bank_Account_Number 
+           FROM pam_transaction_lines t
+           LEFT JOIN vendors v ON t.vendor = v.name 
+           WHERE t.pam_id=? ORDER BY t.id""", (pam_id,)
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]

@@ -1302,6 +1302,10 @@ async function bulkFillToday() {
 }
 
 // ─── IPK helpers ─────────────────────────────────────────────────────────────
+// Tracks the in-flight fetch that populates #pa-siswa-ipk after a student is
+// picked, so submitPA() can wait for it instead of reading a still-empty field.
+let _etfpaIpkLoadPromise = null;
+
 function _etfpaLastSemNum(s) {
   for (let i = 10; i >= 1; i--) {
     if (parseFloat(s[`ipk_sem${i}`]) > 0) return i;
@@ -1332,9 +1336,12 @@ function _etfpaUpdateCreateIpk(s) {
       const code = document.getElementById('pa-siswa-code').value;
       if (!code) return;
       etfpaOpenEditSiswa(code, () => {
-        apiFetch(`/beasiswa/siswa/${code}`).then(r=>r.json()).then(d=>{
+        _etfpaIpkLoadPromise = apiFetch(`/beasiswa/siswa/${code}`).then(r=>r.json()).then(d=>{
           if (d.ok) _etfpaUpdateCreateIpk(d.data);
-        }).catch(()=>{});
+          else showToast('Gagal memuat ulang IPK siswa — cek manual sebelum simpan.', 'error');
+        }).catch(() => {
+          showToast('Gagal memuat ulang IPK siswa — cek manual sebelum simpan.', 'error');
+        });
       });
     };
   }
@@ -1368,9 +1375,12 @@ function setupCreateSiswaSearch() {
           codeInp.value   = s.code;
           if (infoDiv) infoDiv.textContent = `${s.universitas||''} | ${s.program||''} | ${s.fakultas||''} | Status: ${s.status}`;
           sugg.style.display = 'none';
-          apiFetch(`/beasiswa/siswa/${s.code}`).then(r=>r.json()).then(d=>{
+          _etfpaIpkLoadPromise = apiFetch(`/beasiswa/siswa/${s.code}`).then(r=>r.json()).then(d=>{
             if (d.ok) _etfpaUpdateCreateIpk(d.data);
-          }).catch(()=>{});
+            else showToast('Gagal memuat IPK siswa — cek manual sebelum simpan.', 'error');
+          }).catch(() => {
+            showToast('Gagal memuat IPK siswa — cek manual sebelum simpan.', 'error');
+          });
         };
         sugg.appendChild(item);
       });
@@ -1445,6 +1455,7 @@ async function submitPA() {
   if (!siswaId) { showToast('Pilih siswa terlebih dahulu.', 'error'); return; }
   const tglApp = document.getElementById('pa-tgl-app').value;
   if (!tglApp) { showToast('Tgl Payment Application wajib diisi.', 'error'); return; }
+  if (_etfpaIpkLoadPromise) { await _etfpaIpkLoadPromise; }
   const ipkVal  = parseFloat(document.getElementById('pa-siswa-ipk').value) || 0;
   const payRows = document.querySelectorAll('#pa-paylines-container .payline-row');
   if (!payRows.length) { showToast('Minimal 1 baris pembayaran harus diisi.', 'error'); return; }

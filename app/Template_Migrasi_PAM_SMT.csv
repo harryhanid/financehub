@@ -1,0 +1,4 @@
+Tanggal,PAM_No,Perusahaan,Cost_Center,Pillar,Transaksi,Klasifikasi_SR,Klasifikasi_MR,GL_Account,Tipe_Dokumen,No_Invoice,Vendor,Budget_Activity,DPP,PPN,Keterangan
+2026-07-08,PAM-SMT-001,PT Sinar Mas Tjipta,CC001,Pillar1,gl,SR-01,MR-01,70110230,INV,INV-001,Vendor A,Activity 1,1000000,110000,Pembayaran vendor A
+2026-07-08,PAM-SMT-001,PT Sinar Mas Tjipta,CC001,Pillar1,gl,SR-02,MR-02,70110231,INV,INV-002,Vendor B,Activity 2,2000000,220000,Pembayaran vendor B
+2026-07-09,PAM-SMT-002,PT Sinar Mas Tjipta,CC002,Pillar2,advance,SR-03,MR-03,70110232,ADV,ADV-001,Vendor C,Activity 3,5000000,0,Advance pembayaran

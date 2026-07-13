@@ -6,7 +6,7 @@ from modules.payment_memo.service import (
     get_draft_payments, create_memo, get_memo_list, get_memo_detail,
     update_memo_status, export_memo_pdf,
     get_pam_list, get_coa_list, update_pam_gl_account,
-    get_coa_pam_list, save_smt_pam_transaction, get_pam_transaction_lines,
+    get_coa_pam_list, get_budget_activities, save_smt_pam_transaction, get_pam_transaction_lines,
     update_pam_status, update_pam_record,
     get_pam_detail, get_pam_payments, get_pam_payments_detail,
     update_pam_and_application,
@@ -74,7 +74,9 @@ def index():
         pam_approved_by_2=config.PAM_APPROVED_BY_2,
         siswa_list=get_siswa_list(company_id),
         vendor_list=get_vendors(),
+        perusahaan_list=config.PERUSAHAAN,
         coa_pam_list=get_coa_pam_list(),
+        budget_activities=get_budget_activities(),
         jenjang=config.JENJANG,
         program=config.PROGRAM,
         status_siswa=config.STATUS_SISWA,
@@ -213,6 +215,12 @@ def get_pam_beasiswa_lines_route(pam_id):
     total = sum(float(r.get("amount") or 0) for r in rows)
     return jsonify({"ok": True, "rows": rows, "total": total})
 
+@bp.route("/pam/<int:pam_id>/transaction-lines")
+@jwt_html_required
+def get_pam_transaction_lines_route_api(pam_id):
+    rows = get_pam_transaction_lines(pam_id)
+    return jsonify({"ok": True, "rows": rows})
+
 
 @bp.route("/pam/<int:pam_id>/edit", methods=["POST"])
 @jwt_html_required
@@ -345,6 +353,7 @@ def export_pam_pdf_custom_route(pam_id):
         return jsonify({"ok": False, "pesan": "PAM record tidak ditemukan."}), 404
     pam_no     = (data.get("pam_no") or "").strip()
     data["company_id"] = company_id
+    data["pam_id"]     = pam_id
     payments   = get_pam_payments(pam_no, company_id)
     pdf_bytes  = export_pam_pdf_custom(data, payments)
     fname      = f"{pam_no or f'pam_{pam_id}'}.pdf"
@@ -365,6 +374,7 @@ def export_pam_excel_custom_route(pam_id):
         return jsonify({"ok": False, "pesan": "PAM record tidak ditemukan."}), 404
     pam_no                = (data.get("pam_no") or "").strip()
     data["company_id"]    = company_id
+    data["pam_id"]        = pam_id
     payments              = get_pam_payments(pam_no, company_id)
     xls_bytes             = export_pam_excel_custom(data, payments)
     fname      = f"{pam_no or f'pam_{pam_id}'}.xlsx"
@@ -638,10 +648,13 @@ def check_pam_no_route():
 def ipay_next_pam_no():
     tab      = request.args.get("tab", "agri").lower()
     date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
-    company_id   = session.get("company_id", 0)
-    company_code = session.get("company_code", "ETF")
-    pam_no = get_next_pam_no(company_id, company_code, tab, date_str)
-    return jsonify({"ok": True, "pam_no": pam_no})
+    company_id   = session.get("company_id") or 0
+    company_code = session.get("company_code") or "ETF"
+    try:
+        pam_no = get_next_pam_no(company_id, company_code, tab, date_str)
+        return jsonify({"ok": True, "pam_no": pam_no})
+    except Exception as e:
+        return jsonify({"ok": False, "pam_no": f"ERROR-{e}"}), 500
 
 
 @bp.route("/ipay/save-pa", methods=["POST"])

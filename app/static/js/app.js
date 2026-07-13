@@ -14,16 +14,6 @@ const FH_MODULES = [
 ];
 const FH_RECENT_KEY = 'fh_recent_modules';
 
-/* Always block the browser's native Ctrl/Cmd+K (focus omnibox) first, in the
-   capture phase — runs before any page-specific script can stopPropagation
-   during the bubble phase, and before initCommandPalette() has even wired up
-   (so it works even on pages where the palette DOM/JS fails for any reason). */
-document.addEventListener('keydown', function(e) {
-  if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
-    e.preventDefault();
-  }
-}, true);
-
 function _fhGetRecent() {
   try { return JSON.parse(localStorage.getItem(FH_RECENT_KEY) || '[]'); } catch (e) { return []; }
 }
@@ -155,7 +145,7 @@ function initCommandPalette() {
   input.addEventListener('input', function() { render(input.value); });
 
   document.addEventListener('keydown', function(e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'k') {
       e.preventDefault();
       ov.classList.contains('open') ? close() : open();
       return;
@@ -378,6 +368,23 @@ function showToast(msg, type = "success") {
   toast.style.opacity = "1";
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => { toast.style.opacity = "0"; }, 3000);
+}
+
+function showLoading(msg) {
+  let el = document.getElementById("fh-load-ov");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "fh-load-ov";
+    el.innerHTML = `<div class="fh-load-card"><div class="fh-load-spin"></div><div class="fh-load-msg"></div></div>`;
+    document.body.appendChild(el);
+  }
+  el.querySelector(".fh-load-msg").textContent = msg || "Memuat...";
+  el.classList.add("show");
+}
+
+function hideLoading() {
+  const el = document.getElementById("fh-load-ov");
+  if (el) el.classList.remove("show");
 }
 
 function openModal(id) { const el = document.getElementById(id); if (el) el.classList.add("open"); }

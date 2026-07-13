@@ -222,9 +222,11 @@ CREATE TABLE IF NOT EXISTS pam_transaction_lines (
     no_invoice      TEXT,
     dpp             REAL DEFAULT 0,
     ppn             REAL DEFAULT 0,
+    others          REAL DEFAULT 0,
     total_amount    REAL DEFAULT 0,
     cost_center     TEXT,
     budget_activity TEXT,
+    vendor          TEXT,
     keterangan      TEXT,
     created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at      TEXT
@@ -354,14 +356,13 @@ CREATE TABLE IF NOT EXISTS smt_pam_lines (
     pam_id             INTEGER NOT NULL REFERENCES pam_records(id) ON DELETE CASCADE,
     no_vendor          TEXT,
     nama_vendor        TEXT,
-    tgl_terima_doc     TEXT,
-    tgl_proses         TEXT,
-    tgl_verifikasi_tax TEXT,
-    tgl_approval_1     TEXT,
-    tgl_approval_2     TEXT,
-    tgl_approval_3     TEXT,
-    tgl_kirim          TEXT,
-    tgl_realisasi      TEXT,
+    tgl_received       TEXT,
+    tgl_a0             TEXT,
+    tgl_a1             TEXT,
+    tgl_a2             TEXT,
+    tgl_a3             TEXT,
+    tgl_a4             TEXT,
+    tgl_paid           TEXT,
     created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at         TEXT
 );
@@ -678,13 +679,21 @@ def migrate_db():
             "klasifikasi_sr TEXT, klasifikasi_mr TEXT, gl_account TEXT,"
             "tipe_dokumen TEXT, no_invoice TEXT,"
             "dpp REAL DEFAULT 0, ppn REAL DEFAULT 0, total_amount REAL DEFAULT 0,"
-            "cost_center TEXT, budget_activity TEXT, keterangan TEXT,"
+            "cost_center TEXT, budget_activity TEXT, vendor TEXT, keterangan TEXT,"
             "created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT)"
         )
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_pam_transaction_lines_pam_id "
             "ON pam_transaction_lines(pam_id)"
         )
+        try:
+            conn.execute("ALTER TABLE pam_transaction_lines ADD COLUMN vendor TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE pam_transaction_lines ADD COLUMN others REAL DEFAULT 0")
+        except Exception:
+            pass
         conn.commit()
     except Exception:
         pass
@@ -694,7 +703,8 @@ def migrate_db():
         conn.execute(
             "CREATE TABLE IF NOT EXISTS vendors "
             "(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, "
-            "pillar TEXT NOT NULL, cost_center TEXT DEFAULT '')"
+            "pillar TEXT NOT NULL, cost_center TEXT DEFAULT '', "
+            "Bank_Account_Name TEXT, Bank_Name TEXT, Bank_Account_Number TEXT, Swift_Code TEXT)"
         )
         conn.commit()
     except Exception:
@@ -1095,11 +1105,12 @@ def migrate_db():
         except Exception:
             pass
 
-    # pam_records — add standardization columns (mata_uang, dpp, ppn, pillar)
+    # pam_records — add standardization columns (mata_uang, dpp, ppn, others, pillar)
     for col_def in [
         "mata_uang TEXT DEFAULT 'IDR'",
         "dpp       INTEGER DEFAULT 0",
         "ppn       INTEGER DEFAULT 0",
+        "others    INTEGER DEFAULT 0",
         "pillar    TEXT",
     ]:
         try:

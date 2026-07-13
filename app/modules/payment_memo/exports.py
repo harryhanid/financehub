@@ -14,7 +14,10 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
-from modules.payment_memo.service import get_pam_detail, get_pam_payments, get_pam_payments_detail
+from modules.payment_memo.service import (
+    get_pam_detail, get_pam_payments, get_pam_payments_detail, 
+    get_pam_transaction_lines
+)
 
 _HOLIDAYS_2026 = {
     date(2026, 1,  1), date(2026, 1, 16), date(2026, 2, 17),
@@ -293,6 +296,102 @@ def _build_pam_table_custom(data: dict) -> Table:
     return Table(data_rows, colWidths=_CW, style=TableStyle(style_cmds))
 
 
+
+def _build_lampiran_pdf_table_smt(lines):
+    from reportlab.platypus import Table, TableStyle, Paragraph
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.lib.styles import ParagraphStyle
+    
+    _S_TH = ParagraphStyle("S_TH", fontName="Helvetica-Bold", fontSize=8, textColor=colors.white, alignment=TA_CENTER)
+    _S_TD = ParagraphStyle("S_TD", fontName="Helvetica", fontSize=8, alignment=TA_LEFT)
+    _S_TD_R = ParagraphStyle("S_TD_R", fontName="Helvetica", fontSize=8, alignment=TA_RIGHT)
+    
+    hdrs = ["NO", "Nama Karyawan", "Invoice #", "Bank", "No. Rekening", "GL Account", "Invoice Amount"]
+    rows = [[Paragraph(h, _S_TH) for h in hdrs]]
+    
+    groups = []
+    gmap = {}
+    for l in lines:
+        v = l.get("vendor") or ""
+        b = l.get("Bank_Name") or ""
+        nr = l.get("Bank_Account_Number") or ""
+        gl = l.get("gl_account") or ""
+        k = (v, b, nr, gl)
+        if k not in gmap:
+            gmap[k] = {"v": v, "b": b, "nr": nr, "gl": gl, "lines": [], "tot": 0.0}
+            groups.append(k)
+        gmap[k]["lines"].append(l)
+        gmap[k]["tot"] += float(l.get("total_amount") or 0)
+        
+    spans = []
+    r_idx = 1
+    total = 0.0
+    for i, k in enumerate(groups, 1):
+        grp = gmap[k]
+        start_r = r_idx
+        for j, l in enumerate(grp["lines"]):
+            amt = float(l.get("total_amount") or 0)
+            fmt_amt = f"Rp {amt:,.0f}".replace(",", ".")
+            if j == 0:
+                rows.append([
+                    Paragraph(str(i), ParagraphStyle("n", alignment=TA_CENTER, fontSize=8)),
+                    Paragraph(grp["v"], _S_TD),
+                    Paragraph(l.get("no_invoice") or "", _S_TD),
+                    Paragraph(grp["b"], _S_TD),
+                    Paragraph(grp["nr"], _S_TD),
+                    Paragraph(grp["gl"], _S_TD),
+                    Paragraph(fmt_amt, _S_TD_R)
+                ])
+            else:
+                rows.append([
+                    "", "", 
+                    Paragraph(l.get("no_invoice") or "", _S_TD),
+                    "", "", "",
+                    Paragraph(fmt_amt, _S_TD_R)
+                ])
+            r_idx += 1
+        
+        end_r = r_idx - 1
+        if start_r < end_r:
+            spans.append(("SPAN", (0, start_r), (0, end_r)))
+            spans.append(("SPAN", (1, start_r), (1, end_r)))
+            spans.append(("SPAN", (3, start_r), (3, end_r)))
+            spans.append(("SPAN", (4, start_r), (4, end_r)))
+            spans.append(("SPAN", (5, start_r), (5, end_r)))
+        total += grp["tot"]
+        
+    fmt_tot = f"Rp {total:,.0f}".replace(",", ".")
+    rows.append([
+        "", "", "", "", "",
+        Paragraph("Total", ParagraphStyle("tot", fontName="Helvetica-Bold", fontSize=8, alignment=TA_CENTER)),
+        Paragraph(fmt_tot, ParagraphStyle("totv", fontName="Helvetica-Bold", fontSize=8, alignment=TA_RIGHT))
+    ])
+    spans.append(("SPAN", (0, r_idx), (4, r_idx)))
+    
+    col_w = [0.8*cm, 3.5*cm, 3.0*cm, 3.5*cm, 2.5*cm, 1.8*cm, 2.5*cm]
+    tbl = Table(rows, colWidths=col_w, repeatRows=1)
+    
+    tstyle = [
+        ("BACKGROUND",     (0, 0), (-1, 0),  colors.HexColor("#1e3a5f")),
+        ("FONTNAME",       (0, 0), (-1, 0),  "Helvetica-Bold"),
+        ("FONTSIZE",       (0, 0), (-1, -1), 8),
+        ("GRID",           (0, 0), (-1, -1), 0.4, colors.HexColor("#d1d5db")),
+        ("BACKGROUND",     (0, -1), (-1, -1), colors.HexColor("#e8f0fe")),
+        ("FONTNAME",       (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("LINEABOVE",      (0, -1), (-1, -1), 1.5, colors.HexColor("#1e3a5f")),
+        ("ALIGN",          (0, 0), (0, -1), "CENTER"),
+        ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",     (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING",  (0, 0), (-1, -1), 3),
+        ("LEFTPADDING",    (0, 0), (-1, -1), 4),
+    ]
+    tstyle.extend(spans)
+    tbl.setStyle(TableStyle(tstyle))
+    return tbl
+
+
 def _build_detail_pdf_table(detail: list) -> Table:
     _s7h = _style("d7h", fontName="Helvetica-Bold", fontSize=7,
                   textColor=_WHITE, alignment=TA_CENTER)
@@ -367,10 +466,11 @@ def _group_payments_by_siswa(payments: list) -> list:
         key = pb.get("siswa_code") or pb.get("nama") or ""
         if key not in grouped:
             grouped[key] = {
-                "nama":   pb.get("nama") or pb.get("siswa_code", ""),
-                "bank":   pb.get("bank") or "",
-                "norek":  pb.get("norek") or "",
-                "amount": 0.0,
+                "nama":    pb.get("nama") or pb.get("siswa_code", ""),
+                "namarek": pb.get("namarek") or pb.get("nama") or pb.get("siswa_code", ""),
+                "bank":    pb.get("bank") or "",
+                "norek":   pb.get("norek") or "",
+                "amount":  0.0,
             }
         grouped[key]["amount"] += float(pb.get("amount") or 0)
     return list(grouped.values())
@@ -426,42 +526,53 @@ def export_pam_pdf_custom(data: dict, payments: list) -> bytes:
     elems.append(att_hdr)
     elems.append(Spacer(1, 0.3*cm))
 
-    hdrs = ["No", "Nama Siswa", "Bank", "No. Rekening", "Amount (Rp)"]
-    rows = [[_p(h, _S_TH) for h in hdrs]]
-    total = 0.0
-    for i, pb in enumerate(_group_payments_by_siswa(payments), 1):
+    generate_beasiswa = False
+    if not payments and data.get("pam_id"):
+        transaction_lines = get_pam_transaction_lines(data["pam_id"])
+        if transaction_lines:
+            elems.append(_build_lampiran_pdf_table_smt(transaction_lines))
+        else:
+            generate_beasiswa = True
+    else:
+        generate_beasiswa = True
+
+    if generate_beasiswa:
+        hdrs = ["No", "Nama Rekening", "Bank", "No. Rekening", "Amount (Rp)"]
+        rows = [[_p(h, _S_TH) for h in hdrs]]
+        total = 0.0
+        for i, pb in enumerate(_group_payments_by_siswa(payments), 1):
+            rows.append([
+                _p(str(i), _style("n", alignment=1, fontSize=8)),
+                _p(pb["namarek"], _S_TD),
+                _p(pb["bank"], _S_TD),
+                _p(pb["norek"], _S_TD),
+                _p(f"{pb['amount']:,.0f}", _S_TD_R),
+            ])
+            total += pb["amount"]
         rows.append([
-            _p(str(i), _style("n", alignment=1, fontSize=8)),
-            _p(pb["nama"], _S_TD),
-            _p(pb["bank"], _S_TD),
-            _p(pb["norek"], _S_TD),
-            _p(f"{pb['amount']:,.0f}", _S_TD_R),
+            _p("", _S_TD), _p("", _S_TD), _p("", _S_TD),
+            _p("TOTAL", _style("tot", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
+            _p(f"{total:,.0f}", _style("totv", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
         ])
-        total += pb["amount"]
-    rows.append([
-        _p("", _S_TD), _p("", _S_TD), _p("", _S_TD),
-        _p("TOTAL", _style("tot", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
-        _p(f"{total:,.0f}", _style("totv", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
-    ])
-    col_w = [0.6*cm, 5.0*cm, 2.8*cm, 4.6*cm, 4.0*cm]
-    att_tbl = Table(rows, colWidths=col_w, repeatRows=1)
-    att_tbl.setStyle(TableStyle([
-        ("BACKGROUND",     (0, 0), (-1, 0),  _BLUE),
-        ("FONTNAME",       (0, 0), (-1, 0),  "Helvetica-Bold"),
-        ("FONTSIZE",       (0, 0), (-1, -1), 8),
-        ("GRID",           (0, 0), (-1, -1), 0.4, colors.HexColor("#d1d5db")),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [_WHITE, _LGRAY]),
-        ("BACKGROUND",     (0, -1), (-1, -1), colors.HexColor("#e8f0fe")),
-        ("FONTNAME",       (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("LINEABOVE",      (0, -1), (-1, -1), 1.5, _BLUE),
-        ("ALIGN",          (0, 0), (0, -1), "CENTER"),
-        ("ALIGN",          (4, 0), (4, -1), "RIGHT"),
-        ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING",     (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING",  (0, 0), (-1, -1), 3),
-        ("LEFTPADDING",    (0, 0), (-1, -1), 4),
-    ]))
-    elems.append(att_tbl)
+        col_w = [0.6*cm, 5.0*cm, 2.8*cm, 4.6*cm, 4.0*cm]
+        att_tbl = Table(rows, colWidths=col_w, repeatRows=1)
+        att_tbl.setStyle(TableStyle([
+            ("BACKGROUND",     (0, 0), (-1, 0),  _BLUE),
+            ("FONTNAME",       (0, 0), (-1, 0),  "Helvetica-Bold"),
+            ("FONTSIZE",       (0, 0), (-1, -1), 8),
+            ("GRID",           (0, 0), (-1, -1), 0.4, colors.HexColor("#d1d5db")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [_WHITE, _LGRAY]),
+            ("BACKGROUND",     (0, -1), (-1, -1), colors.HexColor("#e8f0fe")),
+            ("FONTNAME",       (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("LINEABOVE",      (0, -1), (-1, -1), 1.5, _BLUE),
+            ("ALIGN",          (0, 0), (0, -1), "CENTER"),
+            ("ALIGN",          (4, 0), (4, -1), "RIGHT"),
+            ("VALIGN",         (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING",     (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING",  (0, 0), (-1, -1), 3),
+            ("LEFTPADDING",    (0, 0), (-1, -1), 4),
+        ]))
+        elems.append(att_tbl)
 
     # Page 3: Detail PAM
     _pam_no_det = data.get("pam_no", "")
@@ -549,13 +660,21 @@ def export_pam_pdf(pam_id: int, company_id: int,
     elems.append(att_hdr_tbl)
     elems.append(Spacer(1, 0.3*cm))
 
-    headers = ["No", "Nama Siswa", "Bank", "No. Rekening", "Amount (Rp)"]
-    rows = [[_p(h, _S_TH) for h in headers]]
+    if not payments:
+        transaction_lines = get_pam_transaction_lines(pam_id)
+        if transaction_lines:
+            elems.append(_build_lampiran_pdf_table_smt(transaction_lines))
+        else:
+            headers = ["No", "Nama Rekening", "Bank", "No. Rekening", "Amount (Rp)"]
+            rows = [[_p(h, _S_TH) for h in headers]]
+    else:
+        headers = ["No", "Nama Rekening", "Bank", "No. Rekening", "Amount (Rp)"]
+        rows = [[_p(h, _S_TH) for h in headers]]
     total = 0.0
     for i, pb in enumerate(_group_payments_by_siswa(payments), 1):
         rows.append([
             _p(str(i), _style("n", alignment=1, fontSize=8)),
-            _p(pb["nama"], _S_TD),
+            _p(pb["namarek"], _S_TD),
             _p(pb["bank"], _S_TD),
             _p(pb["norek"], _S_TD),
             _p(f"{pb['amount']:,.0f}", _S_TD_R),
@@ -567,9 +686,10 @@ def export_pam_pdf(pam_id: int, company_id: int,
         _p(f"{total:,.0f}", _style("totv", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
     ])
 
-    col_w = [0.6*cm, 5.0*cm, 2.8*cm, 4.6*cm, 4.0*cm]
-    att_tbl = Table(rows, colWidths=col_w, repeatRows=1)
-    att_tbl.setStyle(TableStyle([
+    if getattr(elems[-1], "__class__", None).__name__ != "Table":
+        col_w = [0.6*cm, 5.0*cm, 2.8*cm, 4.6*cm, 4.0*cm]
+        att_tbl = Table(rows, colWidths=col_w, repeatRows=1)
+        att_tbl.setStyle(TableStyle([
         ("BACKGROUND",     (0, 0), (-1, 0),  _BLUE),
         ("FONTNAME",       (0, 0), (-1, 0),  "Helvetica-Bold"),
         ("FONTSIZE",       (0, 0), (-1, -1), 8),
@@ -819,6 +939,90 @@ def _build_detail_sheet(ws, pam: dict, detail: list) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 # Excel export — Book6.xlsx standard format
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _build_lampiran_excel_smt(ws2, transaction_lines, _hf2, _t2):
+    from openpyxl.styles import Font, Alignment, Border
+
+    ws2.column_dimensions["A"].width = 5.0
+    ws2.column_dimensions["B"].width = 20.0
+    ws2.column_dimensions["C"].width = 25.0
+    ws2.column_dimensions["D"].width = 25.0
+    ws2.column_dimensions["E"].width = 18.0
+    ws2.column_dimensions["F"].width = 12.0
+    ws2.column_dimensions["G"].width = 16.0
+
+    def _c(r, c, val, fill=None, bold=False):
+        cell = ws2.cell(r, c, val)
+        if fill: cell.fill = fill
+        cell.font = Font(bold=bold, size=11)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = Border(left=_t2, right=_t2, top=_t2, bottom=_t2)
+        return cell
+
+    hdrs = ["NO", "Nama Karyawan", "Invoice #", "Bank", "No. Rekening", "GL Account", "Invoice Amount"]
+    for i, h in enumerate(hdrs, 1):
+        _c(5, i, h, fill=_hf2, bold=True)
+
+    groups = []
+    gmap = {}
+    for l in transaction_lines:
+        v = l.get("vendor") or ""
+        b = l.get("Bank_Name") or ""
+        nr = l.get("Bank_Account_Number") or ""
+        gl = l.get("gl_account") or ""
+        k = (v, b, nr, gl)
+        if k not in gmap:
+            gmap[k] = {"v": v, "b": b, "nr": nr, "gl": gl, "lines": [], "tot": 0.0}
+            groups.append(k)
+        gmap[k]["lines"].append(l)
+        gmap[k]["tot"] += float(l.get("total_amount") or 0)
+
+    r_idx = 6
+    total = 0.0
+    for i, k in enumerate(groups, 1):
+        grp = gmap[k]
+        start_r = r_idx
+        for j, l in enumerate(grp["lines"]):
+            amt = float(l.get("total_amount") or 0)
+            if j == 0:
+                _c(r_idx, 1, i)
+                _c(r_idx, 2, grp["v"]).alignment = Alignment(horizontal="left", vertical="center")
+                _c(r_idx, 3, l.get("no_invoice") or "")
+                _c(r_idx, 4, grp["b"]).alignment = Alignment(horizontal="left", vertical="center")
+                _c(r_idx, 5, grp["nr"])
+                _c(r_idx, 6, grp["gl"])
+                cell = _c(r_idx, 7, amt)
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+                cell.number_format = '_-"Rp"* #,##0_-;\\-"Rp"* #,##0_-;_-"Rp"* "-"_-;_-@_-'
+            else:
+                _c(r_idx, 1, "")
+                _c(r_idx, 2, "")
+                _c(r_idx, 3, l.get("no_invoice") or "")
+                _c(r_idx, 4, "")
+                _c(r_idx, 5, "")
+                _c(r_idx, 6, "")
+                cell = _c(r_idx, 7, amt)
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+                cell.number_format = '_-"Rp"* #,##0_-;\\-"Rp"* #,##0_-;_-"Rp"* "-"_-;_-@_-'
+            r_idx += 1
+
+        end_r = r_idx - 1
+        if start_r < end_r:
+            ws2.merge_cells(f"A{start_r}:A{end_r}")
+            ws2.merge_cells(f"B{start_r}:B{end_r}")
+            ws2.merge_cells(f"D{start_r}:D{end_r}")
+            ws2.merge_cells(f"E{start_r}:E{end_r}")
+            ws2.merge_cells(f"F{start_r}:F{end_r}")
+        total += grp["tot"]
+
+    cell = _c(r_idx, 1, "Total", bold=True)
+    for c in range(2, 7):
+        _c(r_idx, c, "", bold=True)
+    cell_tot = _c(r_idx, 7, total, bold=True)
+    cell_tot.alignment = Alignment(horizontal="right", vertical="center")
+    cell_tot.number_format = '_-"Rp"* #,##0_-;\\-"Rp"* #,##0_-;_-"Rp"* "-"_-;_-@_-'
+    ws2.merge_cells(f"A{r_idx}:F{r_idx}")
+
 
 def export_pam_excel(pam_id: int, company_id: int,
                      approved_by_1: str, approved_by_2: str) -> bytes:
@@ -1083,24 +1287,33 @@ def export_pam_excel(pam_id: int, company_id: int,
         ws2.row_dimensions[_ri2].height = 15.9
 
     # Rows 2-3: PAM info header
-    _s2(2, 2, "NO. ",         bold=True, sz=12, va="top")
-    _s2(2, 3, ":",             bold=True, sz=12)
-    _s2(2, 4, pam_no,          sz=12,    va="top")
-    _s2(2, 6, "COST CENTER ", bold=True, sz=12)
-    _s2(2, 7, ":",             bold=True, sz=12)
-    _s2(2, 8, pam.get("cost_center", ""), bold=True, sz=12)
+    _s2(2, 1, "NO. ",         bold=True, sz=12, va="top")
+    _s2(2, 2, ":",             bold=True, sz=12, ha="center")
+    _s2(2, 3, pam_no,          sz=12,    va="top")
+    _s2(2, 5, "COST CENTER ", bold=True, sz=12)
+    _s2(2, 6, ":",             bold=True, sz=12, ha="center")
+    _s2(2, 7, pam.get("cost_center", ""), bold=True, sz=12)
 
-    _s2(3, 2, "TANGGAL",      bold=True, sz=12)
-    _s2(3, 3, ":",             bold=True, sz=12)
+    _s2(3, 1, "TANGGAL",      bold=True, sz=12)
+    _s2(3, 2, ":",             bold=True, sz=12, ha="center")
     try:
         _d3v = _dt.strptime(pam.get("pam_date", "")[:10], "%Y-%m-%d")
-        _s2(3, 4, _d3v, bold=True, sz=12, ha="left",
+        _s2(3, 3, _d3v, bold=True, sz=12, ha="left",
             fmt='[$-421]dd\\ mmmm\\ yyyy;@')
     except Exception:
-        _s2(3, 4, pam.get("pam_date", ""), bold=True, sz=12, ha="left")
-    _s2(3, 6, "GL ACCOUNT     ", bold=True, sz=12)
-    _s2(3, 7, ":",               bold=True, sz=12)
-    _s2(3, 8, pam.get("gl_account", ""), bold=True, sz=12, ha="left")
+        _s2(3, 3, pam.get("pam_date", ""), bold=True, sz=12, ha="left")
+    _s2(3, 5, "GL ACCOUNT     ", bold=True, sz=12)
+    _s2(3, 6, ":",               bold=True, sz=12, ha="center")
+    _s2(3, 7, pam.get("gl_account", ""), bold=True, sz=12, ha="left")
+
+    if not payments:
+        transaction_lines = get_pam_transaction_lines(pam_id)
+        if transaction_lines:
+            _build_lampiran_excel_smt(ws2, transaction_lines, _hf2, _t2)
+            buf = io.BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            return buf.read()
 
     # Split payments: universities (Section 2) vs individuals (Section 1)
     _UNI_KW = ("universitas", "institut ", "akademi", "politeknik",
@@ -1506,24 +1719,33 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
         ws2.row_dimensions[_ri2].height = 15.9
 
     # Rows 2-3: PAM info header
-    _s2(2, 2, "NO. ",          bold=True, sz=12, va="top")
-    _s2(2, 3, ":",              bold=True, sz=12)
-    _s2(2, 4, pam_no,           sz=12,    va="top")
-    _s2(2, 6, "COST CENTER ",  bold=True, sz=12)
-    _s2(2, 7, ":",              bold=True, sz=12)
-    _s2(2, 8, data.get("cost_center", ""), bold=True, sz=12)
+    _s2(2, 1, "NO. ",          bold=True, sz=12, va="top")
+    _s2(2, 2, ":",              bold=True, sz=12, ha="center")
+    _s2(2, 3, pam_no,           sz=12,    va="top")
+    _s2(2, 5, "COST CENTER ",  bold=True, sz=12)
+    _s2(2, 6, ":",              bold=True, sz=12, ha="center")
+    _s2(2, 7, data.get("cost_center", ""), bold=True, sz=12)
 
-    _s2(3, 2, "TANGGAL",       bold=True, sz=12)
-    _s2(3, 3, ":",              bold=True, sz=12)
+    _s2(3, 1, "TANGGAL",       bold=True, sz=12)
+    _s2(3, 2, ":",              bold=True, sz=12, ha="center")
     try:
         _d3v = _dt.strptime(data.get("pam_date", "")[:10], "%Y-%m-%d")
-        _s2(3, 4, _d3v, bold=True, sz=12, ha="left",
+        _s2(3, 3, _d3v, bold=True, sz=12, ha="left",
             fmt='[$-421]dd\\ mmmm\\ yyyy;@')
     except Exception:
-        _s2(3, 4, data.get("pam_date", ""), bold=True, sz=12, ha="left")
-    _s2(3, 6, "GL ACCOUNT     ", bold=True, sz=12)
-    _s2(3, 7, ":",               bold=True, sz=12)
-    _s2(3, 8, data.get("gl_account", ""), bold=True, sz=12, ha="left")
+        _s2(3, 3, data.get("pam_date", ""), bold=True, sz=12, ha="left")
+    _s2(3, 5, "GL ACCOUNT     ", bold=True, sz=12)
+    _s2(3, 6, ":",               bold=True, sz=12, ha="center")
+    _s2(3, 7, data.get("gl_account", ""), bold=True, sz=12, ha="left")
+
+    if not payments and data.get("pam_id"):
+        transaction_lines = get_pam_transaction_lines(data["pam_id"])
+        if transaction_lines:
+            _build_lampiran_excel_smt(ws2, transaction_lines, _hf2, _t2)
+            buf = io.BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            return buf.read()
 
     # Split payments: universities (Section 2) vs individuals (Section 1)
     _UNI_KW = ("universitas", "institut ", "akademi", "politeknik",

@@ -18,6 +18,24 @@
 /* it would just cap the JS-computed height right back down.                  */
 .pillar-table-wrap{overflow-x:auto;overflow-y:auto;width:calc(100vw - 3.5rem)}
 .pillar-table-wrap .thead-primary th{position:sticky;top:0;z-index:3}
+/* ── SMT PAM List: frozen checkbox / PAM No / Tgl PAM columns ────────────── */
+/* border-collapse:separate set inline on #smt-table — required, collapse breaks position:sticky */
+#smt-table th.smt-sc0,#smt-table td.smt-sc0,
+#smt-table th.smt-sc1,#smt-table td.smt-sc1,
+#smt-table th.smt-sc2,#smt-table td.smt-sc2{position:sticky;z-index:2;background:#fff}
+#smt-table thead th.smt-sc0,#smt-table thead th.smt-sc1,#smt-table thead th.smt-sc2{background:var(--sl-800);z-index:4}
+#smt-table th.smt-sc0,#smt-table td.smt-sc0{left:0;width:40px;min-width:40px;max-width:40px}
+#smt-table th.smt-sc1,#smt-table td.smt-sc1{left:40px;min-width:150px}
+#smt-table th.smt-sc2,#smt-table td.smt-sc2{left:190px;min-width:95px;box-shadow:3px 0 5px -2px rgba(0,0,0,.12)}
+/* PAM List row backgrounds are hardcoded #fff/#f8fafc inline per row (zebra), never theme-aware — bleeds white in dark mode without this override */
+[data-theme="dark"] #smt-tbody tr{background:var(--card) !important}
+[data-theme="dark"] #smt-table th.smt-sc0,[data-theme="dark"] #smt-table td.smt-sc0,
+[data-theme="dark"] #smt-table th.smt-sc1,[data-theme="dark"] #smt-table td.smt-sc1,
+[data-theme="dark"] #smt-table th.smt-sc2,[data-theme="dark"] #smt-table td.smt-sc2{background:var(--card) !important}
+[data-theme="dark"] #smt-table thead th.smt-sc0,[data-theme="dark"] #smt-table thead th.smt-sc1,[data-theme="dark"] #smt-table thead th.smt-sc2{background:#181b25 !important}
+/* inline zebra background on td.smt-sc0/sc1/sc2 beats the global tbody tr:hover td rule — restore hover highlight */
+#smt-table tbody tr:hover td.smt-sc0,#smt-table tbody tr:hover td.smt-sc1,#smt-table tbody tr:hover td.smt-sc2{background:#f1f5f9}
+[data-theme="dark"] #smt-table tbody tr:hover td.smt-sc0,[data-theme="dark"] #smt-table tbody tr:hover td.smt-sc1,[data-theme="dark"] #smt-table tbody tr:hover td.smt-sc2{background:var(--positive-surface) !important}
 /* ── AGRI: frozen columns ─────────────────────────────────────────────── */
 /* border-collapse:separate required — collapse breaks position:sticky    */
 #pam-table{border-collapse:separate;border-spacing:0}
@@ -215,7 +233,7 @@
       </div>
       <div class="form-group" style="margin:0">
         <label>Tanggal</label>
-        <input type="date" id="ipay-tgl" onchange="ipayFetchNextPamNo()">
+        <input type="date" id="ipay-tgl" onchange="ipayFetchNextPamNo(); document.querySelectorAll('.smt-due-cell').forEach(el=>el.textContent=_calcSmtDueDate())">
       </div>
       <div class="form-group" style="margin:0">
         <label>No. PAM
@@ -231,11 +249,11 @@
       <div class="form-group" style="margin:0">
         <label>Perusahaan</label>
         <div style="position:relative">
-          <input type="text" id="ipay-perusahaan-search" placeholder="Cari vendor..."
-                 autocomplete="off" oninput="ipayVendorSearch()"
-                 onblur="setTimeout(()=>document.getElementById('ipay-vendor-sugg').style.display='none',200)">
+          <input type="text" id="ipay-perusahaan-search" placeholder="Cari perusahaan..."
+                 autocomplete="off" oninput="ipayPerusahaanSearch()"
+                 onblur="setTimeout(()=>document.getElementById('ipay-perusahaan-sugg').style.display='none',200)">
           <input type="hidden" id="ipay-perusahaan">
-          <div id="ipay-vendor-sugg" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
+          <div id="ipay-perusahaan-sugg" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
         </div>
       </div>
     </div>
@@ -352,7 +370,7 @@
         </select>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
       <div class="form-group" style="margin:0">
         <label>DPP <span style="color:#ef4444">*</span></label>
         <input type="number" id="others-dpp" class="dm-inp" placeholder="0"
@@ -366,7 +384,13 @@
                style="text-align:right">
       </div>
       <div class="form-group" style="margin:0">
-        <label>Total <span style="font-size:.65rem;font-weight:400">(DPP+PPN)</span></label>
+        <label>Others</label>
+        <input type="number" id="others-others" class="dm-inp" placeholder="0"
+               min="0" oninput="othersCalcTotal()"
+               style="text-align:right">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Total <span style="font-size:.65rem;font-weight:400">(DPP+PPN+Others)</span></label>
         <div id="others-total"
              style="border-bottom:2px solid #1d4ed8;padding:4px 6px;font-size:14px;font-weight:700;color:#1d4ed8;text-align:right;background:#eff6ff;border-radius:2px">
           Rp 0
@@ -392,23 +416,26 @@
           <th style="min-width:120px">No. Invoice</th>
           <th style="min-width:120px">DPP</th>
           <th style="min-width:100px">PPN</th>
+          <th style="min-width:100px">Others</th>
           <th style="min-width:120px">Total</th>
+          <th style="min-width:110px">Due Date</th>
           <th style="min-width:130px">Cost Center</th>
           <th style="min-width:150px">Budget Activity</th>
+          <th style="min-width:200px">Vendor</th>
           <th style="min-width:200px">Keterangan</th>
           <th style="width:32px"></th>
         </tr>
       </thead>
       <tbody id="smt-lines-tbody">
         <tr id="smt-lines-empty-row">
-          <td colspan="12" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td>
+          <td colspan="15" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td>
         </tr>
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="7" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem">Total Amount:</td>
+          <td colspan="8" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem">Total Amount:</td>
           <td id="smt-lines-total-amt" class="num-right" style="font-weight:700;color:#1a56db;white-space:nowrap">Rp 0</td>
-          <td colspan="4"></td>
+          <td colspan="6"></td>
         </tr>
       </tfoot>
     </table>
@@ -493,7 +520,7 @@
           <tr>
             <th class="s0" style="padding:4px"></th>
             <th class="s1" style="padding:8px 10px;text-align:left;white-space:nowrap">PAM No</th>
-            <th class="s2" style="padding:8px 10px;text-align:left;white-space:nowrap" data-sort="2">Tgl PAM</th>
+            <th class="s2" style="padding:8px 10px;text-align:left;white-space:nowrap;cursor:pointer" data-sort="2" onclick="_agriSortClick(2)">Tgl PAM</th>
             <th class="s3" style="padding:8px 10px;text-align:left">PT</th>
             <th class="s4" style="padding:8px 10px;text-align:left;white-space:nowrap">Cost Center</th>
             <th style="padding:8px 10px;min-width:220px;text-align:left;">GL Account</th>
@@ -502,8 +529,8 @@
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">Mata Uang</th>
             <th style="padding:8px 10px;text-align:right;">DPP</th>
             <th style="padding:8px 10px;text-align:right;">PPN</th>
-            <th style="padding:8px 10px;text-align:right;white-space:nowrap" data-sort="11" data-sort-type="num">Total (Rp)</th>
-            <th style="padding:8px 10px;text-align:left;white-space:nowrap" data-sort="12">Due Date</th>
+            <th style="padding:8px 10px;text-align:right;white-space:nowrap;cursor:pointer" data-sort="11" data-sort-type="num" onclick="_agriSortClick(11)">Total (Rp)</th>
+            <th style="padding:8px 10px;text-align:left;white-space:nowrap;cursor:pointer" data-sort="12" onclick="_agriSortClick(12)">Due Date</th>
             <th style="padding:8px 10px;text-align:left;">Status</th>
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">Tgl Bayar</th>
             <th style="padding:8px 10px;text-align:left;">Source</th>
@@ -527,6 +554,13 @@
           </td></tr>
         </tbody>
       </table>
+    </div>
+    <div id="pam-pagination" style="display:none;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 2px;font-size:12px">
+      <span id="pam-page-info" style="color:var(--text-muted)"></span>
+      <div style="display:flex;gap:6px">
+        <button type="button" class="btn btn-secondary btn-sm" id="pam-page-prev" onclick="_agriGoToPage(_agriPage-1)">&#8592; Prev</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="pam-page-next" onclick="_agriGoToPage(_agriPage+1)">Next &#8594;</button>
+      </div>
     </div>
   </div>
 
@@ -751,42 +785,70 @@
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('SMT')">&#8595; Export Excel</button>
       <span id="smt-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
+    <div id="smt-bulk-bar" style="display:none;align-items:center;flex-wrap:wrap;gap:8px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:7px 12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Kolom:</span>
+        <select id="smt-bulk-field" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;min-width:110px">
+          <option value="tanggal_bayar">TGL BAYAR</option>
+          <option value="tgl_received">Received</option>
+          <option value="tgl_a0">A0 - S-JT</option>
+          <option value="tgl_a1">A1 - S-FS</option>
+          <option value="tgl_a2">A2 - S-YK</option>
+          <option value="tgl_a3">A3 - S-LL</option>
+          <option value="tgl_a4">A4 - A-LL</option>
+        </select>
+        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Tanggal:</span>
+        <input type="date" id="smt-bulk-date" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;width:140px;box-sizing:border-box">
+        <button onclick="smtDoBulk(true)" style="font-size:11px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Update Tgl</button>
+        <button onclick="smtDoBulk(false)" style="font-size:11px;padding:3px 11px;background:#dc2626;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Hapus Tgl</button>
+        <button onclick="smtToggleAllBulk(false)" style="font-size:11px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;height:26px">&#10005; Batal</button>
+      </div>
+      <div style="width:1px;background:#f59e0b;height:20px;flex-shrink:0"></div>
+      <span id="smt-bulk-count" style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap;flex-shrink:0"></span>
+    </div>
     <div class="pillar-table-wrap">
-      <table id="smt-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+      <table id="smt-table" style="min-width:2550px;border-collapse:separate;border-spacing:0;font-size:12px;">
         <thead class="thead-primary">
           <tr>
-            <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
-            <th style="padding:7px 8px;white-space:nowrap" data-sort="1">Tgl PAM</th>
+            <th class="smt-sc0" style="padding:7px 4px;text-align:center"><input type="checkbox" id="smt-cb-all" onchange="smtToggleAllBulk(this.checked)"></th>
+            <th class="smt-sc1" style="padding:7px 8px;white-space:nowrap;min-width:150px">PAM No</th>
+            <th class="smt-sc2" style="padding:7px 8px;white-space:nowrap;min-width:95px;cursor:pointer" data-sort="1" onclick="_smtSortClick(1)">Tgl PAM</th>
             <th style="padding:7px 8px;white-space:nowrap">GL Account</th>
             <th style="padding:7px 8px;white-space:nowrap">Cost Center</th>
             <th style="padding:7px 8px;">PT</th>
             <th style="padding:7px 8px;">Requestor</th>
             <th style="padding:7px 8px;min-width:160px;">Keterangan</th>
+            <th style="padding:7px 8px;white-space:nowrap;max-width:180px">Vendor Name</th>
+            <th style="padding:7px 8px;white-space:nowrap;max-width:140px">Invoice</th>
             <th style="padding:7px 8px;white-space:nowrap">Mata Uang</th>
             <th style="padding:7px 8px;text-align:right;">DPP</th>
             <th style="padding:7px 8px;text-align:right;">PPN</th>
-            <th style="padding:7px 8px;text-align:right;white-space:nowrap" data-sort="10" data-sort-type="num">Total (Rp)</th>
-            <th style="padding:7px 8px;white-space:nowrap" data-sort="11">Due Date</th>
+            <th style="padding:7px 8px;text-align:right;">Others</th>
+            <th style="padding:7px 8px;text-align:right;white-space:nowrap;cursor:pointer" data-sort="10" data-sort-type="num" onclick="_smtSortClick(10)">Total (Rp)</th>
+            <th style="padding:7px 8px;white-space:nowrap;cursor:pointer" data-sort="11" onclick="_smtSortClick(11)">Due Date</th>
             <th style="padding:7px 8px;">Status</th>
             <th style="padding:7px 8px;white-space:nowrap">Tgl Bayar</th>
             <th style="padding:7px 8px;">Source</th>
-            <th style="padding:7px 8px;white-space:nowrap">No. Vendor</th>
-            <th style="padding:7px 8px;min-width:140px;">Nama Vendor</th>
-            <th style="padding:7px 8px;white-space:nowrap">Terima Dok</th>
-            <th style="padding:7px 8px;white-space:nowrap">Proses</th>
-            <th style="padding:7px 8px;white-space:nowrap">Verif Tax</th>
-            <th style="padding:7px 8px;white-space:nowrap">App 1</th>
-            <th style="padding:7px 8px;white-space:nowrap">App 2</th>
-            <th style="padding:7px 8px;white-space:nowrap">App 3</th>
-            <th style="padding:7px 8px;white-space:nowrap">Kirim</th>
-            <th style="padding:7px 8px;white-space:nowrap">Tgl Realisasi</th>
+            <th style="padding:7px 8px;white-space:nowrap">Received</th>
+            <th style="padding:7px 8px;white-space:nowrap">A0 - S-JT</th>
+            <th style="padding:7px 8px;white-space:nowrap">A1 - S-FS</th>
+            <th style="padding:7px 8px;white-space:nowrap">A2 - S-YK</th>
+            <th style="padding:7px 8px;white-space:nowrap">A3 - S-LL</th>
+            <th style="padding:7px 8px;white-space:nowrap">A4 - A-LL</th>
             <th style="padding:7px 8px;">Aksi</th>
           </tr>
         </thead>
         <tbody id="smt-tbody">
-          <tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>
+          <tr><td colspan="27" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>
         </tbody>
       </table>
+    </div>
+    <div id="smt-pagination" style="display:none;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 2px;font-size:12px">
+      <span id="smt-page-info" style="color:var(--text-muted)"></span>
+      <div style="display:flex;gap:6px">
+        <button type="button" class="btn btn-secondary btn-sm" id="smt-page-prev" onclick="_smtGoToPage(_smtPage-1)">&#8592; Prev</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="smt-page-next" onclick="_smtGoToPage(_smtPage+1)">Next &#8594;</button>
+      </div>
     </div>
   </div>
 
@@ -895,7 +957,7 @@
       <span id="setf-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
-      <table id="setf-table" style="min-width:2350px;border-collapse:collapse;font-size:12px;">
+      <table id="setf-table" style="min-width:1500px;border-collapse:collapse;font-size:12px;">
         <thead class="thead-primary">
           <tr>
             <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
@@ -913,20 +975,11 @@
             <th style="padding:7px 8px;">Status</th>
             <th style="padding:7px 8px;white-space:nowrap">Tgl Bayar</th>
             <th style="padding:7px 8px;">Source</th>
-            <th style="padding:7px 8px;white-space:nowrap">No. Vendor</th>
-            <th style="padding:7px 8px;min-width:140px;">Nama Vendor</th>
-            <th style="padding:7px 8px;white-space:nowrap">Terima Dok</th>
-            <th style="padding:7px 8px;white-space:nowrap">Proses</th>
-            <th style="padding:7px 8px;white-space:nowrap">Verif Tax</th>
-            <th style="padding:7px 8px;white-space:nowrap">App 1</th>
-            <th style="padding:7px 8px;white-space:nowrap">App 2</th>
-            <th style="padding:7px 8px;white-space:nowrap">App 3</th>
-            <th style="padding:7px 8px;white-space:nowrap">Kirim</th>
             <th style="padding:7px 8px;">Aksi</th>
           </tr>
         </thead>
         <tbody id="setf-tbody">
-          <tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>
+          <tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1017,12 +1070,6 @@
         &#x25b6; Rangkuman PAM
       </button>
       <div id="dm-lampiran-body" style="display:none;margin-top:4px;border:1px solid #e2e8f0;border-radius:4px;overflow:hidden"></div>
-    </div>
-    <div id="dm-detail-wrap" style="display:none;margin-top:8px;max-width:100%">
-      <button id="dm-detail-toggle" onclick="toggleDetailPAM()" class="section-toggle">
-        &#x25b6; Detail PAM
-      </button>
-      <div id="dm-detail-body" style="display:none;margin-top:4px;border:1px solid #e2e8f0;border-radius:4px;overflow:auto"></div>
     </div>
   </div>
 </div>
@@ -1307,8 +1354,10 @@ const CAT2_SEM = {{ cat2_sem | tojson }};
 const PAM_APPROVED_BY_1 = {{ pam_approved_by_1 | tojson }};
 const PAM_APPROVED_BY_2 = {{ pam_approved_by_2 | tojson }};
 const VENDOR_LIST = {{ vendor_list | tojson }};
+const PERUSAHAAN_LIST = {{ perusahaan_list | tojson }};
 const SISWA_LIST  = {{ siswa_list | tojson }};
 const COA_PAM_LIST = {{ coa_pam_list | tojson }};
+const BUDGET_ACTIVITIES = {{ budget_activities | tojson }};
 const SMT_PAM_COST_CENTERS = [
   "POCCOM","POEAMR","POICOM","POITDC","POSPON","TFOPEX","POCFAD","POOFFM",
   "POCPRO","POCSOS","POSMED","POITEC","POSENG","POSKHU - DF","POSKHU - JB",
@@ -1923,13 +1972,13 @@ async function loadSETF() {
   const source  = (document.getElementById('setf-filter-source')?.value || '');
   const params  = new URLSearchParams({ search, bulan, tahun, status, source });
   const tbody  = document.getElementById('setf-tbody');
-  tbody.innerHTML = skeletonRows(25);
+  tbody.innerHTML = skeletonRows(16);
   const res     = await apiFetch('/payment-memo/by-pillar/SETF?' + params);
   if (!res) return;
   const data   = await res.json();
   const count  = document.getElementById('setf-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -1951,15 +2000,6 @@ async function loadSETF() {
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
-      <td style="padding:6px 8px">${esc(r.no_vendor || '-')}</td>
-      <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
-      ${_plDate(r.id,'SETF','tgl_terima_doc',r.tgl_terima_doc)}
-      ${_plDate(r.id,'SETF','tgl_proses',r.tgl_proses)}
-      ${_plDate(r.id,'SETF','tgl_verifikasi_tax',r.tgl_verifikasi_tax)}
-      ${_plDate(r.id,'SETF','tgl_approval_1',r.tgl_approval_1)}
-      ${_plDate(r.id,'SETF','tgl_approval_2',r.tgl_approval_2)}
-      ${_plDate(r.id,'SETF','tgl_approval_3',r.tgl_approval_3)}
-      ${_plDate(r.id,'SETF','tgl_kirim',r.tgl_kirim)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -2041,6 +2081,18 @@ function openRealizeModal(paymentId, advanceAmount) {
 // ── SMT ────────────────────────────────────────────────────────────────────────
 function loadSMTDebounced() { clearTimeout(_smtDebounce); _smtDebounce = setTimeout(loadSMT, 300); }
 let _smtDebounce;
+// Large tables (SMT PAM List can run 500+ rows) are slow to lay out when
+// rendered all at once, especially with sticky columns — see investigation
+// notes. Fetch the full filtered result once, then paginate + sort entirely
+// client-side against the in-memory array instead of the DOM, so only one
+// page's worth of rows (_smtPageSize) is ever in the document at a time.
+let _smtAllRows = [];
+let _smtPage = 1;
+const _smtPageSize = 50;
+let _smtSortCol = -1, _smtSortAsc = true;
+let _smtSelectedIds = new Set();
+const _SMT_SORT_FIELDS = { 1: 'pam_date', 10: 'total_amount', 11: 'due_date' };
+
 async function loadSMT() {
   const search  = (document.getElementById('smt-search')?.value || '').trim();
   const bulan   = (document.getElementById('smt-filter-bulan')?.value || '');
@@ -2049,48 +2101,278 @@ async function loadSMT() {
   const source  = (document.getElementById('smt-filter-source')?.value || '');
   const params  = new URLSearchParams({ search, bulan, tahun, status, source });
   const tbody  = document.getElementById('smt-tbody');
-  tbody.innerHTML = skeletonRows(26);
+  tbody.innerHTML = skeletonRows(25);
   const res     = await apiFetch('/payment-memo/by-pillar/SMT?' + params);
   if (!res) return;
   const data   = await res.json();
   const count  = document.getElementById('smt-count');
+  _smtSelectedIds = new Set();
+  _smtSortCol = -1; _smtSortAsc = true;
+  document.querySelectorAll('#smt-table thead th[data-sort]').forEach(h => h.dataset.sortDir = '');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>';
+    _smtAllRows = [];
+    _smtPage = 1;
+    tbody.innerHTML = '<tr><td colspan="27" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>';
     if (count) count.textContent = '';
+    const pag = document.getElementById('smt-pagination');
+    if (pag) pag.style.display = 'none';
+    smtUpdateBulkBar();
     return;
   }
+  _smtAllRows = data.rows;
+  _smtPage = 1;
   if (count) count.textContent = data.rows.length + ' baris';
-  tbody.innerHTML = data.rows.map((r, i) => `
-    <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
-      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
+  _smtRenderPage();
+}
+
+function _smtSortClick(colIdx) {
+  const isNum = colIdx === 10;
+  if (_smtSortCol === colIdx) { _smtSortAsc = !_smtSortAsc; } else { _smtSortCol = colIdx; _smtSortAsc = true; }
+  document.querySelectorAll('#smt-table thead th[data-sort]').forEach(h => {
+    h.dataset.sortDir = parseInt(h.dataset.sort, 10) === _smtSortCol ? (_smtSortAsc ? 'asc' : 'desc') : '';
+  });
+  const field = _SMT_SORT_FIELDS[colIdx];
+  _smtAllRows.sort((a, b) => {
+    const va = a[field], vb = b[field];
+    const na = isNum ? (parseFloat(va) || 0) : String(va || '').toLowerCase();
+    const nb = isNum ? (parseFloat(vb) || 0) : String(vb || '').toLowerCase();
+    if (na === nb) return 0;
+    return _smtSortAsc ? (na > nb ? 1 : -1) : (na < nb ? 1 : -1);
+  });
+  _smtPage = 1;
+  _smtRenderPage();
+}
+
+function _smtGoToPage(p) {
+  const maxPage = Math.max(1, Math.ceil(_smtAllRows.length / _smtPageSize));
+  _smtPage = Math.min(Math.max(1, p), maxPage);
+  _smtRenderPage();
+}
+
+function _smtRenderPage() {
+  const tbody = document.getElementById('smt-tbody');
+  const start = (_smtPage - 1) * _smtPageSize;
+  const pageRows = _smtAllRows.slice(start, start + _smtPageSize);
+  tbody.innerHTML = pageRows.map((r, i) => `
+    <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};cursor:pointer" onclick="smtToggleExpand(this.querySelector('.smt-toggle'),${r.id})">
+      <td class="smt-sc0" style="padding:6px 4px;text-align:center;background:${i % 2 === 0 ? '#fff' : '#f8fafc'}">
+        <input type="checkbox" class="smt-cb" value="${r.id}" ${_smtSelectedIds.has(r.id) ? 'checked' : ''} onchange="_smtToggleSelect(${r.id}, this.checked)" onclick="event.stopPropagation()">
+        <span class="smt-toggle" style="font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:2px">&#9658;</span>
+      </td>
+      <td class="smt-sc1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i % 2 === 0 ? '#fff' : '#f8fafc'}">${esc(r.pam_no)}</td>
+      <td class="smt-sc2" style="padding:6px 8px;white-space:nowrap;background:${i % 2 === 0 ? '#fff' : '#f8fafc'}">${esc(r.pam_date || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.aggregated_vendors||'')}">${esc(r.aggregated_vendors || '-')}</td>
+      <td style="padding:6px 8px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.aggregated_invoices||'')}">${esc(r.aggregated_invoices || '-')}</td>
       <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
       <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
       <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.others)}</td>
       <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
-      <td style="padding:6px 8px">${esc(r.no_vendor || '-')}</td>
-      <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
-      ${_plDate(r.id,'SMT','tgl_terima_doc',r.tgl_terima_doc)}
-      ${_plDate(r.id,'SMT','tgl_proses',r.tgl_proses)}
-      ${_plDate(r.id,'SMT','tgl_verifikasi_tax',r.tgl_verifikasi_tax)}
-      ${_plDate(r.id,'SMT','tgl_approval_1',r.tgl_approval_1)}
-      ${_plDate(r.id,'SMT','tgl_approval_2',r.tgl_approval_2)}
-      ${_plDate(r.id,'SMT','tgl_approval_3',r.tgl_approval_3)}
-      ${_plDate(r.id,'SMT','tgl_kirim',r.tgl_kirim)}
-      <td style="padding:6px 8px;white-space:nowrap;color:${r.tgl_realisasi ? 'var(--text)' : 'var(--text-muted)'}">${esc(r.tgl_realisasi || '-')}</td>
+      ${_plDate(r.id,'SMT','tgl_received',r.tgl_received)}
+      ${_plDate(r.id,'SMT','tgl_a0',r.tgl_a0)}
+      ${_plDate(r.id,'SMT','tgl_a1',r.tgl_a1)}
+      ${_plDate(r.id,'SMT','tgl_a2',r.tgl_a2)}
+      ${_plDate(r.id,'SMT','tgl_a3',r.tgl_a3)}
+      ${_plDate(r.id,'SMT','tgl_a4',r.tgl_a4)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
-  makeSortable('smt-table');
+
+  const maxPage = Math.max(1, Math.ceil(_smtAllRows.length / _smtPageSize));
+  const pag = document.getElementById('smt-pagination');
+  if (pag) {
+    pag.style.display = _smtAllRows.length > _smtPageSize ? 'flex' : 'none';
+    const info = document.getElementById('smt-page-info');
+    if (info) info.textContent =
+      `Menampilkan ${start + 1}-${Math.min(start + _smtPageSize, _smtAllRows.length)} dari ${_smtAllRows.length} baris (halaman ${_smtPage}/${maxPage})`;
+    const prevBtn = document.getElementById('smt-page-prev');
+    const nextBtn = document.getElementById('smt-page-next');
+    if (prevBtn) prevBtn.disabled = _smtPage <= 1;
+    if (nextBtn) nextBtn.disabled = _smtPage >= maxPage;
+  }
+  smtUpdateBulkBar();
+}
+
+function _smtToggleSelect(id, checked) {
+  if (checked) _smtSelectedIds.add(id); else _smtSelectedIds.delete(id);
+  smtUpdateBulkBar();
+}
+
+function smtUpdateBulkBar() {
+  const bar = document.getElementById('smt-bulk-bar');
+  const allCb = document.getElementById('smt-cb-all');
+  const count = _smtSelectedIds.size;
+  if (count > 0) {
+    if (bar) bar.style.display = 'flex';
+    const countEl = document.getElementById('smt-bulk-count');
+    if (countEl) countEl.textContent = `${count} baris dipilih:`;
+    const start = (_smtPage - 1) * _smtPageSize;
+    const pageIds = _smtAllRows.slice(start, start + _smtPageSize).map(r => r.id);
+    if (allCb) allCb.checked = pageIds.length > 0 && pageIds.every(id => _smtSelectedIds.has(id));
+  } else {
+    if (bar) bar.style.display = 'none';
+    if (allCb) allCb.checked = false;
+  }
+}
+
+// "Select all" applies to the current page only — selections on other pages
+// (tracked in _smtSelectedIds) are preserved when navigating between pages.
+function smtToggleAllBulk(checked) {
+  const start = (_smtPage - 1) * _smtPageSize;
+  const pageRows = _smtAllRows.slice(start, start + _smtPageSize);
+  pageRows.forEach(r => { if (checked) _smtSelectedIds.add(r.id); else _smtSelectedIds.delete(r.id); });
+  document.querySelectorAll('.smt-cb').forEach(cb => cb.checked = checked);
+  smtUpdateBulkBar();
+}
+
+async function smtDoBulk(isSet) {
+  const ids = Array.from(_smtSelectedIds);
+  if (!ids.length) return;
+  const field = document.getElementById('smt-bulk-field').value;
+  const date = isSet ? document.getElementById('smt-bulk-date').value : null;
+  if (isSet && !date) { showToast('Pilih tanggal dulu.', 'error'); return; }
+  
+  if (!await confirmModal(`${isSet ? 'Set' : 'Hapus'} tanggal pada ${ids.length} PAM?`)) return;
+  
+  const res = await apiFetch('/payment-memo/pam-lines/bulk-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pillar: 'SMT', ids, field, value: date })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadSMT();
+}
+
+let _smtLinesCache = {};
+
+function smtToggleExpand(toggleEl, pamId) {
+  if (!toggleEl) return;
+  const masterTr = toggleEl.closest('tr');
+  const existing = document.querySelectorAll('.smt-detail-rows[data-pam-id="' + pamId + '"]');
+  if (existing.length) {
+    const nowHidden = existing[0].style.display === 'none';
+    existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
+    toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
+    return;
+  }
+  smtFetchLines(masterTr, toggleEl, pamId);
+}
+
+async function smtFetchLines(masterTr, toggleEl, pamId) {
+  if (_smtLinesCache[pamId] === 'loading') return;
+  _smtLinesCache[pamId] = 'loading';
+
+  const loadingTr = document.createElement('tr');
+  loadingTr.classList.add('smt-detail-rows');
+  loadingTr.dataset.pamId = pamId;
+  loadingTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail...</td>';
+  masterTr.insertAdjacentElement('afterend', loadingTr);
+
+  const res = await apiFetch('/payment-memo/pam/' + pamId + '/transaction-lines');
+  loadingTr.remove();
+
+  if (!res) {
+    _smtLinesCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('smt-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail.</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+  const data = await res.json();
+  if (!data.ok) {
+    _smtLinesCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('smt-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">' + esc(data.pesan) + '</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  _smtLinesCache[pamId] = data.rows;
+  if (!data.rows.length) {
+    const emptyTr = document.createElement('tr');
+    emptyTr.classList.add('smt-detail-rows');
+    emptyTr.dataset.pamId = pamId;
+    emptyTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#64748b;background:#f8fafc;font-style:italic">Tidak ada baris.</td>';
+    masterTr.insertAdjacentElement('afterend', emptyTr);
+    toggleEl.innerHTML = '&#9660;';
+    return;
+  }
+
+  let html = `
+    <tr class="smt-detail-rows" data-pam-id="${pamId}" style="background:#f1f5f9;border-bottom:2px solid #cbd5e1">
+      <td colspan="27" style="padding:10px 40px">
+        <div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr style="background:#e2e8f0;color:#334155">
+                <th style="padding:6px;text-align:left">No</th>
+                <th style="padding:6px;text-align:left">GL Account</th>
+                <th style="padding:6px;text-align:left">Cost Center</th>
+                <th style="padding:6px;text-align:left">Budget Activity</th>
+                <th style="padding:6px;text-align:left">Vendor</th>
+                <th style="padding:6px;text-align:left">Invoice No</th>
+                <th style="padding:6px;text-align:left">Keterangan</th>
+                <th style="padding:6px;text-align:right">DPP</th>
+                <th style="padding:6px;text-align:right">PPN</th>
+                <th style="padding:6px;text-align:right">Others</th>
+                <th style="padding:6px;text-align:right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+  `;
+  let sumDPP = 0, sumPPN = 0, sumOthers = 0, sumTot = 0;
+  data.rows.forEach((r, idx) => {
+    sumDPP += r.dpp;
+    sumPPN += r.ppn;
+    sumOthers += r.others || 0;
+    sumTot += r.total_amount;
+    html += `
+      <tr style="border-bottom:1px solid #e2e8f0;background:${idx%2===0?'#fff':'#f8fafc'}">
+        <td style="padding:6px">${idx+1}</td>
+        <td style="padding:6px;font-family:monospace">${esc(r.gl_account || '-')}</td>
+        <td style="padding:6px;font-family:monospace">${esc(r.cost_center || '-')}</td>
+        <td style="padding:6px">${esc(r.budget_activity || '-')}</td>
+        <td style="padding:6px">${esc(r.vendor || '-')}</td>
+        <td style="padding:6px">${esc(r.no_invoice || '-')}</td>
+        <td style="padding:6px">${esc(r.keterangan || '-')}</td>
+        <td style="padding:6px;text-align:right">${fmtRupiah(r.dpp)}</td>
+        <td style="padding:6px;text-align:right">${fmtRupiah(r.ppn)}</td>
+        <td style="padding:6px;text-align:right">${fmtRupiah(r.others)}</td>
+        <td style="padding:6px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      </tr>
+    `;
+  });
+  html += `
+            <tr style="background:#f1f5f9;font-weight:700;color:#0f172a;border-top:2px solid #cbd5e1">
+              <td colspan="7" style="padding:6px;text-align:right">Total :</td>
+              <td style="padding:6px;text-align:right">${fmtRupiah(sumDPP)}</td>
+              <td style="padding:6px;text-align:right">${fmtRupiah(sumPPN)}</td>
+              <td style="padding:6px;text-align:right">${fmtRupiah(sumOthers)}</td>
+              <td style="padding:6px;text-align:right">${fmtRupiah(sumTot)}</td>
+            </tr>
+          </tbody></table>
+        </div>
+      </td>
+    </tr>
+  `;
+
+  masterTr.insertAdjacentHTML('afterend', html);
+  toggleEl.innerHTML = '&#9660;';
 }
 
 function loadAdvanceDebounced() { clearTimeout(_advanceDebounce); _advanceDebounce = setTimeout(loadAdvance, 300); }
@@ -2539,6 +2821,16 @@ async function pamSetPaidAgri(pamId) {
 }
 
 
+// Same rationale as SMT PAM List: fetch the full filtered AGRI result once,
+// then paginate + sort client-side against the in-memory array rather than
+// the DOM. AGRI rows are more expensive than SMT's (each also builds a GL
+// Account <select> via buildGLDropdown) so this matters even at ~180 rows.
+let _agriAllRows = [];
+let _agriPage = 1;
+const _agriPageSize = 50;
+let _agriSortCol = -1, _agriSortAsc = true;
+const _AGRI_SORT_FIELDS = { 2: 'pam_date', 11: 'total_amount', 12: 'due_date' };
+
 let _pamDebounce;
 function loadPAMDebounced() { clearTimeout(_pamDebounce); _pamDebounce = setTimeout(loadPAM, 300); }
 async function loadPAM() {
@@ -2554,17 +2846,56 @@ async function loadPAM() {
   const res     = await apiFetch('/payment-memo/by-pillar/AGRI?' + params);
   if (!res) return;
   const data   = await res.json();
-  if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="28" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada PAM record AGRI.</td></tr>';
-    return;
-  }
   _pamCache = {};
   _pamBeasiswaCache = {};
   _pamBeasiswaSelected = {};
   _pamPendingSelectAll = {};
   agriUpdateBulkBar();
+  _agriSortCol = -1; _agriSortAsc = true;
+  document.querySelectorAll('#pam-table thead th[data-sort]').forEach(h => h.dataset.sortDir = '');
+  if (!data.ok || !data.rows.length) {
+    _agriAllRows = [];
+    _agriPage = 1;
+    tbody.innerHTML = '<tr><td colspan="28" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada PAM record AGRI.</td></tr>';
+    const pag = document.getElementById('pam-pagination');
+    if (pag) pag.style.display = 'none';
+    return;
+  }
   data.rows.forEach(r => { _pamCache[r.id] = r; });
-  tbody.innerHTML = data.rows.map((r, i) => `
+  _agriAllRows = data.rows;
+  _agriPage = 1;
+  _agriRenderPage();
+}
+
+function _agriSortClick(colIdx) {
+  const isNum = colIdx === 11;
+  if (_agriSortCol === colIdx) { _agriSortAsc = !_agriSortAsc; } else { _agriSortCol = colIdx; _agriSortAsc = true; }
+  document.querySelectorAll('#pam-table thead th[data-sort]').forEach(h => {
+    h.dataset.sortDir = parseInt(h.dataset.sort, 10) === _agriSortCol ? (_agriSortAsc ? 'asc' : 'desc') : '';
+  });
+  const field = _AGRI_SORT_FIELDS[colIdx];
+  _agriAllRows.sort((a, b) => {
+    const va = a[field], vb = b[field];
+    const na = isNum ? (parseFloat(va) || 0) : String(va || '').toLowerCase();
+    const nb = isNum ? (parseFloat(vb) || 0) : String(vb || '').toLowerCase();
+    if (na === nb) return 0;
+    return _agriSortAsc ? (na > nb ? 1 : -1) : (na < nb ? 1 : -1);
+  });
+  _agriPage = 1;
+  _agriRenderPage();
+}
+
+function _agriGoToPage(p) {
+  const maxPage = Math.max(1, Math.ceil(_agriAllRows.length / _agriPageSize));
+  _agriPage = Math.min(Math.max(1, p), maxPage);
+  _agriRenderPage();
+}
+
+function _agriRenderPage() {
+  const tbody = document.getElementById('pam-tbody');
+  const start = (_agriPage - 1) * _agriPageSize;
+  const pageRows = _agriAllRows.slice(start, start + _agriPageSize);
+  tbody.innerHTML = pageRows.map((r, i) => `
     <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};"
       ${r.source === 'beasiswa' ? `onclick="agriToggleExpand(this.querySelector('.pam-toggle'),${r.id})"` : ''}>
       ${r.source === 'beasiswa'
@@ -2600,11 +2931,23 @@ async function loadPAM() {
     </tr>
   `).join('');
 
-  data.rows.forEach(r => {
+  pageRows.forEach(r => {
     const cell = document.getElementById('gl-cell-' + r.id);
     if (cell) cell.appendChild(buildGLDropdown(r.id, r.gl_account));
   });
-  makeSortable('pam-table');
+
+  const maxPage = Math.max(1, Math.ceil(_agriAllRows.length / _agriPageSize));
+  const pag = document.getElementById('pam-pagination');
+  if (pag) {
+    pag.style.display = _agriAllRows.length > _agriPageSize ? 'flex' : 'none';
+    const info = document.getElementById('pam-page-info');
+    if (info) info.textContent =
+      `Menampilkan ${start + 1}-${Math.min(start + _agriPageSize, _agriAllRows.length)} dari ${_agriAllRows.length} baris (halaman ${_agriPage}/${maxPage})`;
+    const prevBtn = document.getElementById('pam-page-prev');
+    const nextBtn = document.getElementById('pam-page-next');
+    if (prevBtn) prevBtn.disabled = _agriPage <= 1;
+    if (nextBtn) nextBtn.disabled = _agriPage >= maxPage;
+  }
 }
 
 let _pamBeasiswaCache = {};
@@ -3086,9 +3429,8 @@ document.addEventListener('DOMContentLoaded', () => {
 let _dmPamId = null;
 let _dmSearchTimer = null;
 let _dmPayments = [];
-let _dmPaymentsDetail = [];
+let _dmTransactionLines = [];
 let _dmLampiranOpen = false;
-let _dmDetailOpen = false;
 
 function collectDmFields() {
   const g = id => document.getElementById(id);
@@ -3156,9 +3498,8 @@ async function dmSelectPAM(pamId, pamNo) {
 
   const p = data.data;
   _dmPayments = p.payments || [];
-  _dmPaymentsDetail = p.payments_detail || [];
+  _dmTransactionLines = p.transaction_lines || [];
   _dmLampiranOpen = false;
-  _dmDetailOpen = false;
 
   document.getElementById('dm-export-btns').style.display = 'flex';
   document.getElementById('dm-form-preview').innerHTML = dmRenderForm(p);
@@ -3167,15 +3508,7 @@ async function dmSelectPAM(pamId, pamNo) {
   if (lampWrap) {
     lampWrap.style.display = 'block';
     document.getElementById('dm-lampiran-body').style.display = 'none';
-    document.getElementById('dm-lampiran-toggle').textContent =
-      `▶ Rangkuman PAM (${_dmPayments.length} siswa)`;
-  }
-  const detWrap = document.getElementById('dm-detail-wrap');
-  if (detWrap) {
-    detWrap.style.display = 'block';
-    document.getElementById('dm-detail-body').style.display = 'none';
-    document.getElementById('dm-detail-toggle').textContent =
-      `▶ Detail PAM (${_dmPaymentsDetail.length} siswa)`;
+    document.getElementById('dm-lampiran-toggle').textContent = '▶ Rangkuman PAM';
   }
 }
 
@@ -3213,17 +3546,33 @@ function dmRenderForm(p) {
   const dateVal = s => (s || '').slice(0, 10);
 
   const vendorNames = [...new Set(
-    _dmPayments.map(pb => (pb.nama || pb.siswa_code || '').trim()).filter(Boolean)
+    (_dmPayments.length ? _dmPayments.map(pb => pb.nama || pb.siswa_code) : 
+     (p.transaction_lines || []).map(l => l.vendor))
+    .map(v => (v || '').trim()).filter(Boolean)
   )].join(', ') || 'Terlampir';
 
+  const invoiceNos = [...new Set(
+    (_dmPayments.length ? [] : 
+     (p.transaction_lines || []).map(l => l.no_invoice))
+    .map(v => (v || '').trim()).filter(Boolean)
+  )].join(', ') || '-';
+
   const bankAccountNames = [...new Set(
-    _dmPayments.map(pb => (pb.namarek || '').trim()).filter(Boolean)
+    (_dmPayments.length ? _dmPayments.map(pb => pb.namarek) : 
+     (p.transaction_lines || []).map(l => l.Bank_Account_Name))
+    .map(v => (v || '').trim()).filter(Boolean)
   )].join(', ') || 'Terlampir';
+
   const bankNames = [...new Set(
-    _dmPayments.map(pb => (pb.bank || '').trim()).filter(Boolean)
+    (_dmPayments.length ? _dmPayments.map(pb => pb.bank) : 
+     (p.transaction_lines || []).map(l => l.Bank_Name))
+    .map(v => (v || '').trim()).filter(Boolean)
   )].join(', ') || 'Terlampir';
+
   const bankAccountNos = [...new Set(
-    _dmPayments.map(pb => (pb.norek || '').trim()).filter(Boolean)
+    (_dmPayments.length ? _dmPayments.map(pb => pb.norek) : 
+     (p.transaction_lines || []).map(l => l.Bank_Account_Number))
+    .map(v => (v || '').trim()).filter(Boolean)
   )].join(', ') || 'Terlampir';
 
   return `
@@ -3260,7 +3609,7 @@ function dmRenderForm(p) {
         ${field('Invoice Amount', inp('dm-f-amount', p.total_amount || 0, 'number', 'step="1" min="0"'))}
       </div>
       <div>
-        ${field('Invoice / Memo No', inp('dm-f-inv-no', '-'))}
+        ${field('Invoice / Memo No', inp('dm-f-inv-no', invoiceNos))}
         ${field('Expected Due Date', inp('dm-f-due', dateVal(p.due_date), 'date'))}
       </div>
     </div>
@@ -3331,7 +3680,7 @@ function toggleLampiran() {
   const body   = document.getElementById('dm-lampiran-body');
   const toggle = document.getElementById('dm-lampiran-toggle');
   if (_dmLampiranOpen) {
-    body.innerHTML = dmRenderLampiran(_dmPayments);
+    body.innerHTML = dmRenderLampiran(_dmPayments, _dmTransactionLines);
     body.style.display = 'block';
     toggle.textContent = toggle.textContent.replace('▶', '▼');
   } else {
@@ -3340,11 +3689,72 @@ function toggleLampiran() {
   }
 }
 
-function dmRenderLampiran(payments) {
-  if (!payments || !payments.length)
+function dmRenderLampiran(payments, lines) {
+  if ((!payments || !payments.length) && (!lines || !lines.length))
     return '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Tidak ada data pembayaran dalam PAM ini.</div>';
 
-  // Group by siswa, sum amounts
+  if (!payments || !payments.length) {
+    // SMT Logic
+    const groupMap = {};
+    const order = [];
+    lines.forEach(l => {
+      const v = l.vendor || '';
+      const b = l.Bank_Name || '';
+      const nr = l.Bank_Account_Number || '';
+      const gl = l.gl_account || '';
+      const k = `${v}|${b}|${nr}|${gl}`;
+      if (!groupMap[k]) {
+        groupMap[k] = { v, b, nr, gl, lines: [], tot: 0 };
+        order.push(k);
+      }
+      groupMap[k].lines.push(l);
+      groupMap[k].tot += parseFloat(l.total_amount || 0);
+    });
+
+    const hdrs = ['NO', 'Nama Karyawan', 'Invoice #', 'Bank', 'No. Rekening', 'GL Account', 'Invoice Amount'];
+    const thRow = hdrs.map((h, i) =>
+      `<th style="padding:7px 8px;background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;text-align:${i===6?'right':'left'};white-space:nowrap">${h}</th>`
+    ).join('');
+
+    let total = 0;
+    let rowsHtml = '';
+    order.forEach((k, idx) => {
+      const grp = groupMap[k];
+      const rowspan = grp.lines.length;
+      total += grp.tot;
+      const bg = idx % 2 === 0 ? '#fff' : '#f8fafc';
+      grp.lines.forEach((l, j) => {
+        const amt = parseFloat(l.total_amount || 0);
+        rowsHtml += `<tr style="background:${bg}">`;
+        if (j === 0) {
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;text-align:center;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${idx+1}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.v)}</td>`;
+          rowsHtml += `<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(l.no_invoice)}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.b)}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0;font-family:monospace">${esc(grp.nr)}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.gl)}</td>`;
+          rowsHtml += `<td style="padding:6px 8px;font-size:11px;text-align:right;border-bottom:1px solid #e2e8f0">${fmtRupiah(amt)}</td>`;
+        } else {
+          rowsHtml += `<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(l.no_invoice)}</td>`;
+          rowsHtml += `<td style="padding:6px 8px;font-size:11px;text-align:right;border-bottom:1px solid #e2e8f0">${fmtRupiah(amt)}</td>`;
+        }
+        rowsHtml += `</tr>`;
+      });
+    });
+
+    return `<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0">
+      <thead><tr>${thRow}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot>
+        <tr style="background:#e8f0fe;font-weight:700">
+          <td colspan="6" style="padding:6px 8px;font-size:11px;text-align:right">TOTAL</td>
+          <td style="padding:6px 8px;font-size:11px;text-align:right">${fmtRupiah(total)}</td>
+        </tr>
+      </tfoot>
+    </table>`;
+  }
+
+  // Original Logic for Beasiswa
   const groupMap = {};
   const order = [];
   payments.forEach(pb => {
@@ -3388,87 +3798,6 @@ function dmRenderLampiran(payments) {
   </table>`;
 }
 
-function toggleDetailPAM() {
-  _dmDetailOpen = !_dmDetailOpen;
-  const body   = document.getElementById('dm-detail-body');
-  const toggle = document.getElementById('dm-detail-toggle');
-  if (_dmDetailOpen) {
-    body.innerHTML = dmRenderDetailPAM(_dmPaymentsDetail);
-    body.style.display = 'block';
-    toggle.textContent = toggle.textContent.replace('▶', '▼');
-  } else {
-    body.style.display = 'none';
-    toggle.textContent = toggle.textContent.replace('▼', '▶');
-  }
-}
-
-function dmRenderDetailPAM(detail) {
-  if (!detail || !detail.length)
-    return '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Tidak ada data Detail PAM.</div>';
-
-  const hdrs = ['No','Nama Siswa','Jenjang Studi','Keterangan','By Pendidikan','By Tunjangan','By Penelitian','Total Pbyran','Bank','No. Rekening','Sisa Pend','Sisa Tunj','Sisa Riset'];
-  const aligns = ['center','left','center','left','right','right','right','right','left','left','right','right','right'];
-
-  const thRow = hdrs.map((h, i) =>
-    `<th style="padding:6px 7px;background:#1e3a5f;color:#fff;font-size:10px;font-weight:700;text-align:${aligns[i]};white-space:nowrap;border:1px solid rgba(255,255,255,.15)">${h}</th>`
-  ).join('');
-
-  let grandTotal = 0;
-  let rowsHtml = '';
-
-  detail.forEach((siswa, si) => {
-    const siswaRows = siswa.rows || [];
-    const n = siswaRows.length;
-    const bg = si % 2 === 0 ? '#fff' : '#f8fafc';
-    grandTotal += siswa.total_pembayaran || 0;
-
-    siswaRows.forEach((pr, idx) => {
-      const rs = n > 1 ? ` rowspan="${n}"` : '';
-      const bTop = idx === 0 ? 'border-top:1px solid #e2e8f0;' : 'border-top:1px solid #f1f5f9;';
-      const td = (v, align, extra) =>
-        `<td style="padding:5px 7px;font-size:11px;text-align:${align||'left'};${bTop}${extra||''}">${v}</td>`;
-
-      if (idx === 0) {
-        rowsHtml += `<tr style="background:${bg}">
-          <td style="padding:5px 7px;font-size:11px;text-align:center;${bTop}"${rs}>${si+1}</td>
-          <td style="padding:5px 7px;font-size:11px;${bTop}border-right:1px solid #e2e8f0"${rs}>${esc(siswa.nama||siswa.siswa_code||'')}</td>
-          <td style="padding:5px 7px;font-size:11px;text-align:center;${bTop}"${rs}>${esc(siswa.jenjang||'')}</td>
-          ${td(esc(pr.keterangan||''))}
-          ${td(pr.pendidikan ? fmtRupiah(pr.pendidikan) : '', 'right')}
-          ${td(pr.tunjangan  ? fmtRupiah(pr.tunjangan)  : '', 'right')}
-          ${td(pr.penelitian ? fmtRupiah(pr.penelitian) : '', 'right')}
-          <td style="padding:5px 7px;font-size:11px;text-align:right;${bTop}"${rs}>${fmtRupiah(siswa.total_pembayaran||0)}</td>
-          <td style="padding:5px 7px;font-size:11px;${bTop}"${rs}>${esc(siswa.bank||'')}</td>
-          <td style="padding:5px 7px;font-size:11px;${bTop}"${rs}>${esc(siswa.norek||'')}</td>
-          <td style="padding:5px 7px;font-size:11px;text-align:right;${bTop}"${rs}>${fmtRupiah(siswa.sisa_pendidikan||0)}</td>
-          <td style="padding:5px 7px;font-size:11px;text-align:right;${bTop}"${rs}>${fmtRupiah(siswa.sisa_tunjangan||0)}</td>
-          <td style="padding:5px 7px;font-size:11px;text-align:right;${bTop}"${rs}>${fmtRupiah(siswa.sisa_penelitian||0)}</td>
-        </tr>`;
-      } else {
-        rowsHtml += `<tr style="background:${bg}">
-          ${td(esc(pr.keterangan||''))}
-          ${td(pr.pendidikan ? fmtRupiah(pr.pendidikan) : '', 'right')}
-          ${td(pr.tunjangan  ? fmtRupiah(pr.tunjangan)  : '', 'right')}
-          ${td(pr.penelitian ? fmtRupiah(pr.penelitian) : '', 'right')}
-        </tr>`;
-      }
-    });
-  });
-
-  return `<div style="overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;min-width:940px">
-      <thead><tr>${thRow}</tr></thead>
-      <tbody>${rowsHtml}</tbody>
-      <tfoot>
-        <tr style="background:#e8f0fe;font-weight:700">
-          <td colspan="7" style="padding:6px 8px;font-size:11px;text-align:right;border-top:1.5px solid #1e3a5f">TOTAL</td>
-          <td style="padding:6px 8px;font-size:11px;text-align:right;border-top:1.5px solid #1e3a5f">${fmtRupiah(grandTotal)}</td>
-          <td colspan="5" style="padding:6px 8px;border-top:1.5px solid #1e3a5f"></td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>`;
-}
 
 document.addEventListener('click', e => {
   const dd = document.getElementById('dm-pam-dropdown');
@@ -3502,9 +3831,9 @@ function _vendorPos(inputEl, suggEl) {
   suggEl.style.width = r.width + "px";
 }
 
-function ipayVendorSearch() {
+function ipayPerusahaanSearch() {
   const inp  = document.getElementById("ipay-perusahaan-search");
-  const sugg = document.getElementById("ipay-vendor-sugg");
+  const sugg = document.getElementById("ipay-perusahaan-sugg");
   const q    = inp.value.toLowerCase().trim();
   if (!q) {
     sugg.style.display="none";
@@ -3512,15 +3841,15 @@ function ipayVendorSearch() {
     if (COMPANY_CODE !== "SMT") document.getElementById("ipay-pillar").value="";
     return;
   }
+  
   const hits = VENDOR_LIST.filter(v => v.name.toLowerCase().includes(q)).slice(0,15);
   if (!hits.length) { sugg.style.display="none"; return; }
+  
   _vendorSuggRender(hits, sugg, v => {
     document.getElementById("ipay-perusahaan-search").value = v.name;
     document.getElementById("ipay-perusahaan").value = v.name;
     document.getElementById("ipay-cc").value = v.cost_center || "";
-    // SMT/Advance: pillar stays whatever Tipe PAM set it to (see
-    // ipayOnTypeChange) — don't let the vendor's own (ETF-pillar) tag
-    // clobber it.
+    // SMT/Advance: pillar stays whatever Tipe PAM set it to
     if (COMPANY_CODE !== "SMT") document.getElementById("ipay-pillar").value = v.pillar;
     sugg.style.display = "none";
   });
@@ -3672,7 +4001,7 @@ function ipayReset() {
   document.getElementById("ipay-pillar").value = (COMPANY_CODE === "SMT")
     ? (document.getElementById("ipay-type")?.value || "").toUpperCase()
     : "";
-  document.getElementById("ipay-vendor-sugg").style.display = "none";
+  document.getElementById("ipay-perusahaan-sugg").style.display = "none";
   const catatanEl = document.getElementById("ipay-catatan");
   if (catatanEl) catatanEl.value = "";
   document.getElementById("ipay-tbody").innerHTML =
@@ -3817,10 +4146,25 @@ async function ipayFetchNextPamNo() {
   pamEl.value = "Memuat...";
   try {
     const res = await apiFetch(`/payment-memo/ipay/next-pam-no?tab=${encodeURIComponent(type)}&date=${encodeURIComponent(tgl)}`);
-    if (!res) { pamEl.value = ""; return; }
-    const data = await res.json();
-    pamEl.value = data.ok ? (data.pam_no || "") : "";
-  } catch { pamEl.value = ""; }
+    if (!res) { pamEl.value = "ERR: Redirected or no response"; return; }
+    
+    // Check if it's an HTML response (e.g. redirect to login)
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text);
+      if (data.ok) {
+        pamEl.value = data.pam_no || "";
+      } else {
+        pamEl.value = "ERR: " + (data.pam_no || "Backend failed");
+      }
+    } catch (e) {
+      console.error("Gagal parse JSON:", text);
+      pamEl.value = "ERR: Invalid JSON response";
+    }
+  } catch (err) {
+    console.error("Fetch next PAM no error:", err);
+    pamEl.value = "ERR: " + err.message;
+  }
   _ipayResetPamState();
 }
 
@@ -4550,15 +4894,16 @@ async function ipaySaveKlaim() {
 
 // ── Others Panel ──────────────────────────────────────────────────────────
 function othersCalcTotal() {
-  const dpp = parseFloat(document.getElementById("others-dpp")?.value) || 0;
-  const ppn = parseFloat(document.getElementById("others-ppn")?.value) || 0;
-  const total = dpp + ppn;
+  const dpp    = parseFloat(document.getElementById("others-dpp")?.value) || 0;
+  const ppn    = parseFloat(document.getElementById("others-ppn")?.value) || 0;
+  const others = parseFloat(document.getElementById("others-others")?.value) || 0;
+  const total  = dpp + ppn + others;
   const el = document.getElementById("others-total");
   if (el) el.textContent = "Rp " + total.toLocaleString("id-ID");
 }
 
 function othersReset() {
-  ["others-keterangan","others-dpp","others-ppn"].forEach(id => {
+  ["others-keterangan","others-dpp","others-ppn","others-others"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = "";
   });
@@ -4581,6 +4926,7 @@ async function ipaySaveOthers() {
   const mata_uang  = document.getElementById("others-mataUang")?.value || "IDR";
   const dpp        = parseFloat(document.getElementById("others-dpp")?.value) || 0;
   const ppn        = parseFloat(document.getElementById("others-ppn")?.value) || 0;
+  const others     = parseFloat(document.getElementById("others-others")?.value) || 0;
 
   if (!tanggal || !pam_no || pam_no === "Memuat...") {
     showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
@@ -4597,7 +4943,7 @@ async function ipaySaveOthers() {
       method: "POST",
       body: JSON.stringify({
         tab: type, transaksi: tx, tanggal, pam_no,
-        keterangan, perusahaan, pillar, mata_uang, dpp, ppn
+        keterangan, perusahaan, pillar, mata_uang, dpp, ppn, others
       })
     });
   } finally {
@@ -4622,7 +4968,7 @@ let _smtLinesRowId = 0;
 
 function smtLinesReset() {
   document.getElementById("smt-lines-tbody").innerHTML =
-    `<tr id="smt-lines-empty-row"><td colspan="12" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
+    `<tr id="smt-lines-empty-row"><td colspan="15" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
   const el = document.getElementById("smt-lines-total-amt");
   if (el) el.textContent = "Rp 0";
   _smtLinesRowId = 0;
@@ -4631,16 +4977,31 @@ function smtLinesReset() {
 function smtLinesUpdateTotal() {
   let total = 0;
   document.getElementById("smt-lines-tbody").querySelectorAll("tr[data-rid]").forEach(tr => {
-    total += (parseFloat(tr._inpDpp.value) || 0) + (parseFloat(tr._inpPpn.value) || 0);
+    total += (parseFloat(tr._inpDpp.value) || 0) + (parseFloat(tr._inpPpn.value) || 0) + (parseFloat(tr._inpOthers.value) || 0);
   });
   const el = document.getElementById("smt-lines-total-amt");
   if (el) el.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(total);
 }
 
+function _calcSmtDueDate() {
+  const tgl = document.getElementById("ipay-tgl")?.value;
+  if (!tgl) return "-";
+  let d = new Date(tgl);
+  if (isNaN(d.getTime())) return "-";
+  let added = 0;
+  while (added < 8) {
+    d.setDate(d.getDate() + 1);
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) added++;
+  }
+  return d.toISOString().split('T')[0];
+}
+
 function _smtLinesUpdateRowTotal(tr) {
-  const dpp = parseFloat(tr._inpDpp.value) || 0;
-  const ppn = parseFloat(tr._inpPpn.value) || 0;
-  tr._totalCell.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(dpp + ppn);
+  const dpp    = parseFloat(tr._inpDpp.value) || 0;
+  const ppn    = parseFloat(tr._inpPpn.value) || 0;
+  const others = parseFloat(tr._inpOthers.value) || 0;
+  tr._totalCell.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(dpp + ppn + others);
   smtLinesUpdateTotal();
 }
 
@@ -4727,32 +5088,64 @@ function smtLinesAddRow() {
   const invInp = textInp("No. Invoice");
   const dppInp = numInp();
   const ppnInp = numInp();
+  const othersInp = numInp();
   const totalCell = document.createElement("div");
   totalCell.style.cssText = "text-align:right;font-weight:700;color:#1a56db;white-space:nowrap";
   totalCell.textContent = "Rp 0";
+  
+  const dueCell = document.createElement("div");
+  dueCell.className = "smt-due-cell";
+  dueCell.style.cssText = "font-family:monospace;font-size:11px;color:#4b5563;white-space:nowrap;padding-top:6px;text-align:center";
+  dueCell.textContent = _calcSmtDueDate();
+
   const ccSel = selInp(SMT_PAM_COST_CENTERS, "— Cost Center —");
-  const activityInp = textInp("Budget Activity");
+  const activityInp = selInp(BUDGET_ACTIVITIES, "— Budget Activity —");
+
+  const vendorWrap = document.createElement("div"); vendorWrap.style.position = "relative";
+  const vendorInp = textInp("Cari vendor..."); vendorInp.autocomplete = "off";
+  const vendorSugg = document.createElement("div");
+  vendorSugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  document.body.appendChild(vendorSugg);
+  
+  vendorInp.addEventListener("input", () => {
+    const q = vendorInp.value.toLowerCase().trim();
+    if (!q) { vendorSugg.style.display = "none"; return; }
+    const hits = VENDOR_LIST.filter(v => v.name.toLowerCase().includes(q)).slice(0, 15);
+    if (!hits.length) { vendorSugg.style.display = "none"; return; }
+    _vendorSuggRender(hits, vendorSugg, v => {
+      vendorInp.value = v.name;
+      vendorSugg.style.display = "none";
+    });
+    const r = vendorInp.getBoundingClientRect();
+    vendorSugg.style.top = (r.bottom + 2) + "px"; vendorSugg.style.left = r.left + "px"; vendorSugg.style.width = r.width + "px";
+    vendorSugg.style.display = "block";
+  });
+  vendorInp.addEventListener("blur", () => setTimeout(() => { vendorSugg.style.display = "none"; }, 200));
+  vendorWrap.appendChild(vendorInp);
+
   const ketInp = textInp("Keterangan");
 
   dppInp.addEventListener("input", () => _smtLinesUpdateRowTotal(tr));
   ppnInp.addEventListener("input", () => _smtLinesUpdateRowTotal(tr));
+  othersInp.addEventListener("input", () => _smtLinesUpdateRowTotal(tr));
 
   const delBtn = document.createElement("button");
   delBtn.className = "btn btn-sm"; delBtn.style.cssText = "background:#ef4444;color:#fff;padding:2px 8px";
   delBtn.textContent = "✕";
   delBtn.addEventListener("click", () => {
-    srSugg.remove(); tr.remove();
+    srSugg.remove(); vendorSugg.remove(); tr.remove();
     if (!document.getElementById("smt-lines-tbody").querySelector("tr[data-rid]")) smtLinesReset();
     smtLinesUpdateTotal();
   });
 
-  tr._inpSr = srInp; tr._inpMr = mrInp; tr._inpGl = glInp; tr._inpDpp = dppInp; tr._inpPpn = ppnInp; tr._totalCell = totalCell;
+  tr._inpSr = srInp; tr._inpMr = mrInp; tr._inpGl = glInp; tr._inpDpp = dppInp; tr._inpPpn = ppnInp; tr._inpOthers = othersInp; tr._totalCell = totalCell;
   const totalTd = document.createElement("td"); totalTd.appendChild(totalCell);
-  [td(srWrap), td(mrInp), td(glInp), td(tipeSel), td(invInp), td(dppInp), td(ppnInp),
-   totalTd, td(ccSel), td(activityInp), td(ketInp), td(delBtn)]
+  const dueTd = document.createElement("td"); dueTd.appendChild(dueCell);
+  [td(srWrap), td(mrInp), td(glInp), td(tipeSel), td(invInp), td(dppInp), td(ppnInp), td(othersInp),
+   totalTd, dueTd, td(ccSel), td(activityInp), td(vendorWrap), td(ketInp), td(delBtn)]
     .forEach(cell => tr.appendChild(cell));
 
-  tr._selTipe = tipeSel; tr._inpInv = invInp; tr._selCc = ccSel; tr._inpActivity = activityInp; tr._inpKet = ketInp;
+  tr._selTipe = tipeSel; tr._inpInv = invInp; tr._selCc = ccSel; tr._inpActivity = activityInp; tr._inpVendor = vendorInp; tr._inpKet = ketInp;
   document.getElementById("smt-lines-tbody").appendChild(tr);
 }
 
@@ -4762,8 +5155,10 @@ async function ipaySaveSmtLines() {
   const tanggal    = document.getElementById("ipay-tgl").value;
   const pam_no     = document.getElementById("ipay-pam-full").value.trim();
   const perusahaan = document.getElementById("ipay-perusahaan").value;
+  const cc         = document.getElementById("ipay-cc").value;
   const pillar     = document.getElementById("ipay-pillar").value;
   const transaksi  = document.getElementById("ipay-tx")?.value || "gl";
+  const catatan    = document.getElementById("ipay-catatan")?.value.trim() || "";
 
   if (!tanggal || !pam_no || pam_no === "Memuat...") {
     showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
@@ -4778,8 +5173,10 @@ async function ipaySaveSmtLines() {
     no_invoice:      tr._inpInv.value,
     dpp:             parseFloat(tr._inpDpp.value) || 0,
     ppn:             parseFloat(tr._inpPpn.value) || 0,
+    others:          parseFloat(tr._inpOthers.value) || 0,
     cost_center:     tr._selCc.value,
     budget_activity: tr._inpActivity.value,
+    vendor:          tr._inpVendor ? tr._inpVendor.value.trim() : "",
     keterangan:      tr._inpKet.value,
   }));
 
@@ -4796,7 +5193,7 @@ async function ipaySaveSmtLines() {
   try {
     res = await apiFetch("/payment-memo/ipay/save-smt-lines", {
       method: "POST",
-      body: JSON.stringify({ tanggal, pam_no, perusahaan, pillar, transaksi, rows })
+      body: JSON.stringify({ tanggal, pam_no, perusahaan, cc, pillar, transaksi, rows, catatan })
     });
   } finally {
     hideLoading();

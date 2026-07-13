@@ -31,7 +31,7 @@ COMPANIES = [
     {"id": 2, "code": "ETF", "name": "Eka Tjipta Foundation"},
 ]
 
-JENJANG = ["SD/SMP/SMA", "S1", "S2", "S3", "SETF"]
+JENJANG = ["SD", "SMP", "SMA", "SMK", "S1", "S2", "S3", "SETF"]
 
 PROGRAM = [
     "Kejaksaan", "Kejaksaan LN", "Polri", "Special Case",
@@ -83,7 +83,8 @@ TRANSAKSI_TYPES = ["Beasiswa", "Klaim Medis", "Tagihan", "ETF", "Sponsor", "Othe
 
 KODE_JENJANG = {
     "S1": "1", "S2": "2", "S3": "3",
-    "SD/SMP/SMA": "4", "SD/SMA/SMA": "4", "SETF": "5",
+    "SMK": "4", "SETF": "5", "SD": "6",
+    "SMP": "7", "SMA": "8",
 }
 
 PERUSAHAAN = [
