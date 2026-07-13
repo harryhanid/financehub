@@ -583,6 +583,50 @@ input[readonly], input[disabled] {
   display: flex; align-items: center; gap: .5rem; flex-shrink: 0;
 }
 
+/* ── Sticky page header wrapper (toolbar + filter panel) ─────────── */
+/* Any module wraps its .page-toolbar (+ optional filter panel) in a  */
+/* div carrying this class to get sticky-under-navbar + Full Screen   */
+/* mode support for free — see body.fh-focus rules below.             */
+.fh-page-header {
+  position: sticky;
+  top: var(--navbar-h, 56px);
+  z-index: 20;
+  background: var(--bg, #f8fafc);
+  padding-bottom: .5rem;
+  margin-bottom: 0;
+}
+
+/* ── Focus / fullscreen mode ────────────────────────────────────── */
+/* Applied by adding .fh-focus class to <body>. Hides navbar + filter   */
+/* panel only — .page-toolbar (title+tabs) stays visible so users can   */
+/* still switch sub-modules without leaving focus mode.                 */
+body.fh-focus .navbar {
+  height: 0; overflow: hidden; padding: 0; min-height: 0;
+  border-bottom: none;
+  transition: height .22s ease, padding .22s ease;
+}
+body:not(.fh-focus) .navbar {
+  transition: height .22s ease, padding .22s ease;
+}
+body.fh-focus .filter-bar.collapsible { display: none !important; }
+/* Navbar collapses to 0 height in focus mode — reclaim the space .main  */
+/* normally reserves for it, and un-pin .fh-page-header's sticky offset  */
+/* (both otherwise still assume a 52px navbar and leave a dead gap).     */
+body.fh-focus .main { margin-top: 0; }
+body.fh-focus .fh-page-header { top: 0; }
+#fh-focus-exit {
+  display: none;
+  position: fixed; top: .6rem; right: 1rem; z-index: 9999;
+  align-items: center; gap: .4rem;
+  background: rgba(30,41,59,.82); color: #e2e8f0;
+  border: none; border-radius: 20px;
+  padding: .35rem .85rem; font-size: .75rem; font-weight: 600;
+  cursor: pointer; backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+#fh-focus-exit:hover { background: rgba(30,41,59,.95); }
+body.fh-focus #fh-focus-exit { display: flex; }
+
 /* ── Filter toggle button + active-filter count badge ───────────── */
 .btn-filter-toggle.active {
   background: var(--accent-surface);
