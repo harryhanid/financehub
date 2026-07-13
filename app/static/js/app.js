@@ -326,6 +326,7 @@ function doLogout() {
 function initTabs(container) {
   const tabs = container.querySelectorAll(".tab-btn");
   const panels = container.querySelectorAll(".tab-panel");
+  const filterBtn = container.querySelector(".btn-filter-toggle");
   tabs.forEach(btn => {
     btn.addEventListener("click", () => {
       tabs.forEach(t => t.classList.remove("active"));
@@ -333,8 +334,31 @@ function initTabs(container) {
       btn.classList.add("active");
       const target = container.querySelector(`#${btn.dataset.tab}`);
       if (target) target.classList.add("active");
+      // Filter panel always starts collapsed when switching sub-modules —
+      // see docs/superpowers/specs/2026-07-12-financehub-page-toolbar-layout-design.md §2.3
+      container.querySelectorAll(".filter-bar.collapsible.open").forEach(p => p.classList.remove("open"));
+      if (filterBtn) {
+        filterBtn.classList.remove("active");
+        updateFilterBadge(filterBtn.id, 0);
+        // Hide the Filter toggle entirely on tabs with no filter panel (e.g. a
+        // single-record detail/report tab) instead of leaving an inert button.
+        const hasFilterPanel = !!(target && target.querySelector(".filter-bar.collapsible"));
+        filterBtn.style.display = hasFilterPanel ? "" : "none";
+      }
+      // Newly-active panel's own scroll-height wrapper (if any) was hidden a
+      // moment ago and may have a stale computed height — modules that size
+      // their table wrap dynamically (e.g. sizeWrap()-style code) already
+      // listen for "resize", so re-dispatch it once the new panel is visible.
+      window.dispatchEvent(new Event("resize"));
     });
   });
+  if (filterBtn) {
+    container.querySelectorAll(".filter-bar.collapsible").forEach(panel => {
+      const recompute = () => refreshFilterBadge(panel, filterBtn.id);
+      panel.addEventListener("input", recompute);
+      panel.addEventListener("change", recompute);
+    });
+  }
   if (tabs.length > 0) tabs[0].click();
 }
 
@@ -389,6 +413,33 @@ function toggleFilterPanel(panelId, btnId) {
   if (!panel) return;
   const open = panel.classList.toggle("open");
   if (btn) btn.classList.toggle("active", open);
+}
+
+// Toggle the .filter-bar.collapsible panel belonging to the currently active
+// .tab-panel inside `container` (a [data-tabs] element) — for modules with one
+// filter row per tab (Beasiswa, Payment Memo) instead of a single shared
+// filter row like ETF PA (which uses toggleFilterPanel(panelId, btnId) directly).
+function toggleActiveTabFilter(container, btnId) {
+  if (!container) return;
+  const activePanel = container.querySelector(".tab-panel.active");
+  const panel = activePanel && activePanel.querySelector(".filter-bar.collapsible");
+  if (!panel) return;
+  if (!panel.id) panel.id = "fh-tab-filter-" + Math.random().toString(36).slice(2, 8);
+  toggleFilterPanel(panel.id, btnId);
+}
+
+// Recomputes a filter-toggle badge from how many inputs/selects inside `panel`
+// currently hold a non-empty value — generic so per-module filter fields don't
+// need to be hardcoded (relies on the existing "empty-string = Semua ..." default
+// option convention already used throughout FinanceHub's filter dropdowns).
+function refreshFilterBadge(panel, btnId) {
+  if (!panel) return;
+  let n = 0;
+  panel.querySelectorAll("input, select").forEach(el => {
+    if (el.type === "checkbox" || el.type === "radio") return;
+    if ((el.value || "").trim() !== "") n++;
+  });
+  updateFilterBadge(btnId, n);
 }
 
 function updateFilterBadge(btnId, count) {
