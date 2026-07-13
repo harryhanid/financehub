@@ -37,6 +37,9 @@ def _tab(allow_input: bool = False, allow_summary: bool = False, allow_advance: 
     return t if t in VALID_TABS else "summary"
 
 
+PA_PAGE_SIZE = 50
+
+
 @bp.route("/")
 @jwt_html_required
 def index():
@@ -46,16 +49,77 @@ def index():
     tab = _tab(allow_input=True, allow_summary=True, allow_advance=True)
     sf = ""
     pa_rows = []
+    all_rows = []
+    page = 1
+    total_pages = 1
+    total_rows = 0
+    start_row = 0
+    end_row = 0
+    f_nama = f_jenjang = f_program = f_angkatan = f_jenis = f_pam = f_bulan_pa = f_tahun_pa = ""
     if tab not in ("input", "summary", "advance"):
         sf = request.args.get("sf", "active").lower()
         if sf not in ("open", "on_process", "complete", "active", ""):
             sf = "active"
-        pa_rows = get_pa_flat(company_id, tab, sf)
+        all_rows = get_pa_flat(company_id, tab, sf)
+
+        f_nama     = request.args.get("nama", "").strip()
+        f_jenjang  = request.args.get("jenjang", "").strip()
+        f_program  = request.args.get("program", "").strip()
+        f_angkatan = request.args.get("angkatan", "").strip()
+        f_jenis    = request.args.get("jenis", "").strip()
+        f_pam      = request.args.get("pam", "").strip()
+        f_bulan_pa = request.args.get("bulan_pa", "").strip()
+        f_tahun_pa = request.args.get("tahun_pa", "").strip()
+        nama_lc = f_nama.lower()
+        pam_lc = f_pam.lower()
+
+        # Filtered in Python (not SQL) so `all_rows` above stays the full,
+        # unfiltered per-tab/status set the dropdown option lists are built
+        # from below — otherwise typing a name would shrink the other
+        # filter dropdowns' available choices too.
+        filtered_rows = [
+            r for r in all_rows
+            if (not nama_lc or nama_lc in (r.get("nama") or "").lower())
+            and (not f_jenjang or (r.get("jenjang_pendidikan") or "") == f_jenjang)
+            and (not f_program or (r.get("program_beasiswa") or "") == f_program)
+            and (not f_angkatan or str(r.get("angkatan_etf") or "") == f_angkatan)
+            and (not f_jenis or (r.get("jenis_pembayaran") or "") == f_jenis)
+            and (not pam_lc or pam_lc in (r.get("nomor_pam") or "").lower())
+            and (not f_bulan_pa or (r.get("tgl_payment_application") or "")[5:7] == f_bulan_pa)
+            and (not f_tahun_pa or (r.get("tgl_payment_application") or "")[0:4] == f_tahun_pa)
+        ]
+
+        total_rows = len(filtered_rows)
+        try:
+            page = int(request.args.get("page", 1))
+        except ValueError:
+            page = 1
+        total_pages = max(1, -(-total_rows // PA_PAGE_SIZE))
+        page = min(max(1, page), total_pages)
+        offset = (page - 1) * PA_PAGE_SIZE
+        pa_rows = filtered_rows[offset:offset + PA_PAGE_SIZE]
+        start_row = offset + 1 if total_rows else 0
+        end_row = min(offset + PA_PAGE_SIZE, total_rows)
     return render_template(
         "etf_payment_application/index.html",
         pa_rows=pa_rows,
+        all_pa_rows=all_rows,
         active_tab=tab,
         active_sf=sf,
+        page=page,
+        page_size=PA_PAGE_SIZE,
+        total_pages=total_pages,
+        total_rows=total_rows,
+        start_row=start_row,
+        end_row=end_row,
+        f_nama=f_nama,
+        f_jenjang=f_jenjang,
+        f_program=f_program,
+        f_angkatan=f_angkatan,
+        f_jenis=f_jenis,
+        f_pam=f_pam,
+        f_bulan_pa=f_bulan_pa,
+        f_tahun_pa=f_tahun_pa,
         cat1=config.CAT1_BGT,
         cat2_sem=config.CAT2_SEM,
         active_page="etf_payment_app",

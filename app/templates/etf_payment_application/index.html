@@ -106,48 +106,9 @@
 [data-theme="dark"] #pa-table tr.row-sel td.s2,
 [data-theme="dark"] #pa-table tr.row-sel td.s3 { background: #1a2a4b !important; }
 
-/* ── Sticky page header (filter bar) ────────────────────────────── */
-/* Stays at top of viewport while the scroll container handles the    */
-/* table. Acts as fallback if JS height calculation fails.            */
-#pa-page-header {
-  position: sticky;
-  top: var(--navbar-h, 56px);
-  z-index: 20;
-  background: var(--bg, #f8fafc);
-  padding-bottom: .5rem;
-  margin-bottom: 0;
-}
-
-/* ── Focus / fullscreen mode ────────────────────────────────────── */
-/* Applied by adding .fh-focus class to <body>. Hides navbar + filter   */
-/* panel only — .page-toolbar (title+tabs) stays visible so users can   */
-/* still switch sub-modules without leaving focus mode.                 */
-body.fh-focus .navbar {
-  height: 0; overflow: hidden; padding: 0; min-height: 0;
-  border-bottom: none;
-  transition: height .22s ease, padding .22s ease;
-}
-body:not(.fh-focus) .navbar {
-  transition: height .22s ease, padding .22s ease;
-}
-body.fh-focus .filter-bar.collapsible { display: none !important; }
-/* Navbar collapses to 0 height in focus mode — reclaim the space .main  */
-/* normally reserves for it, and un-pin #pa-page-header's sticky offset  */
-/* (both otherwise still assume a 52px navbar and leave a dead gap).     */
-body.fh-focus .main { margin-top: 0; }
-body.fh-focus #pa-page-header { top: 0; }
-#fh-focus-exit {
-  display: none;
-  position: fixed; top: .6rem; right: 1rem; z-index: 9999;
-  align-items: center; gap: .4rem;
-  background: rgba(30,41,59,.82); color: #e2e8f0;
-  border: none; border-radius: 20px;
-  padding: .35rem .85rem; font-size: .75rem; font-weight: 600;
-  cursor: pointer; backdrop-filter: blur(4px);
-  box-shadow: 0 2px 8px rgba(0,0,0,.25);
-}
-#fh-focus-exit:hover { background: rgba(30,41,59,.95); }
-body.fh-focus #fh-focus-exit { display: flex; }
+/* Sticky page header (title+toolbar+filter panel) and Full Screen / focus-mode */
+/* rules now live in the shared .fh-page-header / body.fh-focus CSS in         */
+/* style.css (Tahap 2 rollout — reused by Beasiswa/Payment Memo too).          */
 
 /* checkbox size */
 .row-chk, #chk-all { width:18px; height:18px; cursor:pointer; accent-color:#3b82f6; }
@@ -182,17 +143,11 @@ body.fh-focus #fh-focus-exit { display: flex; }
 }
 .grp-toggle-cell:hover { color: #3b82f6; }
 
-/* Label vertikal saat collapsed */
-.grp-siswa-label {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  font-size: .6rem;
-  font-weight: 700;
-  letter-spacing: .05em;
-  color: #93c5fd;
-  line-height: 1;
-  padding: 4px 0;
-}
+/* Label vertikal saat collapsed — disembunyikan; teksnya bikin thead row jadi   */
+/* setinggi ~100px (vertical-rl butuh ruang sepanjang teks) padahal kolom lain  */
+/* cuma satu baris teks, jadi header keliatan kegedean. Tooltip pada <th> sudah */
+/* menjelaskan fungsinya, jadi cukup ikon ▶/◀ saja yang tampil.                 */
+.grp-siswa-label { display: none; }
 [data-theme="dark"] #grp-siswa-toggle { background: #181b25; }
 [data-theme="dark"] #grp-siswa-toggle:hover { background: #212533; }
 
@@ -205,11 +160,6 @@ body.fh-focus #fh-focus-exit { display: flex; }
 .btn-isi:hover  { background:#bae6fd; }
 .btn-hn   { background:#dcfce7; color:#15803d; border-color:#bbf7d0; }
 .btn-hn:hover   { background:#bbf7d0; }
-
-/* aksi header bulk */
-.th-aksi-wrap { display:flex; flex-direction:column; gap:3px; align-items:flex-start; }
-.th-aksi-wrap select { font-size:.68rem; padding:1px 3px; }
-.th-aksi-wrap button { font-size:.65rem; padding:1px 5px; white-space:nowrap; }
 </style>
 {% endblock %}
 
@@ -221,7 +171,7 @@ body.fh-focus #fh-focus-exit { display: flex; }
 </button>
 
 {# ── Header: title + tabs + actions in one row ───────────────────────────── #}
-<div id="pa-page-header">
+<div id="pa-page-header" class="fh-page-header">
 <div class="page-toolbar">
   <h1 class="page-title" style="margin-bottom:0">Payment Application</h1>
   <div class="tabs" style="margin-bottom:0">
@@ -232,16 +182,18 @@ body.fh-focus #fh-focus-exit { display: flex; }
     >{{ label }}</a>
     {% endfor %}
   </div>
-  {% if active_tab not in ('input', 'summary', 'advance') %}
+  {% if active_tab != 'input' %}
   <div class="page-toolbar-actions">
     <button id="pa-filter-toggle" class="btn btn-secondary btn-sm btn-filter-toggle" onclick="toggleFilterPanel('pa-filter-panel','pa-filter-toggle')" title="Tampilkan/sembunyikan filter">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
       Filter
     </button>
+    {% if active_tab not in ('summary', 'advance') %}
     <button id="pa-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
       Full Screen
     </button>
+    {% endif %}
   </div>
   {% endif %}
 </div>
@@ -249,7 +201,7 @@ body.fh-focus #fh-focus-exit { display: flex; }
 {# ── Filter + bulk bar: only on data tabs ────────────────────────────────── #}
 {% if active_tab not in ('input', 'summary', 'advance') %}
 <div id="pa-filter-panel" class="filter-bar collapsible">
-  <input type="text" id="f-nama" placeholder="Cari nama PB..." oninput="applyFiltersDebounced()"
+  <input type="text" id="f-nama" placeholder="Cari nama PB..." value="{{ f_nama }}" oninput="applyFiltersDebounced('f-nama')"
          style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:170px">
   <select id="f-status" onchange="statusFilterChanged(this)"
           style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:145px">
@@ -259,53 +211,63 @@ body.fh-focus #fh-focus-exit { display: flex; }
     <option value="on_process" {% if active_sf == 'on_process' %}selected{% endif %}>On Process</option>
     <option value="complete" {% if active_sf == 'complete' %}selected{% endif %}>Complete</option>
   </select>
-  <select id="f-jenjang" onchange="applyFilters()"
+  <select id="f-jenjang" onchange="navigateWithFilters()"
           style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:110px">
     <option value="">Jenjang</option>
-    {% set jenjang_list = pa_rows | map(attribute='jenjang_pendidikan') | select | unique | list | sort %}
-    {% for j in jenjang_list %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
+    {% set jenjang_list = all_pa_rows | map(attribute='jenjang_pendidikan') | select | unique | list | sort %}
+    {% for j in jenjang_list %}<option value="{{ j }}" {% if f_jenjang == j %}selected{% endif %}>{{ j }}</option>{% endfor %}
   </select>
-  <select id="f-program" onchange="applyFilters()"
+  <select id="f-program" onchange="navigateWithFilters()"
           style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:130px">
     <option value="">Program</option>
-    {% set prog_list = pa_rows | map(attribute='program_beasiswa') | select | unique | list | sort %}
-    {% for p in prog_list %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+    {% set prog_list = all_pa_rows | map(attribute='program_beasiswa') | select | unique | list | sort %}
+    {% for p in prog_list %}<option value="{{ p }}" {% if f_program == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
   </select>
-  <select id="f-angkatan" onchange="applyFilters()"
+  <select id="f-angkatan" onchange="navigateWithFilters()"
           style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:100px">
     <option value="">Angkatan</option>
-    {% set ang_list = pa_rows | map(attribute='angkatan_etf') | select | unique | list | sort %}
-    {% for a in ang_list %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+    {% set ang_list = all_pa_rows | map(attribute='angkatan_etf') | select | unique | list | sort %}
+    {% for a in ang_list %}<option value="{{ a }}" {% if f_angkatan == a|string %}selected{% endif %}>{{ a }}</option>{% endfor %}
   </select>
-  <select id="f-jenis" onchange="applyFilters()"
+  <select id="f-jenis" onchange="navigateWithFilters()"
           style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:115px">
     <option value="">Jenis Bayar</option>
-    {% set jenis_list = pa_rows | map(attribute='jenis_pembayaran') | select | unique | list | sort %}
-    {% for j in jenis_list %}<option value="{{ j }}">{{ j }}</option>{% endfor %}
+    {% set jenis_list = all_pa_rows | map(attribute='jenis_pembayaran') | select | unique | list | sort %}
+    {% for j in jenis_list %}<option value="{{ j }}" {% if f_jenis == j %}selected{% endif %}>{{ j }}</option>{% endfor %}
   </select>
-  <input type="text" id="f-pam" placeholder="Nomor PAM..." oninput="applyFiltersDebounced()"
+  <input type="text" id="f-pam" placeholder="Nomor PAM..." value="{{ f_pam }}" oninput="applyFiltersDebounced('f-pam')"
          style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:110px">
-  <select id="f-bulan-pa" onchange="applyFilters()"
+  <select id="f-bulan-pa" onchange="navigateWithFilters()"
           style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px">
     <option value="">Bulan</option>
-    <option value="01">Jan</option><option value="02">Feb</option>
-    <option value="03">Mar</option><option value="04">Apr</option>
-    <option value="05">Mei</option><option value="06">Jun</option>
-    <option value="07">Jul</option><option value="08">Agu</option>
-    <option value="09">Sep</option><option value="10">Okt</option>
-    <option value="11">Nov</option><option value="12">Des</option>
+    <option value="01" {% if f_bulan_pa == '01' %}selected{% endif %}>Jan</option><option value="02" {% if f_bulan_pa == '02' %}selected{% endif %}>Feb</option>
+    <option value="03" {% if f_bulan_pa == '03' %}selected{% endif %}>Mar</option><option value="04" {% if f_bulan_pa == '04' %}selected{% endif %}>Apr</option>
+    <option value="05" {% if f_bulan_pa == '05' %}selected{% endif %}>Mei</option><option value="06" {% if f_bulan_pa == '06' %}selected{% endif %}>Jun</option>
+    <option value="07" {% if f_bulan_pa == '07' %}selected{% endif %}>Jul</option><option value="08" {% if f_bulan_pa == '08' %}selected{% endif %}>Agu</option>
+    <option value="09" {% if f_bulan_pa == '09' %}selected{% endif %}>Sep</option><option value="10" {% if f_bulan_pa == '10' %}selected{% endif %}>Okt</option>
+    <option value="11" {% if f_bulan_pa == '11' %}selected{% endif %}>Nov</option><option value="12" {% if f_bulan_pa == '12' %}selected{% endif %}>Des</option>
   </select>
-  <select id="f-tahun-pa" onchange="applyFilters()"
+  <select id="f-tahun-pa" onchange="navigateWithFilters()"
           style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:76px">
     <option value="">Tahun</option>
-    <option value="2023">2023</option><option value="2024">2024</option>
-    <option value="2025">2025</option><option value="2026">2026</option>
-    <option value="2027">2027</option>
+    <option value="2023" {% if f_tahun_pa == '2023' %}selected{% endif %}>2023</option><option value="2024" {% if f_tahun_pa == '2024' %}selected{% endif %}>2024</option>
+    <option value="2025" {% if f_tahun_pa == '2025' %}selected{% endif %}>2025</option><option value="2026" {% if f_tahun_pa == '2026' %}selected{% endif %}>2026</option>
+    <option value="2027" {% if f_tahun_pa == '2027' %}selected{% endif %}>2027</option>
   </select>
   <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Reset</button>
   <button class="btn btn-success btn-sm" onclick="exportETFExcel()">&#8595; Export Excel</button>
-  <span id="f-count" style="font-size:11px;color:var(--text-muted)"></span>
+  <span id="f-count" style="font-size:11px;color:var(--text-muted)">{{ start_row }}-{{ end_row }} dari {{ total_rows }} baris</span>
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const activeFilterCount = [
+    {{ f_nama | tojson }}, {{ f_jenjang | tojson }}, {{ f_program | tojson }},
+    {{ f_angkatan | tojson }}, {{ f_jenis | tojson }}, {{ f_pam | tojson }},
+    {{ f_bulan_pa | tojson }}, {{ f_tahun_pa | tojson }}
+  ].filter(Boolean).length;
+  updateFilterBadge("pa-filter-toggle", activeFilterCount);
+});
+</script>
 
 {# ── Bulk action toolbar ──────────────────────────────────────────────────── #}
 <div id="bulk-bar" style="display:none; align-items:center; gap:.75rem; margin-bottom:.5rem; padding:.5rem .75rem; background:var(--accent-surface); border:1px solid var(--accent-border); border-radius:6px; font-size:.82rem; flex-wrap:wrap">
@@ -472,17 +434,7 @@ body.fh-focus #fh-focus-exit { display: flex; }
         <th style="min-width:260px">Keterangan</th>
         <th>Status</th>
         <th>Route</th>
-        <th>
-          <div class="th-aksi-wrap">
-            <span>Aksi</span>
-            <select id="hdr-bulk-status">
-              <option value="on_process">On Process</option>
-              <option value="open">Open</option>
-              <option value="complete">Complete</option>
-            </select>
-            <button class="btn btn-primary btn-sm" onclick="bulkSetStatusHeader()">Ubah Status</button>
-          </div>
-        </th>
+        <th>Aksi</th>
       </tr>
     </thead>
     <tbody>
@@ -553,11 +505,31 @@ body.fh-focus #fh-focus-exit { display: flex; }
     </tbody>
   </table>
 </div>
+{% macro pa_page_url(p) -%}
+?tab={{ active_tab }}{% if active_sf %}&sf={{ active_sf }}{% endif %}{% if f_nama %}&nama={{ f_nama | urlencode }}{% endif %}{% if f_jenjang %}&jenjang={{ f_jenjang | urlencode }}{% endif %}{% if f_program %}&program={{ f_program | urlencode }}{% endif %}{% if f_angkatan %}&angkatan={{ f_angkatan | urlencode }}{% endif %}{% if f_jenis %}&jenis={{ f_jenis | urlencode }}{% endif %}{% if f_pam %}&pam={{ f_pam | urlencode }}{% endif %}{% if f_bulan_pa %}&bulan_pa={{ f_bulan_pa }}{% endif %}{% if f_tahun_pa %}&tahun_pa={{ f_tahun_pa }}{% endif %}&page={{ p }}
+{%- endmacro %}
+{% if total_pages > 1 %}
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 2px;font-size:.8rem">
+  <span style="color:var(--text-muted)">Menampilkan {{ start_row }}-{{ end_row }} dari {{ total_rows }} baris (halaman {{ page }}/{{ total_pages }})</span>
+  <div style="display:flex;gap:6px">
+    {% if page > 1 %}
+    <a class="btn btn-secondary btn-sm" href="{{ pa_page_url(page - 1) }}">&#8592; Prev</a>
+    {% else %}
+    <span class="btn btn-secondary btn-sm" style="opacity:.5;pointer-events:none">&#8592; Prev</span>
+    {% endif %}
+    {% if page < total_pages %}
+    <a class="btn btn-secondary btn-sm" href="{{ pa_page_url(page + 1) }}">Next &#8594;</a>
+    {% else %}
+    <span class="btn btn-secondary btn-sm" style="opacity:.5;pointer-events:none">Next &#8594;</span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 {% elif active_tab == 'summary' %}
 {# ── Summary Tab ───────────────────────────────────────────── #}
 
 {# Filter bar #}
-<div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; margin-bottom:.75rem; padding:.65rem .75rem; background:var(--bg-muted,#f8f9fa); border-radius:6px; border:1px solid var(--border)">
+<div id="pa-filter-panel" class="filter-bar collapsible">
   <div class="form-group" style="margin:0; width:170px">
     <label style="font-size:.72rem; font-weight:600">No PA</label>
     <input type="text" id="sf-pa-number" placeholder="Cari no PA..." oninput="renderSummary()" style="font-size:.82rem">
@@ -627,11 +599,21 @@ body.fh-focus #fh-focus-exit { display: flex; }
     </table>
   </div>
   <div id="summary-count" style="margin-top:.4rem; font-size:.75rem; color:var(--text-muted)"></div>
+  <div id="summary-pagination" style="display:none;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 2px;font-size:.8rem">
+    <span id="summary-page-info" style="color:var(--text-muted)"></span>
+    <div style="display:flex;gap:6px">
+      <button type="button" class="btn btn-secondary btn-sm" id="summary-page-prev" onclick="_summaryPageStep(-1)">&#8592; Prev</button>
+      <button type="button" class="btn btn-secondary btn-sm" id="summary-page-next" onclick="_summaryPageStep(1)">Next &#8594;</button>
+    </div>
+  </div>
 </div>
 
 <script>
 (function() {
   let _summaryRows = [];
+  let _summaryFilteredRows = [];
+  let _summaryPage = 1;
+  const _summaryPageSize = 50;
 
   const _PILLAR_STYLE = {
     agri: 'background:#fef3c7;color:#92400e;border:1px solid #d97706',
@@ -686,7 +668,7 @@ body.fh-focus #fh-focus-exit { display: flex; }
     const paNumber = (document.getElementById('sf-pa-number').value   || '').toLowerCase().trim();
     const jenis    = (document.getElementById('sf-jenis').value       || '').toLowerCase().trim();
 
-    const filtered = _summaryRows.filter(r => {
+    _summaryFilteredRows = _summaryRows.filter(r => {
       if (nama     && !(r.nama_student            || '').toLowerCase().includes(nama))      return false;
       if (paNumber && !(r.pa_number               || '').toLowerCase().includes(paNumber))  return false;
       if (jenis    && (r.jenis_pembayaran         || '').toLowerCase() !== jenis)           return false;
@@ -701,11 +683,32 @@ body.fh-focus #fh-focus-exit { display: flex; }
       if (pillar && (r.pillar || '') !== pillar)                          return false;
       return true;
     });
+    _summaryPage = 1;
+    _summaryRenderPage();
+  };
+
+  window._summaryGoToPage = function(p) {
+    const maxPage = Math.max(1, Math.ceil(_summaryFilteredRows.length / _summaryPageSize));
+    _summaryPage = Math.min(Math.max(1, p), maxPage);
+    _summaryRenderPage();
+  };
+
+  // Prev/Next buttons live outside this IIFE (inline onclick runs in global
+  // scope), so they can't reference the private _summaryPage variable
+  // directly — step relative to it from inside the IIFE instead.
+  window._summaryPageStep = function(delta) {
+    window._summaryGoToPage(_summaryPage + delta);
+  };
+
+  function _summaryRenderPage() {
+    const filtered = _summaryFilteredRows;
+    const start = (_summaryPage - 1) * _summaryPageSize;
+    const pageRows = filtered.slice(start, start + _summaryPageSize);
 
     const tbody = document.getElementById('summary-tbody');
-    tbody.innerHTML = filtered.map((r, i) => `
+    tbody.innerHTML = pageRows.map((r, i) => `
       <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:.4rem .6rem; color:var(--text-muted)">${i+1}</td>
+        <td style="padding:.4rem .6rem; color:var(--text-muted)">${start + i + 1}</td>
         <td style="padding:.4rem .6rem; font-weight:600; white-space:nowrap">${r.pa_number || ''}</td>
         <td style="padding:.4rem .6rem; white-space:nowrap">${r.tgl_payment_application || '-'}</td>
         <td style="padding:.4rem .6rem; text-align:right">${_workdays(r.tgl_payment_application)}</td>
@@ -719,7 +722,20 @@ body.fh-focus #fh-focus-exit { display: flex; }
         <td style="padding:.4rem .6rem">${r.keterangan || '-'}</td>
       </tr>`).join('');
     document.getElementById('summary-count').textContent = `${filtered.length} PA${filtered.length < _summaryRows.length ? ' (dari ' + _summaryRows.length + ')' : ''}`;
-  };
+
+    const maxPage = Math.max(1, Math.ceil(filtered.length / _summaryPageSize));
+    const pag = document.getElementById('summary-pagination');
+    if (pag) {
+      pag.style.display = filtered.length > _summaryPageSize ? 'flex' : 'none';
+      const info = document.getElementById('summary-page-info');
+      if (info) info.textContent =
+        `Menampilkan ${filtered.length ? start + 1 : 0}-${Math.min(start + _summaryPageSize, filtered.length)} dari ${filtered.length} baris (halaman ${_summaryPage}/${maxPage})`;
+      const prevBtn = document.getElementById('summary-page-prev');
+      const nextBtn = document.getElementById('summary-page-next');
+      if (prevBtn) prevBtn.disabled = _summaryPage <= 1;
+      if (nextBtn) nextBtn.disabled = _summaryPage >= maxPage;
+    }
+  }
 
   fetch('/etf-payment-application/summary-data')
     .then(r => r.json())
@@ -746,7 +762,7 @@ body.fh-focus #fh-focus-exit { display: flex; }
 {% elif active_tab == 'advance' %}
 {# ── Advance Tab (cross-pillar) ────────────────────────────────── #}
 
-<div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; margin-bottom:.75rem; padding:.65rem .75rem; background:var(--bg-muted,#f8f9fa); border-radius:6px; border:1px solid var(--border)">
+<div id="pa-filter-panel" class="filter-bar collapsible">
   <div class="form-group" style="margin:0; width:170px">
     <label style="font-size:.72rem; font-weight:600">No PA</label>
     <input type="text" id="adv-pa-number" placeholder="Cari no PA..." oninput="renderAdvance()" style="font-size:.82rem">
@@ -1056,61 +1072,58 @@ const ACTIVE_TAB = "{{ active_tab }}";
 })();
 
 
-// ─── Filter ───────────────────────────────────────────────────────────────────
+// ─── Filter (server-side — searches the full result set, not just the  ───────
+// current page; nama/jenjang/program/angkatan/jenis/pam/bulan_pa/tahun_pa are
+// read by the Flask route and applied before pagination, see routes.py) ──────
+const PA_REFOCUS_KEY = "etfpaRefocusField";
 let _filterTimer = 0;
-function applyFiltersDebounced() {
+function applyFiltersDebounced(fieldId) {
   clearTimeout(_filterTimer);
-  _filterTimer = setTimeout(applyFilters, 150);
+  _filterTimer = setTimeout(() => navigateWithFilters(fieldId), 550);
 }
 
 function statusFilterChanged(el) {
   const url = new URL(window.location);
   url.searchParams.set("sf", el.value);
+  url.searchParams.set("page", "1");
   window.location.href = url.toString();
 }
 
-function applyFilters() {
-  if (!document.getElementById("f-nama")) return;
-  const nama     = document.getElementById("f-nama").value.toLowerCase().trim();
-  const jenjang  = document.getElementById("f-jenjang").value;
-  const program  = document.getElementById("f-program").value;
-  const angkatan = document.getElementById("f-angkatan").value;
-  const jenis    = document.getElementById("f-jenis").value;
-  const pam      = document.getElementById("f-pam").value.toLowerCase().trim();
-  const bulanPa  = document.getElementById("f-bulan-pa").value;
-  const tahunPa  = document.getElementById("f-tahun-pa").value;
-  const rows     = document.querySelectorAll("#pa-table tbody tr[data-pa-id]");
-  const show = [], hide = [];
-  let visible = 0;
-  rows.forEach(tr => {
-    const tgl = tr.dataset.tglPa || "";
-    const match =
-      (!nama     || tr.dataset.nama.includes(nama)) &&
-      (!jenjang  || tr.dataset.jenjang === jenjang) &&
-      (!program  || tr.dataset.program === program) &&
-      (!angkatan || tr.dataset.angkatan == angkatan) &&
-      (!jenis    || tr.dataset.jenis === jenis) &&
-      (!pam      || tr.dataset.pam.includes(pam)) &&
-      (!bulanPa  || tgl.slice(5,7) === bulanPa) &&
-      (!tahunPa  || tgl.slice(0,4) === tahunPa);
-    if (match) { show.push(tr); visible++; } else { hide.push(tr); }
+function navigateWithFilters(refocusFieldId) {
+  const url = new URL(window.location);
+  const fields = {
+    nama: document.getElementById("f-nama")?.value.trim() || "",
+    jenjang: document.getElementById("f-jenjang")?.value || "",
+    program: document.getElementById("f-program")?.value || "",
+    angkatan: document.getElementById("f-angkatan")?.value || "",
+    jenis: document.getElementById("f-jenis")?.value || "",
+    pam: document.getElementById("f-pam")?.value.trim() || "",
+    bulan_pa: document.getElementById("f-bulan-pa")?.value || "",
+    tahun_pa: document.getElementById("f-tahun-pa")?.value || "",
+  };
+  Object.entries(fields).forEach(([k, v]) => {
+    if (v) url.searchParams.set(k, v); else url.searchParams.delete(k);
   });
-  requestAnimationFrame(() => {
-    show.forEach(tr => { if (tr.style.display === "none") tr.style.display = ""; });
-    hide.forEach(tr => { if (tr.style.display !== "none") tr.style.display = "none"; });
-    document.getElementById("f-count").textContent = `${visible} / ${rows.length} baris`;
-    renderPaChips();
-  });
-  const activeCount = [nama, jenjang, program, angkatan, jenis, pam, bulanPa, tahunPa].filter(Boolean).length;
-  updateFilterBadge("pa-filter-toggle", activeCount);
+  url.searchParams.set("page", "1");
+  if (refocusFieldId) { try { sessionStorage.setItem(PA_REFOCUS_KEY, refocusFieldId); } catch (e) {} }
+  window.location.href = url.toString();
 }
+
 function resetFilters() {
   const url = new URL(window.location);
-  url.searchParams.delete("sf");
+  ["sf", "nama", "jenjang", "program", "angkatan", "jenis", "pam", "bulan_pa", "tahun_pa", "page"]
+    .forEach(k => url.searchParams.delete(k));
   window.location.href = url.toString();
 }
 window.addEventListener("DOMContentLoaded", () => {
-  applyFilters();
+  try {
+    const refocusId = sessionStorage.getItem(PA_REFOCUS_KEY);
+    if (refocusId) {
+      sessionStorage.removeItem(PA_REFOCUS_KEY);
+      const el = document.getElementById(refocusId);
+      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    }
+  } catch (e) {}
   setupCreateSiswaSearch();
   // Init Input tab form
   const paylinesCont = document.getElementById('pa-paylines-container');
@@ -1285,12 +1298,6 @@ async function bulkFillDate() {
 async function bulkFillToday() {
   const field = document.getElementById("bulk-field-sel").value;
   await doBulkUpdate(field, TODAY);
-}
-async function bulkSetStatusHeader() {
-  const status = document.getElementById("hdr-bulk-status").value;
-  const ids = selectedPaIds();
-  if (!ids.length) { showToast("Centang baris yang ingin diubah statusnya.", "error"); return; }
-  await doBulkUpdate("status", status);
 }
 
 // ─── IPK helpers ─────────────────────────────────────────────────────────────
