@@ -70,6 +70,23 @@ function setfRenderTable(rows) {
   }).join("");
 }
 
+function setfRenderKategoriTable(kategoriRows) {
+  const tbody = document.querySelector("#setf-kategori-table tbody");
+  if (!kategoriRows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada data kategori.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = kategoriRows.map(function (k) {
+    const sisa = k.budget - k.realisasi;
+    return "<tr>" +
+      "<td>" + k.cat1 + "</td>" +
+      "<td>" + fmtRupiah(k.budget) + "</td>" +
+      "<td>" + fmtRupiah(k.realisasi) + "</td>" +
+      "<td>" + fmtRupiah(sisa) + "</td>" +
+      "</tr>";
+  }).join("");
+}
+
 function setfRenderAlert(overBudget) {
   const card = document.getElementById("setf-alert-card");
   const list = document.getElementById("setf-alert-list");
@@ -147,6 +164,7 @@ function setfApplyFilters() {
         data.kategori.map(function (k) { return k.cat1; }),
         data.kategori.map(function (k) { return k.realisasi; }),
         ["#6366f1", "#818cf8", "#f97316", "#06b6d4", "#10b981", "#f59e0b"]);
+      setfRenderKategoriTable(data.kategori);
       setfRenderAlert(data.over_budget);
     })
     .catch(function () { showToast("Gagal memuat breakdown kategori.", "error"); });
