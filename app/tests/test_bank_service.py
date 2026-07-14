@@ -257,3 +257,82 @@ def test_sync_pam_to_bank_setf_falls_back_to_pam_date_when_no_tanggal_bayar():
     row = dict(conn.execute("SELECT * FROM bank_setf WHERE pam_record_id=?", (pam_id,)).fetchone())
     conn.close()
     assert row["tanggal"] == "2026-06-20"
+
+
+from modules.bank.service import add_transaksi, update_transaksi, delete_transaksi
+
+
+def test_add_transaksi_inserts_manual_row():
+    result = add_transaksi(2, "2026-07-14", "pemasukan", 1000000, "Transfer awal")
+    assert result["ok"] is True
+    rows = get_bank_setf_rows(2)
+    assert len(rows) == 1
+    assert rows[0]["source"] == "manual"
+    assert rows[0]["jenis"] == "pemasukan"
+    assert rows[0]["jumlah"] == 1000000
+    assert rows[0]["pam_record_id"] is None
+
+
+def test_add_transaksi_rejects_invalid_jenis():
+    result = add_transaksi(2, "2026-07-14", "bukan_jenis_valid", 1000, "X")
+    assert result["ok"] is False
+    assert get_bank_setf_rows(2) == []
+
+
+def test_add_transaksi_rejects_non_positive_jumlah():
+    result = add_transaksi(2, "2026-07-14", "pemasukan", 0, "X")
+    assert result["ok"] is False
+    result2 = add_transaksi(2, "2026-07-14", "pemasukan", -500, "X")
+    assert result2["ok"] is False
+    assert get_bank_setf_rows(2) == []
+
+
+def test_add_transaksi_rejects_missing_tanggal():
+    result = add_transaksi(2, "", "pemasukan", 1000, "X")
+    assert result["ok"] is False
+
+
+def test_update_transaksi_modifies_existing_row():
+    add_transaksi(2, "2026-07-14", "pemasukan", 1000000, "Original")
+    row_id = get_bank_setf_rows(2)[0]["id"]
+    result = update_transaksi(row_id, 2, "2026-07-15", "pengeluaran", 500000, "Updated")
+    assert result["ok"] is True
+    rows = get_bank_setf_rows(2)
+    assert rows[0]["tanggal"] == "2026-07-15"
+    assert rows[0]["jenis"] == "pengeluaran"
+    assert rows[0]["jumlah"] == 500000
+    assert rows[0]["keterangan"] == "Updated"
+
+
+def test_update_transaksi_rejects_wrong_company():
+    add_transaksi(2, "2026-07-14", "pemasukan", 1000000, "Original")
+    row_id = get_bank_setf_rows(2)[0]["id"]
+    result = update_transaksi(row_id, 1, "2026-07-15", "pengeluaran", 500000, "Hacked")
+    assert result["ok"] is False
+    assert get_bank_setf_rows(2)[0]["keterangan"] == "Original"
+
+
+def test_delete_transaksi_removes_row():
+    add_transaksi(2, "2026-07-14", "pemasukan", 1000000, "To delete")
+    row_id = get_bank_setf_rows(2)[0]["id"]
+    result = delete_transaksi(row_id, 2)
+    assert result["ok"] is True
+    assert get_bank_setf_rows(2) == []
+
+
+def test_delete_transaksi_of_pam_sourced_row_does_not_touch_pam_records():
+    _insert_pam(2, "PAM-DEL-1", "SETF", "complete", 700000, tanggal_bayar="2026-07-01")
+    conn = get_conn()
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-DEL-1'").fetchone()["id"]
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+    row_id = get_bank_setf_rows(2)[0]["id"]
+
+    result = delete_transaksi(row_id, 2)
+    assert result["ok"] is True
+    assert get_bank_setf_rows(2) == []
+
+    conn = get_conn()
+    pam_status = conn.execute("SELECT status FROM pam_records WHERE id=?", (pam_id,)).fetchone()["status"]
+    conn.close()
+    assert pam_status == "complete"

@@ -136,3 +136,67 @@ def get_bank_setf_rows(company_id: int) -> list:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def _validate_transaksi(tanggal, jenis, jumlah):
+    if not tanggal:
+        return "Tanggal wajib diisi."
+    if jenis not in ("pemasukan", "pengeluaran"):
+        return "Jenis tidak valid."
+    try:
+        jumlah = float(jumlah)
+    except (TypeError, ValueError):
+        return "Jumlah tidak valid."
+    if jumlah <= 0:
+        return "Jumlah harus lebih besar dari 0."
+    return None
+
+
+def add_transaksi(company_id: int, tanggal: str, jenis: str, jumlah, keterangan: str) -> dict:
+    error = _validate_transaksi(tanggal, jenis, jumlah)
+    if error:
+        return {"ok": False, "pesan": error}
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source) "
+        "VALUES (?, ?, ?, ?, ?, 'manual')",
+        (company_id, tanggal, jenis, float(jumlah), keterangan),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Transaksi berhasil ditambahkan."}
+
+
+def update_transaksi(row_id: int, company_id: int, tanggal: str, jenis: str, jumlah, keterangan: str) -> dict:
+    error = _validate_transaksi(tanggal, jenis, jumlah)
+    if error:
+        return {"ok": False, "pesan": error}
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id FROM bank_setf WHERE id=? AND company_id=?", (row_id, company_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Transaksi tidak ditemukan."}
+    conn.execute(
+        "UPDATE bank_setf SET tanggal=?, jenis=?, jumlah=?, keterangan=?, updated_at=datetime('now') "
+        "WHERE id=? AND company_id=?",
+        (tanggal, jenis, float(jumlah), keterangan, row_id, company_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Transaksi berhasil diperbarui."}
+
+
+def delete_transaksi(row_id: int, company_id: int) -> dict:
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id FROM bank_setf WHERE id=? AND company_id=?", (row_id, company_id)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Transaksi tidak ditemukan."}
+    conn.execute("DELETE FROM bank_setf WHERE id=? AND company_id=?", (row_id, company_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Transaksi berhasil dihapus."}
