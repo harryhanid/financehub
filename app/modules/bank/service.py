@@ -23,3 +23,25 @@ def split_by_status(rows: list) -> tuple:
     complete_rows.sort(key=lambda r: r["_date"] or "")
 
     return open_rows, complete_rows
+
+
+def compute_running_balance(complete_rows: list) -> dict:
+    saldo = 0.0
+    total_pemasukan = 0.0
+    total_pengeluaran = 0.0
+    for r in complete_rows:
+        amount = r["total_amount"] or 0
+        pemasukan = -amount if amount < 0 else 0
+        pengeluaran = amount if amount > 0 else 0
+        saldo -= amount
+        r["pemasukan"] = pemasukan
+        r["pengeluaran"] = pengeluaran
+        r["saldo_berjalan"] = saldo
+        total_pemasukan += pemasukan
+        total_pengeluaran += pengeluaran
+    return {
+        "rows": complete_rows,
+        "saldo_current": saldo,
+        "total_pemasukan": total_pemasukan,
+        "total_pengeluaran": total_pengeluaran,
+    }
