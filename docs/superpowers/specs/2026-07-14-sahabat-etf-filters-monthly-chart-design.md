@@ -31,7 +31,7 @@ Plus 1 kebutuhan baru yang muncul saat brainstorm: chart bar bulanan (budget vs 
 
 **Cara filter tahun diterapkan**: independen per tabel sumber — baris `budget_beasiswa` difilter dari `budget.tanggal`-nya sendiri, baris `payment_beasiswa` difilter dari `payment.tanggal`-nya sendiri (bukan disamakan ke satu tanggal acuan). `years` adalah list (multi-select), jadi filter pakai `strftime('%Y', tanggal) IN (?, ?, ...)`.
 
-**Cara filter pillar diterapkan**: `payment_beasiswa.pillar = ?` — filter ini **hanya memengaruhi baris payment**; baris `budget_beasiswa` tidak punya kolom pillar jadi tidak ikut difilter olehnya (budget tetap muncul apa adanya, cuma payment/realisasi yang menyempit).
+**Cara filter pillar diterapkan**: `payment_beasiswa.pillar = ?` — filter ini **hanya memengaruhi baris payment/realisasi** (sesuai permintaan awal: "filter kategori Realisasi payment berdasarkan pillar"). Koreksi riset: `budget_beasiswa` **juga** punya kolom `pillar` (`AGRI`=27, `APP`=13, `FINANCE`=15, `SETF`=23 baris untuk siswa Sahabat ETF) — tapi sengaja **tidak** dipakai untuk filter budget di iterasi ini, scope-nya memang cuma realisasi payment. Budget tetap tampil apa adanya, tidak ikut menyempit walau filter pillar aktif.
 
 **Konsekuensi ke alert over-budget**: `over_budget` di `get_kategori_breakdown` dihitung dari `get_siswa_summary(company_id, years, pillar)` — otomatis ikut ter-filter. Artinya alert jadi "over-budget untuk kombinasi tahun+pillar yang sedang difilter", bukan sepanjang masa. Behavior ini disetujui user secara implisit (tidak ada keberatan saat didiskusikan).
 
