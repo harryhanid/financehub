@@ -508,6 +508,21 @@ CREATE TABLE IF NOT EXISTS budget_carryover_logs (
 
 CREATE INDEX IF NOT EXISTS idx_budget_realisasi_budget_id ON budget_realisasi(budget_id);
 CREATE INDEX IF NOT EXISTS idx_budget_carryover_logs_budget_id ON budget_carryover_logs(budget_id);
+
+CREATE TABLE IF NOT EXISTS bank_setf (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id    INTEGER NOT NULL REFERENCES companies(id),
+    tanggal       TEXT NOT NULL,
+    jenis         TEXT NOT NULL CHECK (jenis IN ('pemasukan', 'pengeluaran')),
+    jumlah        REAL NOT NULL,
+    keterangan    TEXT,
+    source        TEXT NOT NULL CHECK (source IN ('pam', 'manual')),
+    pam_record_id INTEGER UNIQUE REFERENCES pam_records(id),
+    created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_bank_setf_company_tanggal ON bank_setf(company_id, tanggal);
 """
 
 VENDOR_SEED = [
@@ -563,27 +578,26 @@ def migrate_db():
         except Exception:
             pass
     # ── SLA column rename/add/drop (2026-06-24) ───────────────────────────
-    with get_conn() as conn:
-        cols = {r[1] for r in conn.execute("PRAGMA table_info(payment_beasiswa)")}
-        renames = [
-            ("tgl_HT_AGRI",     "SLA_Date_2_HT"),
-            ("tgl_Yurike_AGRI", "SLA_Date_3_YK"),
-            ("tgl_Aditya_AGRI", "SLA_Date_4_AK"),
-            ("tgl_Pedy_AGRI",   "SLA_Date_5_PD"),
-            ("tgl_C2_AGRI",     "SLA_Date_6_C2"),
-            ("tgl_MSIG_AGRI",   "SLA_Date_7_MSIG"),
-        ]
-        for old, new in renames:
-            if old in cols and new not in cols:
-                conn.execute(f'ALTER TABLE payment_beasiswa RENAME COLUMN "{old}" TO "{new}"')
-            elif old in cols and new in cols:
-                # old col was re-added by ADD COLUMN loop after previous rename — drop the stale copy
-                conn.execute(f'ALTER TABLE payment_beasiswa DROP COLUMN "{old}"')
-        if "SLA_Date_1_LL" not in cols:
-            conn.execute('ALTER TABLE payment_beasiswa ADD COLUMN "SLA_Date_1_LL" TEXT')
-        if "tgl_Paid_AGRI" in cols:
-            conn.execute('ALTER TABLE payment_beasiswa DROP COLUMN "tgl_Paid_AGRI"')
-        conn.commit()
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(payment_beasiswa)")}
+    renames = [
+        ("tgl_HT_AGRI",     "SLA_Date_2_HT"),
+        ("tgl_Yurike_AGRI", "SLA_Date_3_YK"),
+        ("tgl_Aditya_AGRI", "SLA_Date_4_AK"),
+        ("tgl_Pedy_AGRI",   "SLA_Date_5_PD"),
+        ("tgl_C2_AGRI",     "SLA_Date_6_C2"),
+        ("tgl_MSIG_AGRI",   "SLA_Date_7_MSIG"),
+    ]
+    for old, new in renames:
+        if old in cols and new not in cols:
+            conn.execute(f'ALTER TABLE payment_beasiswa RENAME COLUMN "{old}" TO "{new}"')
+        elif old in cols and new in cols:
+            # old col was re-added by ADD COLUMN loop after previous rename — drop the stale copy
+            conn.execute(f'ALTER TABLE payment_beasiswa DROP COLUMN "{old}"')
+    if "SLA_Date_1_LL" not in cols:
+        conn.execute('ALTER TABLE payment_beasiswa ADD COLUMN "SLA_Date_1_LL" TEXT')
+    if "tgl_Paid_AGRI" in cols:
+        conn.execute('ALTER TABLE payment_beasiswa DROP COLUMN "tgl_Paid_AGRI"')
+    conn.commit()
     try:
         conn.execute("ALTER TABLE payment_beasiswa ADD COLUMN etf_pa_line_id INTEGER REFERENCES etf_pa_lines(id)")
         conn.commit()
@@ -1257,6 +1271,27 @@ def migrate_db():
         conn.commit()
     except Exception:
         pass
+
+    # bank_setf backfill — one-time migration of pre-existing SETF-complete
+    # PAM history so the ledger doesn't start empty (2026-07-14)
+    setf_complete = conn.execute(
+        "SELECT id, company_id, total_amount, keterangan, tanggal_bayar, pam_date "
+        "FROM pam_records WHERE pillar='SETF' AND status='complete'"
+    ).fetchall()
+    for row in setf_complete:
+        row = dict(row)
+        exists = conn.execute(
+            "SELECT 1 FROM bank_setf WHERE pam_record_id=?", (row["id"],)
+        ).fetchone()
+        if exists:
+            continue
+        conn.execute(
+            "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source, pam_record_id) "
+            "VALUES (?, ?, 'pengeluaran', ?, ?, 'pam', ?)",
+            (row["company_id"], row["tanggal_bayar"] or row["pam_date"],
+             row["total_amount"], row["keterangan"], row["id"])
+        )
+    conn.commit()
 
     conn.close()
 
