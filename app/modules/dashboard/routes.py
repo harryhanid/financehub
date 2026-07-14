@@ -8,6 +8,16 @@ import config
 
 bp = Blueprint("dashboard", __name__)
 
+DASHBOARD_TABS = [
+    ("Dashboard",             "dashboard.index"),
+    ("Beasiswa",              "beasiswa.index"),
+    ("Payment Approval Memo", "payment_memo.index"),
+    ("Payment Application",   "etf_payment_application.index"),
+    ("Budget",                "budget.index"),
+    ("Bank",                  "bank.index"),
+    ("Users",                 "users.index"),
+]
+
 
 def get_ctx():
     try:
@@ -77,5 +87,6 @@ def index():
         ).fetchone()[0]
         conn.close()
 
+    modules = [{"name": name, "url": url_for(endpoint)} for name, endpoint in DASHBOARD_TABS]
     return render_template("dashboard/index.html", stats=stats, dash=dash,
-                           active_page="dashboard", **get_ctx())
+                           modules=modules, active_page="dashboard", **get_ctx())

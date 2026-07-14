@@ -33,3 +33,22 @@ def test_dashboard_shows_etf_stats(client):
     select_etf(client)
     resp = client.get("/dashboard")
     assert b"Total Siswa" in resp.data
+
+def test_dashboard_shows_module_tabs(client):
+    login(client)
+    select_etf(client)
+    resp = client.get("/dashboard")
+    html = resp.data.decode()
+    assert 'class="tab-btn active" href="/dashboard"' in html
+    for label, href in [
+        ("Beasiswa", "/beasiswa/"),
+        ("Payment Approval Memo", "/payment-memo/"),
+        ("Payment Application", "/etf-payment-application/"),
+        ("Budget", "/budget/"),
+        ("Bank", "/bank/"),
+        ("Users", "/users/"),
+    ]:
+        assert f'href="{href}"' in html
+        assert label in html
+    assert "Account Payable" not in html
+    assert "Coming Soon" not in html

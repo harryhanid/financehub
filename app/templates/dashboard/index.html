@@ -2,8 +2,13 @@
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div>
-    <h1 class="page-title">Dashboard</h1>
+  <div class="page-toolbar">
+    <h1 class="page-title" style="margin-bottom:0">Dashboard</h1>
+    <div class="tabs" style="margin-bottom:0">
+      {% for m in modules %}
+      <a class="tab-btn{{ ' active' if m.name == 'Dashboard' else '' }}" href="{{ m.url }}">{{ m.name }}</a>
+      {% endfor %}
+    </div>
   </div>
 </div>
 
