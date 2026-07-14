@@ -36,6 +36,52 @@ function setfRenderBarChart(canvasId, labels, datasets) {
   });
 }
 
+let setfActiveKategoriDrilldown = null;
+
+function setfExpandDetailTabel() {
+  const details = document.getElementById("setf-detail-tabel");
+  if (!details) return;
+  if (!details.open) details.open = true;
+  details.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setfRenderDrilldownChip() {
+  const chip = document.getElementById("setf-drilldown-chip");
+  if (!chip) return;
+  if (!setfActiveKategoriDrilldown) {
+    chip.style.display = "none";
+    chip.innerHTML = "";
+    return;
+  }
+  chip.style.display = "inline-flex";
+  chip.innerHTML = "Filter aktif: Kategori = " + setfActiveKategoriDrilldown +
+    ' <button type="button" class="budget-btn" style="padding:.15rem .6rem;font-size:.72rem" ' +
+    'onclick="setfClearKategoriDrilldown()">Hapus filter</button>';
+}
+
+function setfRefetchLatestPayments() {
+  const filters = setfGetSelectedFilters();
+  const params = new URLSearchParams(setfBuildQueryString(filters));
+  if (setfActiveKategoriDrilldown) params.set("kategori", setfActiveKategoriDrilldown);
+  fetch("/beasiswa/sahabat/api/latest_payments?" + params.toString())
+    .then(function (r) { return r.json(); })
+    .then(function (data) { setfRenderLatestPaymentsTable(data.rows); })
+    .catch(function () { showToast("Gagal memuat 10 transaksi terakhir.", "error"); });
+}
+
+function setfSetKategoriDrilldown(kategoriName) {
+  setfActiveKategoriDrilldown = kategoriName;
+  setfRenderDrilldownChip();
+  setfExpandDetailTabel();
+  setfRefetchLatestPayments();
+}
+
+function setfClearKategoriDrilldown() {
+  setfActiveKategoriDrilldown = null;
+  setfRenderDrilldownChip();
+  setfRefetchLatestPayments();
+}
+
 function setfRenderDoughnutChart(canvasId, labels, values, colors) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
@@ -43,7 +89,14 @@ function setfRenderDoughnutChart(canvasId, labels, values, colors) {
   setfCharts[canvasId] = new Chart(ctx, {
     type: "doughnut",
     data: { labels: labels, datasets: [{ data: values, backgroundColor: colors }] },
-    options: { responsive: true, plugins: { legend: { position: "right", labels: { color: setfThemeColor("--text-primary", "#e2e8f0") } } } },
+    options: {
+      responsive: true,
+      onClick: function (evt, elements) {
+        if (!elements.length) return;
+        setfSetKategoriDrilldown(labels[elements[0].index]);
+      },
+      plugins: { legend: { position: "right", labels: { color: setfThemeColor("--text-primary", "#e2e8f0") } } },
+    },
   });
 }
 
@@ -138,6 +191,22 @@ function setfRenderMonthlyTable(comparison, years) {
   }).join("");
 }
 
+function setfRenderLatestPaymentsTable(rows) {
+  const tbody = document.querySelector("#setf-latest-payments-table tbody");
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada transaksi.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function (r) {
+    return "<tr>" +
+      "<td>" + r.tanggal + "</td>" +
+      "<td>" + r.nama + "</td>" +
+      "<td>" + r.cat1 + "</td>" +
+      '<td class="num-right">' + fmtRupiah(r.amount) + "</td>" +
+      "</tr>";
+  }).join("");
+}
+
 function setfGetSelectedFilters() {
   const years = Array.from(document.querySelectorAll(".setf-year-cb:checked")).map(function (cb) { return cb.value; });
   const pillars = Array.from(document.querySelectorAll(".setf-pillar-cb:checked")).map(function (cb) { return cb.value; });
@@ -164,6 +233,10 @@ function setfApplyFilters() {
   const filters = setfGetSelectedFilters();
   const qs = setfBuildQueryString(filters);
   setfUpdateExportLinks(qs);
+
+  setfActiveKategoriDrilldown = null;
+  setfRenderDrilldownChip();
+  setfRefetchLatestPayments();
 
   fetch("/beasiswa/sahabat/api/summary" + (qs ? "?" + qs : ""))
     .then(function (r) { return r.json(); })
