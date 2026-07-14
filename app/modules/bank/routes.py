@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, session
+from flask import Blueprint, render_template, request, redirect, url_for, session
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.bank.service import (
@@ -36,6 +36,8 @@ def _cid():
 @jwt_html_required
 def index():
     cid = _cid()
+    if not cid:
+        return redirect(url_for("dashboard.select_company"))
     rows = get_setf_rows(cid)
     open_rows, complete_rows = split_by_status(rows)
     balance = compute_running_balance(complete_rows)

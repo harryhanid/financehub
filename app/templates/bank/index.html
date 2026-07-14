@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Bank{% endblock %}
 
-{% block styles %}
+{% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bank.css') }}">
 {% endblock %}
 
@@ -27,13 +27,13 @@
 
   <div class="bank-tabs" data-tabs>
     <div class="tabs">
-      <button type="button" class="tab-btn active" data-tab="tab-mutasi">Mutasi & Saldo</button>
+      <button type="button" class="tab-btn" data-tab="tab-mutasi">Mutasi & Saldo</button>
       <button type="button" class="tab-btn" data-tab="tab-open">Open</button>
     </div>
 
     <div class="tab-content">
       <!-- TAB MUTASI -->
-      <div id="tab-mutasi" class="tab-panel active">
+      <div id="tab-mutasi" class="tab-panel">
         <div class="filter-bar">
           <select id="filter-bulan" class="fh-select">
             <option value="all">Semua Bulan</option>

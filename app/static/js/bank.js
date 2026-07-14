@@ -1,15 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // Tabs
-  const tabBtns = document.querySelectorAll('.bank-tabs .tab-btn');
-  const tabPanels = document.querySelectorAll('.bank-tabs .tab-panel');
+  // Tab switching is handled by the global initTabs() in app.js via the
+  // [data-tabs] auto-init — no need to duplicate click-listener logic here.
 
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabBtns.forEach(b => b.classList.remove('active'));
-      tabPanels.forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById(btn.dataset.tab).classList.add('active');
-    });
+  document.querySelectorAll('.fmt-rupiah').forEach(el => {
+    el.textContent = fmtRupiah(parseFloat(el.textContent));
   });
 
   // Filters
