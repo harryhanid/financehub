@@ -148,3 +148,88 @@ def test_filter_period_by_bulan_and_tahun():
     rows = [{"_date": "2025-07-01"}, {"_date": "2026-07-01"}, {"_date": "2026-08-01"}]
     result = filter_period(rows, 7, 2026)
     assert result == [{"_date": "2026-07-01"}]
+
+
+from modules.bank.service import sync_pam_to_bank_setf
+
+
+def test_sync_pam_to_bank_setf_inserts_pengeluaran_row():
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
+           VALUES (2, 'PAM-SYNC-1', '2026-07-01', 'Beasiswa test', 2000000, 'complete', 'SETF', '2026-07-05', datetime('now'))"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-SYNC-1'").fetchone()["id"]
+    conn.commit()
+    conn.close()
+
+    sync_pam_to_bank_setf(pam_id)
+
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM bank_setf WHERE pam_record_id=?", (pam_id,)).fetchone()
+    conn.close()
+    row = dict(row)
+    assert row["jenis"] == "pengeluaran"
+    assert row["jumlah"] == 2000000
+    assert row["source"] == "pam"
+    assert row["tanggal"] == "2026-07-05"
+    assert row["company_id"] == 2
+
+
+def test_sync_pam_to_bank_setf_skips_non_setf_pillar():
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
+           VALUES (2, 'PAM-SYNC-2', '2026-07-01', 'AGRI test', 3000000, 'complete', 'AGRI', '2026-07-05', datetime('now'))"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-SYNC-2'").fetchone()["id"]
+    conn.commit()
+    conn.close()
+
+    sync_pam_to_bank_setf(pam_id)
+
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM bank_setf WHERE pam_record_id=?", (pam_id,)).fetchone()
+    conn.close()
+    assert row is None
+
+
+def test_sync_pam_to_bank_setf_is_idempotent():
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
+           VALUES (2, 'PAM-SYNC-3', '2026-07-01', 'Test', 1500000, 'complete', 'SETF', '2026-07-05', datetime('now'))"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-SYNC-3'").fetchone()["id"]
+    conn.commit()
+    conn.close()
+
+    sync_pam_to_bank_setf(pam_id)
+    sync_pam_to_bank_setf(pam_id)
+
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM bank_setf WHERE pam_record_id=?", (pam_id,)).fetchall()
+    conn.close()
+    assert len(rows) == 1
+
+
+def test_sync_pam_to_bank_setf_falls_back_to_pam_date_when_no_tanggal_bayar():
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
+           VALUES (2, 'PAM-SYNC-4', '2026-06-20', 'Test', 800000, 'complete', 'SETF', NULL, datetime('now'))"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-SYNC-4'").fetchone()["id"]
+    conn.commit()
+    conn.close()
+
+    sync_pam_to_bank_setf(pam_id)
+
+    conn = get_conn()
+    row = dict(conn.execute("SELECT * FROM bank_setf WHERE pam_record_id=?", (pam_id,)).fetchone())
+    conn.close()
+    assert row["tanggal"] == "2026-06-20"

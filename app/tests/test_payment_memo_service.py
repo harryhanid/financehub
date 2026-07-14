@@ -97,3 +97,49 @@ def test_update_memo_status_on_process():
     row  = conn.execute("SELECT status FROM payment_memo WHERE id=?", (memo_id,)).fetchone()
     conn.close()
     assert row["status"] == "on_process"
+
+
+from modules.bank.service import get_bank_setf_rows  # noqa: E402 — added for Task 2's integration test
+
+
+def test_set_pam_complete_cascade_syncs_setf_to_bank_setf():
+    from modules.payment_memo.service import set_pam_complete_cascade
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, source, created_at)
+           VALUES (2, 'PAM-CASCADE-SETF-1', '2026-07-01', 'Test cascade sync', 1200000, 'open', 'SETF', 'others', datetime('now'))"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-CASCADE-SETF-1'").fetchone()["id"]
+    conn.commit()
+    conn.close()
+
+    result = set_pam_complete_cascade(pam_id, "2026-07-10", 2)
+    assert result["ok"] is True
+
+    rows = get_bank_setf_rows(2)
+    matching = [r for r in rows if r["pam_record_id"] == pam_id]
+    assert len(matching) == 1
+    assert matching[0]["jenis"] == "pengeluaran"
+    assert matching[0]["jumlah"] == 1200000
+
+
+def test_update_pam_status_syncs_setf_to_bank_setf_when_completed():
+    from modules.payment_memo.service import update_pam_status
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, created_at)
+           VALUES (2, 'PAM-STATUS-SETF-1', '2026-07-01', 'Test status sync', 900000, 'open', 'SETF', datetime('now'))"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-STATUS-SETF-1'").fetchone()["id"]
+    conn.commit()
+    conn.close()
+
+    result = update_pam_status(pam_id, "complete", 2)
+    assert result["ok"] is True
+
+    rows = get_bank_setf_rows(2)
+    matching = [r for r in rows if r["pam_record_id"] == pam_id]
+    assert len(matching) == 1
+    assert matching[0]["jumlah"] == 900000

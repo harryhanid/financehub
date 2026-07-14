@@ -3,6 +3,7 @@ import calendar
 import config
 from datetime import datetime
 from database import get_conn
+from modules.bank.service import sync_pam_to_bank_setf
 
 
 def _ts():
@@ -1061,6 +1062,10 @@ def update_pam_status(pam_id: int, new_status: str, company_id: int) -> dict:
     )
     conn.commit()
     conn.close()
+
+    if new_status == "complete":
+        sync_pam_to_bank_setf(pam_id)
+
     return {"ok": True, "pesan": f"Status PAM diubah ke '{new_status}'."}
 
 
@@ -2339,6 +2344,9 @@ def set_pam_complete_cascade(pam_id: int, tanggal_bayar: str, company_id: int) -
 
     conn.commit()
     conn.close()
+
+    sync_pam_to_bank_setf(pam_id)
+
     return {"ok": True, "pesan": "Tgl Paid disimpan, PAM selesai."}
 
 
