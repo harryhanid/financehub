@@ -38,14 +38,14 @@ function setfRenderSummaryCards(rows) {
   const totalRealisasi = rows.reduce(function (s, r) { return s + r.realisasi_total; }, 0);
   const totalSisa = rows.reduce(function (s, r) { return s + r.sisa_budget; }, 0);
   const cards = [
-    ["Total Siswa Aktif", totalSiswa],
-    ["Total Budget", fmtRupiah(totalBudget)],
-    ["Total Payment", fmtRupiah(totalPayment)],
-    ["Total Realisasi", fmtRupiah(totalRealisasi)],
-    ["Sisa Budget", fmtRupiah(totalSisa)],
+    ["Total Siswa Aktif", totalSiswa, ""],
+    ["Total Budget", fmtRupiah(totalBudget), ""],
+    ["Total Payment", fmtRupiah(totalPayment), ""],
+    ["Total Realisasi", fmtRupiah(totalRealisasi), " setf-stat-realisasi"],
+    ["Sisa Budget", fmtRupiah(totalSisa), ""],
   ];
   document.getElementById("setf-summary").innerHTML = cards.map(function (c) {
-    return '<div class="budget-stat-card"><div class="label">' + c[0] +
+    return '<div class="budget-stat-card' + c[2] + '"><div class="label">' + c[0] +
       '</div><div class="value">' + c[1] + "</div></div>";
   }).join("");
 }

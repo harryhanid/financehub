@@ -236,3 +236,10 @@
   align-items: center;
   gap: .5rem;
 }
+
+.setf-stat-realisasi {
+  border-left: 3px solid var(--accent-light);
+}
+.setf-stat-realisasi .value {
+  color: var(--accent-light);
+}
