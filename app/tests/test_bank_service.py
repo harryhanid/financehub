@@ -92,3 +92,59 @@ def test_compute_running_balance_zero_amount_row_is_neutral():
     assert result["saldo_current"] == -500000
     assert result["total_pemasukan"] == 500000
     assert result["total_pengeluaran"] == 1000000
+
+
+from datetime import datetime
+from modules.bank.service import get_available_years, resolve_period, filter_period
+
+
+def test_get_available_years_returns_distinct_years_desc():
+    _insert_pam(2, "PAM-1", "SETF", "complete", 100, tanggal_bayar="2025-03-01")
+    _insert_pam(2, "PAM-2", "SETF", "complete", 200, tanggal_bayar="2026-01-01")
+    _insert_pam(2, "PAM-3", "SETF", "complete", 300, tanggal_bayar="2026-07-01")
+    _insert_pam(2, "PAM-4", "SETF", "open", 400)  # open, no tanggal_bayar -> excluded
+    years = get_available_years(2)
+    assert years == [2026, 2025]
+
+
+def test_get_available_years_empty_when_no_complete_transactions():
+    assert get_available_years(2) == []
+
+
+def test_resolve_period_defaults_to_today_when_both_params_absent():
+    today = datetime(2026, 7, 14)
+    bulan, tahun = resolve_period(None, None, today=today)
+    assert (bulan, tahun) == (7, 2026)
+
+
+def test_resolve_period_sentinel_all_means_no_filter():
+    bulan, tahun = resolve_period("all", "all")
+    assert (bulan, tahun) == (None, None)
+
+
+def test_resolve_period_parses_explicit_values():
+    bulan, tahun = resolve_period("3", "2025")
+    assert (bulan, tahun) == (3, 2025)
+
+
+def test_filter_period_no_filter_returns_all_rows():
+    rows = [{"_date": "2026-06-01"}, {"_date": "2026-07-01"}]
+    assert filter_period(rows, None, None) == rows
+
+
+def test_filter_period_by_bulan_only():
+    rows = [{"_date": "2025-07-01"}, {"_date": "2026-07-01"}, {"_date": "2026-08-01"}]
+    result = filter_period(rows, 7, None)
+    assert result == [{"_date": "2025-07-01"}, {"_date": "2026-07-01"}]
+
+
+def test_filter_period_by_tahun_only():
+    rows = [{"_date": "2025-07-01"}, {"_date": "2026-07-01"}, {"_date": "2026-08-01"}]
+    result = filter_period(rows, None, 2026)
+    assert result == [{"_date": "2026-07-01"}, {"_date": "2026-08-01"}]
+
+
+def test_filter_period_by_bulan_and_tahun():
+    rows = [{"_date": "2025-07-01"}, {"_date": "2026-07-01"}, {"_date": "2026-08-01"}]
+    result = filter_period(rows, 7, 2026)
+    assert result == [{"_date": "2026-07-01"}]

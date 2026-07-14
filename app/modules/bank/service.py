@@ -1,3 +1,4 @@
+from datetime import datetime
 from database import get_conn
 
 
@@ -45,3 +46,52 @@ def compute_running_balance(complete_rows: list) -> dict:
         "total_pemasukan": total_pemasukan,
         "total_pengeluaran": total_pengeluaran,
     }
+
+
+def get_available_years(company_id: int) -> list:
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT DISTINCT strftime('%Y', tanggal_bayar) AS yr FROM pam_records "
+        "WHERE pillar = 'SETF' AND company_id = ? AND status = 'complete' AND tanggal_bayar IS NOT NULL "
+        "ORDER BY yr DESC",
+        (company_id,),
+    ).fetchall()
+    conn.close()
+    return [int(r["yr"]) for r in rows if r["yr"]]
+
+
+def resolve_period(bulan_param, tahun_param, today=None):
+    today = today or datetime.now()
+
+    if bulan_param is None:
+        bulan = today.month
+    elif bulan_param == "all":
+        bulan = None
+    else:
+        bulan = int(bulan_param)
+
+    if tahun_param is None:
+        tahun = today.year
+    elif tahun_param == "all":
+        tahun = None
+    else:
+        tahun = int(tahun_param)
+
+    return bulan, tahun
+
+
+def filter_period(rows: list, bulan, tahun) -> list:
+    if bulan is None and tahun is None:
+        return rows
+    result = []
+    for r in rows:
+        date = r.get("_date")
+        if not date:
+            continue
+        y, m = int(date[0:4]), int(date[5:7])
+        if bulan is not None and m != bulan:
+            continue
+        if tahun is not None and y != tahun:
+            continue
+        result.append(r)
+    return result
