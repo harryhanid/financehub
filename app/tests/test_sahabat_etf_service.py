@@ -225,3 +225,53 @@ def test_get_available_pillars_excludes_other_program():
         [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}])
     pillars = get_available_pillars(COMPANY_ID)
     assert pillars == []
+
+
+def test_get_siswa_summary_filters_by_year():
+    _add_siswa("9990060", "Siswa Multi Tahun")
+    add_budget_batch(COMPANY_ID, "9990060", "2025-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    add_budget_batch(COMPANY_ID, "9990060", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 3000000}])
+    add_payment_batch(COMPANY_ID, "9990060", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    _mark_complete("9990060")
+
+    rows = get_siswa_summary(COMPANY_ID, years=[2026])
+    assert len(rows) == 1
+    assert rows[0]["budget_total"] == 3000000
+    assert rows[0]["realisasi_total"] == 1000000
+
+
+def test_get_siswa_summary_filters_by_pillar():
+    _add_siswa("9990061", "Siswa Pillar Filter")
+    add_payment_batch(COMPANY_ID, "9990061", "2026-01-15", "APP", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "9990061", "2026-01-20", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    _mark_complete("9990061")
+
+    rows = get_siswa_summary(COMPANY_ID, pillar="SETF")
+    assert rows[0]["realisasi_total"] == 2000000
+
+
+def test_get_siswa_summary_pillar_does_not_affect_budget():
+    _add_siswa("9990063", "Siswa Budget Tak Terpengaruh Pillar")
+    add_budget_batch(COMPANY_ID, "9990063", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 5000000}])
+    add_payment_batch(COMPANY_ID, "9990063", "2026-01-15", "APP", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    _mark_complete("9990063")
+
+    rows = get_siswa_summary(COMPANY_ID, pillar="SETF")
+    # budget tetap 5jt (tidak ikut difilter pillar) walau tidak ada payment SETF sama sekali
+    assert rows[0]["budget_total"] == 5000000
+    assert rows[0]["realisasi_total"] == 0
+
+
+def test_get_siswa_summary_without_filters_unchanged():
+    _add_siswa("9990062", "Siswa Default")
+    add_budget_batch(COMPANY_ID, "9990062", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 5000000}])
+    rows = get_siswa_summary(COMPANY_ID)
+    assert rows[0]["budget_total"] == 5000000

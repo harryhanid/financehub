@@ -3,10 +3,21 @@ from database import get_conn
 PROGRAM_NAME = "Sahabat ETF"
 
 
-def get_siswa_summary(company_id: int) -> list:
+def _year_filter_sql(years, column):
+    if not years:
+        return "", []
+    placeholders = ",".join("?" for _ in years)
+    return f" AND strftime('%Y', {column}) IN ({placeholders})", [str(y) for y in years]
+
+
+def get_siswa_summary(company_id: int, years: list = None, pillar: str = None) -> list:
     conn = get_conn()
+    budget_year_sql, budget_year_params = _year_filter_sql(years, "tanggal")
+    payment_year_sql, payment_year_params = _year_filter_sql(years, "tanggal")
+    pillar_sql, pillar_params = (" AND pillar = ?", [pillar]) if pillar else ("", [])
+
     rows = conn.execute(
-        """
+        f"""
         SELECT s.code, s.nama, s.jenjang, s.angkatan, s.status,
                COALESCE(b.budget_total, 0)    AS budget_total,
                COALESCE(p.payment_total, 0)   AS payment_total,
@@ -15,7 +26,7 @@ def get_siswa_summary(company_id: int) -> list:
         LEFT JOIN (
             SELECT siswa_code, SUM(amount) AS budget_total
             FROM budget_beasiswa
-            WHERE company_id = ?
+            WHERE company_id = ?{budget_year_sql}
             GROUP BY siswa_code
         ) b ON b.siswa_code = s.code
         LEFT JOIN (
@@ -23,13 +34,14 @@ def get_siswa_summary(company_id: int) -> list:
                    SUM(amount) AS payment_total,
                    SUM(CASE WHEN status = 'complete' THEN amount ELSE 0 END) AS realisasi_total
             FROM payment_beasiswa
-            WHERE company_id = ?
+            WHERE company_id = ?{payment_year_sql}{pillar_sql}
             GROUP BY siswa_code
         ) p ON p.siswa_code = s.code
         WHERE s.company_id = ? AND s.program = ?
         ORDER BY s.nama
         """,
-        (company_id, company_id, company_id, PROGRAM_NAME),
+        [company_id, *budget_year_params, company_id, *payment_year_params, *pillar_params,
+         company_id, PROGRAM_NAME],
     ).fetchall()
     conn.close()
 
