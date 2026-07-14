@@ -6,7 +6,7 @@ const FH_MODULES = [
   { name: "Payment Application",   url: "/etf-payment-application", active: true  },
   { name: "Budget",                url: "/budget/",                 active: true  },
   { name: "Users",                 url: "/users",                   active: true  },
-  { name: "Bank",                  url: null,                       active: false },
+  { name: "Bank",                  url: "/bank",                    active: true  },
   { name: "Account Payable",       url: null,                       active: false },
   { name: "Advance",               url: null,                       active: false },
   { name: "Petty Cash",            url: null,                       active: false },

@@ -45,6 +45,9 @@ def create_app(testing=False):
     from modules.sahabat_etf.routes import bp as sahabat_etf_bp
     app.register_blueprint(sahabat_etf_bp)
 
+    from modules.bank.routes import bp as bank_bp
+    app.register_blueprint(bank_bp)
+
     from modules.users.routes import bp as users_bp
     app.register_blueprint(users_bp)
 

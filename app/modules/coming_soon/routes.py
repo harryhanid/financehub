@@ -4,7 +4,6 @@ from auth.middleware import jwt_html_required
 coming_soon_bp = Blueprint("coming_soon", __name__)
 
 MODULES = {
-    "bank":            {"label": "Bank",            "icon": "🏦", "desc": "Manajemen rekening bank perusahaan."},
     "account-payable": {"label": "Account Payable", "icon": "📋", "desc": "Hutang dan pembayaran ke vendor."},
     "advance":         {"label": "Advance",          "icon": "💳", "desc": "Uang muka karyawan dan proyek."},
     "petty-cash":      {"label": "Petty Cash",       "icon": "💰", "desc": "Kas kecil operasional."},
@@ -12,7 +11,6 @@ MODULES = {
 }
 
 
-@coming_soon_bp.route("/bank")
 @coming_soon_bp.route("/account-payable")
 @coming_soon_bp.route("/advance")
 @coming_soon_bp.route("/petty-cash")
