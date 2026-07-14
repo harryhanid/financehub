@@ -150,3 +150,70 @@ def test_export_detail_returns_403_for_non_etf_company(client):
     _select_smt(client)
     resp = client.get("/beasiswa/sahabat/export/detail")
     assert resp.status_code == 403
+
+
+def test_api_summary_respects_years_query_param(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9992001", "nama": "Siswa Filter Tahun", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/budget/tambah", json={"code": "9992001", "tanggal": "2025-01-10",
+        "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}]})
+    client.post("/beasiswa/budget/tambah", json={"code": "9992001", "tanggal": "2026-01-10",
+        "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}]})
+
+    resp = client.get("/beasiswa/sahabat/api/summary?years=2026")
+    data = resp.get_json()
+    assert data["rows"][0]["budget_total"] == 2000000
+
+
+def test_api_breakdown_respects_pillar_query_param(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9992002", "nama": "Siswa Breakdown Pillar", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/payment/tambah", json={"code": "9992002", "tanggal": "2026-01-15",
+        "pillar": "SETF", "perusahaan": "ETF",
+        "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}]})
+
+    resp = client.get("/beasiswa/sahabat/api/breakdown?pillar=APP")
+    data = resp.get_json()
+    assert data["kategori"] == []
+
+
+def test_api_monthly_requires_years_param(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/api/monthly")
+    assert resp.status_code == 400
+
+
+def test_api_monthly_returns_chart_year_and_months(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9992003", "nama": "Siswa Bulanan Route", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/budget/tambah", json={"code": "9992003", "tanggal": "2026-04-10",
+        "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 800000}]})
+
+    resp = client.get("/beasiswa/sahabat/api/monthly?years=2026")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["chart_year"] == 2026
+    assert len(data["months"]) == 12
+
+
+def test_api_monthly_returns_403_for_non_etf_company(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/beasiswa/sahabat/api/monthly?years=2026")
+    assert resp.status_code == 403
