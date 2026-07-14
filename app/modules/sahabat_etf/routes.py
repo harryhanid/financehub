@@ -103,7 +103,8 @@ def api_detail(siswa_code):
 def export_summary():
     import csv, io
     from flask import Response
-    rows = get_siswa_summary(_cid())
+    years, pillar = _parse_filters()
+    rows = get_siswa_summary(_cid(), years, pillar)
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(["Kode", "Nama", "Jenjang", "Angkatan", "Status",
@@ -122,7 +123,8 @@ def export_summary():
 def export_detail():
     import csv, io
     from flask import Response
-    rows = get_all_transactions(_cid())
+    years, pillar = _parse_filters()
+    rows = get_all_transactions(_cid(), years, pillar)
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(["Sumber", "Kode Siswa", "Nama", "Tanggal", "Kategori 1", "Kategori 2", "Amount", "Status"])

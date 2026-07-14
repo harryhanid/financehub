@@ -217,3 +217,41 @@ def test_api_monthly_returns_403_for_non_etf_company(client):
     _select_smt(client)
     resp = client.get("/beasiswa/sahabat/api/monthly?years=2026")
     assert resp.status_code == 403
+
+
+def test_export_summary_respects_year_filter(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9992010", "nama": "Siswa Export Tahun", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/budget/tambah", json={"code": "9992010", "tanggal": "2025-01-10",
+        "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}]})
+    client.post("/beasiswa/budget/tambah", json={"code": "9992010", "tanggal": "2026-01-10",
+        "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}]})
+
+    resp = client.get("/beasiswa/sahabat/export/summary?years=2026")
+    assert b"2000000.0" in resp.data
+    assert b"1000000.0" not in resp.data
+
+
+def test_export_detail_respects_pillar_filter(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9992011", "nama": "Siswa Export Pillar", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/payment/tambah", json={"code": "9992011", "tanggal": "2026-01-15",
+        "pillar": "APP", "perusahaan": "ETF",
+        "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 400000}]})
+    client.post("/beasiswa/payment/tambah", json={"code": "9992011", "tanggal": "2026-01-20",
+        "pillar": "SETF", "perusahaan": "ETF",
+        "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 600000}]})
+
+    resp = client.get("/beasiswa/sahabat/export/detail?pillar=SETF")
+    assert b"600000.0" in resp.data
+    assert b"400000.0" not in resp.data
