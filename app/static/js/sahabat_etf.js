@@ -12,6 +12,12 @@ function setfColorForCategory(name) {
   return setfCategoryColorMap[name];
 }
 
+function setfThemeColor(varName, fallback) {
+  const page = document.querySelector(".budget-page");
+  const val = page ? getComputedStyle(page).getPropertyValue(varName).trim() : "";
+  return val || fallback;
+}
+
 function setfRenderBarChart(canvasId, labels, datasets) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
@@ -21,10 +27,10 @@ function setfRenderBarChart(canvasId, labels, datasets) {
     data: { labels: labels, datasets: datasets },
     options: {
       responsive: true,
-      plugins: { legend: { labels: { color: "#e2e8f0" } } },
+      plugins: { legend: { labels: { color: setfThemeColor("--text-primary", "#e2e8f0") } } },
       scales: {
-        x: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.1)" } },
-        y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.1)" } },
+        x: { ticks: { color: setfThemeColor("--text-secondary", "#94a3b8") }, grid: { color: "rgba(148,163,184,0.1)" } },
+        y: { ticks: { color: setfThemeColor("--text-secondary", "#94a3b8") }, grid: { color: "rgba(148,163,184,0.1)" } },
       },
     },
   });
@@ -37,7 +43,7 @@ function setfRenderDoughnutChart(canvasId, labels, values, colors) {
   setfCharts[canvasId] = new Chart(ctx, {
     type: "doughnut",
     data: { labels: labels, datasets: [{ data: values, backgroundColor: colors }] },
-    options: { responsive: true, plugins: { legend: { labels: { color: "#e2e8f0" } } } },
+    options: { responsive: true, plugins: { legend: { position: "right", labels: { color: setfThemeColor("--text-primary", "#e2e8f0") } } } },
   });
 }
 
@@ -209,3 +215,9 @@ function initSahabatEtf() {
   }
   setfApplyFilters();
 }
+
+window.addEventListener("fh-theme-changed", function () {
+  if (setfCharts["chart-kategori"] || setfCharts["chart-bulanan"]) {
+    setfApplyFilters();
+  }
+});

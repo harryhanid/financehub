@@ -70,6 +70,7 @@ function toggleTheme() {
     html.setAttribute('data-theme', 'dark');
     localStorage.setItem('fh-theme', 'dark');
   }
+  window.dispatchEvent(new Event('fh-theme-changed'));
 }
 </script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
