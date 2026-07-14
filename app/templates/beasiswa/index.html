@@ -1297,9 +1297,8 @@ function openEditPayment(id) {
 
   const pamInput = document.getElementById('edit-payment-pam');
   pamInput.value = r.pam || '';
-  const isComplete = r.status === 'complete';
-  pamInput.disabled = isComplete;
-  document.getElementById('edit-payment-pam-note').style.display = isComplete ? 'block' : 'none';
+  pamInput.disabled = false;
+  document.getElementById('edit-payment-pam-note').style.display = 'none';
 
   const tglInput = document.getElementById('edit-payment-tanggal-bayar');
   tglInput.value = r.tgl_bayar_pam || '';
