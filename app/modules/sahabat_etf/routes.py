@@ -1,3 +1,4 @@
+from functools import wraps
 from flask import Blueprint, render_template, session, jsonify
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
@@ -26,6 +27,21 @@ def _cid():
     return session.get("company_id")
 
 
+def etf_company_required(f):
+    """Guard for JSON/CSV endpoints: Sahabat ETF data is ETF-only.
+
+    The index page already shows a "Ganti Company" notice via `wrong_company`,
+    but that only guards HTML rendering — it does not stop a non-ETF session
+    from hitting these API/export URLs directly. Enforce it server-side here.
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if session.get("company_code") != "ETF":
+            return jsonify({"ok": False, "pesan": "Akses ditolak. Modul ini khusus company ETF."}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
 @bp.route("/")
 @jwt_html_required
 def index():
@@ -39,24 +55,28 @@ def index():
 
 @bp.route("/api/summary")
 @jwt_html_required
+@etf_company_required
 def api_summary():
     return jsonify({"rows": get_siswa_summary(_cid())})
 
 
 @bp.route("/api/breakdown")
 @jwt_html_required
+@etf_company_required
 def api_breakdown():
     return jsonify(get_kategori_breakdown(_cid()))
 
 
 @bp.route("/api/detail/<siswa_code>")
 @jwt_html_required
+@etf_company_required
 def api_detail(siswa_code):
     return jsonify({"rows": get_siswa_detail(_cid(), siswa_code)})
 
 
 @bp.route("/export/summary")
 @jwt_html_required
+@etf_company_required
 def export_summary():
     import csv, io
     from flask import Response
@@ -75,6 +95,7 @@ def export_summary():
 
 @bp.route("/export/detail")
 @jwt_html_required
+@etf_company_required
 def export_detail():
     import csv, io
     from flask import Response

@@ -112,3 +112,41 @@ def test_index_contains_dashboard_elements_for_etf_company(client):
     for expected in (b"setf-summary", b"chart-siswa", b"chart-kategori",
                       b"setf-table", b"setf-alert-card", b"export/summary", b"export/detail"):
         assert expected in resp.data, f"missing {expected!r} in response"
+
+
+def test_api_summary_returns_403_for_non_etf_company(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/beasiswa/sahabat/api/summary")
+    assert resp.status_code == 403
+    assert resp.get_json()["ok"] is False
+
+
+def test_api_breakdown_returns_403_for_non_etf_company(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/beasiswa/sahabat/api/breakdown")
+    assert resp.status_code == 403
+    assert resp.get_json()["ok"] is False
+
+
+def test_api_detail_returns_403_for_non_etf_company(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/beasiswa/sahabat/api/detail/9991001")
+    assert resp.status_code == 403
+    assert resp.get_json()["ok"] is False
+
+
+def test_export_summary_returns_403_for_non_etf_company(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/beasiswa/sahabat/export/summary")
+    assert resp.status_code == 403
+
+
+def test_export_detail_returns_403_for_non_etf_company(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/beasiswa/sahabat/export/detail")
+    assert resp.status_code == 403
