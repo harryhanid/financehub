@@ -191,6 +191,29 @@ def get_all_transactions(company_id: int, years: list = None, pillars: list = No
     return rows
 
 
+def get_latest_payments(company_id: int, years: list = None, pillars: list = None,
+                         kategori: str = None, limit: int = 10) -> list:
+    conn = get_conn()
+    payment_year_sql, payment_year_params = _year_filter_sql(years, "p.tanggal")
+    pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
+    kategori_sql, kategori_params = (" AND p.cat1 = ?", [kategori]) if kategori else ("", [])
+
+    rows = conn.execute(
+        f"""
+        SELECT p.tanggal, s.nama, p.cat1, p.amount
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ? AND s.program = ?{payment_year_sql}{pillar_sql}{kategori_sql}
+        ORDER BY p.tanggal DESC, p.id DESC
+        LIMIT ?
+        """,
+        [company_id, PROGRAM_NAME, *payment_year_params, *pillar_params, *kategori_params, limit],
+    ).fetchall()
+    conn.close()
+
+    return [dict(r) for r in rows]
+
+
 def get_available_years(company_id: int) -> list:
     conn = get_conn()
     rows = conn.execute(

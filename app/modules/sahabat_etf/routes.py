@@ -4,7 +4,7 @@ from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.sahabat_etf.service import (
     get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
-    get_available_years, get_available_pillars, get_monthly_breakdown,
+    get_available_years, get_available_pillars, get_monthly_breakdown, get_latest_payments,
 )
 
 bp = Blueprint("sahabat_etf", __name__, url_prefix="/beasiswa/sahabat")
@@ -89,6 +89,16 @@ def api_monthly():
     if not years:
         return jsonify({"ok": False, "pesan": "Parameter years wajib diisi."}), 400
     return jsonify(get_monthly_breakdown(_cid(), years, pillars))
+
+
+@bp.route("/api/latest_payments")
+@jwt_html_required
+@etf_company_required
+def api_latest_payments():
+    years, pillars = _parse_filters()
+    kategori = request.args.get("kategori") or None
+    limit = 30 if kategori else 10
+    return jsonify({"rows": get_latest_payments(_cid(), years, pillars, kategori=kategori, limit=limit)})
 
 
 @bp.route("/api/detail/<siswa_code>")

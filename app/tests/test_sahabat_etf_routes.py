@@ -293,3 +293,24 @@ def test_api_breakdown_respects_multiple_pillars_query_param(client):
     data = resp.get_json()
     by_cat = {k["cat1"]: k for k in data["kategori"]}
     assert by_cat["By Pendidikan"]["payment"] == 1200000
+
+
+def test_api_latest_payments_kategori_filter_raises_limit_to_30(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9992040", "nama": "Siswa Latest 31", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    for day in range(1, 26):
+        client.post("/beasiswa/payment/tambah", json={"code": "9992040", "tanggal": f"2026-01-{day:02d}",
+            "pillar": "SETF", "perusahaan": "ETF",
+            "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 100000}]})
+
+    resp = client.get("/beasiswa/sahabat/api/latest_payments?kategori=By Pendidikan")
+    data = resp.get_json()
+    assert len(data["rows"]) == 25  # semua 25 muncul, batas 30 tidak kepotong
+
+    resp_unfiltered = client.get("/beasiswa/sahabat/api/latest_payments")
+    assert len(resp_unfiltered.get_json()["rows"]) == 10  # tanpa filter tetap limit 10

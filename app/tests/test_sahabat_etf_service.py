@@ -407,3 +407,17 @@ def test_get_siswa_summary_filters_by_multiple_pillars():
 
     rows = get_siswa_summary(COMPANY_ID, pillars=["APP", "SETF"])
     assert rows[0]["realisasi_total"] == 3000000  # APP + SETF, tanpa FINANCE
+
+
+def test_get_latest_payments_filters_by_kategori():
+    _add_siswa("9990120", "Siswa Latest Kategori")
+    add_payment_batch(COMPANY_ID, "9990120", "2026-01-10", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "9990120", "2026-01-11", "SETF", "ETF",
+        [{"cat1": "By Tunjangan", "cat2": "Semester 1", "amount": 2000000}])
+    _mark_complete("9990120")
+
+    from modules.sahabat_etf.service import get_latest_payments
+    rows = get_latest_payments(COMPANY_ID, kategori="By Tunjangan")
+    assert len(rows) == 1
+    assert rows[0]["amount"] == 2000000
