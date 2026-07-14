@@ -200,3 +200,39 @@
   opacity: 0.4;
   pointer-events: none;
 }
+.setf-accordion {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+.setf-accordion > summary {
+  cursor: pointer;
+  padding: .85rem 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.setf-accordion > summary::-webkit-details-marker { display: none; }
+.setf-accordion > summary::after {
+  content: "\25BE";
+  color: var(--text-secondary);
+  transition: transform .15s ease;
+}
+.setf-accordion:not([open]) > summary::after { transform: rotate(-90deg); }
+.setf-accordion-body { padding: 0 1.25rem 1.25rem; }
+.setf-drilldown-chip {
+  background: var(--accent-glow);
+  border: 1px solid var(--border-hover);
+  border-radius: 999px;
+  padding: .35rem .85rem;
+  font-size: .8rem;
+  margin-bottom: .75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+}

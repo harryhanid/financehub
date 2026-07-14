@@ -115,6 +115,14 @@ def test_index_contains_dashboard_elements_for_etf_company(client):
         assert expected in resp.data, f"missing {expected!r} in response"
 
 
+def test_index_sahabat_etf_detail_tabel_collapsed_by_default(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/")
+    assert b'<details class="setf-accordion" id="setf-detail-tabel">' in resp.data
+    assert b'<details class="setf-accordion" open>' in resp.data
+
+
 def test_index_shows_year_filter_checkbox_when_data_exists(client):
     login(client)
     _select_etf(client)
