@@ -109,9 +109,26 @@ def test_index_contains_dashboard_elements_for_etf_company(client):
     _select_etf(client)
     resp = client.get("/beasiswa/sahabat/")
     assert resp.status_code == 200
-    for expected in (b"setf-summary", b"chart-siswa", b"chart-kategori",
-                      b"setf-table", b"setf-alert-card", b"export/summary", b"export/detail"):
+    for expected in (b"setf-summary", b"chart-bulanan", b"chart-kategori",
+                      b"setf-table", b"setf-alert-card", b"export/summary", b"export/detail",
+                      b"setf-filter-pillar", b"setf-monthly-table"):
         assert expected in resp.data, f"missing {expected!r} in response"
+
+
+def test_index_shows_year_filter_checkbox_when_data_exists(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9992020", "nama": "Siswa Filter UI", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/budget/tambah", json={"code": "9992020", "tanggal": "2026-01-10",
+        "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}]})
+
+    resp = client.get("/beasiswa/sahabat/")
+    assert b'class="setf-year-cb"' in resp.data
+    assert b"2026" in resp.data
 
 
 def test_api_summary_returns_403_for_non_etf_company(client):

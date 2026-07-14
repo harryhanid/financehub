@@ -16,9 +16,30 @@
     <a class="budget-btn" href="{{ url_for('dashboard.select_company') }}">Ganti Company</a>
   </div>
   {% else %}
+  <div class="filter-bar">
+    <div class="filter-field">
+      <label>Tahun</label>
+      <div id="setf-filter-tahun">
+        {% for y in available_years %}
+        <label style="display:inline-flex;align-items:center;gap:.25rem;margin-right:.75rem;font-weight:400">
+          <input type="checkbox" class="setf-year-cb" value="{{ y }}" {% if loop.last %}checked{% endif %}>
+          {{ y }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="filter-field">
+      <label>Pillar</label>
+      <select id="setf-filter-pillar">
+        <option value="">Semua Pillar</option>
+        {% for p in available_pillars %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+
   <div class="budget-toolbar">
-    <a class="budget-btn" href="{{ url_for('sahabat_etf.export_summary') }}">Export Ringkasan (CSV)</a>
-    <a class="budget-btn" href="{{ url_for('sahabat_etf.export_detail') }}">Export Detail Transaksi (CSV)</a>
+    <a class="budget-btn" id="setf-export-summary" href="{{ url_for('sahabat_etf.export_summary') }}">Export Ringkasan (CSV)</a>
+    <a class="budget-btn" id="setf-export-detail" href="{{ url_for('sahabat_etf.export_detail') }}">Export Detail Transaksi (CSV)</a>
   </div>
 
   <div class="budget-summary-grid" id="setf-summary"></div>
@@ -29,8 +50,16 @@
   </div>
 
   <div class="budget-chart-grid">
-    <div class="budget-chart-card"><h3>Budget vs Realisasi per Siswa</h3><canvas id="chart-siswa"></canvas></div>
+    <div class="budget-chart-card"><h3>Budget vs Realisasi per Bulan</h3><canvas id="chart-bulanan"></canvas></div>
     <div class="budget-chart-card"><h3>Realisasi per Kategori</h3><canvas id="chart-kategori"></canvas></div>
+  </div>
+
+  <div class="table-wrap">
+    <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
+    <table id="setf-monthly-table">
+      <thead><tr id="setf-monthly-thead-row"><th>Bulan</th></tr></thead>
+      <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+    </table>
   </div>
 
   <div class="table-wrap">
