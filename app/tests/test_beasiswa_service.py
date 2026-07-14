@@ -695,19 +695,18 @@ def test_update_payment_row_pam_success():
     assert row["pam"] == other_pam_no
 
 
-def test_update_payment_row_pam_blocked_when_complete():
+def test_update_payment_row_pam_allowed_when_complete():
     pb_id, pam_no = _seed_one_payment()
     _, other_pam_no = _seed_one_payment(code="1250002", nama="Joni Pratama")
     _set_status(pb_id, "complete")
 
     result = update_payment_row(COMPANY_ID, pb_id, pam=other_pam_no)
-    assert result["ok"] is False
-    assert "sudah selesai" in result["pesan"]
+    assert result["ok"] is True
 
     conn = get_conn()
     row = conn.execute("SELECT pam FROM payment_beasiswa WHERE id=?", (pb_id,)).fetchone()
     conn.close()
-    assert row["pam"] == pam_no  # unchanged
+    assert row["pam"] == other_pam_no  # changed, even though status is complete
 
 
 def test_update_payment_row_pam_invalid_target():

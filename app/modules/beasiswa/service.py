@@ -853,9 +853,6 @@ def update_payment_row(company_id: int, row_id: int, pam: str = None, tanggal_ba
     ts = _ts()
 
     if pam is not None and pam != row["pam"]:
-        if row["status"] == "complete":
-            conn.close()
-            return {"ok": False, "pesan": "Payment yang sudah selesai, No PAM tidak bisa diubah."}
         target = conn.execute(
             "SELECT id FROM pam_records WHERE pam_no=? AND company_id=?",
             (pam, company_id)
