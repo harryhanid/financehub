@@ -5,7 +5,7 @@ config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_sahabat_etf.db")
 
 from database import init_db, get_conn
 from modules.beasiswa.service import add_siswa, add_budget_batch, add_payment_batch
-from modules.sahabat_etf.service import get_siswa_summary
+from modules.sahabat_etf.service import get_siswa_summary, get_kategori_breakdown
 
 COMPANY_ID = 2  # ETF
 
@@ -106,3 +106,36 @@ def test_get_siswa_summary_includes_siswa_with_no_transactions():
     assert isinstance(rows[0]["payment_total"], float)
     assert isinstance(rows[0]["realisasi_total"], float)
     assert isinstance(rows[0]["sisa_budget"], float)
+
+
+def test_get_kategori_breakdown_groups_by_cat1():
+    _add_siswa("9990010", "Siswa Kategori")
+    add_budget_batch(COMPANY_ID, "9990010", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 5000000},
+         {"cat1": "By Tunjangan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "9990010", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 3000000}])
+    _mark_complete("9990010")
+
+    result = get_kategori_breakdown(COMPANY_ID)
+    by_cat = {k["cat1"]: k for k in result["kategori"]}
+    assert by_cat["By Pendidikan"]["budget"] == 5000000
+    assert by_cat["By Pendidikan"]["realisasi"] == 3000000
+    assert by_cat["By Tunjangan"]["budget"] == 1000000
+    assert by_cat["By Tunjangan"]["payment"] == 0
+    assert result["over_budget"] == []
+
+
+def test_get_kategori_breakdown_flags_over_budget_siswa():
+    _add_siswa("9990011", "Siswa Over Budget")
+    add_budget_batch(COMPANY_ID, "9990011", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "9990011", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    _mark_complete("9990011")
+
+    result = get_kategori_breakdown(COMPANY_ID)
+    assert len(result["over_budget"]) == 1
+    o = result["over_budget"][0]
+    assert o["nama"] == "Siswa Over Budget"
+    assert o["selisih"] == 1000000

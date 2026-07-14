@@ -49,3 +49,55 @@ def get_siswa_summary(company_id: int) -> list:
             "sisa_budget":     budget - realisasi,
         })
     return result
+
+
+def get_kategori_breakdown(company_id: int) -> dict:
+    conn = get_conn()
+    budget_rows = conn.execute(
+        """
+        SELECT b.cat1, SUM(b.amount) AS total
+        FROM budget_beasiswa b
+        JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
+        WHERE b.company_id = ? AND s.program = ?
+        GROUP BY b.cat1
+        """,
+        (company_id, PROGRAM_NAME),
+    ).fetchall()
+    payment_rows = conn.execute(
+        """
+        SELECT p.cat1,
+               SUM(p.amount) AS total,
+               SUM(CASE WHEN p.status = 'complete' THEN p.amount ELSE 0 END) AS realisasi
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ? AND s.program = ?
+        GROUP BY p.cat1
+        """,
+        (company_id, PROGRAM_NAME),
+    ).fetchall()
+    conn.close()
+
+    kategori = {}
+    for r in budget_rows:
+        cat1 = r["cat1"] or "(Tanpa Kategori)"
+        kategori.setdefault(cat1, {"cat1": cat1, "budget": 0, "payment": 0, "realisasi": 0})
+        kategori[cat1]["budget"] += r["total"] or 0
+    for r in payment_rows:
+        cat1 = r["cat1"] or "(Tanpa Kategori)"
+        kategori.setdefault(cat1, {"cat1": cat1, "budget": 0, "payment": 0, "realisasi": 0})
+        kategori[cat1]["payment"] += r["total"] or 0
+        kategori[cat1]["realisasi"] += r["realisasi"] or 0
+
+    over_budget = [
+        {
+            "siswa_code":      s["siswa_code"],
+            "nama":            s["nama"],
+            "budget_total":    s["budget_total"],
+            "realisasi_total": s["realisasi_total"],
+            "selisih":         s["realisasi_total"] - s["budget_total"],
+        }
+        for s in get_siswa_summary(company_id)
+        if s["realisasi_total"] > s["budget_total"]
+    ]
+
+    return {"kategori": list(kategori.values()), "over_budget": over_budget}
