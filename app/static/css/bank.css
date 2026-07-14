@@ -101,3 +101,21 @@
   gap: 12px;
   margin-bottom: 16px;
 }
+
+.badge-pam {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: .6875rem;
+  font-weight: 600;
+  background: var(--fh-bg-elevated);
+  border: 1px solid var(--fh-border);
+  color: var(--fh-fg-muted, inherit);
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}

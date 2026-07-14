@@ -47,6 +47,7 @@
             <option value="{{ y }}" {% if selected_tahun == y %}selected{% endif %}>{{ y }}</option>
             {% endfor %}
           </select>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-tambah-transaksi">+ Tambah Transaksi</button>
         </div>
 
         {% if display_rows %}
@@ -54,23 +55,30 @@
           <table class="fh-table">
             <thead>
               <tr>
-                <th>Tanggal Bayar</th>
-                <th>PAM No</th>
+                <th>Tanggal</th>
                 <th>Keterangan</th>
                 <th class="num">Pemasukan</th>
                 <th class="num">Pengeluaran</th>
                 <th class="num">Saldo Berjalan</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {% for r in display_rows %}
-              <tr>
-                <td>{{ r._date }}</td>
-                <td>{{ r.pam_no }}</td>
-                <td>{{ r.keterangan }}</td>
+              <tr data-id="{{ r.id }}" data-tanggal="{{ r.tanggal }}" data-jenis="{{ r.jenis }}"
+                  data-jumlah="{{ r.jumlah }}" data-keterangan="{{ r.keterangan or '' }}">
+                <td>{{ r.tanggal }}</td>
+                <td>
+                  {{ r.keterangan }}
+                  {% if r.source == 'pam' %}<span class="badge-pam">dari PAM</span>{% endif %}
+                </td>
                 <td class="num success">{% if r.pemasukan %}Rp <span class="fmt-rupiah">{{ r.pemasukan }}</span>{% else %}-{% endif %}</td>
                 <td class="num danger">{% if r.pengeluaran %}Rp <span class="fmt-rupiah">{{ r.pengeluaran }}</span>{% else %}-{% endif %}</td>
                 <td class="num fw-500">Rp <span class="fmt-rupiah">{{ r.saldo_berjalan }}</span></td>
+                <td class="row-actions">
+                  <button type="button" class="btn btn-secondary btn-sm btn-edit-transaksi">Edit</button>
+                  <button type="button" class="btn btn-secondary btn-sm btn-delete-transaksi">Hapus</button>
+                </td>
               </tr>
               {% endfor %}
             </tbody>
@@ -112,6 +120,42 @@
         <div class="fh-empty">Tidak ada transaksi open.</div>
         {% endif %}
       </div>
+    </div>
+  </div>
+  
+  <!-- MODAL TRANSAKSI -->
+  <div class="modal-overlay" id="modal-transaksi">
+    <div class="modal" style="width:min(480px,95vw)">
+      <div class="modal-header">
+        <span class="modal-title" id="transaksi-modal-title">Tambah Transaksi</span>
+        <button class="modal-close" onclick="closeModal('modal-transaksi')">✕</button>
+      </div>
+      <form id="transaksi-form">
+        <input type="hidden" id="transaksi-id" value="">
+        <div class="form-group">
+          <label>Tanggal</label>
+          <input type="date" id="transaksi-tanggal" class="fh-select" required>
+        </div>
+        <div class="form-group">
+          <label>Jenis</label>
+          <select id="transaksi-jenis" class="fh-select" required>
+            <option value="pemasukan">Pemasukan</option>
+            <option value="pengeluaran">Pengeluaran</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Jumlah</label>
+          <input type="number" id="transaksi-jumlah" class="fh-select" min="1" step="1" required>
+        </div>
+        <div class="form-group">
+          <label>Keterangan</label>
+          <input type="text" id="transaksi-keterangan" class="fh-select">
+        </div>
+        <div style="display:flex;gap:.5rem">
+          <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modal-transaksi')">Batal</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
