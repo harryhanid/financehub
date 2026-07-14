@@ -102,3 +102,13 @@ def test_export_detail_returns_csv(client):
     assert resp.status_code == 200
     assert resp.headers["Content-Type"].startswith("text/csv")
     assert b"Sumber" in resp.data  # header row
+
+
+def test_index_contains_dashboard_elements_for_etf_company(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/")
+    assert resp.status_code == 200
+    for expected in (b"setf-summary", b"chart-siswa", b"chart-kategori",
+                      b"setf-table", b"setf-alert-card", b"export/summary", b"export/detail"):
+        assert expected in resp.data, f"missing {expected!r} in response"
