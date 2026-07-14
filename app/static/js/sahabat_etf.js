@@ -42,15 +42,14 @@ function setfRenderBarChart(canvasId, labels, datasets, onBarClick) {
 
 let setfActiveKategoriDrilldown = null;
 
-function setfExpandDetailTabel() {
-  const details = document.getElementById("setf-detail-tabel");
+function setfExpandGrafik() {
+  const details = document.getElementById("setf-grafik-accordion");
   if (!details) return;
   if (!details.open) details.open = true;
-  details.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function setfHighlightMonthlyRow(bulanIndex) {
-  setfExpandDetailTabel();
+  setfExpandGrafik();
   const tbody = document.querySelector("#setf-monthly-table tbody");
   if (!tbody) return;
   const rows = tbody.querySelectorAll("tr");
@@ -89,8 +88,10 @@ function setfRefetchLatestPayments() {
 function setfSetKategoriDrilldown(kategoriName) {
   setfActiveKategoriDrilldown = kategoriName;
   setfRenderDrilldownChip();
-  setfExpandDetailTabel();
+  setfExpandGrafik();
   setfRefetchLatestPayments();
+  const table = document.getElementById("setf-latest-payments-table");
+  if (table) table.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function setfClearKategoriDrilldown() {
@@ -215,6 +216,32 @@ function setfRenderMonthlyTable(comparison, years) {
   }).join("");
 }
 
+function setfRenderYearlyChart(yearly) {
+  if (!yearly || !yearly.length) {
+    if (setfCharts["chart-tahunan"]) { setfCharts["chart-tahunan"].destroy(); delete setfCharts["chart-tahunan"]; }
+    return;
+  }
+  setfRenderBarChart("chart-tahunan", yearly.map(function (y) { return y.tahun; }), [
+    { label: "Realisasi", data: yearly.map(function (y) { return y.realisasi; }), backgroundColor: "#10b981" },
+  ]);
+}
+
+function setfRenderPillarTable(pillarRows) {
+  const tbody = document.querySelector("#setf-pillar-table tbody");
+  if (!pillarRows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada data pillar.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = pillarRows.map(function (p) {
+    return "<tr>" +
+      "<td>" + p.pillar + "</td>" +
+      "<td>" + fmtRupiah(p.budget) + "</td>" +
+      "<td>" + fmtRupiah(p.realisasi) + "</td>" +
+      "<td>" + fmtRupiah(p.sisa) + "</td>" +
+      "</tr>";
+  }).join("");
+}
+
 function setfRenderLatestPaymentsTable(rows) {
   const tbody = document.querySelector("#setf-latest-payments-table tbody");
   if (!rows.length) {
@@ -265,6 +292,7 @@ function setfApplyFilters() {
   document.querySelector("#setf-table tbody").innerHTML = skeletonRows(8, 6);
   document.querySelector("#setf-kategori-table tbody").innerHTML = skeletonRows(4, 4);
   document.querySelector("#setf-latest-payments-table tbody").innerHTML = skeletonRows(4, 6);
+  document.querySelector("#setf-pillar-table tbody").innerHTML = skeletonRows(4, 4);
 
   setfRefetchLatestPayments();
 
@@ -285,6 +313,8 @@ function setfApplyFilters() {
         data.kategori.map(function (k) { return setfColorForCategory(k.cat1); }));
       setfRenderKategoriTable(data.kategori);
       setfRenderAlert(data.over_budget);
+      setfRenderYearlyChart(data.yearly);
+      setfRenderPillarTable(data.pillar);
     })
     .catch(function () { showToast("Gagal memuat breakdown kategori.", "error"); });
 
@@ -321,7 +351,7 @@ function initSahabatEtf() {
 }
 
 window.addEventListener("fh-theme-changed", function () {
-  if (setfCharts["chart-kategori"] || setfCharts["chart-bulanan"]) {
+  if (setfCharts["chart-kategori"] || setfCharts["chart-bulanan"] || setfCharts["chart-tahunan"]) {
     setfApplyFilters();
   }
 });

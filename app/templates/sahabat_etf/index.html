@@ -27,7 +27,7 @@
           <div id="setf-filter-tahun">
             {% for y in available_years %}
             <label style="display:inline-flex;align-items:center;gap:.25rem;margin-right:.75rem;font-weight:400">
-              <input type="checkbox" class="setf-year-cb" value="{{ y }}" {% if loop.last %}checked{% endif %}>
+              <input type="checkbox" class="setf-year-cb" value="{{ y }}" checked>
               {{ y }}
             </label>
             {% endfor %}
@@ -38,7 +38,7 @@
           <div id="setf-filter-pillar">
             {% for p in available_pillars %}
             <label style="display:inline-flex;align-items:center;gap:.25rem;margin-right:.75rem;font-weight:400">
-              <input type="checkbox" class="setf-pillar-cb" value="{{ p }}">
+              <input type="checkbox" class="setf-pillar-cb" value="{{ p }}" checked>
               {{ p }}
             </label>
             {% endfor %}
@@ -60,17 +60,55 @@
     </div>
   </details>
 
-  <details class="setf-accordion" open>
+  <details class="setf-accordion" id="setf-grafik-accordion" open>
     <summary>Grafik</summary>
     <div class="setf-accordion-body">
-      <div class="budget-chart-grid">
-        <div class="budget-chart-card"><h3>Budget vs Realisasi per Bulan</h3><canvas id="chart-bulanan"></canvas></div>
+      <div class="setf-grafik-grid">
+        <div class="budget-chart-card"><h3>Realisasi per Bulan</h3><canvas id="chart-bulanan"></canvas></div>
+        <div class="budget-chart-card"><h3>Realisasi per Tahun</h3><canvas id="chart-tahunan"></canvas></div>
+
+        <div class="budget-chart-card setf-compact-card">
+          <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
+          <div class="setf-compact-scroll">
+            <table id="setf-monthly-table">
+              <thead><tr id="setf-monthly-thead-row"><th>Bulan</th></tr></thead>
+              <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
         <div class="budget-chart-card">
           <h3>Realisasi per Kategori</h3>
           <div class="setf-kategori-flex">
             <canvas id="chart-kategori"></canvas>
             <table id="setf-kategori-table" class="setf-kategori-table">
               <thead><tr><th>Kategori</th><th>Budget</th><th>Realisasi</th><th>Sisa</th></tr></thead>
+              <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="budget-chart-card setf-compact-card">
+          <h3>Realisasi per Pillar</h3>
+          <div class="setf-compact-scroll">
+            <table id="setf-pillar-table">
+              <thead><tr><th>Pillar</th><th>Budget</th><th>Realisasi</th><th>Sisa</th></tr></thead>
+              <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="budget-chart-card setf-compact-card">
+          <h3>10 Transaksi Terakhir</h3>
+          <div id="setf-drilldown-chip" class="setf-drilldown-chip" style="display:none"></div>
+          <div class="setf-compact-scroll">
+            <table id="setf-latest-payments-table">
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Nama</th>
+                  <th>Kategori</th>
+                  <th class="num-right">Realisasi</th>
+                </tr>
+              </thead>
               <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
             </table>
           </div>
@@ -82,30 +120,6 @@
   <details class="setf-accordion" id="setf-detail-tabel">
     <summary>Detail Tabel</summary>
     <div class="setf-accordion-body">
-      <div class="budget-chart-card">
-        <h3>10 Transaksi Terakhir</h3>
-        <div id="setf-drilldown-chip" class="setf-drilldown-chip" style="display:none"></div>
-        <table id="setf-latest-payments-table">
-          <thead>
-            <tr>
-              <th>Tanggal</th>
-              <th>Nama</th>
-              <th>Kategori</th>
-              <th class="num-right">Realisasi</th>
-            </tr>
-          </thead>
-          <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-        </table>
-      </div>
-
-      <div class="table-wrap">
-        <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
-        <table id="setf-monthly-table">
-          <thead><tr id="setf-monthly-thead-row"><th>Bulan</th></tr></thead>
-          <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-        </table>
-      </div>
-
       <div class="table-wrap">
         <h3>Rincian Budget vs Realisasi per Anggota</h3>
         <table id="setf-table">

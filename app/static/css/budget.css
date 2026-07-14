@@ -286,3 +286,39 @@
   flex: 2 1 320px;
   max-width: 420px;
 }
+
+/* Grafik accordion: fixed 2-column pairing (bulan/tahun, monthly-compare/kategori,
+   pillar/latest-payments) rather than budget-chart-grid's auto-fit, which would
+   flow all 6 cards into 3-4 columns on a wide viewport and break the pairing. */
+.setf-grafik-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 700px) {
+  .setf-grafik-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Compact cards (moved up from Detail Tabel): smaller heading, denser table,
+   capped height with its own scroll so they read as summary cards, not full tables. */
+.setf-compact-card h3 {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.setf-compact-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+}
+.setf-compact-card table th,
+.setf-compact-card table td {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+}
+.setf-compact-card table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+}

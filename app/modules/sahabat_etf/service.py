@@ -250,6 +250,70 @@ def get_available_pillars(company_id: int) -> list:
     return [r["pillar"] for r in rows]
 
 
+def get_pillar_breakdown(company_id: int, years: list = None) -> list:
+    conn = get_conn()
+    budget_year_sql, budget_year_params = _year_filter_sql(years, "b.tanggal")
+    payment_year_sql, payment_year_params = _year_filter_sql(years, "p.tanggal")
+
+    budget_rows = conn.execute(
+        f"""
+        SELECT b.pillar, SUM(b.amount) AS total
+        FROM budget_beasiswa b
+        JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
+        WHERE b.company_id = ? AND s.program = ?{budget_year_sql}
+        GROUP BY b.pillar
+        """,
+        [company_id, PROGRAM_NAME, *budget_year_params],
+    ).fetchall()
+    payment_rows = conn.execute(
+        f"""
+        SELECT p.pillar,
+               SUM(CASE WHEN p.status = 'complete' THEN p.amount ELSE 0 END) AS realisasi
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ? AND s.program = ?{payment_year_sql}
+        GROUP BY p.pillar
+        """,
+        [company_id, PROGRAM_NAME, *payment_year_params],
+    ).fetchall()
+    conn.close()
+
+    pillar_map = {}
+    for r in budget_rows:
+        pillar = r["pillar"] or "(Tanpa Pillar)"
+        pillar_map.setdefault(pillar, {"pillar": pillar, "budget": 0.0, "realisasi": 0.0})
+        pillar_map[pillar]["budget"] += float(r["total"] or 0)
+    for r in payment_rows:
+        pillar = r["pillar"] or "(Tanpa Pillar)"
+        pillar_map.setdefault(pillar, {"pillar": pillar, "budget": 0.0, "realisasi": 0.0})
+        pillar_map[pillar]["realisasi"] += float(r["realisasi"] or 0)
+
+    result = list(pillar_map.values())
+    for p in result:
+        p["sisa"] = p["budget"] - p["realisasi"]
+    result.sort(key=lambda p: p["pillar"])
+    return result
+
+
+def get_yearly_breakdown(company_id: int, pillars: list = None) -> list:
+    conn = get_conn()
+    pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
+    rows = conn.execute(
+        f"""
+        SELECT strftime('%Y', p.tanggal) AS tahun, SUM(p.amount) AS realisasi
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ? AND s.program = ? AND p.status = 'complete'
+              AND p.tanggal IS NOT NULL AND p.tanggal != ''{pillar_sql}
+        GROUP BY tahun
+        ORDER BY tahun
+        """,
+        [company_id, PROGRAM_NAME, *pillar_params],
+    ).fetchall()
+    conn.close()
+    return [{"tahun": int(r["tahun"]), "realisasi": float(r["realisasi"] or 0)} for r in rows if r["tahun"]]
+
+
 def get_monthly_breakdown(company_id: int, years: list = None, pillars: list = None) -> dict:
     if not years:
         return {"chart_year": None, "months": [], "comparison": []}
