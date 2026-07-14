@@ -124,14 +124,14 @@ function setfRenderMonthlyTable(comparison, years) {
 
 function setfGetSelectedFilters() {
   const years = Array.from(document.querySelectorAll(".setf-year-cb:checked")).map(function (cb) { return cb.value; });
-  const pillar = document.getElementById("setf-filter-pillar").value;
-  return { years: years, pillar: pillar };
+  const pillars = Array.from(document.querySelectorAll(".setf-pillar-cb:checked")).map(function (cb) { return cb.value; });
+  return { years: years, pillars: pillars };
 }
 
 function setfBuildQueryString(filters) {
   const params = new URLSearchParams();
   if (filters.years.length) params.set("years", filters.years.join(","));
-  if (filters.pillar) params.set("pillar", filters.pillar);
+  if (filters.pillars.length) params.set("pillars", filters.pillars.join(","));
   return params.toString();
 }
 
@@ -187,7 +187,15 @@ function initSahabatEtf() {
   document.querySelectorAll(".setf-year-cb").forEach(function (cb) {
     cb.addEventListener("change", setfApplyFilters);
   });
-  const pillarSelect = document.getElementById("setf-filter-pillar");
-  if (pillarSelect) pillarSelect.addEventListener("change", setfApplyFilters);
+  document.querySelectorAll(".setf-pillar-cb").forEach(function (cb) {
+    cb.addEventListener("change", setfApplyFilters);
+  });
+  const selectAllBtn = document.getElementById("setf-year-select-all");
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener("click", function () {
+      document.querySelectorAll(".setf-year-cb").forEach(function (cb) { cb.checked = true; });
+      setfApplyFilters();
+    });
+  }
   setfApplyFilters();
 }

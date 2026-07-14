@@ -139,6 +139,23 @@ def test_index_shows_year_filter_checkbox_when_data_exists(client):
     assert b"2026" in resp.data
 
 
+def test_index_shows_pillar_filter_checkboxes_when_data_exists(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9992050", "nama": "Siswa Pillar Checkbox", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/payment/tambah", json={"code": "9992050", "tanggal": "2026-01-15",
+        "pillar": "SETF", "perusahaan": "ETF",
+        "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}]})
+
+    resp = client.get("/beasiswa/sahabat/")
+    assert b'class="setf-pillar-cb"' in resp.data
+    assert b"SETF" in resp.data
+
+
 def test_api_summary_returns_403_for_non_etf_company(client):
     login(client)
     _select_smt(client)
