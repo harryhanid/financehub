@@ -1,9 +1,10 @@
 from functools import wraps
-from flask import Blueprint, render_template, session, jsonify
+from flask import Blueprint, render_template, session, jsonify, request
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.sahabat_etf.service import (
     get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
+    get_available_years, get_available_pillars, get_monthly_breakdown,
 )
 
 bp = Blueprint("sahabat_etf", __name__, url_prefix="/beasiswa/sahabat")
@@ -27,6 +28,13 @@ def _cid():
     return session.get("company_id")
 
 
+def _parse_filters():
+    years_param = request.args.get("years", "")
+    years = [int(y) for y in years_param.split(",") if y.strip().isdigit()] if years_param else None
+    pillar = request.args.get("pillar") or None
+    return years, pillar
+
+
 def etf_company_required(f):
     """Guard for JSON/CSV endpoints: Sahabat ETF data is ETF-only.
 
@@ -45,10 +53,13 @@ def etf_company_required(f):
 @bp.route("/")
 @jwt_html_required
 def index():
+    cid = _cid()
     return render_template(
         "sahabat_etf/index.html",
         active_page="sahabat_etf",
         wrong_company=(session.get("company_code") != "ETF"),
+        available_years=get_available_years(cid),
+        available_pillars=get_available_pillars(cid),
         **_ctx(),
     )
 
@@ -57,14 +68,26 @@ def index():
 @jwt_html_required
 @etf_company_required
 def api_summary():
-    return jsonify({"rows": get_siswa_summary(_cid())})
+    years, pillar = _parse_filters()
+    return jsonify({"rows": get_siswa_summary(_cid(), years, pillar)})
 
 
 @bp.route("/api/breakdown")
 @jwt_html_required
 @etf_company_required
 def api_breakdown():
-    return jsonify(get_kategori_breakdown(_cid()))
+    years, pillar = _parse_filters()
+    return jsonify(get_kategori_breakdown(_cid(), years, pillar))
+
+
+@bp.route("/api/monthly")
+@jwt_html_required
+@etf_company_required
+def api_monthly():
+    years, pillar = _parse_filters()
+    if not years:
+        return jsonify({"ok": False, "pesan": "Parameter years wajib diisi."}), 400
+    return jsonify(get_monthly_breakdown(_cid(), years, pillar))
 
 
 @bp.route("/api/detail/<siswa_code>")
@@ -80,7 +103,8 @@ def api_detail(siswa_code):
 def export_summary():
     import csv, io
     from flask import Response
-    rows = get_siswa_summary(_cid())
+    years, pillar = _parse_filters()
+    rows = get_siswa_summary(_cid(), years, pillar)
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(["Kode", "Nama", "Jenjang", "Angkatan", "Status",
@@ -99,7 +123,8 @@ def export_summary():
 def export_detail():
     import csv, io
     from flask import Response
-    rows = get_all_transactions(_cid())
+    years, pillar = _parse_filters()
+    rows = get_all_transactions(_cid(), years, pillar)
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(["Sumber", "Kode Siswa", "Nama", "Tanggal", "Kategori 1", "Kategori 2", "Amount", "Status"])

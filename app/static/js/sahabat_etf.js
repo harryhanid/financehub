@@ -1,5 +1,6 @@
 // static/js/sahabat_etf.js
 let setfCharts = {};
+const SETF_BULAN_LABEL = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
 function setfRenderBarChart(canvasId, labels, datasets) {
   const ctx = document.getElementById(canvasId);
@@ -82,21 +83,64 @@ function setfRenderAlert(overBudget) {
   }).join("");
 }
 
-function initSahabatEtf() {
-  fetch("/beasiswa/sahabat/api/summary")
+function setfRenderMonthlyChart(months) {
+  setfRenderBarChart("chart-bulanan", months.map(function (m) { return SETF_BULAN_LABEL[m.bulan - 1]; }), [
+    { label: "Budget", data: months.map(function (m) { return m.budget; }), backgroundColor: "#6366f1" },
+    { label: "Realisasi", data: months.map(function (m) { return m.realisasi; }), backgroundColor: "#818cf8" },
+  ]);
+}
+
+function setfRenderMonthlyTable(comparison, years) {
+  const theadRow = document.getElementById("setf-monthly-thead-row");
+  theadRow.innerHTML = "<th>Bulan</th>" + years.map(function (y) { return "<th>" + y + "</th>"; }).join("");
+
+  const tbody = document.querySelector("#setf-monthly-table tbody");
+  if (!comparison.length) {
+    tbody.innerHTML = '<tr><td colspan="' + (years.length + 1) + '" style="text-align:center;color:var(--text-muted)">Pilih minimal 1 tahun.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = comparison.map(function (row) {
+    const cells = years.map(function (y) { return "<td>" + fmtRupiah(row.per_tahun[y] || 0) + "</td>"; }).join("");
+    return "<tr><td>" + SETF_BULAN_LABEL[row.bulan - 1] + "</td>" + cells + "</tr>";
+  }).join("");
+}
+
+function setfGetSelectedFilters() {
+  const years = Array.from(document.querySelectorAll(".setf-year-cb:checked")).map(function (cb) { return cb.value; });
+  const pillar = document.getElementById("setf-filter-pillar").value;
+  return { years: years, pillar: pillar };
+}
+
+function setfBuildQueryString(filters) {
+  const params = new URLSearchParams();
+  if (filters.years.length) params.set("years", filters.years.join(","));
+  if (filters.pillar) params.set("pillar", filters.pillar);
+  return params.toString();
+}
+
+function setfUpdateExportLinks(qs) {
+  const summaryLink = document.getElementById("setf-export-summary");
+  const detailLink = document.getElementById("setf-export-detail");
+  const baseSummary = summaryLink.href.split("?")[0];
+  const baseDetail = detailLink.href.split("?")[0];
+  summaryLink.href = qs ? baseSummary + "?" + qs : baseSummary;
+  detailLink.href = qs ? baseDetail + "?" + qs : baseDetail;
+}
+
+function setfApplyFilters() {
+  const filters = setfGetSelectedFilters();
+  const qs = setfBuildQueryString(filters);
+  setfUpdateExportLinks(qs);
+
+  fetch("/beasiswa/sahabat/api/summary" + (qs ? "?" + qs : ""))
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      const rows = data.rows;
-      setfRenderSummaryCards(rows);
-      setfRenderTable(rows);
-      setfRenderBarChart("chart-siswa", rows.map(function (r) { return r.nama; }), [
-        { label: "Budget", data: rows.map(function (r) { return r.budget_total; }), backgroundColor: "#6366f1" },
-        { label: "Realisasi", data: rows.map(function (r) { return r.realisasi_total; }), backgroundColor: "#818cf8" },
-      ]);
+      setfRenderSummaryCards(data.rows);
+      setfRenderTable(data.rows);
     })
     .catch(function () { showToast("Gagal memuat ringkasan siswa.", "error"); });
 
-  fetch("/beasiswa/sahabat/api/breakdown")
+  fetch("/beasiswa/sahabat/api/breakdown" + (qs ? "?" + qs : ""))
     .then(function (r) { return r.json(); })
     .then(function (data) {
       setfRenderDoughnutChart("chart-kategori",
@@ -106,4 +150,26 @@ function initSahabatEtf() {
       setfRenderAlert(data.over_budget);
     })
     .catch(function () { showToast("Gagal memuat breakdown kategori.", "error"); });
+
+  if (filters.years.length) {
+    fetch("/beasiswa/sahabat/api/monthly?" + qs)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        setfRenderMonthlyChart(data.months);
+        setfRenderMonthlyTable(data.comparison, filters.years);
+      })
+      .catch(function () { showToast("Gagal memuat data bulanan.", "error"); });
+  } else {
+    if (setfCharts["chart-bulanan"]) { setfCharts["chart-bulanan"].destroy(); delete setfCharts["chart-bulanan"]; }
+    setfRenderMonthlyTable([], []);
+  }
+}
+
+function initSahabatEtf() {
+  document.querySelectorAll(".setf-year-cb").forEach(function (cb) {
+    cb.addEventListener("change", setfApplyFilters);
+  });
+  const pillarSelect = document.getElementById("setf-filter-pillar");
+  if (pillarSelect) pillarSelect.addEventListener("change", setfApplyFilters);
+  setfApplyFilters();
 }
