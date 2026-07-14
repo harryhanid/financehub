@@ -251,7 +251,7 @@ def test_get_siswa_summary_filters_by_pillar():
         [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
     _mark_complete("9990061")
 
-    rows = get_siswa_summary(COMPANY_ID, pillar="SETF")
+    rows = get_siswa_summary(COMPANY_ID, pillars=["SETF"])
     assert rows[0]["realisasi_total"] == 2000000
 
 
@@ -263,7 +263,7 @@ def test_get_siswa_summary_pillar_does_not_affect_budget():
         [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
     _mark_complete("9990063")
 
-    rows = get_siswa_summary(COMPANY_ID, pillar="SETF")
+    rows = get_siswa_summary(COMPANY_ID, pillars=["SETF"])
     # budget tetap 5jt (tidak ikut difilter pillar) walau tidak ada payment SETF sama sekali
     assert rows[0]["budget_total"] == 5000000
     assert rows[0]["realisasi_total"] == 0
@@ -297,7 +297,7 @@ def test_get_kategori_breakdown_filters_by_pillar():
         [{"cat1": "By Tunjangan", "cat2": "Semester 1", "amount": 500000}])
     _mark_complete("9990071")
 
-    result = get_kategori_breakdown(COMPANY_ID, pillar="SETF")
+    result = get_kategori_breakdown(COMPANY_ID, pillars=["SETF"])
     by_cat = {k["cat1"]: k for k in result["kategori"]}
     assert "By Tunjangan" in by_cat
     assert "By Pendidikan" not in by_cat
@@ -331,7 +331,7 @@ def test_get_all_transactions_filters_by_year_and_pillar():
     add_payment_batch(COMPANY_ID, "9990080", "2026-01-20", "SETF", "ETF",
         [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 700000}])
 
-    rows = get_all_transactions(COMPANY_ID, years=[2026], pillar="SETF")
+    rows = get_all_transactions(COMPANY_ID, years=[2026], pillars=["SETF"])
     assert len(rows) == 2  # 1 budget baris 2026 (pillar tidak memfilter budget) + 1 payment pillar SETF 2026
     sumbers = {(r["sumber"], r["amount"]) for r in rows}
     assert ("Budget", 2000000) in sumbers
@@ -385,7 +385,7 @@ def test_get_monthly_breakdown_filters_by_pillar():
         [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 600000}])
     _mark_complete("9990093")
 
-    result = get_monthly_breakdown(COMPANY_ID, years=[2026], pillar="SETF")
+    result = get_monthly_breakdown(COMPANY_ID, years=[2026], pillars=["SETF"])
     juli = result["months"][6]
     assert juli["realisasi"] == 600000
 
@@ -393,3 +393,17 @@ def test_get_monthly_breakdown_filters_by_pillar():
 def test_get_monthly_breakdown_empty_years_returns_empty_structure():
     result = get_monthly_breakdown(COMPANY_ID, years=[])
     assert result == {"chart_year": None, "months": [], "comparison": []}
+
+
+def test_get_siswa_summary_filters_by_multiple_pillars():
+    _add_siswa("9990110", "Siswa Multi Pillar")
+    add_payment_batch(COMPANY_ID, "9990110", "2026-01-15", "APP", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "9990110", "2026-01-20", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    add_payment_batch(COMPANY_ID, "9990110", "2026-01-25", "FINANCE", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 4000000}])
+    _mark_complete("9990110")
+
+    rows = get_siswa_summary(COMPANY_ID, pillars=["APP", "SETF"])
+    assert rows[0]["realisasi_total"] == 3000000  # APP + SETF, tanpa FINANCE

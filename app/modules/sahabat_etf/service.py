@@ -10,11 +10,18 @@ def _year_filter_sql(years, column):
     return f" AND strftime('%Y', {column}) IN ({placeholders})", [str(y) for y in years]
 
 
-def get_siswa_summary(company_id: int, years: list = None, pillar: str = None) -> list:
+def _pillar_filter_sql(pillars, column):
+    if not pillars:
+        return "", []
+    placeholders = ",".join("?" for _ in pillars)
+    return f" AND {column} IN ({placeholders})", list(pillars)
+
+
+def get_siswa_summary(company_id: int, years: list = None, pillars: list = None) -> list:
     conn = get_conn()
     budget_year_sql, budget_year_params = _year_filter_sql(years, "tanggal")
     payment_year_sql, payment_year_params = _year_filter_sql(years, "tanggal")
-    pillar_sql, pillar_params = (" AND pillar = ?", [pillar]) if pillar else ("", [])
+    pillar_sql, pillar_params = _pillar_filter_sql(pillars, "pillar")
 
     rows = conn.execute(
         f"""
@@ -63,11 +70,11 @@ def get_siswa_summary(company_id: int, years: list = None, pillar: str = None) -
     return result
 
 
-def get_kategori_breakdown(company_id: int, years: list = None, pillar: str = None) -> dict:
+def get_kategori_breakdown(company_id: int, years: list = None, pillars: list = None) -> dict:
     conn = get_conn()
     budget_year_sql, budget_year_params = _year_filter_sql(years, "b.tanggal")
     payment_year_sql, payment_year_params = _year_filter_sql(years, "p.tanggal")
-    pillar_sql, pillar_params = (" AND p.pillar = ?", [pillar]) if pillar else ("", [])
+    pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
 
     budget_rows = conn.execute(
         f"""
@@ -112,7 +119,7 @@ def get_kategori_breakdown(company_id: int, years: list = None, pillar: str = No
             "realisasi_total": s["realisasi_total"],
             "selisih":         s["realisasi_total"] - s["budget_total"],
         }
-        for s in get_siswa_summary(company_id, years, pillar)
+        for s in get_siswa_summary(company_id, years, pillars)
         if s["realisasi_total"] > s["budget_total"]
     ]
 
@@ -144,11 +151,11 @@ def get_siswa_detail(company_id: int, siswa_code: str) -> list:
     return rows
 
 
-def get_all_transactions(company_id: int, years: list = None, pillar: str = None) -> list:
+def get_all_transactions(company_id: int, years: list = None, pillars: list = None) -> list:
     conn = get_conn()
     budget_year_sql, budget_year_params = _year_filter_sql(years, "b.tanggal")
     payment_year_sql, payment_year_params = _year_filter_sql(years, "p.tanggal")
-    pillar_sql, pillar_params = (" AND p.pillar = ?", [pillar]) if pillar else ("", [])
+    pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
 
     budget_rows = conn.execute(
         f"""
@@ -220,7 +227,7 @@ def get_available_pillars(company_id: int) -> list:
     return [r["pillar"] for r in rows]
 
 
-def get_monthly_breakdown(company_id: int, years: list = None, pillar: str = None) -> dict:
+def get_monthly_breakdown(company_id: int, years: list = None, pillars: list = None) -> dict:
     if not years:
         return {"chart_year": None, "months": [], "comparison": []}
 
@@ -238,7 +245,7 @@ def get_monthly_breakdown(company_id: int, years: list = None, pillar: str = Non
         (company_id, PROGRAM_NAME, str(chart_year)),
     ).fetchall()
 
-    pillar_sql, pillar_params = (" AND p.pillar = ?", [pillar]) if pillar else ("", [])
+    pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
     year_placeholders = ",".join("?" for _ in years)
     realisasi_rows = conn.execute(
         f"""
