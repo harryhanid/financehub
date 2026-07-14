@@ -249,3 +249,40 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
+
+/* Realisasi per Kategori: doughnut chart + breakdown table side-by-side */
+.setf-kategori-flex {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.setf-kategori-flex canvas {
+  flex: 1 1 auto;
+  max-width: 60%;
+}
+.setf-kategori-table {
+  flex: 1 1 220px;
+  min-width: 220px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.setf-kategori-table tr:hover td {
+  background: var(--bg-card-hover);
+}
+@media (max-width: 600px) {
+  .setf-kategori-flex {
+    flex-direction: column;
+  }
+  .setf-kategori-flex canvas {
+    max-width: 100%;
+  }
+}
+
+/* Tahun filter: "Pilih Semua" button + up to 7 year checkboxes need more room
+   than the default .filter-field (style.css: flex:1; min-width:180px; max-width:260px) */
+.setf-filter-field-wide {
+  flex: 2 1 320px;
+  max-width: 420px;
+}
