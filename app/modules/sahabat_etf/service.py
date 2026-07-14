@@ -101,3 +101,64 @@ def get_kategori_breakdown(company_id: int) -> dict:
     ]
 
     return {"kategori": list(kategori.values()), "over_budget": over_budget}
+
+
+def get_siswa_detail(company_id: int, siswa_code: str) -> list:
+    conn = get_conn()
+    budget_rows = conn.execute(
+        "SELECT tanggal, cat1, cat2, amount FROM budget_beasiswa "
+        "WHERE company_id = ? AND siswa_code = ? ORDER BY tanggal",
+        (company_id, siswa_code),
+    ).fetchall()
+    payment_rows = conn.execute(
+        "SELECT tanggal, cat1, cat2, amount, status FROM payment_beasiswa "
+        "WHERE company_id = ? AND siswa_code = ? ORDER BY tanggal",
+        (company_id, siswa_code),
+    ).fetchall()
+    conn.close()
+
+    rows = []
+    for r in budget_rows:
+        rows.append({"sumber": "Budget", "tanggal": r["tanggal"], "cat1": r["cat1"],
+                     "cat2": r["cat2"], "amount": r["amount"], "status": ""})
+    for r in payment_rows:
+        rows.append({"sumber": "Payment", "tanggal": r["tanggal"], "cat1": r["cat1"],
+                     "cat2": r["cat2"], "amount": r["amount"], "status": r["status"]})
+    rows.sort(key=lambda r: r["tanggal"] or "")
+    return rows
+
+
+def get_all_transactions(company_id: int) -> list:
+    conn = get_conn()
+    budget_rows = conn.execute(
+        """
+        SELECT s.code AS siswa_code, s.nama, b.tanggal, b.cat1, b.cat2, b.amount
+        FROM budget_beasiswa b
+        JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
+        WHERE b.company_id = ? AND s.program = ?
+        ORDER BY s.nama, b.tanggal
+        """,
+        (company_id, PROGRAM_NAME),
+    ).fetchall()
+    payment_rows = conn.execute(
+        """
+        SELECT s.code AS siswa_code, s.nama, p.tanggal, p.cat1, p.cat2, p.amount, p.status
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ? AND s.program = ?
+        ORDER BY s.nama, p.tanggal
+        """,
+        (company_id, PROGRAM_NAME),
+    ).fetchall()
+    conn.close()
+
+    rows = []
+    for r in budget_rows:
+        rows.append({"sumber": "Budget", "siswa_code": r["siswa_code"], "nama": r["nama"],
+                     "tanggal": r["tanggal"], "cat1": r["cat1"], "cat2": r["cat2"],
+                     "amount": r["amount"], "status": ""})
+    for r in payment_rows:
+        rows.append({"sumber": "Payment", "siswa_code": r["siswa_code"], "nama": r["nama"],
+                     "tanggal": r["tanggal"], "cat1": r["cat1"], "cat2": r["cat2"],
+                     "amount": r["amount"], "status": r["status"]})
+    return rows

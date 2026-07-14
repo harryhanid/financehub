@@ -5,7 +5,9 @@ config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_sahabat_etf.db")
 
 from database import init_db, get_conn
 from modules.beasiswa.service import add_siswa, add_budget_batch, add_payment_batch
-from modules.sahabat_etf.service import get_siswa_summary, get_kategori_breakdown
+from modules.sahabat_etf.service import (
+    get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
+)
 
 COMPANY_ID = 2  # ETF
 
@@ -139,3 +141,48 @@ def test_get_kategori_breakdown_flags_over_budget_siswa():
     o = result["over_budget"][0]
     assert o["nama"] == "Siswa Over Budget"
     assert o["selisih"] == 1000000
+
+
+def test_get_siswa_detail_returns_tagged_rows_sorted_by_date():
+    _add_siswa("9990020", "Siswa Detail")
+    add_budget_batch(COMPANY_ID, "9990020", "2026-02-01", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 2", "amount": 4000000}])
+    add_payment_batch(COMPANY_ID, "9990020", "2026-01-01", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+
+    rows = get_siswa_detail(COMPANY_ID, "9990020")
+    assert len(rows) == 2
+    assert rows[0]["tanggal"] == "2026-01-01"
+    assert rows[0]["sumber"] == "Payment"
+    assert rows[1]["tanggal"] == "2026-02-01"
+    assert rows[1]["sumber"] == "Budget"
+
+
+def test_get_siswa_detail_isolated_by_siswa_code():
+    _add_siswa("9990021", "Siswa A")
+    _add_siswa("9990022", "Siswa B")
+    add_budget_batch(COMPANY_ID, "9990021", "2026-01-01", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_budget_batch(COMPANY_ID, "9990022", "2026-01-01", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+
+    rows = get_siswa_detail(COMPANY_ID, "9990021")
+    assert len(rows) == 1
+    assert rows[0]["amount"] == 1000000
+
+
+def test_get_all_transactions_includes_all_sahabat_etf_siswa():
+    _add_siswa("9990030", "Siswa A")
+    _add_siswa("9990031", "Siswa B")
+    _add_siswa("9990032", "Siswa Lain Program", program="SMART")
+    add_budget_batch(COMPANY_ID, "9990030", "2026-01-01", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "9990031", "2026-01-02", "SETF", "ETF",
+        [{"cat1": "By Tunjangan", "cat2": "Semester 1", "amount": 500000}])
+    add_budget_batch(COMPANY_ID, "9990032", "2026-01-01", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 9999999}])
+
+    rows = get_all_transactions(COMPANY_ID)
+    assert len(rows) == 2
+    codes = {r["siswa_code"] for r in rows}
+    assert codes == {"9990030", "9990031"}
