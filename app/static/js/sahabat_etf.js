@@ -2,6 +2,16 @@
 let setfCharts = {};
 const SETF_BULAN_LABEL = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
+const SETF_PALETTE = ["#6366f1", "#818cf8", "#f97316", "#06b6d4", "#10b981", "#f59e0b"];
+const setfCategoryColorMap = {};
+function setfColorForCategory(name) {
+  if (!setfCategoryColorMap[name]) {
+    const idx = Object.keys(setfCategoryColorMap).length % SETF_PALETTE.length;
+    setfCategoryColorMap[name] = SETF_PALETTE[idx];
+  }
+  return setfCategoryColorMap[name];
+}
+
 function setfRenderBarChart(canvasId, labels, datasets) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
@@ -163,7 +173,7 @@ function setfApplyFilters() {
       setfRenderDoughnutChart("chart-kategori",
         data.kategori.map(function (k) { return k.cat1; }),
         data.kategori.map(function (k) { return k.realisasi; }),
-        ["#6366f1", "#818cf8", "#f97316", "#06b6d4", "#10b981", "#f59e0b"]);
+        data.kategori.map(function (k) { return setfColorForCategory(k.cat1); }));
       setfRenderKategoriTable(data.kategori);
       setfRenderAlert(data.over_budget);
     })
