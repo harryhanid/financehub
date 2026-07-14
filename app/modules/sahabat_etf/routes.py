@@ -1,6 +1,9 @@
-from flask import Blueprint, render_template, session
+from flask import Blueprint, render_template, session, jsonify
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
+from modules.sahabat_etf.service import (
+    get_siswa_summary, get_kategori_breakdown, get_siswa_detail,
+)
 
 bp = Blueprint("sahabat_etf", __name__, url_prefix="/beasiswa/sahabat")
 
@@ -32,3 +35,21 @@ def index():
         wrong_company=(session.get("company_code") != "ETF"),
         **_ctx(),
     )
+
+
+@bp.route("/api/summary")
+@jwt_html_required
+def api_summary():
+    return jsonify({"rows": get_siswa_summary(_cid())})
+
+
+@bp.route("/api/breakdown")
+@jwt_html_required
+def api_breakdown():
+    return jsonify(get_kategori_breakdown(_cid()))
+
+
+@bp.route("/api/detail/<siswa_code>")
+@jwt_html_required
+def api_detail(siswa_code):
+    return jsonify({"rows": get_siswa_detail(_cid(), siswa_code)})
