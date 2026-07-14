@@ -199,7 +199,7 @@ def test_api_breakdown_respects_pillar_query_param(client):
         "pillar": "SETF", "perusahaan": "ETF",
         "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}]})
 
-    resp = client.get("/beasiswa/sahabat/api/breakdown?pillar=APP")
+    resp = client.get("/beasiswa/sahabat/api/breakdown?pillars=APP")
     data = resp.get_json()
     assert data["kategori"] == []
 
@@ -269,6 +269,27 @@ def test_export_detail_respects_pillar_filter(client):
         "pillar": "SETF", "perusahaan": "ETF",
         "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 600000}]})
 
-    resp = client.get("/beasiswa/sahabat/export/detail?pillar=SETF")
+    resp = client.get("/beasiswa/sahabat/export/detail?pillars=SETF")
     assert b"600000.0" in resp.data
     assert b"400000.0" not in resp.data
+
+
+def test_api_breakdown_respects_multiple_pillars_query_param(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9992030", "nama": "Siswa Multi Pillar Route", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/payment/tambah", json={"code": "9992030", "tanggal": "2026-01-15",
+        "pillar": "APP", "perusahaan": "ETF",
+        "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}]})
+    client.post("/beasiswa/payment/tambah", json={"code": "9992030", "tanggal": "2026-01-20",
+        "pillar": "FINANCE", "perusahaan": "ETF",
+        "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 700000}]})
+
+    resp = client.get("/beasiswa/sahabat/api/breakdown?pillars=APP,FINANCE")
+    data = resp.get_json()
+    by_cat = {k["cat1"]: k for k in data["kategori"]}
+    assert by_cat["By Pendidikan"]["payment"] == 1200000

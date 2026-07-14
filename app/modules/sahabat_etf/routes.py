@@ -31,8 +31,9 @@ def _cid():
 def _parse_filters():
     years_param = request.args.get("years", "")
     years = [int(y) for y in years_param.split(",") if y.strip().isdigit()] if years_param else None
-    pillar = request.args.get("pillar") or None
-    return years, pillar
+    pillars_param = request.args.get("pillars", "")
+    pillars = [p for p in pillars_param.split(",") if p.strip()] if pillars_param else None
+    return years, pillars
 
 
 def etf_company_required(f):
@@ -68,26 +69,26 @@ def index():
 @jwt_html_required
 @etf_company_required
 def api_summary():
-    years, pillar = _parse_filters()
-    return jsonify({"rows": get_siswa_summary(_cid(), years, pillar)})
+    years, pillars = _parse_filters()
+    return jsonify({"rows": get_siswa_summary(_cid(), years, pillars)})
 
 
 @bp.route("/api/breakdown")
 @jwt_html_required
 @etf_company_required
 def api_breakdown():
-    years, pillar = _parse_filters()
-    return jsonify(get_kategori_breakdown(_cid(), years, pillar))
+    years, pillars = _parse_filters()
+    return jsonify(get_kategori_breakdown(_cid(), years, pillars))
 
 
 @bp.route("/api/monthly")
 @jwt_html_required
 @etf_company_required
 def api_monthly():
-    years, pillar = _parse_filters()
+    years, pillars = _parse_filters()
     if not years:
         return jsonify({"ok": False, "pesan": "Parameter years wajib diisi."}), 400
-    return jsonify(get_monthly_breakdown(_cid(), years, pillar))
+    return jsonify(get_monthly_breakdown(_cid(), years, pillars))
 
 
 @bp.route("/api/detail/<siswa_code>")
@@ -103,8 +104,8 @@ def api_detail(siswa_code):
 def export_summary():
     import csv, io
     from flask import Response
-    years, pillar = _parse_filters()
-    rows = get_siswa_summary(_cid(), years, pillar)
+    years, pillars = _parse_filters()
+    rows = get_siswa_summary(_cid(), years, pillars)
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(["Kode", "Nama", "Jenjang", "Angkatan", "Status",
@@ -123,8 +124,8 @@ def export_summary():
 def export_detail():
     import csv, io
     from flask import Response
-    years, pillar = _parse_filters()
-    rows = get_all_transactions(_cid(), years, pillar)
+    years, pillars = _parse_filters()
+    rows = get_all_transactions(_cid(), years, pillars)
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(["Sumber", "Kode Siswa", "Nama", "Tanggal", "Kategori 1", "Kategori 2", "Amount", "Status"])
