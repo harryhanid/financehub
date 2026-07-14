@@ -12,6 +12,11 @@ function setfColorForCategory(name) {
   return setfCategoryColorMap[name];
 }
 
+function setfFmtJutaan(amount) {
+  const jt = (amount || 0) / 1000000;
+  return jt.toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " Jt";
+}
+
 function setfThemeColor(varName, fallback) {
   const page = document.querySelector(".budget-page");
   const val = page ? getComputedStyle(page).getPropertyValue(varName).trim() : "";
@@ -34,7 +39,13 @@ function setfRenderBarChart(canvasId, labels, datasets, onBarClick) {
       plugins: { legend: { labels: { color: setfThemeColor("--text-primary", "#e2e8f0") } } },
       scales: {
         x: { ticks: { color: setfThemeColor("--text-secondary", "#94a3b8") }, grid: { color: "rgba(148,163,184,0.1)" } },
-        y: { ticks: { color: setfThemeColor("--text-secondary", "#94a3b8") }, grid: { color: "rgba(148,163,184,0.1)" } },
+        y: {
+          ticks: {
+            color: setfThemeColor("--text-secondary", "#94a3b8"),
+            callback: function (value) { return setfFmtJutaan(value); },
+          },
+          grid: { color: "rgba(148,163,184,0.1)" },
+        },
       },
     },
   });
@@ -126,10 +137,10 @@ function setfRenderSummaryCards(rows) {
   const totalSisa = rows.reduce(function (s, r) { return s + r.sisa_budget; }, 0);
   const cards = [
     ["Total Siswa Aktif", totalSiswa, ""],
-    ["Total Budget", fmtRupiah(totalBudget), ""],
-    ["Total Payment", fmtRupiah(totalPayment), ""],
-    ["Total Realisasi", fmtRupiah(totalRealisasi), " setf-stat-realisasi"],
-    ["Sisa Budget", fmtRupiah(totalSisa), ""],
+    ["Total Budget", setfFmtJutaan(totalBudget), ""],
+    ["Total Payment", setfFmtJutaan(totalPayment), ""],
+    ["Total Realisasi", setfFmtJutaan(totalRealisasi), " setf-stat-realisasi"],
+    ["Sisa Budget", setfFmtJutaan(totalSisa), ""],
   ];
   document.getElementById("setf-summary").innerHTML = cards.map(function (c) {
     return '<div class="budget-stat-card' + c[2] + '"><div class="label">' + c[0] +
@@ -156,10 +167,10 @@ function setfRenderTable(rows) {
       "<td>" + r.jenjang + "</td>" +
       "<td>" + r.angkatan + "</td>" +
       "<td>" + r.status + "</td>" +
-      "<td>" + fmtRupiah(r.budget_total) + "</td>" +
-      "<td>" + fmtRupiah(r.payment_total) + "</td>" +
-      "<td>" + fmtRupiah(r.realisasi_total) + "</td>" +
-      "<td>" + fmtRupiah(r.sisa_budget) + "</td>" +
+      "<td>" + setfFmtJutaan(r.budget_total) + "</td>" +
+      "<td>" + setfFmtJutaan(r.payment_total) + "</td>" +
+      "<td>" + setfFmtJutaan(r.realisasi_total) + "</td>" +
+      "<td>" + setfFmtJutaan(r.sisa_budget) + "</td>" +
       "</tr>";
   }).join("");
 }
@@ -174,9 +185,9 @@ function setfRenderKategoriTable(kategoriRows) {
     const sisa = k.budget - k.realisasi;
     return "<tr>" +
       "<td>" + k.cat1 + "</td>" +
-      "<td>" + fmtRupiah(k.budget) + "</td>" +
-      "<td>" + fmtRupiah(k.realisasi) + "</td>" +
-      "<td>" + fmtRupiah(sisa) + "</td>" +
+      "<td>" + setfFmtJutaan(k.budget) + "</td>" +
+      "<td>" + setfFmtJutaan(k.realisasi) + "</td>" +
+      "<td>" + setfFmtJutaan(sisa) + "</td>" +
       "</tr>";
   }).join("");
 }
@@ -190,7 +201,7 @@ function setfRenderAlert(overBudget) {
   }
   card.style.display = "block";
   list.innerHTML = overBudget.map(function (o) {
-    return "<li>" + o.nama + " — realisasi melebihi budget sebesar " + fmtRupiah(o.selisih) + "</li>";
+    return "<li>" + o.nama + " — realisasi melebihi budget sebesar " + setfFmtJutaan(o.selisih) + "</li>";
   }).join("");
 }
 
@@ -211,7 +222,7 @@ function setfRenderMonthlyTable(comparison, years) {
     return;
   }
   tbody.innerHTML = comparison.map(function (row) {
-    const cells = years.map(function (y) { return "<td>" + fmtRupiah(row.per_tahun[y] || 0) + "</td>"; }).join("");
+    const cells = years.map(function (y) { return "<td>" + setfFmtJutaan(row.per_tahun[y] || 0) + "</td>"; }).join("");
     return "<tr><td>" + SETF_BULAN_LABEL[row.bulan - 1] + "</td>" + cells + "</tr>";
   }).join("");
 }
@@ -235,9 +246,9 @@ function setfRenderPillarTable(pillarRows) {
   tbody.innerHTML = pillarRows.map(function (p) {
     return "<tr>" +
       "<td>" + p.pillar + "</td>" +
-      "<td>" + fmtRupiah(p.budget) + "</td>" +
-      "<td>" + fmtRupiah(p.realisasi) + "</td>" +
-      "<td>" + fmtRupiah(p.sisa) + "</td>" +
+      "<td>" + setfFmtJutaan(p.budget) + "</td>" +
+      "<td>" + setfFmtJutaan(p.realisasi) + "</td>" +
+      "<td>" + setfFmtJutaan(p.sisa) + "</td>" +
       "</tr>";
   }).join("");
 }
@@ -253,7 +264,7 @@ function setfRenderLatestPaymentsTable(rows) {
       "<td>" + r.tanggal + "</td>" +
       "<td>" + r.nama + "</td>" +
       "<td>" + r.cat1 + "</td>" +
-      '<td class="num-right">' + fmtRupiah(r.amount) + "</td>" +
+      '<td class="num-right">' + setfFmtJutaan(r.amount) + "</td>" +
       "</tr>";
   }).join("");
 }

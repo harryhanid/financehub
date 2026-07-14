@@ -250,36 +250,6 @@
   outline-offset: -2px;
 }
 
-/* Realisasi per Kategori: doughnut chart + breakdown table side-by-side */
-.setf-kategori-flex {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-.setf-kategori-flex canvas {
-  flex: 1 1 auto;
-  max-width: 60%;
-}
-.setf-kategori-table {
-  flex: 1 1 220px;
-  min-width: 220px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-.setf-kategori-table tr:hover td {
-  background: var(--bg-card-hover);
-}
-@media (max-width: 600px) {
-  .setf-kategori-flex {
-    flex-direction: column;
-  }
-  .setf-kategori-flex canvas {
-    max-width: 100%;
-  }
-}
-
 /* Tahun filter: "Pilih Semua" button + up to 7 year checkboxes need more room
    than the default .filter-field (style.css: flex:1; min-width:180px; max-width:260px) */
 .setf-filter-field-wide {
@@ -292,9 +262,15 @@
    flow all 6 cards into 3-4 columns on a wide viewport and break the pairing. */
 .setf-grafik-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
   margin-bottom: 1.5rem;
+}
+.setf-grafik-grid .budget-chart-card {
+  min-width: 0;
+}
+.setf-grafik-grid canvas {
+  max-width: 100%;
 }
 @media (max-width: 700px) {
   .setf-grafik-grid {
@@ -311,6 +287,10 @@
 .setf-compact-scroll {
   max-height: 220px;
   overflow-y: auto;
+  overflow-x: auto;
+}
+.setf-compact-scroll table {
+  min-width: max-content;
 }
 .setf-compact-card table th,
 .setf-compact-card table td {
