@@ -61,17 +61,21 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const id = inpId.value;
       const url = id ? `/bank/transaksi/${id}/update` : `/bank/transaksi`;
-      const payload = {
+      const payload = JSON.stringify({
         tanggal: inpTanggal.value,
         jenis: inpJenis.value,
         jumlah: parseInt(inpJumlah.value, 10),
         keterangan: inpKeterangan.value
-      };
+      });
 
       const res = await apiFetch(url, { method: "POST", body: payload });
-      if (res && res.ok) {
-        showToast(res.pesan, "success");
-        setTimeout(() => window.location.reload(), 1000);
+      if (res) {
+        const d = await res.json();
+        showToast(d.pesan, d.ok ? "success" : "error");
+        if (d.ok) {
+          closeModal("modal-transaksi");
+          setTimeout(() => window.location.reload(), 1000);
+        }
       }
     });
   }
@@ -82,9 +86,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const id = tr.dataset.id;
       confirmModal("Hapus Transaksi", "Yakin ingin menghapus transaksi ini?", async () => {
         const res = await apiFetch(`/bank/transaksi/${id}/delete`, { method: "POST" });
-        if (res && res.ok) {
-          showToast(res.pesan, "success");
-          setTimeout(() => window.location.reload(), 1000);
+        if (res) {
+          const d = await res.json();
+          showToast(d.pesan, d.ok ? "success" : "error");
+          if (d.ok) {
+            setTimeout(() => window.location.reload(), 1000);
+          }
         }
       });
     });
