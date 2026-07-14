@@ -83,3 +83,22 @@ def test_api_detail_returns_empty_for_siswa_with_no_transactions(client):
 def test_api_summary_requires_login(client):
     resp = client.get("/beasiswa/sahabat/api/summary")
     assert resp.status_code == 302
+
+
+def test_export_summary_returns_csv(client):
+    login(client)
+    _select_etf(client)
+    _seed_one_siswa(client)
+    resp = client.get("/beasiswa/sahabat/export/summary")
+    assert resp.status_code == 200
+    assert resp.headers["Content-Type"].startswith("text/csv")
+    assert b"API Test Siswa" in resp.data
+
+
+def test_export_detail_returns_csv(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/export/detail")
+    assert resp.status_code == 200
+    assert resp.headers["Content-Type"].startswith("text/csv")
+    assert b"Sumber" in resp.data  # header row
