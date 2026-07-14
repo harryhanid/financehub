@@ -7,7 +7,7 @@ from database import init_db, get_conn
 from modules.beasiswa.service import add_siswa, add_budget_batch, add_payment_batch
 from modules.sahabat_etf.service import (
     get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
-    get_available_years, get_available_pillars,
+    get_available_years, get_available_pillars, get_monthly_breakdown,
 )
 
 COMPANY_ID = 2  # ETF
@@ -336,3 +336,60 @@ def test_get_all_transactions_filters_by_year_and_pillar():
     sumbers = {(r["sumber"], r["amount"]) for r in rows}
     assert ("Budget", 2000000) in sumbers
     assert ("Payment", 700000) in sumbers
+
+
+def test_get_monthly_breakdown_zero_fills_all_12_months():
+    _add_siswa("9990090", "Siswa Bulanan")
+    add_budget_batch(COMPANY_ID, "9990090", "2026-03-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+
+    result = get_monthly_breakdown(COMPANY_ID, years=[2026])
+    assert len(result["months"]) == 12
+    assert result["months"][2]["bulan"] == 3
+    assert result["months"][2]["budget"] == 1000000
+    assert result["months"][0]["budget"] == 0.0  # Januari, tidak ada data
+
+
+def test_get_monthly_breakdown_uses_latest_year_for_chart():
+    _add_siswa("9990091", "Siswa Multi Tahun Bulanan")
+    add_budget_batch(COMPANY_ID, "9990091", "2025-05-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 9999999}])
+    add_budget_batch(COMPANY_ID, "9990091", "2026-05-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1500000}])
+
+    result = get_monthly_breakdown(COMPANY_ID, years=[2025, 2026])
+    assert result["chart_year"] == 2026
+    assert result["months"][4]["budget"] == 1500000  # Mei tahun 2026, bukan 2025
+
+
+def test_get_monthly_breakdown_comparison_covers_all_selected_years():
+    _add_siswa("9990092", "Siswa Banding Tahun")
+    add_payment_batch(COMPANY_ID, "9990092", "2025-06-10", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 700000}])
+    add_payment_batch(COMPANY_ID, "9990092", "2026-06-10", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 900000}])
+    _mark_complete("9990092")
+
+    result = get_monthly_breakdown(COMPANY_ID, years=[2025, 2026])
+    juni = result["comparison"][5]
+    assert juni["bulan"] == 6
+    assert juni["per_tahun"]["2025"] == 700000
+    assert juni["per_tahun"]["2026"] == 900000
+
+
+def test_get_monthly_breakdown_filters_by_pillar():
+    _add_siswa("9990093", "Siswa Bulanan Pillar")
+    add_payment_batch(COMPANY_ID, "9990093", "2026-07-10", "APP", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 400000}])
+    add_payment_batch(COMPANY_ID, "9990093", "2026-07-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 600000}])
+    _mark_complete("9990093")
+
+    result = get_monthly_breakdown(COMPANY_ID, years=[2026], pillar="SETF")
+    juli = result["months"][6]
+    assert juli["realisasi"] == 600000
+
+
+def test_get_monthly_breakdown_empty_years_returns_empty_structure():
+    result = get_monthly_breakdown(COMPANY_ID, years=[])
+    assert result == {"chart_year": None, "months": [], "comparison": []}

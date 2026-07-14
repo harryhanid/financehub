@@ -218,3 +218,60 @@ def get_available_pillars(company_id: int) -> list:
     ).fetchall()
     conn.close()
     return [r["pillar"] for r in rows]
+
+
+def get_monthly_breakdown(company_id: int, years: list = None, pillar: str = None) -> dict:
+    if not years:
+        return {"chart_year": None, "months": [], "comparison": []}
+
+    chart_year = max(years)
+    conn = get_conn()
+
+    budget_rows = conn.execute(
+        """
+        SELECT CAST(strftime('%m', b.tanggal) AS INTEGER) AS bulan, SUM(b.amount) AS total
+        FROM budget_beasiswa b
+        JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
+        WHERE b.company_id = ? AND s.program = ? AND strftime('%Y', b.tanggal) = ?
+        GROUP BY bulan
+        """,
+        (company_id, PROGRAM_NAME, str(chart_year)),
+    ).fetchall()
+
+    pillar_sql, pillar_params = (" AND p.pillar = ?", [pillar]) if pillar else ("", [])
+    year_placeholders = ",".join("?" for _ in years)
+    realisasi_rows = conn.execute(
+        f"""
+        SELECT strftime('%Y', p.tanggal) AS tahun, CAST(strftime('%m', p.tanggal) AS INTEGER) AS bulan,
+               SUM(p.amount) AS total
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ? AND s.program = ? AND p.status = 'complete'
+              AND strftime('%Y', p.tanggal) IN ({year_placeholders}){pillar_sql}
+        GROUP BY tahun, bulan
+        """,
+        [company_id, PROGRAM_NAME, *[str(y) for y in years], *pillar_params],
+    ).fetchall()
+    conn.close()
+
+    budget_by_month = {r["bulan"]: float(r["total"] or 0) for r in budget_rows}
+    realisasi_by_year_month = {}
+    for r in realisasi_rows:
+        realisasi_by_year_month.setdefault(r["tahun"], {})[r["bulan"]] = float(r["total"] or 0)
+
+    months = [
+        {
+            "bulan": m,
+            "budget": budget_by_month.get(m, 0.0),
+            "realisasi": realisasi_by_year_month.get(str(chart_year), {}).get(m, 0.0),
+        }
+        for m in range(1, 13)
+    ]
+    comparison = [
+        {
+            "bulan": m,
+            "per_tahun": {str(y): realisasi_by_year_month.get(str(y), {}).get(m, 0.0) for y in years},
+        }
+        for m in range(1, 13)
+    ]
+    return {"chart_year": chart_year, "months": months, "comparison": comparison}
