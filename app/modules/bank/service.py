@@ -26,22 +26,25 @@ def split_by_status(rows: list) -> tuple:
     return open_rows, complete_rows
 
 
-def compute_running_balance(complete_rows: list) -> dict:
+def compute_running_balance(rows: list) -> dict:
     saldo = 0.0
     total_pemasukan = 0.0
     total_pengeluaran = 0.0
-    for r in complete_rows:
-        amount = r["total_amount"] or 0
-        pemasukan = -amount if amount < 0 else 0
-        pengeluaran = amount if amount > 0 else 0
-        saldo -= amount
-        r["pemasukan"] = pemasukan
-        r["pengeluaran"] = pengeluaran
+    for r in rows:
+        jumlah = r["jumlah"] or 0
+        if r["jenis"] == "pemasukan":
+            saldo += jumlah
+            r["pemasukan"] = jumlah
+            r["pengeluaran"] = 0
+            total_pemasukan += jumlah
+        else:
+            saldo -= jumlah
+            r["pemasukan"] = 0
+            r["pengeluaran"] = jumlah
+            total_pengeluaran += jumlah
         r["saldo_berjalan"] = saldo
-        total_pemasukan += pemasukan
-        total_pengeluaran += pengeluaran
     return {
-        "rows": complete_rows,
+        "rows": rows,
         "saldo_current": saldo,
         "total_pemasukan": total_pemasukan,
         "total_pengeluaran": total_pengeluaran,
@@ -51,9 +54,8 @@ def compute_running_balance(complete_rows: list) -> dict:
 def get_available_years(company_id: int) -> list:
     conn = get_conn()
     rows = conn.execute(
-        "SELECT DISTINCT strftime('%Y', tanggal_bayar) AS yr FROM pam_records "
-        "WHERE pillar = 'SETF' AND company_id = ? AND status = 'complete' AND tanggal_bayar IS NOT NULL "
-        "ORDER BY yr DESC",
+        "SELECT DISTINCT strftime('%Y', tanggal) AS yr FROM bank_setf "
+        "WHERE company_id = ? ORDER BY yr DESC",
         (company_id,),
     ).fetchall()
     conn.close()
@@ -85,7 +87,7 @@ def filter_period(rows: list, bulan, tahun) -> list:
         return rows
     result = []
     for r in rows:
-        date = r.get("_date")
+        date = r.get("tanggal")
         if not date:
             continue
         y, m = int(date[0:4]), int(date[5:7])

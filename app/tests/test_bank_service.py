@@ -53,11 +53,11 @@ def test_split_by_status_sorts_open_by_pam_date():
     assert [r["pam_no"] for r in open_rows] == ["PAM-EARLIER", "PAM-LATER"]
 
 
-from modules.bank.service import compute_running_balance
+from modules.bank.service import get_bank_setf_rows, compute_running_balance, get_available_years, filter_period
 
 
-def _row(total_amount, date="2026-06-01"):
-    return {"pam_no": "X", "total_amount": total_amount, "_date": date}
+def _bank_row(jenis, jumlah, tanggal="2026-06-01"):
+    return {"jenis": jenis, "jumlah": jumlah, "tanggal": tanggal, "keterangan": "X"}
 
 
 def test_compute_running_balance_empty():
@@ -69,8 +69,11 @@ def test_compute_running_balance_empty():
 
 
 def test_compute_running_balance_mixed_pemasukan_pengeluaran():
-    # -5,000,000 = pemasukan (saldo awal), then two pengeluaran
-    rows = [_row(-5000000, "2026-06-01"), _row(2000000, "2026-06-05"), _row(1000000, "2026-06-10")]
+    rows = [
+        _bank_row("pemasukan", 5000000, "2026-06-01"),
+        _bank_row("pengeluaran", 2000000, "2026-06-05"),
+        _bank_row("pengeluaran", 1000000, "2026-06-10"),
+    ]
     result = compute_running_balance(rows)
     assert result["rows"][0]["pemasukan"] == 5000000
     assert result["rows"][0]["pengeluaran"] == 0
@@ -83,35 +86,36 @@ def test_compute_running_balance_mixed_pemasukan_pengeluaran():
     assert result["total_pengeluaran"] == 3000000
 
 
-def test_compute_running_balance_zero_amount_row_is_neutral():
-    rows = [_row(1000000), _row(0), _row(-500000)]
-    result = compute_running_balance(rows)
-    assert result["rows"][1]["pemasukan"] == 0
-    assert result["rows"][1]["pengeluaran"] == 0
-    assert result["rows"][1]["saldo_berjalan"] == result["rows"][0]["saldo_berjalan"]
-    assert result["saldo_current"] == -500000
-    assert result["total_pemasukan"] == 500000
-    assert result["total_pengeluaran"] == 1000000
-
-
-from datetime import datetime
-from modules.bank.service import get_available_years, resolve_period, filter_period
+from modules.bank.service import resolve_period
 
 
 def test_get_available_years_returns_distinct_years_desc():
-    _insert_pam(2, "PAM-1", "SETF", "complete", 100, tanggal_bayar="2025-03-01")
-    _insert_pam(2, "PAM-2", "SETF", "complete", 200, tanggal_bayar="2026-01-01")
-    _insert_pam(2, "PAM-3", "SETF", "complete", 300, tanggal_bayar="2026-07-01")
-    _insert_pam(2, "PAM-4", "SETF", "open", 400)  # open, no tanggal_bayar -> excluded
+    _insert_pam(2, "PAM-YR-1", "SETF", "complete", 100, tanggal_bayar="2025-03-01")
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source) "
+        "VALUES (2, '2025-03-01', 'pengeluaran', 100, 'X', 'manual')"
+    )
+    conn.execute(
+        "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source) "
+        "VALUES (2, '2026-01-01', 'pengeluaran', 200, 'X', 'manual')"
+    )
+    conn.execute(
+        "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source) "
+        "VALUES (2, '2026-07-01', 'pemasukan', 300, 'X', 'manual')"
+    )
+    conn.commit()
+    conn.close()
     years = get_available_years(2)
     assert years == [2026, 2025]
 
 
-def test_get_available_years_empty_when_no_complete_transactions():
+def test_get_available_years_empty_when_no_transactions():
     assert get_available_years(2) == []
 
 
 def test_resolve_period_defaults_to_today_when_both_params_absent():
+    from datetime import datetime
     today = datetime(2026, 7, 14)
     bulan, tahun = resolve_period(None, None, today=today)
     assert (bulan, tahun) == (7, 2026)
@@ -128,26 +132,46 @@ def test_resolve_period_parses_explicit_values():
 
 
 def test_filter_period_no_filter_returns_all_rows():
-    rows = [{"_date": "2026-06-01"}, {"_date": "2026-07-01"}]
+    rows = [{"tanggal": "2026-06-01"}, {"tanggal": "2026-07-01"}]
     assert filter_period(rows, None, None) == rows
 
 
 def test_filter_period_by_bulan_only():
-    rows = [{"_date": "2025-07-01"}, {"_date": "2026-07-01"}, {"_date": "2026-08-01"}]
+    rows = [{"tanggal": "2025-07-01"}, {"tanggal": "2026-07-01"}, {"tanggal": "2026-08-01"}]
     result = filter_period(rows, 7, None)
-    assert result == [{"_date": "2025-07-01"}, {"_date": "2026-07-01"}]
+    assert result == [{"tanggal": "2025-07-01"}, {"tanggal": "2026-07-01"}]
 
 
 def test_filter_period_by_tahun_only():
-    rows = [{"_date": "2025-07-01"}, {"_date": "2026-07-01"}, {"_date": "2026-08-01"}]
+    rows = [{"tanggal": "2025-07-01"}, {"tanggal": "2026-07-01"}, {"tanggal": "2026-08-01"}]
     result = filter_period(rows, None, 2026)
-    assert result == [{"_date": "2026-07-01"}, {"_date": "2026-08-01"}]
+    assert result == [{"tanggal": "2026-07-01"}, {"tanggal": "2026-08-01"}]
 
 
 def test_filter_period_by_bulan_and_tahun():
-    rows = [{"_date": "2025-07-01"}, {"_date": "2026-07-01"}, {"_date": "2026-08-01"}]
+    rows = [{"tanggal": "2025-07-01"}, {"tanggal": "2026-07-01"}, {"tanggal": "2026-08-01"}]
     result = filter_period(rows, 7, 2026)
-    assert result == [{"_date": "2026-07-01"}]
+    assert result == [{"tanggal": "2026-07-01"}]
+
+
+def test_get_bank_setf_rows_filters_company_and_orders_by_tanggal():
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source) "
+        "VALUES (2, '2026-07-05', 'pengeluaran', 100, 'B', 'manual')"
+    )
+    conn.execute(
+        "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source) "
+        "VALUES (2, '2026-07-01', 'pemasukan', 200, 'A', 'manual')"
+    )
+    conn.execute(
+        "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source) "
+        "VALUES (1, '2026-07-01', 'pemasukan', 300, 'OtherCo', 'manual')"
+    )
+    conn.commit()
+    conn.close()
+    rows = get_bank_setf_rows(2)
+    assert [r["keterangan"] for r in rows] == ["A", "B"]
 
 
 from modules.bank.service import sync_pam_to_bank_setf
