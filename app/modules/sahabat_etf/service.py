@@ -80,13 +80,13 @@ def get_kategori_breakdown(company_id: int) -> dict:
     kategori = {}
     for r in budget_rows:
         cat1 = r["cat1"] or "(Tanpa Kategori)"
-        kategori.setdefault(cat1, {"cat1": cat1, "budget": 0, "payment": 0, "realisasi": 0})
-        kategori[cat1]["budget"] += r["total"] or 0
+        kategori.setdefault(cat1, {"cat1": cat1, "budget": 0.0, "payment": 0.0, "realisasi": 0.0})
+        kategori[cat1]["budget"] += float(r["total"] or 0)
     for r in payment_rows:
         cat1 = r["cat1"] or "(Tanpa Kategori)"
-        kategori.setdefault(cat1, {"cat1": cat1, "budget": 0, "payment": 0, "realisasi": 0})
-        kategori[cat1]["payment"] += r["total"] or 0
-        kategori[cat1]["realisasi"] += r["realisasi"] or 0
+        kategori.setdefault(cat1, {"cat1": cat1, "budget": 0.0, "payment": 0.0, "realisasi": 0.0})
+        kategori[cat1]["payment"] += float(r["total"] or 0)
+        kategori[cat1]["realisasi"] += float(r["realisasi"] or 0)
 
     over_budget = [
         {
