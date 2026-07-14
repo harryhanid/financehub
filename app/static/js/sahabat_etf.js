@@ -18,7 +18,7 @@ function setfThemeColor(varName, fallback) {
   return val || fallback;
 }
 
-function setfRenderBarChart(canvasId, labels, datasets) {
+function setfRenderBarChart(canvasId, labels, datasets, onBarClick) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
   if (setfCharts[canvasId]) setfCharts[canvasId].destroy();
@@ -27,6 +27,10 @@ function setfRenderBarChart(canvasId, labels, datasets) {
     data: { labels: labels, datasets: datasets },
     options: {
       responsive: true,
+      onClick: function (evt, elements) {
+        if (!elements.length || !onBarClick) return;
+        onBarClick(elements[0].index);
+      },
       plugins: { legend: { labels: { color: setfThemeColor("--text-primary", "#e2e8f0") } } },
       scales: {
         x: { ticks: { color: setfThemeColor("--text-secondary", "#94a3b8") }, grid: { color: "rgba(148,163,184,0.1)" } },
@@ -43,6 +47,19 @@ function setfExpandDetailTabel() {
   if (!details) return;
   if (!details.open) details.open = true;
   details.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setfHighlightMonthlyRow(bulanIndex) {
+  setfExpandDetailTabel();
+  const tbody = document.querySelector("#setf-monthly-table tbody");
+  if (!tbody) return;
+  const rows = tbody.querySelectorAll("tr");
+  rows.forEach(function (tr) { tr.classList.remove("setf-row-highlight"); });
+  const target = rows[bulanIndex];
+  if (target) {
+    target.classList.add("setf-row-highlight");
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
 function setfRenderDrilldownChip() {
@@ -173,7 +190,7 @@ function setfRenderMonthlyChart(months) {
   setfRenderBarChart("chart-bulanan", months.map(function (m) { return SETF_BULAN_LABEL[m.bulan - 1]; }), [
     { label: "Budget", data: months.map(function (m) { return m.budget; }), backgroundColor: "#6366f1" },
     { label: "Realisasi", data: months.map(function (m) { return m.realisasi; }), backgroundColor: "#818cf8" },
-  ]);
+  ], setfHighlightMonthlyRow);
 }
 
 function setfRenderMonthlyTable(comparison, years) {

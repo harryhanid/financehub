@@ -243,3 +243,9 @@
 .setf-stat-realisasi .value {
   color: var(--accent-light);
 }
+
+.setf-row-highlight td {
+  background: var(--accent-glow);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
