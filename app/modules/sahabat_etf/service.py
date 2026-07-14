@@ -162,3 +162,39 @@ def get_all_transactions(company_id: int) -> list:
                      "tanggal": r["tanggal"], "cat1": r["cat1"], "cat2": r["cat2"],
                      "amount": r["amount"], "status": r["status"]})
     return rows
+
+
+def get_available_years(company_id: int) -> list:
+    conn = get_conn()
+    rows = conn.execute(
+        """
+        SELECT DISTINCT strftime('%Y', b.tanggal) AS y
+        FROM budget_beasiswa b
+        JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
+        WHERE b.company_id = ? AND s.program = ? AND b.tanggal IS NOT NULL AND b.tanggal != ''
+        UNION
+        SELECT DISTINCT strftime('%Y', p.tanggal) AS y
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ? AND s.program = ? AND p.tanggal IS NOT NULL AND p.tanggal != ''
+        """,
+        (company_id, PROGRAM_NAME, company_id, PROGRAM_NAME),
+    ).fetchall()
+    conn.close()
+    return sorted({int(r["y"]) for r in rows if r["y"]})
+
+
+def get_available_pillars(company_id: int) -> list:
+    conn = get_conn()
+    rows = conn.execute(
+        """
+        SELECT DISTINCT p.pillar
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ? AND s.program = ? AND p.pillar IS NOT NULL AND p.pillar != ''
+        ORDER BY p.pillar
+        """,
+        (company_id, PROGRAM_NAME),
+    ).fetchall()
+    conn.close()
+    return [r["pillar"] for r in rows]

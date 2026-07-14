@@ -7,6 +7,7 @@ from database import init_db, get_conn
 from modules.beasiswa.service import add_siswa, add_budget_batch, add_payment_batch
 from modules.sahabat_etf.service import (
     get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
+    get_available_years, get_available_pillars,
 )
 
 COMPANY_ID = 2  # ETF
@@ -186,3 +187,41 @@ def test_get_all_transactions_includes_all_sahabat_etf_siswa():
     assert len(rows) == 2
     codes = {r["siswa_code"] for r in rows}
     assert codes == {"9990030", "9990031"}
+
+
+def test_get_available_years_returns_sorted_distinct_years():
+    _add_siswa("9990040", "Siswa Tahun")
+    add_budget_batch(COMPANY_ID, "9990040", "2025-03-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "9990040", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}])
+
+    years = get_available_years(COMPANY_ID)
+    assert years == [2025, 2026]
+
+
+def test_get_available_years_excludes_other_program():
+    _add_siswa("9990041", "Siswa Lain", program="SMART")
+    add_budget_batch(COMPANY_ID, "9990041", "2019-01-01", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    years = get_available_years(COMPANY_ID)
+    assert years == []
+
+
+def test_get_available_pillars_returns_sorted_distinct_pillars():
+    _add_siswa("9990050", "Siswa Pillar")
+    add_payment_batch(COMPANY_ID, "9990050", "2026-01-15", "APP", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}])
+    add_payment_batch(COMPANY_ID, "9990050", "2026-02-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}])
+
+    pillars = get_available_pillars(COMPANY_ID)
+    assert pillars == ["APP", "SETF"]
+
+
+def test_get_available_pillars_excludes_other_program():
+    _add_siswa("9990051", "Siswa Pillar Lain Program", program="SMART")
+    add_payment_batch(COMPANY_ID, "9990051", "2026-01-15", "AGRI", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}])
+    pillars = get_available_pillars(COMPANY_ID)
+    assert pillars == []
