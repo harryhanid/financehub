@@ -136,6 +136,13 @@ function setfRenderSummaryCards(rows) {
   }).join("");
 }
 
+function setfRenderSummarySkeleton() {
+  document.getElementById("setf-summary").innerHTML = Array(5).fill(0).map(function () {
+    return '<div class="budget-stat-card"><div class="label">&nbsp;</div>' +
+      '<div class="fh-skel" style="width:70%;height:20px;margin-top:.25rem"></div></div>';
+  }).join("");
+}
+
 function setfRenderTable(rows) {
   const tbody = document.querySelector("#setf-table tbody");
   if (!rows.length) {
@@ -253,6 +260,12 @@ function setfApplyFilters() {
 
   setfActiveKategoriDrilldown = null;
   setfRenderDrilldownChip();
+
+  setfRenderSummarySkeleton();
+  document.querySelector("#setf-table tbody").innerHTML = skeletonRows(8, 6);
+  document.querySelector("#setf-kategori-table tbody").innerHTML = skeletonRows(4, 4);
+  document.querySelector("#setf-latest-payments-table tbody").innerHTML = skeletonRows(4, 6);
+
   setfRefetchLatestPayments();
 
   fetch("/beasiswa/sahabat/api/summary" + (qs ? "?" + qs : ""))
@@ -276,6 +289,7 @@ function setfApplyFilters() {
     .catch(function () { showToast("Gagal memuat breakdown kategori.", "error"); });
 
   if (filters.years.length) {
+    document.querySelector("#setf-monthly-table tbody").innerHTML = skeletonRows(2, 4);
     fetch("/beasiswa/sahabat/api/monthly?" + qs)
       .then(function (r) { return r.json(); })
       .then(function (data) {
