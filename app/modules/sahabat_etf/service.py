@@ -63,29 +63,33 @@ def get_siswa_summary(company_id: int, years: list = None, pillar: str = None) -
     return result
 
 
-def get_kategori_breakdown(company_id: int) -> dict:
+def get_kategori_breakdown(company_id: int, years: list = None, pillar: str = None) -> dict:
     conn = get_conn()
+    budget_year_sql, budget_year_params = _year_filter_sql(years, "b.tanggal")
+    payment_year_sql, payment_year_params = _year_filter_sql(years, "p.tanggal")
+    pillar_sql, pillar_params = (" AND p.pillar = ?", [pillar]) if pillar else ("", [])
+
     budget_rows = conn.execute(
-        """
+        f"""
         SELECT b.cat1, SUM(b.amount) AS total
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
-        WHERE b.company_id = ? AND s.program = ?
+        WHERE b.company_id = ? AND s.program = ?{budget_year_sql}
         GROUP BY b.cat1
         """,
-        (company_id, PROGRAM_NAME),
+        [company_id, PROGRAM_NAME, *budget_year_params],
     ).fetchall()
     payment_rows = conn.execute(
-        """
+        f"""
         SELECT p.cat1,
                SUM(p.amount) AS total,
                SUM(CASE WHEN p.status = 'complete' THEN p.amount ELSE 0 END) AS realisasi
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
-        WHERE p.company_id = ? AND s.program = ?
+        WHERE p.company_id = ? AND s.program = ?{payment_year_sql}{pillar_sql}
         GROUP BY p.cat1
         """,
-        (company_id, PROGRAM_NAME),
+        [company_id, PROGRAM_NAME, *payment_year_params, *pillar_params],
     ).fetchall()
     conn.close()
 
@@ -108,7 +112,7 @@ def get_kategori_breakdown(company_id: int) -> dict:
             "realisasi_total": s["realisasi_total"],
             "selisih":         s["realisasi_total"] - s["budget_total"],
         }
-        for s in get_siswa_summary(company_id)
+        for s in get_siswa_summary(company_id, years, pillar)
         if s["realisasi_total"] > s["budget_total"]
     ]
 

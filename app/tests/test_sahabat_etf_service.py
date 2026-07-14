@@ -275,3 +275,46 @@ def test_get_siswa_summary_without_filters_unchanged():
         [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 5000000}])
     rows = get_siswa_summary(COMPANY_ID)
     assert rows[0]["budget_total"] == 5000000
+
+
+def test_get_kategori_breakdown_filters_by_year():
+    _add_siswa("9990070", "Siswa Kategori Tahun")
+    add_budget_batch(COMPANY_ID, "9990070", "2025-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_budget_batch(COMPANY_ID, "9990070", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+
+    result = get_kategori_breakdown(COMPANY_ID, years=[2026])
+    by_cat = {k["cat1"]: k for k in result["kategori"]}
+    assert by_cat["By Pendidikan"]["budget"] == 2000000
+
+
+def test_get_kategori_breakdown_filters_by_pillar():
+    _add_siswa("9990071", "Siswa Kategori Pillar")
+    add_payment_batch(COMPANY_ID, "9990071", "2026-01-15", "APP", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "9990071", "2026-01-20", "SETF", "ETF",
+        [{"cat1": "By Tunjangan", "cat2": "Semester 1", "amount": 500000}])
+    _mark_complete("9990071")
+
+    result = get_kategori_breakdown(COMPANY_ID, pillar="SETF")
+    by_cat = {k["cat1"]: k for k in result["kategori"]}
+    assert "By Tunjangan" in by_cat
+    assert "By Pendidikan" not in by_cat
+
+
+def test_get_kategori_breakdown_over_budget_respects_filters():
+    _add_siswa("9990072", "Siswa Over Filtered")
+    add_budget_batch(COMPANY_ID, "9990072", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "9990072", "2025-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 5000000}])
+    _mark_complete("9990072")
+
+    # Tanpa filter: realisasi (5jt, tahun 2025) > budget (1jt, tahun 2026) -> over budget
+    result_all = get_kategori_breakdown(COMPANY_ID)
+    assert len(result_all["over_budget"]) == 1
+
+    # Filter tahun 2026 saja: realisasi 2025 tidak ikut terhitung -> tidak over budget
+    result_2026 = get_kategori_breakdown(COMPANY_ID, years=[2026])
+    assert result_2026["over_budget"] == []
