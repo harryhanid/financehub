@@ -144,27 +144,31 @@ def get_siswa_detail(company_id: int, siswa_code: str) -> list:
     return rows
 
 
-def get_all_transactions(company_id: int) -> list:
+def get_all_transactions(company_id: int, years: list = None, pillar: str = None) -> list:
     conn = get_conn()
+    budget_year_sql, budget_year_params = _year_filter_sql(years, "b.tanggal")
+    payment_year_sql, payment_year_params = _year_filter_sql(years, "p.tanggal")
+    pillar_sql, pillar_params = (" AND p.pillar = ?", [pillar]) if pillar else ("", [])
+
     budget_rows = conn.execute(
-        """
+        f"""
         SELECT s.code AS siswa_code, s.nama, b.tanggal, b.cat1, b.cat2, b.amount
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
-        WHERE b.company_id = ? AND s.program = ?
+        WHERE b.company_id = ? AND s.program = ?{budget_year_sql}
         ORDER BY s.nama, b.tanggal
         """,
-        (company_id, PROGRAM_NAME),
+        [company_id, PROGRAM_NAME, *budget_year_params],
     ).fetchall()
     payment_rows = conn.execute(
-        """
+        f"""
         SELECT s.code AS siswa_code, s.nama, p.tanggal, p.cat1, p.cat2, p.amount, p.status
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
-        WHERE p.company_id = ? AND s.program = ?
+        WHERE p.company_id = ? AND s.program = ?{payment_year_sql}{pillar_sql}
         ORDER BY s.nama, p.tanggal
         """,
-        (company_id, PROGRAM_NAME),
+        [company_id, PROGRAM_NAME, *payment_year_params, *pillar_params],
     ).fetchall()
     conn.close()
 

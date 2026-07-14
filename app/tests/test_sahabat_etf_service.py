@@ -318,3 +318,21 @@ def test_get_kategori_breakdown_over_budget_respects_filters():
     # Filter tahun 2026 saja: realisasi 2025 tidak ikut terhitung -> tidak over budget
     result_2026 = get_kategori_breakdown(COMPANY_ID, years=[2026])
     assert result_2026["over_budget"] == []
+
+
+def test_get_all_transactions_filters_by_year_and_pillar():
+    _add_siswa("9990080", "Siswa Export Filter")
+    add_budget_batch(COMPANY_ID, "9990080", "2025-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_budget_batch(COMPANY_ID, "9990080", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    add_payment_batch(COMPANY_ID, "9990080", "2026-01-15", "APP", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}])
+    add_payment_batch(COMPANY_ID, "9990080", "2026-01-20", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 700000}])
+
+    rows = get_all_transactions(COMPANY_ID, years=[2026], pillar="SETF")
+    assert len(rows) == 2  # 1 budget baris 2026 (pillar tidak memfilter budget) + 1 payment pillar SETF 2026
+    sumbers = {(r["sumber"], r["amount"]) for r in rows}
+    assert ("Budget", 2000000) in sumbers
+    assert ("Payment", 700000) in sumbers
