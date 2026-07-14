@@ -1,0 +1,103 @@
+.bank-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.bank-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.bank-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--fh-fg);
+}
+
+.bank-summary {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.summary-card {
+  background: var(--fh-bg-elevated);
+  border: 1px solid var(--fh-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.summary-card.highlight {
+  background: var(--fh-bg-elevated);
+  border-color: var(--fh-primary);
+  box-shadow: 0 0 0 1px var(--fh-primary);
+}
+
+.summary-card .label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--fh-fg-muted);
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.summary-card .value {
+  font-family: var(--fh-font-mono);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--fh-fg);
+}
+
+.summary-card .value.success { color: var(--fh-success); }
+.summary-card .value.danger { color: var(--fh-danger); }
+
+/* Tabs */
+.bank-tabs .tabs {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid var(--fh-border);
+  margin-bottom: 16px;
+}
+
+.bank-tabs .tab-btn {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  color: var(--fh-fg-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.bank-tabs .tab-btn:hover {
+  color: var(--fh-fg);
+}
+
+.bank-tabs .tab-btn.active {
+  color: var(--fh-primary);
+  border-bottom-color: var(--fh-primary);
+}
+
+.tab-panel {
+  display: none;
+}
+.tab-panel.active {
+  display: block;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}

@@ -1,7 +1,122 @@
 {% extends "base.html" %}
 {% block title %}Bank{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bank.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="bank-page">
-  <h1>Bank Sahabat ETF</h1>
+  <div class="bank-header">
+    <h1>Bank Sahabat ETF</h1>
+    <div class="bank-summary">
+      <div class="summary-card">
+        <span class="label">Total Pemasukan</span>
+        <span class="value success">Rp <span class="fmt-rupiah">{{ total_pemasukan }}</span></span>
+      </div>
+      <div class="summary-card">
+        <span class="label">Total Pengeluaran</span>
+        <span class="value danger">Rp <span class="fmt-rupiah">{{ total_pengeluaran }}</span></span>
+      </div>
+      <div class="summary-card highlight">
+        <span class="label">Saldo Saat Ini</span>
+        <span class="value">Rp <span class="fmt-rupiah">{{ saldo_current }}</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bank-tabs" data-tabs>
+    <div class="tabs">
+      <button type="button" class="tab-btn active" data-tab="tab-mutasi">Mutasi & Saldo</button>
+      <button type="button" class="tab-btn" data-tab="tab-open">Open</button>
+    </div>
+
+    <div class="tab-content">
+      <!-- TAB MUTASI -->
+      <div id="tab-mutasi" class="tab-panel active">
+        <div class="filter-bar">
+          <select id="filter-bulan" class="fh-select">
+            <option value="all">Semua Bulan</option>
+            {% for i in range(1, 13) %}
+            <option value="{{ i }}" {% if selected_bulan == i %}selected{% endif %}>{{ month_names[i-1] }}</option>
+            {% endfor %}
+          </select>
+          <select id="filter-tahun" class="fh-select">
+            <option value="all">Semua Tahun</option>
+            {% for y in years %}
+            <option value="{{ y }}" {% if selected_tahun == y %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {% if display_rows %}
+        <div class="table-wrap">
+          <table class="fh-table">
+            <thead>
+              <tr>
+                <th>Tanggal Bayar</th>
+                <th>PAM No</th>
+                <th>Keterangan</th>
+                <th class="num">Pemasukan</th>
+                <th class="num">Pengeluaran</th>
+                <th class="num">Saldo Berjalan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in display_rows %}
+              <tr>
+                <td>{{ r._date }}</td>
+                <td>{{ r.pam_no }}</td>
+                <td>{{ r.keterangan }}</td>
+                <td class="num success">{% if r.pemasukan %}Rp <span class="fmt-rupiah">{{ r.pemasukan }}</span>{% else %}-{% endif %}</td>
+                <td class="num danger">{% if r.pengeluaran %}Rp <span class="fmt-rupiah">{{ r.pengeluaran }}</span>{% else %}-{% endif %}</td>
+                <td class="num fw-500">Rp <span class="fmt-rupiah">{{ r.saldo_berjalan }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="fh-empty">Belum ada mutasi pada periode ini.</div>
+        {% endif %}
+      </div>
+
+      <!-- TAB OPEN -->
+      <div id="tab-open" class="tab-panel">
+        {% if open_rows %}
+        <div class="table-wrap">
+          <table class="fh-table">
+            <thead>
+              <tr>
+                <th>Tanggal PAM</th>
+                <th>PAM No</th>
+                <th>Keterangan</th>
+                <th>Status</th>
+                <th class="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in open_rows %}
+              <tr>
+                <td>{{ r.pam_date or '-' }}</td>
+                <td>{{ r.pam_no }}</td>
+                <td>{{ r.keterangan }}</td>
+                <td><span class="status-badge {{ r.status }}">{{ r.status }}</span></td>
+                <td class="num">Rp <span class="fmt-rupiah">{{ r.total_amount }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="fh-empty">Tidak ada transaksi open.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/bank.js') }}"></script>
 {% endblock %}
