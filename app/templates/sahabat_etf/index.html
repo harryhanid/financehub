@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Sahabat ETF{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="budget-page">
+  <h1>Sahabat ETF</h1>
+  <p style="color:var(--text-muted);margin-top:-.5rem">Eka Tjipta Foundation / Beasiswa / Sahabat ETF</p>
+
+  {% if wrong_company %}
+  <div class="budget-card">
+    <h3>Program khusus Eka Tjipta Foundation</h3>
+    <p>Halaman ini hanya menampilkan data untuk company ETF. Company aktif Anda saat ini bukan ETF.</p>
+    <a class="budget-btn" href="{{ url_for('dashboard.select_company') }}">Ganti Company</a>
+  </div>
+  {% else %}
+  <div id="setf-content"><!-- diisi Task 7 --></div>
+  {% endif %}
+</div>
+{% endblock %}
