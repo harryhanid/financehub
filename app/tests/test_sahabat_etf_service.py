@@ -1,4 +1,4 @@
-import os, sys, pytest
+import os, sys, pytest, sqlite3
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
 config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_sahabat_etf.db")
@@ -12,29 +12,26 @@ COMPANY_ID = 2  # ETF
 
 @pytest.fixture(autouse=True)
 def clean_db():
+    import time
+    # Clean and recreate tables for each test
+    # (Simpler than trying to fight Windows SQLite file locks with WAL mode)
     if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
+        try:
+            conn = sqlite3.connect(config.DB_PATH)
+            # Drop all data-bearing tables except schema tables
+            for table in ['siswa', 'budget_beasiswa', 'payment_beasiswa', 'payment_memo']:
+                try:
+                    conn.execute(f"DROP TABLE IF EXISTS {table}")
+                except Exception:
+                    pass
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+    # Recreate tables
     init_db()
     yield
-    # Close any remaining connections before cleanup
-    import sqlite3
-    # Disable WAL mode to ensure file cleanup
-    try:
-        conn = sqlite3.connect(config.DB_PATH)
-        conn.execute("PRAGMA journal_mode = DELETE")
-        conn.close()
-    except:
-        pass
-    # Remove DB and WAL files
-    import time
-    time.sleep(0.1)  # Brief delay for file lock release
-    for ext in ['', '-wal', '-shm']:
-        path = config.DB_PATH + ext
-        if os.path.exists(path):
-            try:
-                os.remove(path)
-            except:
-                pass
+    # No post-test cleanup needed - next test's setup will truncate
 
 
 def _add_siswa(code, nama, program="Sahabat ETF", company_id=COMPANY_ID):
@@ -104,3 +101,8 @@ def test_get_siswa_summary_includes_siswa_with_no_transactions():
     assert rows[0]["payment_total"] == 0
     assert rows[0]["realisasi_total"] == 0
     assert rows[0]["sisa_budget"] == 0
+    # Type contract: all 4 financial fields must always be float
+    assert isinstance(rows[0]["budget_total"], float)
+    assert isinstance(rows[0]["payment_total"], float)
+    assert isinstance(rows[0]["realisasi_total"], float)
+    assert isinstance(rows[0]["sisa_budget"], float)

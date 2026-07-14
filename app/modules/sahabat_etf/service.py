@@ -35,8 +35,8 @@ def get_siswa_summary(company_id: int) -> list:
 
     result = []
     for r in rows:
-        budget = r["budget_total"] or 0
-        realisasi = r["realisasi_total"] or 0
+        budget = float(r["budget_total"] or 0)
+        realisasi = float(r["realisasi_total"] or 0)
         result.append({
             "siswa_code":      r["code"],
             "nama":            r["nama"],
@@ -44,7 +44,7 @@ def get_siswa_summary(company_id: int) -> list:
             "angkatan":        r["angkatan"],
             "status":          r["status"],
             "budget_total":    budget,
-            "payment_total":   r["payment_total"] or 0,
+            "payment_total":   float(r["payment_total"] or 0),
             "realisasi_total": realisasi,
             "sisa_budget":     budget - realisasi,
         })
