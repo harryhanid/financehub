@@ -1,4 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
+import io
+from datetime import datetime
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, send_file
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.bank.service import (
@@ -7,6 +9,7 @@ from modules.bank.service import (
     get_available_years, resolve_period, filter_period,
     add_transaksi, update_transaksi, delete_transaksi,
 )
+from modules.bank.reports import build_laporan_mutasi_excel
 
 bp = Blueprint("bank", __name__, url_prefix="/bank")
 
@@ -98,3 +101,19 @@ def delete_transaksi_route(row_id):
         return jsonify({"ok": False, "pesan": "Company belum dipilih."}), 400
     result = delete_transaksi(row_id, cid)
     return jsonify(result)
+
+
+@bp.route("/export-laporan-mutasi")
+@jwt_html_required
+def export_laporan_mutasi_route():
+    cid = _cid()
+    if not cid:
+        return redirect(url_for("dashboard.select_company"))
+    xls_bytes = build_laporan_mutasi_excel(cid)
+    filename = f"Laporan Mutasi Bank Sahabat ETF - {datetime.now():%Y-%m-%d}.xlsx"
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )
