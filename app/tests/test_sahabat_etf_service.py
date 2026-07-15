@@ -8,7 +8,7 @@ from modules.beasiswa.service import add_siswa, add_budget_batch, add_payment_ba
 from modules.sahabat_etf.service import (
     get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
     get_available_years, get_available_pillars, get_monthly_breakdown,
-    get_pillar_breakdown, get_yearly_breakdown,
+    get_pillar_breakdown, get_yearly_breakdown, get_family_summary,
 )
 
 COMPANY_ID = 2  # ETF
@@ -474,6 +474,99 @@ def test_get_yearly_breakdown_excludes_incomplete_payments():
 
     result = get_yearly_breakdown(COMPANY_ID)
     assert result == []
+
+
+def test_get_family_summary_groups_by_family_groups():
+    _add_siswa("5260002", "Effendi Widjaja")
+    _add_siswa("1240700", "Cathabell Virginia Fernanda Widjaja")
+    add_payment_batch(COMPANY_ID, "5260002", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "1240700", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    _mark_complete("5260002")
+    _mark_complete("1240700")
+
+    families = get_family_summary(COMPANY_ID)
+    assert len(families) == 1
+    fam1 = families[0]
+    assert fam1["family_key"] == "fam1"
+    names = [m["nama"] for m in fam1["members"]]
+    assert names == ["Effendi Widjaja", "Cathabell Virginia Fernanda Widjaja"]
+    assert fam1["total_realisasi"] == 3000000
+
+
+def test_get_family_summary_merges_duplicate_nama_in_same_group():
+    # fam1 = 5260002, 1240700, 4220003 — 1240700 & 4220003 are the same person (Cathabell), 2 siswa records
+    _add_siswa("5260002", "Effendi Widjaja")
+    _add_siswa("1240700", "Cathabell Virginia Fernanda Widjaja")
+    _add_siswa("4220003", "Cathabell Virginia Fernanda Widjaja")
+    add_payment_batch(COMPANY_ID, "1240700", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1500000}])
+    add_payment_batch(COMPANY_ID, "4220003", "2022-06-01", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}])
+    _mark_complete("1240700")
+    _mark_complete("4220003")
+
+    fam1 = get_family_summary(COMPANY_ID)[0]
+    # 2 kode Cathabell tergabung jadi 1 member, bukan 2
+    cathabell_members = [m for m in fam1["members"] if m["nama"] == "Cathabell Virginia Fernanda Widjaja"]
+    assert len(cathabell_members) == 1
+    assert cathabell_members[0]["realisasi"] == 2000000
+
+
+def test_get_family_summary_label_numbering_for_repeated_marga():
+    _add_siswa("5260002", "Effendi Widjaja")       # fam1 -> Widjaja
+    _add_siswa("1240706", "Jety Widjaja")          # fam2 -> Widjaja
+    _add_siswa("5260001", "Claudia Samaoen")       # fam5 -> Samaoen (unique marga)
+
+    families = get_family_summary(COMPANY_ID)
+    by_key = {f["family_key"]: f["label"] for f in families}
+    assert by_key["fam1"] == "Keluarga Widjaja 1"
+    assert by_key["fam2"] == "Keluarga Widjaja 2"
+    assert by_key["fam5"] == "Keluarga Samaoen"  # marga unik -> tanpa angka
+
+
+def test_get_family_summary_fallback_for_unmapped_siswa():
+    _add_siswa("9999999", "Orang Baru Tanpa Grup")
+    families = get_family_summary(COMPANY_ID)
+    assert len(families) == 1
+    fam = families[0]
+    assert fam["family_key"] == "9999999"
+    assert fam["label"] == "Keluarga Grup"
+    assert fam["members"][0]["nama"] == "Orang Baru Tanpa Grup"
+
+
+def test_get_family_summary_total_equals_sum_of_members():
+    _add_siswa("1260001", "Budi Widjaja")
+    _add_siswa("5250001", "Birgitta Jennifer Widjaja")
+    add_payment_batch(COMPANY_ID, "1260001", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 700000}])
+    add_payment_batch(COMPANY_ID, "5250001", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 300000}])
+    _mark_complete("1260001")
+    _mark_complete("5250001")
+
+    fam3 = get_family_summary(COMPANY_ID)[0]
+    assert fam3["total_realisasi"] == sum(m["realisasi"] for m in fam3["members"])
+    assert fam3["total_realisasi"] == 1000000
+
+
+def test_get_family_summary_respects_year_and_pillar_filters():
+    _add_siswa("5260001", "Claudia Samaoen")
+    add_payment_batch(COMPANY_ID, "5260001", "2025-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "5260001", "2026-01-15", "APP", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    add_payment_batch(COMPANY_ID, "5260001", "2026-01-20", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 4000000}])
+    _mark_complete("5260001")
+
+    families = get_family_summary(COMPANY_ID, years=[2026], pillars=["SETF"])
+    assert families[0]["total_realisasi"] == 4000000
+
+
+def test_get_family_summary_empty_when_no_siswa():
+    assert get_family_summary(COMPANY_ID) == []
 
 
 def test_get_latest_payments_filters_by_kategori():

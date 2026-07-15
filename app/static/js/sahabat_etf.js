@@ -51,6 +51,73 @@ function setfRenderBarChart(canvasId, labels, datasets, onBarClick) {
   });
 }
 
+function setfRenderStackedBarChart(canvasId, families) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (setfCharts[canvasId]) setfCharts[canvasId].destroy();
+
+  const maxMembers = families.reduce(function (m, f) { return Math.max(m, f.members.length); }, 0);
+  const datasets = [];
+  for (let i = 0; i < maxMembers; i++) {
+    datasets.push({
+      label: "Anggota " + (i + 1),
+      data: families.map(function (f) { return i < f.members.length ? f.members[i].realisasi : null; }),
+      backgroundColor: SETF_PALETTE[i % SETF_PALETTE.length],
+    });
+  }
+
+  setfCharts[canvasId] = new Chart(ctx, {
+    type: "bar",
+    data: { labels: families.map(function (f) { return f.label; }), datasets: datasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function (item) {
+              const member = families[item.dataIndex].members[item.datasetIndex];
+              return member ? member.nama + ": " + setfFmtJutaan(member.realisasi) : "";
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { color: setfThemeColor("--text-secondary", "#94a3b8") },
+          grid: { color: "rgba(148,163,184,0.1)" },
+        },
+        y: {
+          stacked: true,
+          ticks: {
+            color: setfThemeColor("--text-secondary", "#94a3b8"),
+            callback: function (value) { return setfFmtJutaan(value); },
+          },
+          grid: { color: "rgba(148,163,184,0.1)" },
+        },
+      },
+    },
+  });
+}
+
+function setfRenderFamilyTable(families) {
+  const tbody = document.querySelector("#setf-family-table tbody");
+  if (!families.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Belum ada data keluarga.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = families.map(function (f) {
+    const memberRows = f.members.map(function (m) {
+      return "<tr><td>" + f.label + "</td><td>" + m.nama + "</td>" +
+        '<td class="num-right">' + setfFmtJutaan(m.realisasi) + "</td></tr>";
+    }).join("");
+    const totalRow = "<tr style=\"font-weight:bold\"><td>" + f.label + " — Total</td><td></td>" +
+      '<td class="num-right">' + setfFmtJutaan(f.total_realisasi) + "</td></tr>";
+    return memberRows + totalRow;
+  }).join("");
+}
+
 let setfActiveKategoriDrilldown = null;
 
 function setfExpandGrafik() {
@@ -304,8 +371,17 @@ function setfApplyFilters() {
   document.querySelector("#setf-kategori-table tbody").innerHTML = skeletonRows(4, 4);
   document.querySelector("#setf-latest-payments-table tbody").innerHTML = skeletonRows(4, 6);
   document.querySelector("#setf-pillar-table tbody").innerHTML = skeletonRows(4, 4);
+  document.querySelector("#setf-family-table tbody").innerHTML = skeletonRows(3, 6);
 
   setfRefetchLatestPayments();
+
+  fetch("/beasiswa/sahabat/api/family_summary" + (qs ? "?" + qs : ""))
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      setfRenderStackedBarChart("chart-keluarga", data.families);
+      setfRenderFamilyTable(data.families);
+    })
+    .catch(function () { showToast("Gagal memuat data keluarga.", "error"); });
 
   fetch("/beasiswa/sahabat/api/summary" + (qs ? "?" + qs : ""))
     .then(function (r) { return r.json(); })
@@ -362,7 +438,7 @@ function initSahabatEtf() {
 }
 
 window.addEventListener("fh-theme-changed", function () {
-  if (setfCharts["chart-kategori"] || setfCharts["chart-bulanan"] || setfCharts["chart-tahunan"]) {
+  if (setfCharts["chart-kategori"] || setfCharts["chart-bulanan"] || setfCharts["chart-tahunan"] || setfCharts["chart-keluarga"]) {
     setfApplyFilters();
   }
 });

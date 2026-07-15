@@ -70,6 +70,75 @@ def get_siswa_summary(company_id: int, years: list = None, pillars: list = None)
     return result
 
 
+FAMILY_GROUPS = [
+    # (family_key, [siswa_code, ...])
+    ("fam1", ["5260002", "1240700", "4220003"]),  # Effendi Widjaja, Cathabell (S1 + record lama SMA)
+    ("fam2", ["1240706", "1230684"]),              # Jety Widjaja, Darrell Bright Lie
+    ("fam3", ["1260001", "5250001"]),              # Budi Widjaja, Birgitta Jennifer Widjaja
+    ("fam4", ["5260003", "5250002"]),              # Burhanuddin Widjaja, Richard Widjaja
+    ("fam5", ["5260001"]),                         # Claudia Samaoen (single)
+    ("fam6", ["1210487"]),                         # Felicia Tarita Chandra (single)
+    ("fam7", ["5230001"]),                         # Joshua Darren Chandra (single)
+]
+
+
+def _family_label(family_key: str, groups_in_order: list) -> str:
+    """groups_in_order: list of (family_key, marga) tuples, in render order."""
+    marga = next(m for fk, m in groups_in_order if fk == family_key)
+    same_marga = [fk for fk, m in groups_in_order if m == marga]
+    if len(same_marga) <= 1:
+        return f"Keluarga {marga}"
+    return f"Keluarga {marga} {same_marga.index(family_key) + 1}"
+
+
+def get_family_summary(company_id: int, years: list = None, pillars: list = None) -> list:
+    siswa_rows = get_siswa_summary(company_id, years, pillars)
+    by_code = {r["siswa_code"]: r for r in siswa_rows}
+
+    code_to_family = {code: fk for fk, codes in FAMILY_GROUPS for code in codes}
+    groups_order = list(FAMILY_GROUPS)
+    for r in siswa_rows:
+        code = r["siswa_code"]
+        if code not in code_to_family:
+            groups_order.append((code, [code]))
+
+    families = []
+    for family_key, codes in groups_order:
+        existing_codes = [c for c in codes if c in by_code]
+        if not existing_codes:
+            continue
+        members = []
+        by_nama = {}
+        for code in existing_codes:
+            row = by_code[code]
+            nama = row["nama"]
+            if nama in by_nama:
+                by_nama[nama]["realisasi"] += row["realisasi_total"]
+            else:
+                member = {"nama": nama, "realisasi": row["realisasi_total"]}
+                by_nama[nama] = member
+                members.append(member)
+        families.append({
+            "family_key": family_key,
+            "members": members,
+            "total_realisasi": sum(m["realisasi"] for m in members),
+        })
+
+    groups_in_order = [(f["family_key"], f["members"][0]["nama"].split()[-1]) for f in families]
+    for f in families:
+        f["label"] = _family_label(f["family_key"], groups_in_order)
+
+    return [
+        {
+            "family_key":      f["family_key"],
+            "label":           f["label"],
+            "total_realisasi": f["total_realisasi"],
+            "members":         f["members"],
+        }
+        for f in families
+    ]
+
+
 def get_kategori_breakdown(company_id: int, years: list = None, pillars: list = None) -> dict:
     conn = get_conn()
     budget_year_sql, budget_year_params = _year_filter_sql(years, "b.tanggal")
