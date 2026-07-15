@@ -48,6 +48,7 @@
             {% endfor %}
           </select>
           <button type="button" class="btn btn-primary btn-sm" id="btn-tambah-transaksi">+ Tambah Transaksi</button>
+          <a href="{{ url_for('bank.export_laporan_mutasi_route') }}" class="btn btn-secondary btn-sm">Export Laporan Mutasi (Excel)</a>
         </div>
 
         {% if display_rows %}

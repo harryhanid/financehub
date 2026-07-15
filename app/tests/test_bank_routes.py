@@ -191,3 +191,26 @@ def test_delete_transaksi_route_removes_row(client):
     assert resp.get_json()["ok"] is True
     detail = client.get("/bank/?bulan=all&tahun=all")
     assert b"To delete" not in detail.data
+
+
+def test_export_laporan_mutasi_requires_login(client):
+    resp = client.get("/bank/export-laporan-mutasi")
+    assert resp.status_code == 302
+
+
+def test_export_laporan_mutasi_returns_xlsx(client):
+    login(client)
+    _select_etf(client)
+    _insert_bank_setf(2, "2026-07-01", "pemasukan", 1000000, keterangan="AGRI - PT Cipta Inti")
+    resp = client.get("/bank/export-laporan-mutasi")
+    assert resp.status_code == 200
+    assert resp.headers["Content-Type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    assert resp.headers["Content-Disposition"].startswith("attachment")
+
+
+def test_index_has_export_laporan_mutasi_button(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/bank/")
+    assert b"Export Laporan Mutasi" in resp.data
+    assert b"/bank/export-laporan-mutasi" in resp.data
