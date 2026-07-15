@@ -116,6 +116,48 @@ def _write_header(ws, row, report_year):
     return row + 2
 
 
+def _write_metrics_row(ws, row, metrics, font, fill=None):
+    for window in ("cur", "cum"):
+        for i, metric_key in enumerate(_METRIC_KEYS):
+            col = _COL[_METRIC_COLS[window][i]]
+            value = metrics[window][metric_key] / 1_000_000
+            _set(ws, f"{col}{row}", value, font=font, fill=fill,
+                 align=_ALIGN_CENTER, border=_BORDER_ROW, numfmt=_MONEY_FMT)
+
+
+def _write_total_row(ws, row, label, total, fill):
+    ws.merge_cells(f"B{row}:F{row}")
+    _set(ws, f"B{row}", label, font=_FONT_SECTION, fill=fill, align=_ALIGN_LEFT,
+         border=Border(left=_MEDIUM))
+    _write_metrics_row(ws, row, total, font=_FONT_SECTION, fill=fill)
+    return row + 1
+
+
+def _write_section(ws, row, section):
+    ws.merge_cells(f"B{row}:F{row}")
+    _set(ws, f"B{row}", section["label"], font=_FONT_SECTION, fill=_FILL_NAVY,
+         align=_ALIGN_LEFT, border=Border(left=_MEDIUM))
+    for col in ("G", "H", "I", "J", "K", "L", "M", "N", "O"):
+        _set(ws, f"{col}{row}", None, fill=_FILL_NAVY)
+    row += 1
+
+    for group in section["groups"]:
+        ws.merge_cells(f"B{row}:F{row}")
+        _set(ws, f"B{row}", group["label"], font=_FONT_SUBTOTAL, align=_ALIGN_LEFT,
+             border=Border(top=_THIN, bottom=_THIN, left=_MEDIUM))
+        _write_metrics_row(ws, row, group["subtotal"], font=_FONT_SUBTOTAL)
+        row += 1
+        for siswa_row in group["siswa_rows"]:
+            _set(ws, f"B{row}", siswa_row["nama"], font=_FONT_NORMAL, align=_ALIGN_LEFT,
+                 border=Border(top=_THIN, bottom=_THIN, left=_MEDIUM))
+            _set(ws, f"F{row}", siswa_row["pillar"], font=_FONT_PILLAR,
+                 align=_ALIGN_CENTER, border=_BORDER_ROW)
+            _write_metrics_row(ws, row, siswa_row, font=_FONT_NORMAL, fill=_FILL_LIGHT_BLUE)
+            row += 1
+
+    return _write_total_row(ws, row, f"TOTAL {section['label']}", section["total"], _FILL_NAVY)
+
+
 def build_report_workbook(data: dict) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -123,7 +165,10 @@ def build_report_workbook(data: dict) -> bytes:
     _set_column_widths(ws)
 
     row = _write_title(ws, 1)
-    row = _write_header(ws, row, data["report_year"])
+    for section in data["sections"]:
+        row = _write_header(ws, row, data["report_year"])
+        row = _write_section(ws, row, section)
+        row += 1  # spacer before next section's header
 
     buf = io.BytesIO()
     wb.save(buf)
