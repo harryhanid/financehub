@@ -1,5 +1,11 @@
+import io
+import zipfile
 from datetime import datetime
-from modules.bank.reports import classify_rows, month_range
+
+import openpyxl
+from database import get_conn
+
+from modules.bank.reports import classify_rows, month_range, build_laporan_mutasi_excel
 
 
 def _row(tanggal, jenis, jumlah, keterangan, source="manual", pam_record_id=None, rid=1):
@@ -83,3 +89,95 @@ def test_month_range_all_setoran_awal_falls_back_to_current_month():
     rows = [_row("2025-11-17", "pemasukan", 1500000, "Setoran Awal")]
     months = month_range(rows, today=datetime(2026, 7, 15))
     assert months == ["2026-07"]
+
+
+def _insert_bank_setf(company_id, tanggal, jenis, jumlah, keterangan="Test", source="manual", pam_record_id=None):
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source, pam_record_id) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (company_id, tanggal, jenis, jumlah, keterangan, source, pam_record_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_build_laporan_mutasi_excel_returns_valid_xlsx_bytes():
+    result = build_laporan_mutasi_excel(2, today=datetime(2026, 7, 15))
+    assert isinstance(result, bytes)
+    assert zipfile.is_zipfile(io.BytesIO(result))
+
+
+def test_build_laporan_mutasi_excel_has_all_sheet_with_title():
+    result = build_laporan_mutasi_excel(2, today=datetime(2026, 7, 15))
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    assert wb.sheetnames == ["ALL"]
+    ws = wb["ALL"]
+    assert ws["B2"].value == "Laporan Mutasi Bank Sahabat ETF"
+
+
+def test_build_laporan_mutasi_excel_empty_data_still_has_saldo_akhir_row():
+    result = build_laporan_mutasi_excel(2, today=datetime(2026, 7, 15))
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    ws = wb["ALL"]
+    values = [ws.cell(r, c).value for r in range(1, 20) for c in range(1, 6)]
+    assert "SALDO AKHIR" in values
+
+
+def test_build_laporan_mutasi_excel_excludes_setoran_awal_from_sheet():
+    _insert_bank_setf(2, "2025-11-17", "pemasukan", 1500000, keterangan="Setoran Awal - 17 Nov 2025")
+    _insert_bank_setf(2, "2025-11-24", "pemasukan", 2000000000, keterangan="AGRI - PT Cipta Inti")
+    result = build_laporan_mutasi_excel(2, today=datetime(2025, 11, 30))
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    ws = wb["ALL"]
+    all_values = [ws.cell(r, c).value for r in range(1, 40) for c in range(1, 15)]
+    assert not any(v and "Setoran Awal" in str(v) for v in all_values)
+    assert "AGRI - PT Cipta Inti" in all_values
+
+
+def test_build_laporan_mutasi_excel_penerimaan_value_in_millions():
+    _insert_bank_setf(2, "2025-11-24", "pemasukan", 2000000000, keterangan="AGRI - PT Cipta Inti")
+    result = build_laporan_mutasi_excel(2, today=datetime(2025, 11, 30))
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    ws = wb["ALL"]
+    row_idx = None
+    for r in range(1, 20):
+        if ws.cell(r, 2).value == "AGRI - PT Cipta Inti":
+            row_idx = r
+            break
+    assert row_idx is not None
+    assert ws.cell(row_idx, 3).value == 2000000000 / 1_000_000
+
+
+def test_build_laporan_mutasi_excel_writes_sum_formulas_for_subtotal():
+    _insert_bank_setf(2, "2025-11-24", "pemasukan", 2000000000, keterangan="AGRI - PT Cipta Inti")
+    result = build_laporan_mutasi_excel(2, today=datetime(2025, 11, 30))
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    ws = wb["ALL"]
+    formula_cells = [
+        ws.cell(r, c).value for r in range(1, 30) for c in range(1, 10)
+        if isinstance(ws.cell(r, c).value, str) and ws.cell(r, c).value.startswith("=SUM(")
+    ]
+    assert len(formula_cells) > 0
+
+
+def test_build_laporan_mutasi_excel_only_returns_data_for_requested_company():
+    _insert_bank_setf(2, "2025-11-24", "pemasukan", 2000000000, keterangan="AGRI - PT Cipta Inti")
+    _insert_bank_setf(1, "2025-11-24", "pemasukan", 999000000, keterangan="SMT Only Entry")
+    result = build_laporan_mutasi_excel(2, today=datetime(2025, 11, 30))
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    ws = wb["ALL"]
+    all_values = [ws.cell(r, c).value for r in range(1, 40) for c in range(1, 15)]
+    assert "SMT Only Entry" not in all_values
+
+
+def test_build_laporan_mutasi_excel_zero_activity_month_still_shows_as_column():
+    # Nov has a transaction, Des has none, Jan has a transaction — Des must still
+    # appear as its own column with 0, not be skipped from the month range.
+    _insert_bank_setf(2, "2025-11-24", "pemasukan", 2000000000, keterangan="AGRI - PT Cipta Inti")
+    _insert_bank_setf(2, "2026-01-22", "pemasukan", 4000000000, keterangan="APP - PT Tirta Pasific Unity")
+    result = build_laporan_mutasi_excel(2, today=datetime(2026, 1, 31))
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    ws = wb["ALL"]
+    header_row_values = [ws.cell(6, c).value for c in range(3, 8)]
+    assert header_row_values == ["Nov", "Des", "Jan", None, None]
