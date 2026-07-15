@@ -407,3 +407,12 @@ def test_export_report_returns_403_for_non_etf_company(client):
     _select_smt(client)
     resp = client.get("/beasiswa/sahabat/export/report?year=2026")
     assert resp.status_code == 403
+
+
+def test_index_contains_report_export_elements(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/")
+    assert resp.status_code == 200
+    for expected in (b"setf-report-year", b"setf-export-report", b"export/report"):
+        assert expected in resp.data, f"missing {expected!r} in response"

@@ -550,6 +550,13 @@ function setfUpdateExportLinks(qs) {
   detailLink.href = qs ? baseDetail + "?" + qs : baseDetail;
 }
 
+function setfUpdateReportExportLink() {
+  const sel = document.getElementById("setf-report-year");
+  const link = document.getElementById("setf-export-report");
+  if (!sel || !link) return;
+  link.href = "/beasiswa/sahabat/export/report?year=" + encodeURIComponent(sel.value);
+}
+
 function setfExportPdf() {
   const accordions = document.querySelectorAll(".setf-accordion");
   const prevState = Array.from(accordions).map(function (d) { return d.open; });
@@ -655,6 +662,11 @@ function initSahabatEtf() {
       document.querySelectorAll(".setf-year-cb").forEach(function (cb) { cb.checked = true; });
       setfApplyFilters();
     });
+  }
+  const reportYearSelect = document.getElementById("setf-report-year");
+  if (reportYearSelect) {
+    reportYearSelect.addEventListener("change", setfUpdateReportExportLink);
+    setfUpdateReportExportLink();
   }
   setfApplyFilters();
 }

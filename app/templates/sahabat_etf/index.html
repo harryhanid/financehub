@@ -49,12 +49,21 @@
             {% endfor %}
           </div>
         </div>
+        <div class="filter-field">
+          <label>Tahun Report (Export Laporan)</label>
+          <select id="setf-report-year">
+            {% for y in available_years|reverse %}
+            <option value="{{ y }}">{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
 
       <div class="budget-toolbar">
         <a class="budget-btn" id="setf-export-summary" href="{{ url_for('sahabat_etf.export_summary') }}">Export Ringkasan (CSV)</a>
         <a class="budget-btn" id="setf-export-detail" href="{{ url_for('sahabat_etf.export_detail') }}">Export Detail Transaksi (CSV)</a>
         <button type="button" class="budget-btn" id="setf-export-pdf" onclick="setfExportPdf()">Export PDF (Print)</button>
+        <a class="budget-btn" id="setf-export-report" href="{{ url_for('sahabat_etf.export_report', year=available_years|first or 2026) }}">Export Laporan (Excel)</a>
       </div>
 
       <div class="budget-summary-grid" id="setf-summary"></div>
