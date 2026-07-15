@@ -8,7 +8,7 @@ from modules.beasiswa.service import add_siswa, add_budget_batch, add_payment_ba
 from modules.sahabat_etf.service import (
     get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
     get_available_years, get_available_pillars, get_monthly_breakdown,
-    get_pillar_breakdown, get_yearly_breakdown, get_family_summary,
+    get_pillar_breakdown, get_yearly_breakdown, get_family_summary, build_report_data,
 )
 
 COMPANY_ID = 2  # ETF
@@ -38,9 +38,9 @@ def clean_db():
     # No post-test cleanup needed - next test's setup will truncate
 
 
-def _add_siswa(code, nama, program="Sahabat ETF", company_id=COMPANY_ID):
+def _add_siswa(code, nama, program="Sahabat ETF", company_id=COMPANY_ID, jenjang="S1"):
     add_siswa(company_id, {
-        "code": code, "nama": nama, "jenjang": "S1", "angkatan": 2024,
+        "code": code, "nama": nama, "jenjang": jenjang, "angkatan": 2024,
         "program": program, "fakultas": "", "universitas": "", "bank": "",
         "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
     })
@@ -624,3 +624,115 @@ def test_get_latest_payments_includes_cat2():
     from modules.sahabat_etf.service import get_latest_payments
     rows = get_latest_payments(COMPANY_ID)
     assert rows[0]["cat2"] == "Semester 1"
+
+
+def test_build_report_data_groups_pendidikan_by_jenjang():
+    _add_siswa("9993001", "Siswa SD", jenjang="SD")
+    _add_siswa("9993002", "Siswa SMA", jenjang="SMA")
+    add_budget_batch(COMPANY_ID, "9993001", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_budget_batch(COMPANY_ID, "9993002", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    pend = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")
+    assert [g["key"] for g in pend["groups"]] == ["SD", "SMA"]  # config.JENJANG order
+    sd_group = pend["groups"][0]
+    assert sd_group["siswa_rows"][0]["nama"] == "Siswa SD"
+    assert sd_group["subtotal"]["cur"]["plafon"] == 1000000
+
+
+def test_build_report_data_groups_kesehatan_by_cat2():
+    _add_siswa("9993010", "Siswa Sehat", jenjang="SETF")
+    add_budget_batch(COMPANY_ID, "9993010", "2026-01-10", "SETF",
+        [{"cat1": "By Medical", "cat2": "Rawat Inap", "amount": 500000},
+         {"cat1": "By Medical", "cat2": "Rawat Jalan", "amount": 300000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    kes = next(s for s in data["sections"] if s["key"] == "KESEHATAN")
+    assert sorted(g["key"] for g in kes["groups"]) == ["Rawat Inap", "Rawat Jalan"]
+
+
+def test_build_report_data_klaim_dibayar_saldo_math():
+    _add_siswa("9993020", "Siswa Klaim", jenjang="S1")
+    add_budget_batch(COMPANY_ID, "9993020", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 5000000}])
+    add_payment_batch(COMPANY_ID, "9993020", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 3000000}])
+    _mark_complete("9993020")
+    add_payment_batch(COMPANY_ID, "9993020", "2026-01-20", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    # payment kedua tetap 'open' -> masuk Klaim tapi tidak Dibayar
+
+    data = build_report_data(COMPANY_ID, 2026)
+    row = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")["groups"][0]["siswa_rows"][0]
+    assert row["cur"]["plafon"] == 5000000
+    assert row["cur"]["klaim"] == 4000000
+    assert row["cur"]["dibayar"] == 3000000
+    assert row["cur"]["saldo"] == 2000000
+
+
+def test_build_report_data_cur_vs_cum_windows():
+    _add_siswa("9993030", "Siswa Multi Tahun", jenjang="S1")
+    add_budget_batch(COMPANY_ID, "9993030", "2025-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    add_budget_batch(COMPANY_ID, "9993030", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 3000000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    row = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")["groups"][0]["siswa_rows"][0]
+    assert row["cur"]["plafon"] == 3000000
+    assert row["cum"]["plafon"] == 5000000
+
+
+def test_build_report_data_combines_multiple_pillars_for_same_siswa_row():
+    _add_siswa("9993040", "Siswa Dua Pillar", jenjang="S1")
+    add_payment_batch(COMPANY_ID, "9993040", "2026-01-10", "APP", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}])
+    add_payment_batch(COMPANY_ID, "9993040", "2026-01-15", "AGRI", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 700000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    row = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")["groups"][0]["siswa_rows"][0]
+    assert row["pillar"] == "AGRI, APP"
+
+
+def test_build_report_data_subgroup_and_section_totals_sum_correctly():
+    _add_siswa("9993050", "Siswa A", jenjang="SD")
+    _add_siswa("9993051", "Siswa B", jenjang="SD")
+    _add_siswa("9993052", "Siswa C", jenjang="S1")
+    add_budget_batch(COMPANY_ID, "9993050", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_budget_batch(COMPANY_ID, "9993051", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    add_budget_batch(COMPANY_ID, "9993052", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 4000000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    pend = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")
+    sd_group = next(g for g in pend["groups"] if g["key"] == "SD")
+    assert sd_group["subtotal"]["cur"]["plafon"] == 3000000
+    assert pend["total"]["cur"]["plafon"] == 7000000
+
+
+def test_build_report_data_siswa_rows_sorted_alphabetically():
+    _add_siswa("9993053", "Zeta Siswa", jenjang="SD")
+    _add_siswa("9993054", "Alpha Siswa", jenjang="SD")
+    add_budget_batch(COMPANY_ID, "9993053", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 100000}])
+    add_budget_batch(COMPANY_ID, "9993054", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 100000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    sd_group = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")["groups"][0]
+    assert [r["nama"] for r in sd_group["siswa_rows"]] == ["Alpha Siswa", "Zeta Siswa"]
+
+
+def test_build_report_data_no_data_returns_empty_sections():
+    data = build_report_data(COMPANY_ID, 2026)
+    assert data["report_year"] == 2026
+    pend = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")
+    kes = next(s for s in data["sections"] if s["key"] == "KESEHATAN")
+    assert pend["groups"] == []
+    assert pend["total"]["cur"]["plafon"] == 0
+    assert kes["groups"] == []

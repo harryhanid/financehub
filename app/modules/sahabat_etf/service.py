@@ -18,6 +18,148 @@ def _pillar_filter_sql(pillars, column):
     return f" AND {column} IN ({placeholders})", list(pillars)
 
 
+KESEHATAN_CAT1 = "By Medical"
+
+
+def _empty_metrics() -> dict:
+    return {"plafon": 0.0, "klaim": 0.0, "dibayar": 0.0, "saldo": 0.0}
+
+
+def _add_metrics(target: dict, plafon: float = 0.0, klaim: float = 0.0, dibayar: float = 0.0):
+    target["plafon"]  += plafon
+    target["klaim"]   += klaim
+    target["dibayar"] += dibayar
+    target["saldo"]    = target["plafon"] - target["dibayar"]
+
+
+def _sum_metrics(*metric_dicts) -> dict:
+    total = _empty_metrics()
+    for m in metric_dicts:
+        _add_metrics(total, plafon=m["plafon"], klaim=m["klaim"], dibayar=m["dibayar"])
+    return total
+
+
+def _fetch_report_rows(company_id: int):
+    """Raw budget + payment rows (all years) for Sahabat ETF siswa, tagged with
+    section/subgroup keys. Returns (budget_rows, payment_rows) as lists of dict."""
+    conn = get_conn()
+    budget_rows = conn.execute(
+        """
+        SELECT s.nama AS nama, s.jenjang AS jenjang, b.cat1 AS cat1, b.cat2 AS cat2,
+               b.pillar AS pillar, CAST(strftime('%Y', b.tanggal) AS INTEGER) AS tahun,
+               b.amount AS amount
+        FROM budget_beasiswa b
+        JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
+        WHERE b.company_id = ? AND s.program = ? AND b.tanggal IS NOT NULL AND b.tanggal != ''
+        """,
+        (company_id, PROGRAM_NAME),
+    ).fetchall()
+    payment_rows = conn.execute(
+        """
+        SELECT s.nama AS nama, s.jenjang AS jenjang, p.cat1 AS cat1, p.cat2 AS cat2,
+               p.pillar AS pillar, p.status AS status,
+               CAST(strftime('%Y', p.tanggal) AS INTEGER) AS tahun, p.amount AS amount
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ? AND s.program = ? AND p.tanggal IS NOT NULL AND p.tanggal != ''
+        """,
+        (company_id, PROGRAM_NAME),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in budget_rows], [dict(r) for r in payment_rows]
+
+
+def _row_section(cat1: str) -> str:
+    return "KESEHATAN" if cat1 == KESEHATAN_CAT1 else "PENDIDIKAN"
+
+
+def _row_subgroup(section: str, row: dict) -> str:
+    if section == "KESEHATAN":
+        return row["cat2"] or "(Tanpa Kategori)"
+    return row["jenjang"] or "(Tanpa Jenjang)"
+
+
+def _build_buckets(company_id: int, report_year: int) -> dict:
+    """bucket[(section, subgroup, nama)] -> {"cur": metrics, "cum": metrics, "pillars": set}"""
+    budget_rows, payment_rows = _fetch_report_rows(company_id)
+    buckets = {}
+
+    def bucket(section, subgroup, nama):
+        key = (section, subgroup, nama)
+        if key not in buckets:
+            buckets[key] = {"cur": _empty_metrics(), "cum": _empty_metrics(), "pillars": set()}
+        return buckets[key]
+
+    for r in budget_rows:
+        section  = _row_section(r["cat1"])
+        subgroup = _row_subgroup(section, r)
+        tahun    = r["tahun"]
+        amount   = float(r["amount"] or 0)
+        b = bucket(section, subgroup, r["nama"])
+        b["pillars"].add(r["pillar"] or "")
+        if tahun == report_year:
+            _add_metrics(b["cur"], plafon=amount)
+        if tahun is not None and tahun <= report_year:
+            _add_metrics(b["cum"], plafon=amount)
+
+    for r in payment_rows:
+        section  = _row_section(r["cat1"])
+        subgroup = _row_subgroup(section, r)
+        tahun    = r["tahun"]
+        amount   = float(r["amount"] or 0)
+        dibayar  = amount if r["status"] == "complete" else 0.0
+        b = bucket(section, subgroup, r["nama"])
+        b["pillars"].add(r["pillar"] or "")
+        if tahun == report_year:
+            _add_metrics(b["cur"], klaim=amount, dibayar=dibayar)
+        if tahun is not None and tahun <= report_year:
+            _add_metrics(b["cum"], klaim=amount, dibayar=dibayar)
+
+    return buckets
+
+
+def _pillar_label(bucket_pillars: set) -> str:
+    return ", ".join(sorted(p for p in bucket_pillars if p))
+
+
+def _build_section(section_key: str, buckets: dict) -> dict:
+    subgroup_order = (config.JENJANG if section_key == "PENDIDIKAN" else None)
+    subgroup_keys = {key[1] for key in buckets if key[0] == section_key}
+    if subgroup_order:
+        ordered_subgroups = [g for g in subgroup_order if g in subgroup_keys]
+        ordered_subgroups += sorted(subgroup_keys - set(subgroup_order))
+    else:
+        ordered_subgroups = sorted(subgroup_keys)
+
+    groups = []
+    for subgroup in ordered_subgroups:
+        namas = sorted(nama for (sec, sg, nama) in buckets if sec == section_key and sg == subgroup)
+        siswa_rows = []
+        for nama in namas:
+            b = buckets[(section_key, subgroup, nama)]
+            siswa_rows.append({
+                "nama": nama, "pillar": _pillar_label(b["pillars"]),
+                "cur": b["cur"], "cum": b["cum"],
+            })
+        subtotal = {
+            "cur": _sum_metrics(*[r["cur"] for r in siswa_rows]),
+            "cum": _sum_metrics(*[r["cum"] for r in siswa_rows]),
+        }
+        groups.append({"key": subgroup, "label": subgroup, "subtotal": subtotal, "siswa_rows": siswa_rows})
+
+    total = {
+        "cur": _sum_metrics(*[g["subtotal"]["cur"] for g in groups]),
+        "cum": _sum_metrics(*[g["subtotal"]["cum"] for g in groups]),
+    }
+    return {"key": section_key, "label": section_key, "groups": groups, "total": total}
+
+
+def build_report_data(company_id: int, report_year: int) -> dict:
+    buckets = _build_buckets(company_id, report_year)
+    sections = [_build_section("PENDIDIKAN", buckets), _build_section("KESEHATAN", buckets)]
+    return {"report_year": report_year, "sections": sections}
+
+
 def get_siswa_summary(company_id: int, years: list = None, pillars: list = None) -> list:
     conn = get_conn()
     budget_year_sql, budget_year_params = _year_filter_sql(years, "tanggal")
