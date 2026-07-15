@@ -5,7 +5,7 @@ from auth.middleware import jwt_html_required
 from modules.sahabat_etf.service import (
     get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
     get_available_years, get_available_pillars, get_monthly_breakdown, get_latest_payments,
-    get_pillar_breakdown, get_yearly_breakdown, get_family_summary,
+    get_pillar_breakdown, get_yearly_breakdown, get_family_summary, build_report_data,
 )
 
 bp = Blueprint("sahabat_etf", __name__, url_prefix="/beasiswa/sahabat")
@@ -157,3 +157,27 @@ def export_detail():
     out.seek(0)
     return Response(out.getvalue(), mimetype="text/csv",
                      headers={"Content-Disposition": "attachment; filename=sahabat_etf_detail_transaksi.csv"})
+
+
+@bp.route("/export/report")
+@jwt_html_required
+@etf_company_required
+def export_report():
+    import io
+    from flask import send_file
+    from modules.sahabat_etf.report_xlsx import build_report_workbook
+
+    year_param = request.args.get("year", "")
+    if not year_param.strip().lstrip("-").isdigit():
+        return jsonify({"ok": False, "pesan": "Parameter year wajib berupa angka."}), 400
+    report_year = int(year_param)
+
+    data = build_report_data(_cid(), report_year)
+    xlsx_bytes = build_report_workbook(data)
+    filename = f"sahabat_etf_report_{report_year}.xlsx"
+    return send_file(
+        io.BytesIO(xlsx_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )

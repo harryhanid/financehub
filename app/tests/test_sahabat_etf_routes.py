@@ -363,3 +363,47 @@ def test_api_latest_payments_kategori_filter_raises_limit_to_30(client):
 
     resp_unfiltered = client.get("/beasiswa/sahabat/api/latest_payments")
     assert len(resp_unfiltered.get_json()["rows"]) == 10  # tanpa filter tetap limit 10
+
+
+def test_export_report_returns_xlsx(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9994001", "nama": "Siswa Report Export", "jenjang": "SD", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/budget/tambah", json={"code": "9994001", "tanggal": "2026-01-10",
+        "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}]})
+
+    resp = client.get("/beasiswa/sahabat/export/report?year=2026")
+    assert resp.status_code == 200
+    assert resp.headers["Content-Type"] == \
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    assert "sahabat_etf_report_2026.xlsx" in resp.headers["Content-Disposition"]
+
+    import io, openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(resp.data))
+    ws = wb.active
+    assert "Siswa Report Export" in [c.value for row in ws.iter_rows() for c in row]
+
+
+def test_export_report_requires_year_param(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/export/report")
+    assert resp.status_code == 400
+
+
+def test_export_report_rejects_non_numeric_year(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/export/report?year=abc")
+    assert resp.status_code == 400
+
+
+def test_export_report_returns_403_for_non_etf_company(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/beasiswa/sahabat/export/report?year=2026")
+    assert resp.status_code == 403
