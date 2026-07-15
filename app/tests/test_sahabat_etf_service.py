@@ -736,3 +736,59 @@ def test_build_report_data_no_data_returns_empty_sections():
     assert pend["groups"] == []
     assert pend["total"]["cur"]["plafon"] == 0
     assert kes["groups"] == []
+
+
+def test_build_report_data_section_recap_merges_same_nama_across_subgroups():
+    _add_siswa("9993060", "Siswa Pindah", jenjang="SMA")
+    _add_siswa("9993061", "Siswa Pindah", jenjang="S1")
+    add_payment_batch(COMPANY_ID, "9993060", "2022-01-10", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_payment_batch(COMPANY_ID, "9993061", "2026-01-10", "APP", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    _mark_complete("9993060")
+    _mark_complete("9993061")
+
+    data = build_report_data(COMPANY_ID, 2026)
+    pend = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")
+    recap_row = next(r for r in pend["recap"] if r["nama"] == "Siswa Pindah")
+    assert recap_row["cum"]["dibayar"] == 3000000
+    assert recap_row["pillar"] == "APP, SETF"
+
+
+def test_build_report_data_recap_sorted_alphabetically():
+    _add_siswa("9993062", "Zeta Recap", jenjang="SD")
+    _add_siswa("9993063", "Alpha Recap", jenjang="SMA")
+    add_budget_batch(COMPANY_ID, "9993062", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 100000}])
+    add_budget_batch(COMPANY_ID, "9993063", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 100000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    pend = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")
+    assert [r["nama"] for r in pend["recap"]] == ["Alpha Recap", "Zeta Recap"]
+
+
+def test_build_report_data_combined_total_sums_both_sections():
+    _add_siswa("9993070", "Siswa Pendidikan", jenjang="S1")
+    _add_siswa("9993071", "Siswa Kesehatan", jenjang="SETF")
+    add_budget_batch(COMPANY_ID, "9993070", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_budget_batch(COMPANY_ID, "9993071", "2026-01-10", "SETF",
+        [{"cat1": "By Medical", "cat2": "Rawat Inap", "amount": 500000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    assert data["combined_total"]["cur"]["plafon"] == 1500000
+    assert data["grand_total"] == data["combined_total"]
+
+
+def test_build_report_data_combined_recap_includes_siswa_from_both_sections():
+    _add_siswa("9993080", "Siswa Pendidikan Saja", jenjang="S1")
+    _add_siswa("9993081", "Siswa Kesehatan Saja", jenjang="SETF")
+    add_budget_batch(COMPANY_ID, "9993080", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    add_budget_batch(COMPANY_ID, "9993081", "2026-01-10", "SETF",
+        [{"cat1": "By Medical", "cat2": "Rawat Inap", "amount": 500000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    names = sorted(r["nama"] for r in data["combined_recap"])
+    assert names == ["Siswa Kesehatan Saja", "Siswa Pendidikan Saja"]

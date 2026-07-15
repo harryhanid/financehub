@@ -154,10 +154,55 @@ def _build_section(section_key: str, buckets: dict) -> dict:
     return {"key": section_key, "label": section_key, "groups": groups, "total": total}
 
 
+def _build_recap(section_key: str, buckets: dict) -> list:
+    namas = sorted({nama for (sec, sg, nama) in buckets if sec == section_key})
+    recap = []
+    for nama in namas:
+        bucket_list = [b for (sec, sg, n), b in buckets.items() if sec == section_key and n == nama]
+        pillars = set()
+        for b in bucket_list:
+            pillars |= b["pillars"]
+        recap.append({
+            "nama": nama, "pillar": _pillar_label(pillars),
+            "cur": _sum_metrics(*[b["cur"] for b in bucket_list]),
+            "cum": _sum_metrics(*[b["cum"] for b in bucket_list]),
+        })
+    return recap
+
+
 def build_report_data(company_id: int, report_year: int) -> dict:
     buckets = _build_buckets(company_id, report_year)
-    sections = [_build_section("PENDIDIKAN", buckets), _build_section("KESEHATAN", buckets)]
-    return {"report_year": report_year, "sections": sections}
+    sections = []
+    for section_key in ("PENDIDIKAN", "KESEHATAN"):
+        section = _build_section(section_key, buckets)
+        section["recap"] = _build_recap(section_key, buckets)
+        sections.append(section)
+
+    combined_total = {
+        "cur": _sum_metrics(*[s["total"]["cur"] for s in sections]),
+        "cum": _sum_metrics(*[s["total"]["cum"] for s in sections]),
+    }
+
+    combined_namas = sorted({nama for (sec, sg, nama) in buckets})
+    combined_recap = []
+    for nama in combined_namas:
+        bucket_list = [b for (sec, sg, n), b in buckets.items() if n == nama]
+        pillars = set()
+        for b in bucket_list:
+            pillars |= b["pillars"]
+        combined_recap.append({
+            "nama": nama, "pillar": _pillar_label(pillars),
+            "cur": _sum_metrics(*[b["cur"] for b in bucket_list]),
+            "cum": _sum_metrics(*[b["cum"] for b in bucket_list]),
+        })
+
+    return {
+        "report_year": report_year,
+        "sections": sections,
+        "combined_total": combined_total,
+        "combined_recap": combined_recap,
+        "grand_total": combined_total,
+    }
 
 
 def get_siswa_summary(company_id: int, years: list = None, pillars: list = None) -> list:
