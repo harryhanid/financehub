@@ -158,6 +158,36 @@ def _write_section(ws, row, section):
     return _write_total_row(ws, row, f"TOTAL {section['label']}", section["total"], _FILL_NAVY)
 
 
+def _write_recap_rows(ws, row, recap_rows):
+    for r in recap_rows:
+        _set(ws, f"B{row}", r["nama"], font=_FONT_NORMAL, align=_ALIGN_LEFT)
+        _set(ws, f"F{row}", r["pillar"], font=_FONT_PILLAR, align=_ALIGN_CENTER)
+        _write_metrics_row(ws, row, r, font=_FONT_NORMAL)
+        row += 1
+    return row
+
+
+def _write_pillar_breakdown(ws, row, pillar_breakdown, grand_total):
+    ws.merge_cells(f"B{row}:F{row}")
+    _set(ws, f"B{row}", "BREAKDOWN PILLAR", font=_FONT_SECTION, fill=_FILL_NAVY, align=_ALIGN_LEFT)
+    _write_metrics_row(ws, row, grand_total, font=_FONT_SECTION, fill=_FILL_NAVY)
+    row += 1
+
+    for p in pillar_breakdown:
+        _set(ws, f"B{row}", p["pillar_label"], font=_FONT_SUBTOTAL, align=_ALIGN_LEFT)
+        _write_metrics_row(ws, row, p, font=_FONT_SUBTOTAL)
+        row += 1
+        _set(ws, f"B{row}", "      % to total", font=_FONT_NORMAL, align=_ALIGN_LEFT)
+        for window in ("cur", "cum"):
+            for i, metric_key in enumerate(_METRIC_KEYS):
+                col = _COL[_METRIC_COLS[window][i]]
+                pct_key = f"pct_{window}"
+                _set(ws, f"{col}{row}", p[pct_key][metric_key], font=_FONT_NORMAL,
+                     align=_ALIGN_CENTER, numfmt=_PCT_FMT)
+        row += 1
+    return row
+
+
 def build_report_workbook(data: dict) -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -168,7 +198,14 @@ def build_report_workbook(data: dict) -> bytes:
     for section in data["sections"]:
         row = _write_header(ws, row, data["report_year"])
         row = _write_section(ws, row, section)
+        row = _write_recap_rows(ws, row, section["recap"])
         row += 1  # spacer before next section's header
+
+    row = _write_total_row(ws, row, "TOTAL PENDIDIKAN & KESEHATAN", data["combined_total"], _FILL_DARK_NAVY)
+    row = _write_recap_rows(ws, row, data["combined_recap"])
+    row = _write_total_row(ws, row, "GRAND TOTAL", data["grand_total"], _FILL_DARK_NAVY)
+    row += 1
+    row = _write_pillar_breakdown(ws, row, data["pillar_breakdown"], data["grand_total"])
 
     buf = io.BytesIO()
     wb.save(buf)

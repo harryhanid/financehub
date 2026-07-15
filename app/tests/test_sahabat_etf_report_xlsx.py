@@ -94,3 +94,47 @@ def test_build_report_workbook_writes_section_group_and_siswa_row():
     assert values[richard_row]["G"] == 45.0   # cur.plafon = 45,000,000 / 1,000,000
     assert values[richard_row]["K"] == 90.0   # cum.plafon = 90,000,000 / 1,000,000 (ensures cur/cum not swapped)
     assert values[richard_row]["F"] == "SETF"
+
+
+def test_build_report_workbook_writes_grand_total_and_pillar_breakdown():
+    empty_total = {"cur": _empty_metrics(), "cum": _empty_metrics()}
+    data = {
+        "report_year": 2026,
+        "sections": [
+            {"key": "PENDIDIKAN", "label": "PENDIDIKAN", "groups": [], "total": empty_total, "recap": []},
+            {"key": "KESEHATAN", "label": "KESEHATAN", "groups": [], "total": empty_total, "recap": []},
+        ],
+        "combined_total": empty_total,
+        "combined_recap": [{"nama": "Siswa Recap", "pillar": "SETF",
+                             "cur": empty_total["cur"], "cum": empty_total["cum"]}],
+        "grand_total": empty_total,
+        "pillar_breakdown": [{
+            "pillar_label": "SAHABAT ETF",
+            "cur": _metrics(1_000_000, 500_000, 500_000),
+            "cum": _metrics(1_000_000, 500_000, 500_000),
+            "pct_cur": {"plafon": 1.0, "klaim": 1.0, "dibayar": 1.0, "saldo": 1.0},
+            "pct_cum": {"plafon": 1.0, "klaim": 1.0, "dibayar": 1.0, "saldo": 1.0},
+        }],
+    }
+    xlsx_bytes = build_report_workbook(data)
+    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    ws = wb.active
+
+    values = {}
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+        for cell in row:
+            if cell.value is not None:
+                values.setdefault(cell.row, {})[cell.column_letter] = cell.value
+    all_b_values = [v.get("B") for v in values.values()]
+
+    assert "TOTAL PENDIDIKAN & KESEHATAN" in all_b_values
+    assert "Siswa Recap" in all_b_values
+    assert "GRAND TOTAL" in all_b_values
+    assert "BREAKDOWN PILLAR" in all_b_values
+    assert "SAHABAT ETF" in all_b_values
+    assert "      % to total" in all_b_values
+
+    pillar_row = next(r for r, v in values.items() if v.get("B") == "SAHABAT ETF")
+    assert values[pillar_row]["G"] == 1.0  # 1,000,000 / 1,000,000
+    pct_row = pillar_row + 1
+    assert values[pct_row]["G"] == 1.0  # 100%
