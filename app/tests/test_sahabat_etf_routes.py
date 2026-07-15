@@ -402,6 +402,13 @@ def test_export_report_rejects_non_numeric_year(client):
     assert resp.status_code == 400
 
 
+def test_export_report_rejects_malformed_numeric_year(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/export/report?year=--5")
+    assert resp.status_code == 400
+
+
 def test_export_report_returns_403_for_non_etf_company(client):
     login(client)
     _select_smt(client)

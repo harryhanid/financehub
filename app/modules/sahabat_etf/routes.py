@@ -168,9 +168,10 @@ def export_report():
     from modules.sahabat_etf.report_xlsx import build_report_workbook
 
     year_param = request.args.get("year", "")
-    if not year_param.strip().lstrip("-").isdigit():
+    try:
+        report_year = int(year_param.strip())
+    except ValueError:
         return jsonify({"ok": False, "pesan": "Parameter year wajib berupa angka."}), 400
-    report_year = int(year_param)
 
     data = build_report_data(_cid(), report_year)
     xlsx_bytes = build_report_workbook(data)
