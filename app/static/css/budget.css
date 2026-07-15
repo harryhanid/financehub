@@ -28,6 +28,10 @@
   transition: background 0.2s ease, color 0.2s ease;
 }
 
+.setf-print-header {
+  display: none;
+}
+
 /* Dark mode (GAS Budget_Dashboard2 original palette) */
 [data-theme="dark"] .budget-page {
   --bg-card: rgba(18, 24, 42, 0.75);
@@ -140,6 +144,36 @@
 .badge-status-near-limit { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
 .badge-status-expired { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
 .badge-status-completed { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+
+.setf-sisa-negative { background: rgba(245, 158, 11, 0.18); color: var(--warning); font-weight: 700; border-radius: 4px; }
+.setf-payment-mismatch { background: rgba(219, 39, 119, 0.15); color: #db2777; font-weight: 700; border-radius: 4px; }
+
+/* Kategori (cat1) badges — pill shape, same palette used on the Beasiswa module. */
+.badge-cat-by-pendidikan { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.badge-cat-by-tunjangan  { background: rgba(22, 163, 74, 0.15); color: #16a34a; }
+.badge-cat-by-penelitian { background: rgba(217, 119, 6, 0.15); color: #d97706; }
+.badge-cat-by-medical    { background: rgba(219, 39, 119, 0.15); color: #db2777; }
+.badge-cat-lainnya       { background: var(--sl-100, rgba(148,163,184,0.15)); color: var(--text-muted); }
+
+/* Jenjang badges — deliberately a different shape (square tag, left accent)
+   from the pill-shaped Status badges so the two columns read distinctly. */
+.setf-badge-jenjang {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-left: 3px solid currentColor;
+}
+.setf-badge-jenjang-sd   { background: rgba(124, 58, 237, 0.12); color: #7c3aed; }
+.setf-badge-jenjang-smp  { background: rgba(67, 56, 202, 0.12); color: #4338ca; }
+.setf-badge-jenjang-sma  { background: rgba(14, 116, 144, 0.12); color: #0e7490; }
+.setf-badge-jenjang-smk  { background: rgba(15, 118, 110, 0.12); color: #0f766e; }
+.setf-badge-jenjang-s1   { background: rgba(29, 78, 216, 0.12); color: #1d4ed8; }
+.setf-badge-jenjang-s2   { background: rgba(162, 28, 175, 0.12); color: #a21caf; }
+.setf-badge-jenjang-s3   { background: rgba(194, 65, 12, 0.12); color: #c2410c; }
+.setf-badge-jenjang-setf { background: rgba(185, 28, 28, 0.12); color: #b91c1c; }
+.setf-badge-jenjang-lainnya { background: var(--sl-100, rgba(148,163,184,0.12)); color: var(--text-muted); }
 
 .budget-toolbar {
   display: flex;
@@ -301,4 +335,65 @@
   position: sticky;
   top: 0;
   background: var(--bg-card);
+}
+
+/* ── Print (Export PDF) ──────────────────────────────── */
+@media print {
+  .budget-page, .budget-page * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  .budget-toolbar, #setf-year-select-all { display: none !important; }
+  .setf-accordion summary { list-style: none; cursor: default; }
+  .setf-accordion summary::-webkit-details-marker { display: none; }
+
+  .setf-print-header {
+    display: block !important;
+    position: fixed;
+    top: 6px;
+    right: 8px;
+    font-size: 9px;
+    color: #64748b;
+  }
+
+  /* Chrome's print pagination for CSS Grid is unreliable — a grid item that
+     needs to move to the next page can leave its row sibling behind, collapsing
+     one column to a sliver. Drop grid entirely for print and fall back to a
+     plain block stack so each card paginates independently and correctly. */
+  .setf-grafik-grid {
+    display: block !important;
+  }
+  .setf-grafik-grid > * {
+    width: 100% !important;
+    margin-bottom: 1rem;
+  }
+
+  /* Summary stat cards: keep them in one compact horizontal row instead of
+     stacking full-width (they're small — no reason to burn a page each). */
+  .budget-summary-grid {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.6rem;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .budget-summary-grid > * {
+    flex: 1 1 150px;
+  }
+
+  /* Avoid splitting a single card/table across two pages, but otherwise let
+     the browser pack as many as naturally fit per page — don't force every
+     card onto its own dedicated page. */
+  .budget-chart-card, .table-wrap, #setf-alert-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .budget-chart-card canvas {
+    max-height: 380px !important;
+  }
+  .setf-compact-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+  }
 }

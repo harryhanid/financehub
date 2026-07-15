@@ -1,3 +1,4 @@
+import config
 from database import get_conn
 
 PROGRAM_NAME = "Sahabat ETF"
@@ -82,18 +83,39 @@ FAMILY_GROUPS = [
 ]
 
 
-def _family_label(family_key: str, groups_in_order: list) -> str:
-    """groups_in_order: list of (family_key, marga) tuples, in render order."""
-    marga = next(m for fk, m in groups_in_order if fk == family_key)
-    same_marga = [fk for fk, m in groups_in_order if m == marga]
-    if len(same_marga) <= 1:
-        return f"Keluarga {marga}"
-    return f"Keluarga {marga} {same_marga.index(family_key) + 1}"
+def _siswa_kategori_map(company_id: int, years: list = None, pillars: list = None) -> dict:
+    """siswa_code -> set of cat1 dengan realisasi (payment status='complete')."""
+    conn = get_conn()
+    payment_year_sql, payment_year_params = _year_filter_sql(years, "tanggal")
+    pillar_sql, pillar_params = _pillar_filter_sql(pillars, "pillar")
+    rows = conn.execute(
+        f"""
+        SELECT DISTINCT siswa_code, cat1
+        FROM payment_beasiswa
+        WHERE company_id = ? AND status = 'complete'{payment_year_sql}{pillar_sql}
+        """,
+        [company_id, *payment_year_params, *pillar_params],
+    ).fetchall()
+    conn.close()
+
+    result = {}
+    for r in rows:
+        result.setdefault(r["siswa_code"], set()).add(r["cat1"] or "(Tanpa Kategori)")
+    return result
+
+
+def _sort_kategori(cats: set) -> list:
+    order = config.CAT1_BGT
+
+    def key(c):
+        return (order.index(c), c) if c in order else (len(order), c)
+    return sorted(cats, key=key)
 
 
 def get_family_summary(company_id: int, years: list = None, pillars: list = None) -> list:
     siswa_rows = get_siswa_summary(company_id, years, pillars)
     by_code = {r["siswa_code"]: r for r in siswa_rows}
+    kategori_map = _siswa_kategori_map(company_id, years, pillars)
 
     code_to_family = {code: fk for fk, codes in FAMILY_GROUPS for code in codes}
     groups_order = list(FAMILY_GROUPS)
@@ -112,21 +134,29 @@ def get_family_summary(company_id: int, years: list = None, pillars: list = None
         for code in existing_codes:
             row = by_code[code]
             nama = row["nama"]
+            cats = kategori_map.get(code, set())
             if nama in by_nama:
                 by_nama[nama]["realisasi"] += row["realisasi_total"]
+                by_nama[nama]["_kategori_set"] |= cats
             else:
-                member = {"nama": nama, "realisasi": row["realisasi_total"]}
+                member = {"nama": nama, "realisasi": row["realisasi_total"], "_kategori_set": set(cats)}
                 by_nama[nama] = member
                 members.append(member)
+        for m in members:
+            m["kategori"] = ", ".join(_sort_kategori(m.pop("_kategori_set")))
         families.append({
             "family_key": family_key,
             "members": members,
             "total_realisasi": sum(m["realisasi"] for m in members),
         })
 
-    groups_in_order = [(f["family_key"], f["members"][0]["nama"].split()[-1]) for f in families]
+    family_counter = 0
     for f in families:
-        f["label"] = _family_label(f["family_key"], groups_in_order)
+        if len(f["members"]) > 1:
+            family_counter += 1
+            f["label"] = f"Family {family_counter}"
+        else:
+            f["label"] = f["members"][0]["nama"]
 
     return [
         {
@@ -269,7 +299,7 @@ def get_latest_payments(company_id: int, years: list = None, pillars: list = Non
 
     rows = conn.execute(
         f"""
-        SELECT p.tanggal, s.nama, p.cat1, p.amount
+        SELECT p.tanggal, s.nama, p.cat1, p.cat2, p.amount
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         WHERE p.company_id = ? AND s.program = ?{payment_year_sql}{pillar_sql}{kategori_sql}

@@ -131,7 +131,7 @@ def export_summary():
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(["Kode", "Nama", "Jenjang", "Angkatan", "Status",
-                "Budget", "Payment", "Realisasi", "Sisa Budget"])
+                "Budget", "Klaim", "Realisasi", "Sisa Budget"])
     for r in rows:
         w.writerow([r["siswa_code"], r["nama"], r["jenjang"], r["angkatan"], r["status"],
                     r["budget_total"], r["payment_total"], r["realisasi_total"], r["sisa_budget"]])

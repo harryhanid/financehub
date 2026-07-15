@@ -514,16 +514,27 @@ def test_get_family_summary_merges_duplicate_nama_in_same_group():
     assert cathabell_members[0]["realisasi"] == 2000000
 
 
-def test_get_family_summary_label_numbering_for_repeated_marga():
-    _add_siswa("5260002", "Effendi Widjaja")       # fam1 -> Widjaja
-    _add_siswa("1240706", "Jety Widjaja")          # fam2 -> Widjaja
-    _add_siswa("5260001", "Claudia Samaoen")       # fam5 -> Samaoen (unique marga)
+def test_get_family_summary_single_member_shows_name_directly():
+    _add_siswa("5260002", "Effendi Widjaja")       # fam1, single in this scenario
+    _add_siswa("1240706", "Jety Widjaja")          # fam2, single in this scenario
+    _add_siswa("5260001", "Claudia Samaoen")       # fam5, single
 
     families = get_family_summary(COMPANY_ID)
     by_key = {f["family_key"]: f["label"] for f in families}
-    assert by_key["fam1"] == "Keluarga Widjaja 1"
-    assert by_key["fam2"] == "Keluarga Widjaja 2"
-    assert by_key["fam5"] == "Keluarga Samaoen"  # marga unik -> tanpa angka
+    assert by_key["fam1"] == "Effendi Widjaja"
+    assert by_key["fam2"] == "Jety Widjaja"
+    assert by_key["fam5"] == "Claudia Samaoen"
+
+
+def test_get_family_summary_multi_member_labeled_family_n_in_order():
+    _add_siswa("1260001", "Budi Widjaja")          # fam3, member 1
+    _add_siswa("5250001", "Birgitta Jennifer Widjaja")  # fam3, member 2
+    _add_siswa("5260001", "Claudia Samaoen")       # fam5, single -> not counted
+
+    families = get_family_summary(COMPANY_ID)
+    by_key = {f["family_key"]: f["label"] for f in families}
+    assert by_key["fam3"] == "Family 1"
+    assert by_key["fam5"] == "Claudia Samaoen"
 
 
 def test_get_family_summary_fallback_for_unmapped_siswa():
@@ -532,7 +543,7 @@ def test_get_family_summary_fallback_for_unmapped_siswa():
     assert len(families) == 1
     fam = families[0]
     assert fam["family_key"] == "9999999"
-    assert fam["label"] == "Keluarga Grup"
+    assert fam["label"] == "Orang Baru Tanpa Grup"
     assert fam["members"][0]["nama"] == "Orang Baru Tanpa Grup"
 
 
@@ -549,6 +560,27 @@ def test_get_family_summary_total_equals_sum_of_members():
     fam3 = get_family_summary(COMPANY_ID)[0]
     assert fam3["total_realisasi"] == sum(m["realisasi"] for m in fam3["members"])
     assert fam3["total_realisasi"] == 1000000
+
+
+def test_get_family_summary_member_kategori_lists_realized_categories_in_canonical_order():
+    _add_siswa("5260001", "Claudia Samaoen")
+    add_payment_batch(COMPANY_ID, "5260001", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Tunjangan", "cat2": "Bulanan", "amount": 500000},
+         {"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 700000}])
+    _mark_complete("5260001")
+
+    fam = get_family_summary(COMPANY_ID)[0]
+    assert fam["members"][0]["kategori"] == "By Pendidikan, By Tunjangan"
+
+
+def test_get_family_summary_member_kategori_excludes_incomplete_payments():
+    _add_siswa("5260001", "Claudia Samaoen")
+    add_payment_batch(COMPANY_ID, "5260001", "2026-01-15", "SETF", "ETF",
+        [{"cat1": "By Medical", "cat2": "Rawat Jalan", "amount": 500000}])
+    # not marked complete -> shouldn't count as realized kategori
+
+    fam = get_family_summary(COMPANY_ID)[0]
+    assert fam["members"][0]["kategori"] == ""
 
 
 def test_get_family_summary_respects_year_and_pillar_filters():
@@ -581,3 +613,14 @@ def test_get_latest_payments_filters_by_kategori():
     rows = get_latest_payments(COMPANY_ID, kategori="By Tunjangan")
     assert len(rows) == 1
     assert rows[0]["amount"] == 2000000
+
+
+def test_get_latest_payments_includes_cat2():
+    _add_siswa("9990121", "Siswa Latest Kategori Dua")
+    add_payment_batch(COMPANY_ID, "9990121", "2026-01-10", "SETF", "ETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+    _mark_complete("9990121")
+
+    from modules.sahabat_etf.service import get_latest_payments
+    rows = get_latest_payments(COMPANY_ID)
+    assert rows[0]["cat2"] == "Semester 1"

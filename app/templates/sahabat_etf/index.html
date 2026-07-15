@@ -3,11 +3,12 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 {% endblock %}
 {% block content %}
 <div class="budget-page">
-  <h1>Sahabat ETF</h1>
-  <p style="color:var(--text-muted);margin-top:-.5rem">Eka Tjipta Foundation / Beasiswa / Sahabat ETF</p>
+  <div class="setf-print-header">Disajikan dalam jutaan Rupiah</div>
+  <h1>Dashboard Sahabat ETF</h1>
 
   {% if wrong_company %}
   <div class="budget-card">
@@ -53,6 +54,7 @@
       <div class="budget-toolbar">
         <a class="budget-btn" id="setf-export-summary" href="{{ url_for('sahabat_etf.export_summary') }}">Export Ringkasan (CSV)</a>
         <a class="budget-btn" id="setf-export-detail" href="{{ url_for('sahabat_etf.export_detail') }}">Export Detail Transaksi (CSV)</a>
+        <button type="button" class="budget-btn" id="setf-export-pdf" onclick="setfExportPdf()">Export PDF (Print)</button>
       </div>
 
       <div class="budget-summary-grid" id="setf-summary"></div>
@@ -68,8 +70,8 @@
     <summary>Grafik</summary>
     <div class="setf-accordion-body">
       <div class="setf-grafik-grid">
-        <div class="budget-chart-card"><h3>Realisasi per Bulan</h3><canvas id="chart-bulanan"></canvas></div>
-        <div class="budget-chart-card"><h3>Realisasi per Tahun</h3><canvas id="chart-tahunan"></canvas></div>
+        <div class="budget-chart-card"><h3>Trend per Bulan</h3><canvas id="chart-bulanan"></canvas></div>
+        <div class="budget-chart-card"><h3>Trend per Tahun</h3><canvas id="chart-tahunan"></canvas></div>
 
         <div class="budget-chart-card setf-compact-card">
           <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
@@ -85,6 +87,17 @@
           <div class="setf-compact-scroll">
             <table id="setf-pillar-table">
               <thead><tr><th>Pillar</th><th>Budget</th><th>Realisasi</th><th>Sisa</th></tr></thead>
+              <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="budget-chart-card"><h3>Realisasi per Keluarga</h3><canvas id="chart-keluarga"></canvas></div>
+        <div class="budget-chart-card setf-compact-card">
+          <h3>Realisasi per Keluarga (Tabel)</h3>
+          <div class="setf-compact-scroll">
+            <table id="setf-family-table">
+              <thead><tr><th>Keluarga</th><th>Nama</th><th>Kategori Realisasi</th><th class="num-right">Realisasi</th></tr></thead>
               <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
             </table>
           </div>
@@ -111,10 +124,11 @@
                   <th>Tanggal</th>
                   <th>Nama</th>
                   <th>Kategori</th>
+                  <th>Kategori 2</th>
                   <th class="num-right">Realisasi</th>
                 </tr>
               </thead>
-              <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+              <tbody><tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -122,26 +136,15 @@
     </div>
   </details>
 
-  <details class="setf-accordion" id="setf-detail-tabel">
+  <details class="setf-accordion" id="setf-detail-tabel" open>
     <summary>Detail Tabel</summary>
     <div class="setf-accordion-body">
-      <div class="table-wrap">
-        <h3>Realisasi per Keluarga</h3>
-        <canvas id="chart-keluarga"></canvas>
-        <div class="setf-compact-scroll">
-          <table id="setf-family-table">
-            <thead><tr><th>Keluarga</th><th>Nama</th><th class="num-right">Realisasi</th></tr></thead>
-            <tbody><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
       <div class="table-wrap">
         <h3>Rincian Budget vs Realisasi per Anggota</h3>
         <table id="setf-table">
           <thead>
             <tr><th>Nama</th><th>Jenjang</th><th>Angkatan</th><th>Status</th>
-                <th>Budget</th><th>Payment</th><th>Realisasi</th><th>Sisa</th></tr>
+                <th>Budget</th><th>Klaim</th><th>Realisasi</th><th>Sisa</th></tr>
           </thead>
           <tbody><tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
         </table>

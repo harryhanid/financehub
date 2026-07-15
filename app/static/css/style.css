@@ -1576,3 +1576,10 @@ td:has(.empty-state) { padding: 0 !important; }
 
 /* ── Table hover left-accent dark mode ───────────────── */
 [data-theme="dark"] tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--accent) !important; }
+
+/* ── Print (Export PDF) ──────────────────────────────── */
+@media print {
+  .navbar, #fh-cmd-ov, #modal-confirm { display: none !important; }
+  .main { margin-top: 0; padding: 0; min-height: 0; }
+  body { background: #fff !important; }
+}
