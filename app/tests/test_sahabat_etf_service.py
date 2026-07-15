@@ -792,3 +792,26 @@ def test_build_report_data_combined_recap_includes_siswa_from_both_sections():
     data = build_report_data(COMPANY_ID, 2026)
     names = sorted(r["nama"] for r in data["combined_recap"])
     assert names == ["Siswa Kesehatan Saja", "Siswa Pendidikan Saja"]
+
+
+def test_build_report_data_pillar_breakdown_totals_and_percentages():
+    _add_siswa("9993090", "Siswa Pillar A", jenjang="S1")
+    _add_siswa("9993091", "Siswa Pillar B", jenjang="S1")
+    add_budget_batch(COMPANY_ID, "9993090", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 3000000}])
+    add_budget_batch(COMPANY_ID, "9993091", "2026-01-10", "APP",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    by_label = {p["pillar_label"]: p for p in data["pillar_breakdown"]}
+    assert by_label["SAHABAT ETF"]["cur"]["plafon"] == 3000000
+    assert by_label["APP"]["cur"]["plafon"] == 1000000
+    assert round(by_label["SAHABAT ETF"]["pct_cur"]["plafon"], 3) == 0.75
+    assert round(by_label["APP"]["pct_cur"]["plafon"], 3) == 0.25
+    assert [p["pillar_label"] for p in data["pillar_breakdown"]] == ["SAHABAT ETF", "APP"]
+
+
+def test_build_report_data_pillar_breakdown_empty_when_no_data():
+    data = build_report_data(COMPANY_ID, 2026)
+    assert data["pillar_breakdown"] == []
+    assert data["grand_total"]["cur"]["plafon"] == 0

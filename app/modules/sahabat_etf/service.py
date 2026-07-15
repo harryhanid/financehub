@@ -170,6 +170,58 @@ def _build_recap(section_key: str, buckets: dict) -> list:
     return recap
 
 
+_PILLAR_LABELS = {"SETF": "SAHABAT ETF"}
+
+
+def _pillar_display_label(pillar_code: str) -> str:
+    return _PILLAR_LABELS.get(pillar_code, pillar_code)
+
+
+def _safe_pct(value: float, total: float) -> float:
+    return (value / total) if total else 0.0
+
+
+def _build_pillar_breakdown(company_id: int, report_year: int, grand_total: dict) -> list:
+    budget_rows, payment_rows = _fetch_report_rows(company_id)
+    by_pillar = {}
+
+    def bucket(pillar_code):
+        if pillar_code not in by_pillar:
+            by_pillar[pillar_code] = {"cur": _empty_metrics(), "cum": _empty_metrics()}
+        return by_pillar[pillar_code]
+
+    for r in budget_rows:
+        pillar_code = r["pillar"] or "(Tanpa Pillar)"
+        tahun, amount = r["tahun"], float(r["amount"] or 0)
+        b = bucket(pillar_code)
+        if tahun == report_year:
+            _add_metrics(b["cur"], plafon=amount)
+        if tahun is not None and tahun <= report_year:
+            _add_metrics(b["cum"], plafon=amount)
+
+    for r in payment_rows:
+        pillar_code = r["pillar"] or "(Tanpa Pillar)"
+        tahun, amount = r["tahun"], float(r["amount"] or 0)
+        dibayar = amount if r["status"] == "complete" else 0.0
+        b = bucket(pillar_code)
+        if tahun == report_year:
+            _add_metrics(b["cur"], klaim=amount, dibayar=dibayar)
+        if tahun is not None and tahun <= report_year:
+            _add_metrics(b["cum"], klaim=amount, dibayar=dibayar)
+
+    result = []
+    for pillar_code, metrics in by_pillar.items():
+        pct_cur = {k: _safe_pct(metrics["cur"][k], grand_total["cur"][k]) for k in metrics["cur"]}
+        pct_cum = {k: _safe_pct(metrics["cum"][k], grand_total["cum"][k]) for k in metrics["cum"]}
+        result.append({
+            "pillar_label": _pillar_display_label(pillar_code),
+            "cur": metrics["cur"], "cum": metrics["cum"],
+            "pct_cur": pct_cur, "pct_cum": pct_cum,
+        })
+    result.sort(key=lambda p: p["cum"]["plafon"], reverse=True)
+    return result
+
+
 def build_report_data(company_id: int, report_year: int) -> dict:
     buckets = _build_buckets(company_id, report_year)
     sections = []
@@ -202,6 +254,7 @@ def build_report_data(company_id: int, report_year: int) -> dict:
         "combined_total": combined_total,
         "combined_recap": combined_recap,
         "grand_total": combined_total,
+        "pillar_breakdown": _build_pillar_breakdown(company_id, report_year, combined_total),
     }
 
 
