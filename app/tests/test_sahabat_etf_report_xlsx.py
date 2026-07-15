@@ -29,7 +29,7 @@ def _sample_data():
 def _sample_data_with_content():
     sd_row = {"nama": "Richard Widjaja", "pillar": "SETF",
               "cur": _metrics(45_000_000, 12_135_000, 12_135_000),
-              "cum": _metrics(45_000_000, 12_135_000, 12_135_000)}
+              "cum": _metrics(90_000_000, 24_270_000, 24_270_000)}
     sd_group = {"key": "SD", "label": "SD",
                 "subtotal": {"cur": sd_row["cur"], "cum": sd_row["cum"]},
                 "siswa_rows": [sd_row]}
@@ -91,5 +91,6 @@ def test_build_report_workbook_writes_section_group_and_siswa_row():
     assert "TOTAL PENDIDIKAN" in all_b_values
 
     richard_row = next(r for r, v in values.items() if v.get("B") == "Richard Widjaja")
-    assert values[richard_row]["G"] == 45.0   # 45,000,000 / 1,000,000
+    assert values[richard_row]["G"] == 45.0   # cur.plafon = 45,000,000 / 1,000,000
+    assert values[richard_row]["K"] == 90.0   # cum.plafon = 90,000,000 / 1,000,000 (ensures cur/cum not swapped)
     assert values[richard_row]["F"] == "SETF"

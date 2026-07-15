@@ -148,9 +148,9 @@ def _write_section(ws, row, section):
         _write_metrics_row(ws, row, group["subtotal"], font=_FONT_SUBTOTAL)
         row += 1
         for siswa_row in group["siswa_rows"]:
-            _set(ws, f"B{row}", siswa_row["nama"], font=_FONT_NORMAL, align=_ALIGN_LEFT,
-                 border=Border(top=_THIN, bottom=_THIN, left=_MEDIUM))
-            _set(ws, f"F{row}", siswa_row["pillar"], font=_FONT_PILLAR,
+            _set(ws, f"B{row}", siswa_row["nama"], font=_FONT_NORMAL, fill=_FILL_LIGHT_BLUE,
+                 align=_ALIGN_LEFT, border=Border(top=_THIN, bottom=_THIN, left=_MEDIUM))
+            _set(ws, f"F{row}", siswa_row["pillar"], font=_FONT_PILLAR, fill=_FILL_LIGHT_BLUE,
                  align=_ALIGN_CENTER, border=_BORDER_ROW)
             _write_metrics_row(ws, row, siswa_row, font=_FONT_NORMAL, fill=_FILL_LIGHT_BLUE)
             row += 1
