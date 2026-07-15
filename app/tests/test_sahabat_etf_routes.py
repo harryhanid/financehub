@@ -320,6 +320,31 @@ def test_api_breakdown_respects_multiple_pillars_query_param(client):
     assert by_cat["By Pendidikan"]["payment"] == 1200000
 
 
+def test_api_family_summary_returns_grouped_families(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "5260001", "nama": "Claudia Samaoen", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    resp = client.get("/beasiswa/sahabat/api/family_summary")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "families" in data
+    assert len(data["families"]) == 1
+    assert data["families"][0]["family_key"] == "fam5"
+    assert data["families"][0]["label"] == "Keluarga Samaoen"
+
+
+def test_api_family_summary_returns_403_for_non_etf_company(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/beasiswa/sahabat/api/family_summary")
+    assert resp.status_code == 403
+    assert resp.get_json()["ok"] is False
+
+
 def test_api_latest_payments_kategori_filter_raises_limit_to_30(client):
     login(client)
     _select_etf(client)

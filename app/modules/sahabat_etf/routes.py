@@ -5,7 +5,7 @@ from auth.middleware import jwt_html_required
 from modules.sahabat_etf.service import (
     get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
     get_available_years, get_available_pillars, get_monthly_breakdown, get_latest_payments,
-    get_pillar_breakdown, get_yearly_breakdown,
+    get_pillar_breakdown, get_yearly_breakdown, get_family_summary,
 )
 
 bp = Blueprint("sahabat_etf", __name__, url_prefix="/beasiswa/sahabat")
@@ -93,6 +93,14 @@ def api_monthly():
     if not years:
         return jsonify({"ok": False, "pesan": "Parameter years wajib diisi."}), 400
     return jsonify(get_monthly_breakdown(_cid(), years, pillars))
+
+
+@bp.route("/api/family_summary")
+@jwt_html_required
+@etf_company_required
+def api_family_summary():
+    years, pillars = _parse_filters()
+    return jsonify({"families": get_family_summary(_cid(), years, pillars)})
 
 
 @bp.route("/api/latest_payments")
