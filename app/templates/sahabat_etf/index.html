@@ -17,6 +17,10 @@
   </div>
   {% else %}
 
+  <p style="color:var(--text-muted);font-size:.8rem;margin-bottom:1rem">
+    Semua nilai pada dashboard ini ditampilkan dalam jutaan rupiah (Jt).
+  </p>
+
   <details class="setf-accordion" open>
     <summary>Ringkasan &amp; Alert</summary>
     <div class="setf-accordion-body">
@@ -54,7 +58,7 @@
       <div class="budget-summary-grid" id="setf-summary"></div>
 
       <div class="budget-card" id="setf-alert-card" style="display:none">
-        <h3>Siswa Over-Budget</h3>
+        <h3>Anggota Over-Budget</h3>
         <ul id="setf-alert-list"></ul>
       </div>
     </div>

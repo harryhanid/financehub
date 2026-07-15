@@ -14,7 +14,7 @@ function setfColorForCategory(name) {
 
 function setfFmtJutaan(amount) {
   const jt = (amount || 0) / 1000000;
-  return jt.toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " Jt";
+  return jt.toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 function setfThemeColor(varName, fallback) {
@@ -136,7 +136,7 @@ function setfRenderSummaryCards(rows) {
   const totalRealisasi = rows.reduce(function (s, r) { return s + r.realisasi_total; }, 0);
   const totalSisa = rows.reduce(function (s, r) { return s + r.sisa_budget; }, 0);
   const cards = [
-    ["Total Siswa Aktif", totalSiswa, ""],
+    ["Total Anggota Aktif", totalSiswa, ""],
     ["Total Budget", setfFmtJutaan(totalBudget), ""],
     ["Total Payment", setfFmtJutaan(totalPayment), ""],
     ["Total Realisasi", setfFmtJutaan(totalRealisasi), " setf-stat-realisasi"],
@@ -158,7 +158,7 @@ function setfRenderSummarySkeleton() {
 function setfRenderTable(rows) {
   const tbody = document.querySelector("#setf-table tbody");
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Belum ada siswa Sahabat ETF.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Belum ada anggota Sahabat ETF.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(function (r) {
@@ -313,7 +313,7 @@ function setfApplyFilters() {
       setfRenderSummaryCards(data.rows);
       setfRenderTable(data.rows);
     })
-    .catch(function () { showToast("Gagal memuat ringkasan siswa.", "error"); });
+    .catch(function () { showToast("Gagal memuat ringkasan anggota.", "error"); });
 
   fetch("/beasiswa/sahabat/api/breakdown" + (qs ? "?" + qs : ""))
     .then(function (r) { return r.json(); })
