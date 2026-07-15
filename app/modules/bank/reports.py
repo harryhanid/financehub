@@ -75,6 +75,7 @@ _MONTH_NAMES_ID = [
 _MONTH_ABBR_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 _NUM_FMT = '_-* #,##0_-;\\-* #,##0_-;_-* "-"??_-;_-@_-'
 _FIRST_MONTH_COL = 3  # column C
+_EMPTY_SECTION_FORMULA = "=SUM(A1)"  # column A is never written elsewhere on this sheet, so this reliably evaluates to 0
 
 
 def _write_section(ws, start_row, title, data, months):
@@ -107,7 +108,7 @@ def _write_section(ws, start_row, title, data, months):
     ws.cell(r, 2, "Subtotal").font = section_font
     for k in range(n_months):
         col_letter = get_column_letter(_FIRST_MONTH_COL + k)
-        formula = f"=SUM({col_letter}{label_rows[0]}:{col_letter}{label_rows[-1]})" if label_rows else "=SUM(A1)"
+        formula = f"=SUM({col_letter}{label_rows[0]}:{col_letter}{label_rows[-1]})" if label_rows else _EMPTY_SECTION_FORMULA
         c = ws.cell(r, _FIRST_MONTH_COL + k, formula)
         c.number_format = _NUM_FMT
         c.font = section_font
@@ -115,7 +116,7 @@ def _write_section(ws, start_row, title, data, months):
     if label_rows:
         formula = f"=SUM({total_letter}{label_rows[0]}:{total_letter}{label_rows[-1]})"
     else:
-        formula = "=SUM(A1)"
+        formula = _EMPTY_SECTION_FORMULA
     c = ws.cell(r, total_col, formula)
     c.number_format = _NUM_FMT
     c.font = section_font
