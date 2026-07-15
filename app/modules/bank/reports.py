@@ -107,7 +107,7 @@ def _write_section(ws, start_row, title, data, months):
     ws.cell(r, 2, "Subtotal").font = section_font
     for k in range(n_months):
         col_letter = get_column_letter(_FIRST_MONTH_COL + k)
-        formula = f"=SUM({col_letter}{label_rows[0]}:{col_letter}{label_rows[-1]})" if label_rows else 0
+        formula = f"=SUM({col_letter}{label_rows[0]}:{col_letter}{label_rows[-1]})" if label_rows else "=SUM(A1)"
         c = ws.cell(r, _FIRST_MONTH_COL + k, formula)
         c.number_format = _NUM_FMT
         c.font = section_font
@@ -115,7 +115,7 @@ def _write_section(ws, start_row, title, data, months):
     if label_rows:
         formula = f"=SUM({total_letter}{label_rows[0]}:{total_letter}{label_rows[-1]})"
     else:
-        formula = 0
+        formula = "=SUM(A1)"
     c = ws.cell(r, total_col, formula)
     c.number_format = _NUM_FMT
     c.font = section_font

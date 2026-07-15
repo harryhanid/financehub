@@ -171,6 +171,31 @@ def test_build_laporan_mutasi_excel_only_returns_data_for_requested_company():
     assert "SMT Only Entry" not in all_values
 
 
+def test_build_laporan_mutasi_excel_empty_section_subtotal_is_formula_not_zero():
+    # With no bank_setf rows at all, every section (Penerimaan, Bank, Sahabat ETF)
+    # has zero label rows. Subtotal (and grand-total) cells must still be live
+    # Excel formulas, never a bare Python int/float 0 — per the project constraint
+    # that Subtotal/Total/SALDO AKHIR cells are always formulas so recipients can
+    # audit the report in Excel.
+    result = build_laporan_mutasi_excel(2, today=datetime(2026, 7, 15))
+    wb = openpyxl.load_workbook(io.BytesIO(result))
+    ws = wb["ALL"]
+
+    subtotal_rows = [
+        r for r in range(1, 30) if ws.cell(r, 2).value == "Subtotal"
+    ]
+    assert len(subtotal_rows) == 3  # Penerimaan, Bank, Sahabat ETF sections
+
+    for r in subtotal_rows:
+        for c in range(3, 8):  # month columns through grand-total column
+            value = ws.cell(r, c).value
+            if value is None:
+                continue
+            assert isinstance(value, str) and value.startswith("="), (
+                f"Subtotal cell at row {r} col {c} is {value!r}, expected a formula string"
+            )
+
+
 def test_build_laporan_mutasi_excel_zero_activity_month_still_shows_as_column():
     # Nov has a transaction, Des has none, Jan has a transaction — Des must still
     # appear as its own column with 0, not be skipped from the month range.
