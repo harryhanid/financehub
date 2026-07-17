@@ -1626,7 +1626,8 @@ function renderOpenPAM(drafts) {
         '<td class="num-right">' + fmtRupiah(d.amount) + '</td>' +
         '<td style="white-space:nowrap">' +
           '<button class="btn btn-secondary btn-sm" onclick="openEditDraft(' + d.id + ');event.stopPropagation()">Edit</button> ' +
-          '<button class="btn btn-danger btn-sm" onclick="removeStudentFromPAM(' + d.id + ', ' + JSON.stringify(esc(d.nama || d.siswa_code || '')).replace(/"/g, '&quot;') + ');event.stopPropagation()">Hapus</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="removeStudentFromPAM(' + d.id + ', ' + JSON.stringify(esc(d.nama || d.siswa_code || '')).replace(/"/g, '&quot;') + ');event.stopPropagation()">Hapus</button> ' +
+          '<button class="btn btn-danger btn-sm" style="background:#7c2d12" onclick="rejectStudentFromPAM(' + d.id + ', ' + JSON.stringify(esc(d.nama || d.siswa_code || '')).replace(/"/g, '&quot;') + ');event.stopPropagation()">Reject</button>' +
         '</td>' +
         '</tr>';
     });
@@ -3411,6 +3412,32 @@ async function removeStudentFromPAM(paymentBeasiswaId, namaLabel) {
   }
 }
 
+// ── Reject student from Open PAM ──────────────────────────────────────────────
+async function rejectStudentFromPAM(paymentBeasiswaId, namaLabel) {
+  const label = namaLabel || 'siswa ini';
+  if (!await confirmModal(
+    'Reject ' + label + ' dari PAM ini?\nData akan disimpan dengan status Rejected (tidak dihapus), dan PA terkait tidak bisa dipakai lagi.',
+    { type: 'danger', confirmText: 'Reject' }
+  )) return;
+  const reason = prompt('Alasan reject (opsional):');
+  if (reason === null) return;
+  showLoading("Merejek dari PAM...");
+  try {
+    const res = await apiFetch('/payment-memo/pam/reject-student', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payment_beasiswa_id: paymentBeasiswaId, reason: reason || null })
+    });
+    if (!res) return;
+    const data = await res.json();
+    showToast(data.pesan, data.ok ? 'success' : 'error');
+    if (data.ok) {
+      setTimeout(() => location.reload(), 800);
+    }
+  } finally {
+    hideLoading();
+  }
+}
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
