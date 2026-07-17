@@ -481,6 +481,7 @@
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
         <option value="complete">Complete</option>
+        <option value="rejected">Rejected</option>
       </select>
       <select id="pam-filter-source" onchange="loadPAMDebounced()"
               style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
@@ -593,6 +594,7 @@
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
         <option value="complete">Complete</option>
+        <option value="rejected">Rejected</option>
       </select>
       <select id="fiori-filter-source" onchange="loadFIORIDebounced()"
               style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
@@ -696,6 +698,7 @@
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
         <option value="complete">Complete</option>
+        <option value="rejected">Rejected</option>
       </select>
       <select id="sml-filter-source" onchange="loadSMLDebounced()"
               style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
@@ -777,6 +780,7 @@
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
         <option value="complete">Complete</option>
+        <option value="rejected">Rejected</option>
       </select>
       <select id="smt-filter-source" onchange="loadSMTDebounced()"
               style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
@@ -880,6 +884,7 @@
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
+        <option value="rejected">Rejected</option>
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('ADVANCE')">&#8595; Export Excel</button>
       <span id="advance-count" style="font-size:11px;color:var(--text-muted)"></span>
@@ -943,6 +948,7 @@
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
         <option value="complete">Complete</option>
+        <option value="rejected">Rejected</option>
       </select>
       <select id="setf-filter-source" onchange="loadSETFDebounced()"
               style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
@@ -1014,6 +1020,7 @@
         <option value="open">Open</option>
         <option value="paid">Paid</option>
         <option value="complete">Complete</option>
+        <option value="rejected">Rejected</option>
       </select>
       <span id="pa-advance-count" style="font-size:11px;color:var(--text-muted)"></span>
     </div>
@@ -2791,6 +2798,7 @@ function _statusBadge(status) {
     open:       'background:#fef3c7;color:#92400e;border:1px solid #d97706',
     on_process: 'background:#dbeafe;color:#1e40af;border:1px solid #3b82f6',
     complete:   'background:#d1fae5;color:#065f46;border:1px solid #059669',
+    rejected:   'background:#fef2f2;color:#991b1b;border:1px solid #fecaca',
   };
   const st = styles[status] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
   return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${st}">${esc(status || '-')}</span>`;
