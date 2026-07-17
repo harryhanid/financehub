@@ -250,3 +250,53 @@ def test_pa_not_reverted_if_has_other_payment():
     assert pa["status"] == "on_process", \
         f"etf_pa status seharusnya tetap 'on_process', got '{pa['status']}'"
     conn.close()
+
+
+def test_remove_student_excludes_rejected_sibling_when_reverting_pa():
+    """One PA has 2 lines under DIFFERENT pam_no groups. Line B's payment is
+    already status='rejected'. Removing line A's payment (the last active one
+    for this PA) must still revert the PA to open."""
+    conn = get_conn()
+    sid1 = _insert_siswa(conn, "1250001")
+    sid2 = _insert_siswa(conn, "1250002")
+    pam_no_A = _insert_pam(conn, "PAM-ETF-06-2026-001", total=5_000_000)
+
+    cur = conn.execute(
+        """INSERT INTO etf_pa
+           (company_id, pa_number, tgl_payment_application, status, nomor_pam, created_at)
+           VALUES (?,?,?,?,?,?)""",
+        (COMPANY_ID, "PA/ETF/001/2026", "2026-06-01", "on_process", pam_no_A, _ts())
+    )
+    pa_id = cur.lastrowid
+    cur2 = conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_id, sid1, "By Pendidikan", 5_000_000)
+    )
+    line_A = cur2.lastrowid
+    cur3 = conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_id, sid2, "By Pendidikan", 5_000_000)
+    )
+    line_B = cur3.lastrowid
+
+    pb_A = _insert_payment_beasiswa(conn, pam_no_A, line_A, "1250001")
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, pam, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'rejected')""",
+        (COMPANY_ID, "1250002", "By Pendidikan", "Semester 3",
+         "2026-06-01", 5_000_000, "AGRI", "PT. SMART Tbk", None, line_B)
+    )
+    conn.commit()
+    conn.close()
+
+    result = remove_student_from_pam(pb_A, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pa = conn.execute("SELECT status, nomor_pam FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert pa["status"] == "open", \
+        f"PA should revert to open (rejected sibling doesn't count as active), got '{pa['status']}'"
+    assert pa["nomor_pam"] is None

@@ -1168,7 +1168,7 @@ def cancel_pam_record(pam_id: int, company_id: int) -> dict:
                     remaining = conn.execute(
                         f"""SELECT COUNT(*) FROM payment_beasiswa pb
                                JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
-                               WHERE el.pa_id=? AND pb.company_id=?""",
+                               WHERE el.pa_id=? AND pb.company_id=? AND pb.status != 'rejected'""",
                         (pa_id_inner, company_id)
                     ).fetchone()[0]
                     if remaining == 0:
@@ -1262,7 +1262,7 @@ def remove_student_from_pam(payment_beasiswa_id: int, company_id: int) -> dict:
             still_has_payment = conn.execute(
                 f"""SELECT COUNT(*) FROM payment_beasiswa pb
                     JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
-                    WHERE el.pa_id=? AND pb.company_id=?""",
+                    WHERE el.pa_id=? AND pb.company_id=? AND pb.status != 'rejected'""",
                 (pa_id, company_id)
             ).fetchone()[0]
             if still_has_payment == 0:

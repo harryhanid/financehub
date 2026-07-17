@@ -752,7 +752,7 @@ def delete_payment_row(company_id: int, row_id: int) -> dict:
                 remaining_pa = conn.execute(
                     f"""SELECT COUNT(*) FROM payment_beasiswa pb
                            JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
-                           WHERE el.pa_id=? AND pb.company_id=?""",
+                           WHERE el.pa_id=? AND pb.company_id=? AND pb.status != 'rejected'""",
                     (pa_id, company_id)
                 ).fetchone()[0]
                 if remaining_pa == 0:
@@ -821,7 +821,7 @@ def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
                 remaining_pa = conn.execute(
                     f"""SELECT COUNT(*) FROM payment_beasiswa pb
                            JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
-                           WHERE el.pa_id=? AND pb.company_id=?""",
+                           WHERE el.pa_id=? AND pb.company_id=? AND pb.status != 'rejected'""",
                     (pa_id, company_id)
                 ).fetchone()[0]
                 if remaining_pa == 0:

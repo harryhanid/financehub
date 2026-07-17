@@ -10,7 +10,7 @@ from modules.beasiswa.service import (
     add_budget_batch, add_payment_batch, get_rekap, get_sisa_budget,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
     add_payment_multi, get_budget_list, get_payment_list,
-    delete_payment_beasiswa, update_payment_row,
+    delete_payment_beasiswa, delete_payment_row, update_payment_row,
 )
 
 COMPANY_ID = 2  # ETF
@@ -768,3 +768,87 @@ def test_update_payment_row_both_fields_uses_new_pam_for_tanggal_bayar():
     conn.close()
     assert old_pam["tanggal_bayar"] is None       # old PAM untouched
     assert new_pam["tanggal_bayar"] == "2026-06-20"  # new PAM got the date
+
+
+def test_delete_payment_row_excludes_rejected_sibling_when_reverting_pa():
+    """One PA has 2 lines. Line B's payment_beasiswa row is already
+    status='rejected' (simulating the future reject feature). Deleting line
+    A's payment (the last *active* one) must still revert the PA to 'open' —
+    the rejected sibling must not be counted as 'still active'."""
+    conn = get_conn()
+    sid, pa_id, line_a = _seed_siswa_and_pa(conn, COMPANY_ID)
+    cur = conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_id, sid, "By Pendidikan", 2000000)
+    )
+    line_b = cur.lastrowid
+    conn.execute("UPDATE etf_pa SET status='on_process' WHERE id=?", (pa_id,))
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
+            perusahaan, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,'open')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-07-01",
+         5000000, "AGRI", "PT ABC", line_a)
+    )
+    row_a_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
+            perusahaan, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,'rejected')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 2", "2026-07-01",
+         2000000, "AGRI", "PT ABC", line_b)
+    )
+    conn.commit()
+    conn.close()
+
+    result = delete_payment_row(COMPANY_ID, row_a_id)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pa = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert pa["status"] == "open", \
+        f"PA should revert to open (rejected sibling doesn't count as active), got '{pa['status']}'"
+
+
+def test_delete_payment_beasiswa_excludes_rejected_sibling_when_reverting_pa():
+    """Same as above, exercised through delete_payment_beasiswa instead of
+    delete_payment_row (the two functions duplicate this cascade separately)."""
+    conn = get_conn()
+    sid, pa_id, line_a = _seed_siswa_and_pa(conn, COMPANY_ID)
+    cur = conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_id, sid, "By Pendidikan", 2000000)
+    )
+    line_b = cur.lastrowid
+    conn.execute("UPDATE etf_pa SET status='on_process' WHERE id=?", (pa_id,))
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
+            perusahaan, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,'open')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-07-01",
+         5000000, "AGRI", "PT ABC", line_a)
+    )
+    row_a_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
+            perusahaan, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,'rejected')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 2", "2026-07-01",
+         2000000, "AGRI", "PT ABC", line_b)
+    )
+    conn.commit()
+    conn.close()
+
+    result = delete_payment_beasiswa(row_a_id, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pa = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert pa["status"] == "open", \
+        f"PA should revert to open (rejected sibling doesn't count as active), got '{pa['status']}'"

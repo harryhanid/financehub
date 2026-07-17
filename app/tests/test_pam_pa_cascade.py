@@ -259,6 +259,41 @@ def test_cancel_pam_reverts_setf_pa():
     assert row["nomor_pam"] is None
 
 
+def test_cancel_pam_excludes_rejected_sibling_when_reverting_pa():
+    """One PA has 2 lines: line_A is under the PAM being cancelled, line_B
+    belongs to an already-rejected payment_beasiswa row (no pam_no, simulating
+    a rejected line). Cancelling the PAM containing line_A must still revert
+    the PA to open — the rejected row must not count as still-active."""
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pa_id, line_a = _insert_pa(conn, "etf_pa", "etf_pa_lines", "ETF", sid, "on_process")
+    cur = conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_id, sid, "By Pendidikan", 2_000_000)
+    )
+    line_b = cur.lastrowid
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,'rejected')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 2",
+         "2026-06-01", 2_000_000, "AGRI", "PT. SMART Tbk", line_b)
+    )
+    pam_id, _ = _insert_pam_and_link(conn, "etf_pa", "etf_pa_lines", pa_id, line_a)
+    conn.close()
+
+    result = cancel_pam_record(pam_id, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    row = conn.execute("SELECT status, nomor_pam FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert row["status"] == "open", \
+        f"PA should revert to open (rejected sibling doesn't count as active), got '{row['status']}'"
+    assert row["nomor_pam"] is None
+
+
 # ── set_pam_complete_cascade tests ───────────────────────────────────────────
 
 from modules.payment_memo.service import set_pam_complete_cascade
