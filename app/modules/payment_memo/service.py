@@ -1278,6 +1278,98 @@ def remove_student_from_pam(payment_beasiswa_id: int, company_id: int) -> dict:
     return {"ok": True, "pesan": "Siswa berhasil dikeluarkan dari PAM."}
 
 
+def reject_student_from_pam(payment_beasiswa_id: int, company_id: int, reason: str | None = None) -> dict:
+    """Reject satu siswa dari Open PAM — sama seperti remove_student_from_pam,
+    tapi data DIPERTAHANKAN (status='rejected') alih-alih di-DELETE:
+    1. UPDATE payment_beasiswa SET status='rejected' (bukan DELETE)
+    2. Recalculate pam_records.total_amount dari sisa baris non-rejected
+       (atau set pam_records.status='rejected' jika tidak ada sisa yang aktif)
+    3. Set PA terkait ke 'rejected' jika tidak ada payment aktif tersisa
+       (bukan revert ke 'open')
+    """
+    conn = get_conn()
+    now = _ts()
+
+    pb = conn.execute(
+        "SELECT id, pam, etf_pa_line_id, amount FROM payment_beasiswa WHERE id=? AND company_id=?",
+        (payment_beasiswa_id, company_id)
+    ).fetchone()
+    if not pb:
+        conn.close()
+        return {"ok": False, "pesan": "Payment tidak ditemukan."}
+
+    pam_no  = pb["pam"]
+    line_id = pb["etf_pa_line_id"]
+
+    pam_rec = conn.execute(
+        "SELECT id, status FROM pam_records WHERE pam_no=? AND company_id=?",
+        (pam_no, company_id)
+    ).fetchone()
+    if not pam_rec:
+        conn.close()
+        return {"ok": False, "pesan": "PAM tidak ditemukan."}
+    if pam_rec["status"] != "open":
+        conn.close()
+        return {"ok": False, "pesan": "PAM sudah diproses, tidak dapat mengubah siswa."}
+
+    conn.execute(
+        "UPDATE payment_beasiswa SET status='rejected', reject_reason=? WHERE id=? AND company_id=?",
+        (reason, payment_beasiswa_id, company_id)
+    )
+
+    remaining_active = conn.execute(
+        "SELECT COUNT(*) FROM payment_beasiswa WHERE pam=? AND company_id=? AND status != 'rejected'",
+        (pam_no, company_id)
+    ).fetchone()[0]
+
+    if remaining_active == 0:
+        conn.execute(
+            "UPDATE pam_records SET status='rejected', reject_reason=?, updated_at=? WHERE pam_no=? AND company_id=?",
+            (reason, now, pam_no, company_id)
+        )
+    else:
+        new_total = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM payment_beasiswa WHERE pam=? AND company_id=? AND status != 'rejected'",
+            (pam_no, company_id)
+        ).fetchone()[0]
+        conn.execute(
+            "UPDATE pam_records SET total_amount=?, updated_at=? WHERE pam_no=? AND company_id=?",
+            (new_total, now, pam_no, company_id)
+        )
+
+    if line_id:
+        for lines_tbl, pa_tbl in [
+            ("etf_pa_lines",    "etf_pa"),
+            ("app_pa_lines",    "app_pa"),
+            ("sml_pa_lines",    "sml_pa"),
+            ("energy_pa_lines", "energy_pa"),
+            ("setf_pa_lines",   "setf_pa"),
+        ]:
+            pa_row = conn.execute(
+                f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (line_id,)
+            ).fetchone()
+            if not pa_row:
+                continue
+            pa_id = pa_row[0]
+            still_has_payment = conn.execute(
+                f"""SELECT COUNT(*) FROM payment_beasiswa pb
+                    JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
+                    WHERE el.pa_id=? AND pb.company_id=? AND pb.status != 'rejected'""",
+                (pa_id, company_id)
+            ).fetchone()[0]
+            if still_has_payment == 0:
+                conn.execute(
+                    f"UPDATE {pa_tbl} SET status='rejected', reject_reason=?, updated_at=? "
+                    f"WHERE id=? AND company_id=?",
+                    (reason, now, pa_id, company_id)
+                )
+            break  # line_id hanya bisa ada di satu PA table
+
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Siswa berhasil di-reject dari PAM."}
+
+
 def get_pam_detail(pam_id: int, company_id: int) -> dict | None:
     conn = get_conn()
     pam = conn.execute(

@@ -300,3 +300,151 @@ def test_remove_student_excludes_rejected_sibling_when_reverting_pa():
     assert pa["status"] == "open", \
         f"PA should revert to open (rejected sibling doesn't count as active), got '{pa['status']}'"
     assert pa["nomor_pam"] is None
+
+
+def test_reject_one_of_many_students():
+    """Reject 1 siswa dari PAM yang punya 3 siswa:
+    - payment_beasiswa row TETAP ADA, status berubah jadi 'rejected'
+    - pam_records.total_amount direcalculate ke 10jt (tidak menghitung yang rejected)
+    - pam_records.status TETAP 'open' (masih ada 2 siswa aktif)
+    - etf_pa siswa tersebut di-set 'rejected' (bukan 'open')
+    - 2 siswa lain tidak berubah
+    """
+    from modules.payment_memo.service import reject_student_from_pam
+    conn = get_conn()
+    sid1 = _insert_siswa(conn, "1250001")
+    sid2 = _insert_siswa(conn, "1250002")
+    sid3 = _insert_siswa(conn, "1250003")
+    pam_no = _insert_pam(conn, total=15_000_000)
+
+    pa1_id, line1_id = _insert_etf_pa_with_line(conn, "PA/ETF/001/2026", pam_no, sid1)
+    pa2_id, line2_id = _insert_etf_pa_with_line(conn, "PA/ETF/002/2026", pam_no, sid2)
+    pa3_id, line3_id = _insert_etf_pa_with_line(conn, "PA/ETF/003/2026", pam_no, sid3)
+
+    pb1_id = _insert_payment_beasiswa(conn, pam_no, line1_id, "1250001")
+    _insert_payment_beasiswa(conn, pam_no, line2_id, "1250002")
+    _insert_payment_beasiswa(conn, pam_no, line3_id, "1250003")
+    conn.close()
+
+    result = reject_student_from_pam(pb1_id, COMPANY_ID, reason="Data ganda")
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pb = conn.execute(
+        "SELECT status, reject_reason FROM payment_beasiswa WHERE id=?", (pb1_id,)
+    ).fetchone()
+    assert pb is not None, "payment_beasiswa row harus tetap ada"
+    assert pb["status"] == "rejected"
+    assert pb["reject_reason"] == "Data ganda"
+
+    pam = conn.execute(
+        "SELECT total_amount, status FROM pam_records WHERE pam_no=? AND company_id=?",
+        (pam_no, COMPANY_ID)
+    ).fetchone()
+    assert pam["total_amount"] == 10_000_000, \
+        f"total_amount expected 10000000 (excludes rejected row), got {pam['total_amount']}"
+    assert pam["status"] == "open"
+
+    pa1 = conn.execute("SELECT status, nomor_pam FROM etf_pa WHERE id=?", (pa1_id,)).fetchone()
+    assert pa1["status"] == "rejected", f"etf_pa 1 status expected 'rejected', got '{pa1['status']}'"
+
+    pa2 = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa2_id,)).fetchone()
+    assert pa2["status"] == "on_process"
+    pa3 = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa3_id,)).fetchone()
+    assert pa3["status"] == "on_process"
+    conn.close()
+
+
+def test_reject_last_student_marks_pam_rejected():
+    """Reject siswa terakhir dalam PAM:
+    - payment_beasiswa row status='rejected' (masih ada)
+    - pam_records.status juga jadi 'rejected' (tidak ada sisa siswa aktif)
+    - etf_pa di-set 'rejected'
+    """
+    from modules.payment_memo.service import reject_student_from_pam
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pam_no = _insert_pam(conn, total=5_000_000)
+    pa_id, line_id = _insert_etf_pa_with_line(conn, "PA/ETF/001/2026", pam_no, sid)
+    pb_id = _insert_payment_beasiswa(conn, pam_no, line_id)
+    conn.close()
+
+    result = reject_student_from_pam(pb_id, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pb = conn.execute("SELECT status FROM payment_beasiswa WHERE id=?", (pb_id,)).fetchone()
+    assert pb["status"] == "rejected"
+
+    pam = conn.execute(
+        "SELECT status FROM pam_records WHERE pam_no=? AND company_id=?",
+        (pam_no, COMPANY_ID)
+    ).fetchone()
+    assert pam is not None, "pam_records harus tetap ada (tidak dihapus)"
+    assert pam["status"] == "rejected"
+
+    pa = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    assert pa["status"] == "rejected"
+    conn.close()
+
+
+def test_reject_blocked_if_pam_not_open():
+    """Jika pam_records.status != 'open', reject ditolak dan tidak ada perubahan DB."""
+    from modules.payment_memo.service import reject_student_from_pam
+    conn = get_conn()
+    sid = _insert_siswa(conn)
+    pam_no = _insert_pam(conn, total=5_000_000, status="on_process")
+    pa_id, line_id = _insert_etf_pa_with_line(conn, "PA/ETF/001/2026", pam_no, sid)
+    pb_id = _insert_payment_beasiswa(conn, pam_no, line_id)
+    conn.close()
+
+    result = reject_student_from_pam(pb_id, COMPANY_ID)
+    assert result["ok"] is False
+
+    conn = get_conn()
+    pb = conn.execute("SELECT status FROM payment_beasiswa WHERE id=?", (pb_id,)).fetchone()
+    assert pb["status"] == "open", "payment_beasiswa seharusnya tidak berubah"
+    conn.close()
+
+
+def test_reject_pa_not_rejected_if_has_other_active_payment():
+    """Jika PA punya 2 line, dan line lain masih punya payment_beasiswa aktif,
+    PA tidak di-reject saat salah satu payment di-reject."""
+    from modules.payment_memo.service import reject_student_from_pam
+    conn = get_conn()
+    sid1 = _insert_siswa(conn, "1250001")
+    sid2 = _insert_siswa(conn, "1250002")
+    pam_no_A = _insert_pam(conn, "PAM-ETF-06-2026-001", total=10_000_000)
+    pam_no_B = _insert_pam(conn, "PAM-ETF-06-2026-002", total=5_000_000)
+
+    cur = conn.execute(
+        """INSERT INTO etf_pa
+           (company_id, pa_number, tgl_payment_application, status, nomor_pam, created_at)
+           VALUES (?,?,?,?,?,?)""",
+        (COMPANY_ID, "PA/ETF/001/2026", "2026-06-01", "on_process", pam_no_A, _ts())
+    )
+    pa_id = cur.lastrowid
+    cur2 = conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_id, sid1, "By Pendidikan", 5_000_000)
+    )
+    line_A = cur2.lastrowid
+    cur3 = conn.execute(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_id, sid2, "By Pendidikan", 5_000_000)
+    )
+    line_B = cur3.lastrowid
+
+    pb_A = _insert_payment_beasiswa(conn, pam_no_A, line_A, "1250001")
+    _insert_payment_beasiswa(conn, pam_no_B, line_B, "1250002")
+    conn.commit()
+    conn.close()
+
+    result = reject_student_from_pam(pb_A, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pa = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    assert pa["status"] == "on_process", \
+        f"etf_pa status seharusnya tetap 'on_process', got '{pa['status']}'"
+    conn.close()
