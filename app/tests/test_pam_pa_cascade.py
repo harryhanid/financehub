@@ -429,6 +429,15 @@ def test_payment_beasiswa_has_tgl_paid_columns():
     assert "tgl_Paid_SETF"   in cols, "Missing tgl_Paid_SETF in payment_beasiswa"
 
 
+def test_reject_reason_column_exists_on_all_relevant_tables():
+    conn = get_conn()
+    for tbl in ("payment_beasiswa", "pam_records", "etf_pa", "app_pa",
+                "sml_pa", "energy_pa", "setf_pa"):
+        cols = [row[1] for row in conn.execute(f"PRAGMA table_info({tbl})").fetchall()]
+        assert "reject_reason" in cols, f"Missing reject_reason in {tbl}"
+    conn.close()
+
+
 def test_set_pam_complete_cascade_advance_pillar_sets_paid_not_complete():
     conn = get_conn()
     sid = _insert_siswa(conn)

@@ -1293,6 +1293,17 @@ def migrate_db():
         )
     conn.commit()
 
+    # reject_reason — optional free-text note captured when a payment/PAM/PA is
+    # rejected (2026-07-17). Nullable on every table that can carry a
+    # status='rejected' row.
+    for _tbl in ("payment_beasiswa", "pam_records", "etf_pa", "app_pa",
+                 "sml_pa", "energy_pa", "setf_pa"):
+        try:
+            conn.execute(f"ALTER TABLE {_tbl} ADD COLUMN reject_reason TEXT")
+            conn.commit()
+        except Exception:
+            pass
+
     conn.close()
 
 
