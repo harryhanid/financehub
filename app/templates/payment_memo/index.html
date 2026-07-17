@@ -188,6 +188,7 @@
       <span style="font-size:.85rem;opacity:.85">— centang PAM untuk set tanggal paid</span>
       <input type="date" id="open-pam-paid-date" class="dm-inp" style="max-width:150px; background:#fff; padding:.25rem; border-radius:.25rem; margin-left:auto" required>
       <button class="btn btn-success btn-sm" onclick="submitOpenPamPaid()">Mark Complete</button>
+      <button class="btn btn-danger btn-sm" style="background:#7c2d12" onclick="rejectOpenPamGroups()">Reject</button>
       <button class="btn btn-secondary btn-sm"
               style="background:#fff;color:#1e40af;border:none;"
               onclick="document.getElementById('select-all-drafts').checked=false;toggleAllDrafts({checked:false})">
@@ -1473,17 +1474,59 @@ async function submitOpenPamPaid() {
   }
 }
 
+async function rejectOpenPamGroups() {
+  var pamIds = [];
+  document.querySelectorAll('.pam-check:checked').forEach(function(cb) {
+    var pamKey = cb.dataset.pamKey;
+    if (pamKey && pamKey !== '__unassigned__') pamIds.push(pamKey);
+  });
+  if (pamIds.length === 0) {
+    alert("Pilih minimal 1 PAM group untuk di-reject (centang di kolom paling kiri).");
+    return;
+  }
+  if (!await confirmModal(
+    "Reject " + pamIds.length + " PAM group?\nData akan disimpan dengan status Rejected (tidak dihapus), dan PA terkait tidak bisa dipakai lagi.",
+    { type: 'danger', confirmText: 'Reject' }
+  )) return;
+  const reason = prompt('Alasan reject (opsional):');
+  if (reason === null) return;
+
+  showLoading("Merejek PAM...");
+  try {
+    var okCount = 0, msgs = [];
+    for (const pamKey of pamIds) {
+      const detailRow = document.querySelector('.pam-check[data-pam-key="' + CSS.escape(pamKey) + '"]');
+      const pamIdAttr = detailRow ? detailRow.closest('tr').dataset.pamRecordId : null;
+      if (!pamIdAttr) continue;
+      const res = await apiFetch('/payment-memo/pam/' + pamIdAttr + '/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason || null })
+      });
+      if (!res) continue;
+      const data = await res.json();
+      if (data.ok) okCount++;
+      msgs.push(data.pesan);
+    }
+    showToast(msgs.join(' | '), okCount > 0 ? 'success' : 'error');
+    if (okCount > 0) window.location.reload();
+  } finally {
+    hideLoading();
+  }
+}
+
 function groupDraftsByPAM(drafts) {
   const groups = {};
   const UNASSIGNED = '__unassigned__';
   drafts.forEach(function(d) {
     var key = (d.pam && d.pam !== '--') ? d.pam : UNASSIGNED;
-    if (!groups[key]) groups[key] = { pam: key, items: [], total: 0, minDate: d.tanggal, pillar: d.pillar || null, dueDate: d.due_date || null };
+    if (!groups[key]) groups[key] = { pam: key, items: [], total: 0, minDate: d.tanggal, pillar: d.pillar || null, dueDate: d.due_date || null, pamRecordId: d.pam_record_id || null };
     groups[key].items.push(d);
     groups[key].total += d.amount;
     if (d.tanggal < groups[key].minDate) groups[key].minDate = d.tanggal;
     if (!groups[key].pillar && d.pillar) groups[key].pillar = d.pillar;
     if (!groups[key].dueDate && d.due_date) groups[key].dueDate = d.due_date;
+    if (!groups[key].pamRecordId && d.pam_record_id) groups[key].pamRecordId = d.pam_record_id;
   });
   var keys = Object.keys(groups).filter(function(k) { return k !== UNASSIGNED; }).sort();
   if (groups[UNASSIGNED]) keys.push(UNASSIGNED);
@@ -1595,6 +1638,7 @@ function renderOpenPAM(drafts) {
 
     html += '<tr class="' + masterClass + '"' +
       ' data-pam-key="' + pamKeyAttr + '"' +
+      ' data-pam-record-id="' + (g.pamRecordId || '') + '"' +
       ' onclick="togglePAMRow(this.dataset.pamKey)">' +
       '<td>' +
         '<input type="checkbox" class="pam-check"' +

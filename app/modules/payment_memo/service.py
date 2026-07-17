@@ -34,7 +34,7 @@ def get_draft_payments(company_id: int) -> list:
     # Rows dari payment_beasiswa — JOIN ke pam_records untuk pillar & due_date
     rows = [dict(r) for r in conn.execute(
         """SELECT pb.*, s.nama, s.bank, s.norek, s.namarek, 'beasiswa' AS _type,
-                  pr.pillar, pr.due_date
+                  pr.id AS pam_record_id, pr.pillar, pr.due_date
            FROM payment_beasiswa pb
            LEFT JOIN siswa s  ON s.company_id  = pb.company_id AND s.code   = pb.siswa_code
            LEFT JOIN pam_records pr ON pr.pam_no = pb.pam AND pr.company_id = pb.company_id
