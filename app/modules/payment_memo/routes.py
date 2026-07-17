@@ -12,6 +12,7 @@ from modules.payment_memo.service import (
     update_pam_and_application,
     get_draft_payment_detail, update_draft_and_linked,
     delete_payment_beasiswa, cancel_pam_record, remove_student_from_pam,
+    reject_student_from_pam, reject_pam_record,
     bulk_update_dates,
     set_memo_tanggal_bayar,
     get_fiori_list, bulk_update_fiori_dates,
@@ -271,6 +272,18 @@ def pam_remove_student_route():
     return jsonify(result)
 
 
+@bp.route("/pam/reject-student", methods=["POST"])
+@jwt_html_required
+def pam_reject_student_route():
+    data = request.get_json() or {}
+    payment_beasiswa_id = data.get("payment_beasiswa_id")
+    if not payment_beasiswa_id:
+        return jsonify({"ok": False, "pesan": "payment_beasiswa_id diperlukan."})
+    reason = data.get("reason") or None
+    result = reject_student_from_pam(int(payment_beasiswa_id), session.get("company_id", 0), reason)
+    return jsonify(result)
+
+
 @bp.route("/pam/<int:pam_id>/export/pdf")
 @jwt_html_required
 def export_pam_pdf_route(pam_id):
@@ -330,6 +343,15 @@ def days_of_pam_bulk_update():
 @jwt_html_required
 def cancel_pam_route(pam_id):
     result = cancel_pam_record(pam_id, session.get("company_id", 0))
+    return jsonify(result)
+
+
+@bp.route("/pam/<int:pam_id>/reject", methods=["POST"])
+@jwt_html_required
+def reject_pam_route(pam_id):
+    data = request.get_json() or {}
+    reason = data.get("reason") or None
+    result = reject_pam_record(pam_id, session.get("company_id", 0), reason)
     return jsonify(result)
 
 
