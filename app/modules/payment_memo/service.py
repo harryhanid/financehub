@@ -1183,6 +1183,80 @@ def cancel_pam_record(pam_id: int, company_id: int) -> dict:
     return {"ok": True, "pesan": f"PAM {pam_no} berhasil dihapus, PA terkait dikembalikan ke Open."}
 
 
+def reject_pam_record(pam_id: int, company_id: int, reason: str | None = None) -> dict:
+    """Reject satu PAM group secara keseluruhan — sama seperti cancel_pam_record,
+    tapi data DIPERTAHANKAN (status='rejected') alih-alih di-DELETE."""
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT pam_no, source FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id)
+    ).fetchone()
+    if not pam:
+        conn.close()
+        return {"ok": False, "pesan": "PAM record tidak ditemukan."}
+    pam_no = pam["pam_no"]
+    source = pam["source"] or "beasiswa"
+
+    now = _ts()
+
+    if source == "etf_agri":
+        conn.execute(
+            """UPDATE etf_pa SET status='rejected', reject_reason=?, updated_at=?
+               WHERE nomor_pam=? AND company_id=?""",
+            (reason, now, pam_no, company_id)
+        )
+        conn.execute(
+            "UPDATE pam_records SET status='rejected', reject_reason=?, updated_at=? WHERE id=? AND company_id=?",
+            (reason, now, pam_id, company_id)
+        )
+    else:
+        lines = conn.execute(
+            "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa WHERE pam=? AND company_id=? AND etf_pa_line_id IS NOT NULL",
+            (pam_no, company_id)
+        ).fetchall()
+        line_ids = [r[0] for r in lines]
+
+        conn.execute(
+            "UPDATE payment_beasiswa SET status='rejected', reject_reason=? WHERE pam=? AND company_id=?",
+            (reason, pam_no, company_id)
+        )
+        conn.execute(
+            "UPDATE pam_records SET status='rejected', reject_reason=?, updated_at=? WHERE id=? AND company_id=?",
+            (reason, now, pam_id, company_id)
+        )
+
+        if line_ids:
+            ph = ",".join("?" * len(line_ids))
+            for lines_tbl, pa_tbl in [
+                ("etf_pa_lines",    "etf_pa"),
+                ("app_pa_lines",    "app_pa"),
+                ("sml_pa_lines",    "sml_pa"),
+                ("energy_pa_lines", "energy_pa"),
+                ("setf_pa_lines",   "setf_pa"),
+            ]:
+                pa_rows = conn.execute(
+                    f"SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})",
+                    line_ids
+                ).fetchall()
+                for row in pa_rows:
+                    pa_id_inner = row[0]
+                    remaining = conn.execute(
+                        f"""SELECT COUNT(*) FROM payment_beasiswa pb
+                               JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
+                               WHERE el.pa_id=? AND pb.company_id=? AND pb.status != 'rejected'""",
+                        (pa_id_inner, company_id)
+                    ).fetchone()[0]
+                    if remaining == 0:
+                        conn.execute(
+                            f"UPDATE {pa_tbl} SET status='rejected', reject_reason=?, updated_at=? "
+                            f"WHERE id=? AND company_id=?",
+                            (reason, now, pa_id_inner, company_id)
+                        )
+
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"PAM {pam_no} berhasil di-reject."}
+
+
 def remove_student_from_pam(payment_beasiswa_id: int, company_id: int) -> dict:
     """Hapus satu siswa dari Open PAM dengan cascade:
     1. DELETE payment_beasiswa row

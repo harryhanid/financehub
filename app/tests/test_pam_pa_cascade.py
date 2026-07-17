@@ -810,3 +810,145 @@ def test_realize_advance_payment_land_pillar_does_not_corrupt_colliding_agri_lin
         "AGRI PA header was incorrectly closed by the LAND realization (id collision bug)"
     assert agri_line["jumlah_pembayaran"] == 5_000_000, \
         "AGRI PA line amount was incorrectly overwritten by the LAND realization (id collision bug)"
+
+
+def test_reject_pam_etf_agri_marks_pa_rejected():
+    """source='etf_agri' flow: reject_pam_record must set etf_pa.status='rejected'
+    directly (not go through the payment_beasiswa cascade) and keep pam_records
+    (not delete it), with status='rejected'."""
+    from modules.payment_memo.service import reject_pam_record
+    conn = get_conn()
+    pam_no = "PAM-001-ETF-06-2026"
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, total_amount, status, source, created_at)
+           VALUES (?,?,?,?,?,?,?)""",
+        (COMPANY_ID, pam_no, "2026-06-08", 5000000, "open", "etf_agri", _ts())
+    )
+    pam_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.execute(
+        """INSERT INTO etf_pa (company_id, pa_number, tgl_payment_application, status, nomor_pam, created_at)
+           VALUES (?,?,?,?,?,?)""",
+        (COMPANY_ID, "PA/ETF/001/2026", "2026-06-01", "on_process", pam_no, _ts())
+    )
+    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
+    result = reject_pam_record(pam_id, COMPANY_ID, reason="Salah input")
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT status, reject_reason FROM pam_records WHERE id=?", (pam_id,)
+    ).fetchone()
+    assert pam is not None, "pam_records harus tetap ada"
+    assert pam["status"] == "rejected"
+    assert pam["reject_reason"] == "Salah input"
+
+    pa = conn.execute("SELECT status FROM etf_pa WHERE id=?", (pa_id,)).fetchone()
+    assert pa["status"] == "rejected"
+    conn.close()
+
+
+def test_reject_pam_beasiswa_marks_all_rows_rejected():
+    """source='beasiswa' flow (multi-student group): reject_pam_record must set
+    every payment_beasiswa row under that pam_no to 'rejected' (not delete),
+    pam_records to 'rejected', and the linked PA to 'rejected'."""
+    from modules.payment_memo.service import reject_pam_record
+    conn = get_conn()
+    sid1 = _insert_siswa(conn)
+    pam_id, pa_id = _insert_pam_beasiswa(conn, "app_pa", "app_pa_lines", "APP", "APP", sid1)
+    conn.close()
+
+    result = reject_pam_record(pam_id, COMPANY_ID, reason="Vendor batal")
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pam = conn.execute("SELECT status FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    assert pam["status"] == "rejected"
+
+    pb = conn.execute(
+        "SELECT status, reject_reason FROM payment_beasiswa WHERE pam=?",
+        ("PAM-APP-06-2026-001",)
+    ).fetchone()
+    assert pb["status"] == "rejected"
+    assert pb["reject_reason"] == "Vendor batal"
+
+    pa = conn.execute("SELECT status FROM app_pa WHERE id=?", (pa_id,)).fetchone()
+    assert pa["status"] == "rejected"
+    conn.close()
+
+
+def test_reject_pam_beasiswa_pa_not_rejected_if_other_active_line_elsewhere():
+    """PA has 2 lines across 2 different PAM groups. Rejecting one PAM must not
+    reject the shared PA if the other PAM's line is still active."""
+    from modules.payment_memo.service import reject_pam_record
+    conn = get_conn()
+    sid1 = _insert_siswa(conn)
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "1250099", "Siswa Lain")
+    )
+    sid2 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+
+    cur = conn.execute(
+        "INSERT INTO app_pa (company_id, pa_number, tgl_payment_application, status, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/APP/shared/2026", "2026-06-01", "on_process", _ts())
+    )
+    pa_id = cur.lastrowid
+    cur2 = conn.execute(
+        "INSERT INTO app_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_id, sid1, "By Pendidikan", 5_000_000)
+    )
+    line_A = cur2.lastrowid
+    cur3 = conn.execute(
+        "INSERT INTO app_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_id, sid2, "By Pendidikan", 3_000_000)
+    )
+    line_B = cur3.lastrowid
+
+    pam_no_A = "PAM-APP-06-2026-A"
+    cur4 = conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, total_amount, pillar, source, status, created_at)
+           VALUES (?,?,?,?,?,'beasiswa','open',?)""",
+        (COMPANY_ID, pam_no_A, "2026-06-08", 5_000_000, "APP", _ts())
+    )
+    pam_id_A = cur4.lastrowid
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, pam, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'open')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 3",
+         "2026-06-01", 5_000_000, "APP", "PT. SMART Tbk", pam_no_A, line_A)
+    )
+
+    pam_no_B = "PAM-APP-06-2026-B"
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, total_amount, pillar, source, status, created_at)
+           VALUES (?,?,?,?,?,'beasiswa','open',?)""",
+        (COMPANY_ID, pam_no_B, "2026-06-08", 3_000_000, "APP", _ts())
+    )
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, pam, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'open')""",
+        (COMPANY_ID, "1250099", "By Pendidikan", "Semester 3",
+         "2026-06-01", 3_000_000, "APP", "PT. SMART Tbk", pam_no_B, line_B)
+    )
+    conn.commit()
+    conn.close()
+
+    result = reject_pam_record(pam_id_A, COMPANY_ID)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pa = conn.execute("SELECT status FROM app_pa WHERE id=?", (pa_id,)).fetchone()
+    conn.close()
+    assert pa["status"] == "on_process", \
+        f"shared PA must stay on_process (PAM-B's line is still active), got '{pa['status']}'"
