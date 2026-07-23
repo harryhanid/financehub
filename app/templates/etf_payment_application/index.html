@@ -211,6 +211,7 @@
     <option value="open" {% if active_sf == 'open' %}selected{% endif %}>Open</option>
     <option value="on_process" {% if active_sf == 'on_process' %}selected{% endif %}>On Process</option>
     <option value="complete" {% if active_sf == 'complete' %}selected{% endif %}>Complete</option>
+    <option value="rejected" {% if active_sf == 'rejected' %}selected{% endif %}>Rejected</option>
   </select>
   <select id="f-jenjang" onchange="navigateWithFilters()"
           style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:110px">
@@ -483,7 +484,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>{{ r.tanggal_bayar or '--' }}</td>
         <td style="min-width:260px; white-space:pre-wrap; word-break:break-word; line-height:1.4">{{ r.keterangan or '--' }}</td>
         <td>
-          <span class="badge {% if r.status == 'complete' %}badge-green{% elif r.status == 'on_process' %}badge-yellow{% elif r.status == 'open' %}badge-blue{% else %}badge-gray{% endif %}">
+          <span class="badge {% if r.status == 'complete' %}badge-green{% elif r.status == 'on_process' %}badge-yellow{% elif r.status == 'open' %}badge-blue{% elif r.status == 'rejected' %}badge-red{% else %}badge-gray{% endif %}">
             {{ r.status | replace('_', ' ') | title }}
           </span>
         </td>
@@ -561,6 +562,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <option value="open">Open</option>
       <option value="on_process">On Process</option>
       <option value="complete">Complete</option>
+      <option value="rejected">Rejected</option>
     </select>
   </div>
   <div class="form-group" style="margin:0; width:200px">
@@ -776,6 +778,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <option value="on_process">On Process</option>
       <option value="paid">Paid (Menunggu Realisasi)</option>
       <option value="complete">Complete</option>
+      <option value="rejected">Rejected</option>
     </select>
   </div>
   <div class="form-group" style="margin:0; width:200px">
@@ -1267,7 +1270,7 @@ function _updateRowCells(paIds, field, value) {
       if (field === "status") {
         const stTd = tr.querySelectorAll("td")[29];
         if (stTd) {
-          const cls = value === "complete" ? "badge-green" : value === "on_process" ? "badge-yellow" : value === "open" ? "badge-blue" : "badge-gray";
+          const cls = value === "complete" ? "badge-green" : value === "on_process" ? "badge-yellow" : value === "open" ? "badge-blue" : value === "rejected" ? "badge-red" : "badge-gray";
           stTd.innerHTML = `<span class="badge ${cls}">${value.replace("_"," ").replace(/\b\w/g,c=>c.toUpperCase())}</span>`;
         }
         tr.classList.toggle("row-op", value === "on_process");
