@@ -49,7 +49,8 @@ def get_draft_payments(company_id: int) -> list:
                total_amount AS amount, pillar, source, keterangan, due_date,
                NULL AS siswa_code, NULL AS cat1, NULL AS cat2,
                NULL AS nama, NULL AS bank, NULL AS norek, NULL AS namarek,
-               NULL AS etf_pa_line_id, 'pam_record' AS _type
+               NULL AS etf_pa_line_id, 'pam_record' AS _type,
+               id AS pam_record_id
            FROM pam_records
            WHERE company_id = ? AND source IN ('others', 'tagihan', 'sponsor')
            AND status = 'open'

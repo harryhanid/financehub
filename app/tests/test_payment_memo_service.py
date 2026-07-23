@@ -56,6 +56,24 @@ def test_get_draft_payments_returns_draft_only():
     assert len(rows) == 1
     assert rows[0]["id"] == pay_id
 
+def test_get_draft_payments_includes_pam_record_id_for_non_beasiswa_source():
+    # Task 7 regression: per-group Reject needs pam_record_id on others/tagihan/sponsor
+    # sourced draft rows too, not just beasiswa-sourced rows.
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, source, created_at)
+           VALUES (?, 'PAM-DRAFT-OTHERS-1', '2025-06-01', 'Test others draft', 1000000, 'open', 'AGRI', 'others', datetime('now'))""",
+        (COMPANY_ID,)
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-DRAFT-OTHERS-1'").fetchone()["id"]
+    conn.commit(); conn.close()
+
+    rows = get_draft_payments(COMPANY_ID)
+    matching = [r for r in rows if r.get("pam") == "PAM-DRAFT-OTHERS-1"]
+    assert len(matching) == 1
+    assert matching[0]["pam_record_id"] == pam_id
+
 def test_create_memo_success():
     pay_id = _add_draft_payment()
     result = create_memo(COMPANY_ID, COMPANY_CODE, "2025-06-10", "Memo test",
