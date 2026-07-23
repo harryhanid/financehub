@@ -952,3 +952,107 @@ def test_reject_pam_beasiswa_pa_not_rejected_if_other_active_line_elsewhere():
     conn.close()
     assert pa["status"] == "on_process", \
         f"shared PA must stay on_process (PAM-B's line is still active), got '{pa['status']}'"
+
+
+def test_reject_pam_beasiswa_never_touches_already_complete_rows():
+    """Real-world bug (2026-07-23): a 'partial' PAM has one siswa already paid
+    (payment_beasiswa.status='complete') and one siswa still open. Rejecting
+    the whole PAM group must NEVER flip the already-complete row to 'rejected'
+    — that would corrupt an already-approved/paid transaction. Only the
+    still-open row gets rejected; pam_records.status is left as-is (not
+    forced to 'rejected') and total_amount is recalculated to exclude only
+    the newly-rejected row; the already-paid line's PA is untouched, while
+    the rejected line's PA (which now has no other active payment) becomes
+    'rejected'."""
+    from modules.payment_memo.service import reject_pam_record
+    conn = get_conn()
+    sid_paid = _insert_siswa(conn)
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "1250098", "Siswa Belum Bayar")
+    )
+    sid_open = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+
+    # PA already paid for sid_paid
+    cur_paid = conn.execute(
+        "INSERT INTO app_pa (company_id, pa_number, tgl_payment_application, status, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/APP/paid/2026", "2026-06-01", "complete", _ts())
+    )
+    pa_paid_id = cur_paid.lastrowid
+    cur_paid_line = conn.execute(
+        "INSERT INTO app_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_paid_id, sid_paid, "By Pendidikan", 5_000_000)
+    )
+    line_paid = cur_paid_line.lastrowid
+
+    # PA still open for sid_open
+    cur_open = conn.execute(
+        "INSERT INTO app_pa (company_id, pa_number, tgl_payment_application, status, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/APP/open/2026", "2026-06-01", "on_process", _ts())
+    )
+    pa_open_id = cur_open.lastrowid
+    cur_open_line = conn.execute(
+        "INSERT INTO app_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_open_id, sid_open, "By Pendidikan", 3_000_000)
+    )
+    line_open = cur_open_line.lastrowid
+
+    pam_no = "PAM-APP-06-2026-PARTIAL"
+    cur_pam = conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, total_amount, pillar, source, status, created_at)
+           VALUES (?,?,?,?,?,'beasiswa','partial',?)""",
+        (COMPANY_ID, pam_no, "2026-06-08", 8_000_000, "APP", _ts())
+    )
+    pam_id = cur_pam.lastrowid
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, pam, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'complete')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 3",
+         "2026-06-01", 5_000_000, "APP", "PT. SMART Tbk", pam_no, line_paid)
+    )
+    pb_open_id = conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, pam, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'open')""",
+        (COMPANY_ID, "1250098", "By Pendidikan", "Semester 3",
+         "2026-06-01", 3_000_000, "APP", "PT. SMART Tbk", pam_no, line_open)
+    ).lastrowid
+    conn.commit()
+    conn.close()
+
+    result = reject_pam_record(pam_id, COMPANY_ID, reason="Diganti PAM baru")
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pb_paid = conn.execute(
+        "SELECT status, reject_reason FROM payment_beasiswa WHERE etf_pa_line_id=?", (line_paid,)
+    ).fetchone()
+    assert pb_paid["status"] == "complete", \
+        f"already-paid row must NOT be touched by reject, got status='{pb_paid['status']}'"
+    assert pb_paid["reject_reason"] is None
+
+    pb_open = conn.execute(
+        "SELECT status, reject_reason FROM payment_beasiswa WHERE id=?", (pb_open_id,)
+    ).fetchone()
+    assert pb_open["status"] == "rejected"
+    assert pb_open["reject_reason"] == "Diganti PAM baru"
+
+    pam = conn.execute("SELECT status, total_amount FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    assert pam["status"] == "partial", \
+        f"pam_records must not be force-flipped to 'rejected' while a paid row remains, got '{pam['status']}'"
+    assert pam["total_amount"] == 5_000_000, \
+        f"total_amount must exclude the rejected row, got {pam['total_amount']}"
+
+    pa_paid = conn.execute("SELECT status FROM app_pa WHERE id=?", (pa_paid_id,)).fetchone()
+    assert pa_paid["status"] == "complete", \
+        f"PA for the already-paid line must stay untouched, got '{pa_paid['status']}'"
+
+    pa_open = conn.execute("SELECT status FROM app_pa WHERE id=?", (pa_open_id,)).fetchone()
+    assert pa_open["status"] == "rejected", \
+        f"PA for the rejected line (no other active payment) should become rejected, got '{pa_open['status']}'"
+    conn.close()

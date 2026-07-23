@@ -1210,20 +1210,45 @@ def reject_pam_record(pam_id: int, company_id: int, reason: str | None = None) -
             (reason, now, pam_id, company_id)
         )
     else:
+        # A PAM can be 'partial' — some siswa already paid (status='complete'),
+        # some still open — via mark_beasiswa_lines_complete(). Rejecting the
+        # group must never touch an already-paid row, so both the line lookup
+        # and the bulk UPDATE are scoped to rows that aren't already terminal.
         lines = conn.execute(
-            "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa WHERE pam=? AND company_id=? AND etf_pa_line_id IS NOT NULL",
+            "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa "
+            "WHERE pam=? AND company_id=? AND etf_pa_line_id IS NOT NULL "
+            "AND status NOT IN ('complete', 'rejected')",
             (pam_no, company_id)
         ).fetchall()
         line_ids = [r[0] for r in lines]
 
         conn.execute(
-            "UPDATE payment_beasiswa SET status='rejected', reject_reason=? WHERE pam=? AND company_id=?",
+            "UPDATE payment_beasiswa SET status='rejected', reject_reason=? "
+            "WHERE pam=? AND company_id=? AND status NOT IN ('complete', 'rejected')",
             (reason, pam_no, company_id)
         )
-        conn.execute(
-            "UPDATE pam_records SET status='rejected', reject_reason=?, updated_at=? WHERE id=? AND company_id=?",
-            (reason, now, pam_id, company_id)
-        )
+
+        # Mirror reject_student_from_pam: only flip the PAM header to
+        # 'rejected' once nothing active (non-rejected) remains under it —
+        # a paid sibling must keep the header reflecting that, not terminal.
+        remaining_active = conn.execute(
+            "SELECT COUNT(*) FROM payment_beasiswa WHERE pam=? AND company_id=? AND status != 'rejected'",
+            (pam_no, company_id)
+        ).fetchone()[0]
+        if remaining_active == 0:
+            conn.execute(
+                "UPDATE pam_records SET status='rejected', reject_reason=?, updated_at=? WHERE id=? AND company_id=?",
+                (reason, now, pam_id, company_id)
+            )
+        else:
+            new_total = conn.execute(
+                "SELECT COALESCE(SUM(amount), 0) FROM payment_beasiswa WHERE pam=? AND company_id=? AND status != 'rejected'",
+                (pam_no, company_id)
+            ).fetchone()[0]
+            conn.execute(
+                "UPDATE pam_records SET total_amount=?, updated_at=? WHERE id=? AND company_id=?",
+                (new_total, now, pam_id, company_id)
+            )
 
         if line_ids:
             ph = ",".join("?" * len(line_ids))
