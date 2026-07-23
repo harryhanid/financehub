@@ -1056,3 +1056,78 @@ def test_reject_pam_beasiswa_never_touches_already_complete_rows():
     assert pa_open["status"] == "rejected", \
         f"PA for the rejected line (no other active payment) should become rejected, got '{pa_open['status']}'"
     conn.close()
+
+
+def test_reject_pam_beasiswa_syncs_dpp_with_recalculated_total():
+    """Bug found live (2026-07-23): create_pam_record() always sets dpp=total_amount
+    for beasiswa-source PAMs, so any display reading dpp assumes it mirrors
+    total_amount. reject_pam_record's partial-reject path must recalculate dpp
+    alongside total_amount, not just total_amount alone."""
+    from modules.payment_memo.service import reject_pam_record
+    conn = get_conn()
+    sid_paid = _insert_siswa(conn)
+    conn.execute(
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        (COMPANY_ID, "1250097", "Siswa DPP Test")
+    )
+    sid_open = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+
+    cur_paid = conn.execute(
+        "INSERT INTO app_pa (company_id, pa_number, tgl_payment_application, status, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/APP/dpp-paid/2026", "2026-06-01", "complete", _ts())
+    )
+    pa_paid_id = cur_paid.lastrowid
+    cur_paid_line = conn.execute(
+        "INSERT INTO app_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_paid_id, sid_paid, "By Pendidikan", 5_000_000)
+    )
+    line_paid = cur_paid_line.lastrowid
+
+    cur_open = conn.execute(
+        "INSERT INTO app_pa (company_id, pa_number, tgl_payment_application, status, created_at) VALUES (?,?,?,?,?)",
+        (COMPANY_ID, "PA/APP/dpp-open/2026", "2026-06-01", "on_process", _ts())
+    )
+    pa_open_id = cur_open.lastrowid
+    cur_open_line = conn.execute(
+        "INSERT INTO app_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran) VALUES (?,?,?,?)",
+        (pa_open_id, sid_open, "By Pendidikan", 3_000_000)
+    )
+    line_open = cur_open_line.lastrowid
+
+    pam_no = "PAM-APP-06-2026-DPPTEST"
+    cur_pam = conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, total_amount, dpp, pillar, source, status, created_at)
+           VALUES (?,?,?,?,?,?,'beasiswa','partial',?)""",
+        (COMPANY_ID, pam_no, "2026-06-08", 8_000_000, 8_000_000, "APP", _ts())
+    )
+    pam_id = cur_pam.lastrowid
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, pam, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'complete')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 3",
+         "2026-06-01", 5_000_000, "APP", "PT. SMART Tbk", pam_no, line_paid)
+    )
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount,
+            pillar, perusahaan, pam, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,'open')""",
+        (COMPANY_ID, "1250097", "By Pendidikan", "Semester 3",
+         "2026-06-01", 3_000_000, "APP", "PT. SMART Tbk", pam_no, line_open)
+    )
+    conn.commit()
+    conn.close()
+
+    result = reject_pam_record(pam_id, COMPANY_ID, reason="Diganti PAM baru")
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pam = conn.execute("SELECT total_amount, dpp FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+    conn.close()
+    assert pam["total_amount"] == 5_000_000
+    assert pam["dpp"] == 5_000_000, \
+        f"dpp must be recalculated in sync with total_amount, got dpp={pam['dpp']}"

@@ -1246,8 +1246,8 @@ def reject_pam_record(pam_id: int, company_id: int, reason: str | None = None) -
                 (pam_no, company_id)
             ).fetchone()[0]
             conn.execute(
-                "UPDATE pam_records SET total_amount=?, updated_at=? WHERE id=? AND company_id=?",
-                (new_total, now, pam_id, company_id)
+                "UPDATE pam_records SET total_amount=?, dpp=?, updated_at=? WHERE id=? AND company_id=?",
+                (new_total, new_total, now, pam_id, company_id)
             )
 
         if line_ids:
@@ -1433,8 +1433,8 @@ def reject_student_from_pam(payment_beasiswa_id: int, company_id: int, reason: s
             (pam_no, company_id)
         ).fetchone()[0]
         conn.execute(
-            "UPDATE pam_records SET total_amount=?, updated_at=? WHERE pam_no=? AND company_id=?",
-            (new_total, now, pam_no, company_id)
+            "UPDATE pam_records SET total_amount=?, dpp=?, updated_at=? WHERE pam_no=? AND company_id=?",
+            (new_total, new_total, now, pam_no, company_id)
         )
 
     if line_id:

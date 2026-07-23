@@ -355,6 +355,42 @@ def test_reject_one_of_many_students():
     conn.close()
 
 
+def test_reject_student_syncs_dpp_with_recalculated_total():
+    """Bug found live (2026-07-23): create_pam_record() always sets dpp=total_amount
+    for beasiswa-source PAMs (no real tax breakdown), so every display that reads
+    dpp assumes it mirrors total_amount. A partial reject (some students remain
+    active) recalculates total_amount but must also recalculate dpp the same way —
+    otherwise the pillar-tab DPP column shows the stale pre-reject figure while
+    TOTAL shows the correct recalculated one."""
+    from modules.payment_memo.service import reject_student_from_pam
+    conn = get_conn()
+    sid1 = _insert_siswa(conn, "1250001")
+    sid2 = _insert_siswa(conn, "1250002")
+    pam_no = _insert_pam(conn, total=15_000_000)
+    conn.execute("UPDATE pam_records SET dpp=15000000 WHERE pam_no=?", (pam_no,))
+    conn.commit()
+
+    pa1_id, line1_id = _insert_etf_pa_with_line(conn, "PA/ETF/001/2026", pam_no, sid1)
+    pa2_id, line2_id = _insert_etf_pa_with_line(conn, "PA/ETF/002/2026", pam_no, sid2)
+
+    pb1_id = _insert_payment_beasiswa(conn, pam_no, line1_id, "1250001")
+    _insert_payment_beasiswa(conn, pam_no, line2_id, "1250002")
+    conn.close()
+
+    result = reject_student_from_pam(pb1_id, COMPANY_ID, reason="Data ganda")
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pam = conn.execute(
+        "SELECT total_amount, dpp FROM pam_records WHERE pam_no=? AND company_id=?",
+        (pam_no, COMPANY_ID)
+    ).fetchone()
+    assert pam["total_amount"] == 5_000_000
+    assert pam["dpp"] == 5_000_000, \
+        f"dpp must be recalculated in sync with total_amount, got dpp={pam['dpp']}"
+    conn.close()
+
+
 def test_reject_last_student_marks_pam_rejected():
     """Reject siswa terakhir dalam PAM:
     - payment_beasiswa row status='rejected' (masih ada)
