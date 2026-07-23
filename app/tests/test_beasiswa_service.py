@@ -232,6 +232,32 @@ def test_delete_klaim_row_not_found():
     assert result["ok"] is False
 
 
+def test_delete_klaim_row_refuses_when_linked_payment_rejected():
+    """Same real-world data loss (2026-07-23) as the delete_payment_row/
+    delete_payment_beasiswa guard: this path deletes the linked
+    payment_beasiswa row unconditionally unless its status is 'complete',
+    so an already-rejected payment (data the reject feature must preserve)
+    could still be destroyed via a klaim delete. Must refuse the same way."""
+    _add_siswa_a()
+    add_klaim_multi(COMPANY_ID, "PAM-001", "AGRI", "PT. SMART Tbk", [
+        {"siswa_code": "1250001", "tanggal": "2026-01-15", "amount": 1500000,
+         "perawatan": "Rawat Jalan", "kelas": "", "rumah_sakit": "", "diagnosa": "", "spesialisasi": ""},
+    ])
+    conn = get_conn()
+    km = conn.execute("SELECT id, payment_id FROM klaim_medical WHERE company_id=?", (COMPANY_ID,)).fetchone()
+    conn.execute("UPDATE payment_beasiswa SET status='rejected' WHERE id=?", (km["payment_id"],))
+    conn.commit()
+    conn.close()
+
+    result = delete_klaim_row(COMPANY_ID, km["id"])
+    assert result["ok"] is False
+
+    conn = get_conn()
+    assert conn.execute("SELECT id FROM klaim_medical WHERE id=?", (km["id"],)).fetchone() is not None
+    assert conn.execute("SELECT id FROM payment_beasiswa WHERE id=?", (km["payment_id"],)).fetchone() is not None
+    conn.close()
+
+
 def test_add_payment_multi_creates_pam_record():
     # Seed two siswa
     add_siswa(COMPANY_ID, {
@@ -852,3 +878,58 @@ def test_delete_payment_beasiswa_excludes_rejected_sibling_when_reverting_pa():
     conn.close()
     assert pa["status"] == "open", \
         f"PA should revert to open (rejected sibling doesn't count as active), got '{pa['status']}'"
+
+
+def test_delete_payment_row_refuses_already_rejected_row():
+    """Real-world data loss (2026-07-23): delete_payment_row only guarded against
+    deleting 'complete' rows, so a row already 'rejected' (data the reject
+    feature is meant to preserve) could still be permanently deleted through
+    this path. Must refuse exactly like it already refuses 'complete' rows."""
+    conn = get_conn()
+    sid, pa_id, line_a = _seed_siswa_and_pa(conn, COMPANY_ID)
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
+            perusahaan, etf_pa_line_id, status, reject_reason)
+           VALUES (?,?,?,?,?,?,?,?,?,'rejected',?)""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-07-01",
+         5000000, "AGRI", "PT ABC", line_a, "Diganti PAM baru")
+    )
+    row_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
+    result = delete_payment_row(COMPANY_ID, row_id)
+    assert result["ok"] is False
+
+    conn = get_conn()
+    pb = conn.execute("SELECT status FROM payment_beasiswa WHERE id=?", (row_id,)).fetchone()
+    conn.close()
+    assert pb is not None, "rejected row must survive the refused delete attempt"
+    assert pb["status"] == "rejected"
+
+
+def test_delete_payment_beasiswa_refuses_already_rejected_row():
+    """Same guard, exercised through delete_payment_beasiswa."""
+    conn = get_conn()
+    sid, pa_id, line_a = _seed_siswa_and_pa(conn, COMPANY_ID)
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
+            perusahaan, etf_pa_line_id, status, reject_reason)
+           VALUES (?,?,?,?,?,?,?,?,?,'rejected',?)""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-07-01",
+         5000000, "AGRI", "PT ABC", line_a, "Diganti PAM baru")
+    )
+    row_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
+    result = delete_payment_beasiswa(row_id, COMPANY_ID)
+    assert result["ok"] is False
+
+    conn = get_conn()
+    pb = conn.execute("SELECT status FROM payment_beasiswa WHERE id=?", (row_id,)).fetchone()
+    conn.close()
+    assert pb is not None, "rejected row must survive the refused delete attempt"
+    assert pb["status"] == "rejected"
