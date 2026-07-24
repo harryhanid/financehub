@@ -1,7 +1,8 @@
 /* static/css/beasiswa_dashboard.css — Beasiswa Dashboard tab, page-specific.
    Not shared with Sahabat ETF or Budget Monitoring dashboard (both still use
    the generic .budget-* classes in budget.css) — see
-   docs/superpowers/specs/2026-07-24-beasiswa-dashboard-card-redesign-design.md */
+   docs/superpowers/specs/2026-07-24-beasiswa-dashboard-card-redesign-design.md
+   and docs/superpowers/specs/2026-07-24-beasiswa-dashboard-filter-fix-and-section-panels-design.md */
 
 /* ── Layout containers ─────────────────────────────────────────────────── */
 .beasiswa-dash-summary-grid {
@@ -11,14 +12,20 @@
   margin-bottom: 1.5rem;
 }
 
+.beasiswa-dash-grafik-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
 /* Fixed 2-column pairing (bulan/tahun, monthly-compare/kategori, etc.) rather
-   than auto-fit, which would flow all 9 cards into 3-4 columns on a wide
-   viewport and break the pairing — carried over from .setf-grafik-grid. */
+   than auto-fit, which would flow all cards into 3-4 columns on a wide
+   viewport and break the pairing — carried over from .setf-grafik-grid.
+   Nests inside .beasiswa-dash-section-panel, one grid per section. */
 .beasiswa-dash-grafik-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
-  margin-bottom: 1.5rem;
 }
 .beasiswa-dash-grafik-grid .beasiswa-dash-chart-card {
   min-width: 0;
@@ -32,41 +39,136 @@
   }
 }
 
-/* ── Section grouping labels inside the grafik grid ──────────────────────── */
-.beasiswa-dash-section-label {
-  grid-column: 1 / -1;
-  font-size: 0.68rem;
+/* ── Filter bar — unified dropdown chips ─────────────────────────────────── */
+.beasiswa-dash-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.beasiswa-dash-filter-chip {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.45rem 0.7rem;
+  font-size: 0.78rem;
+  min-width: 150px;
+  cursor: pointer;
+}
+.beasiswa-dash-filter-chip .lbl {
+  display: block;
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
-  margin: 0.6rem 0 0.1rem;
-  padding-top: 0.4rem;
-  border-top: 1px solid var(--border-color);
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
 }
-.beasiswa-dash-section-label:first-child {
-  border-top: none;
-  padding-top: 0;
-  margin-top: 0;
+.beasiswa-dash-filter-chip .val {
+  color: var(--text);
+  font-weight: 600;
+}
+.beasiswa-dash-filter-chip .caret {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  float: right;
+}
+
+.beasiswa-dash-filter-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 4px 14px rgba(0,0,0,.12);
+  padding: 0.6rem;
+  min-width: 200px;
+  cursor: default;
+}
+.beasiswa-dash-filter-chip.open .beasiswa-dash-filter-panel {
+  display: block;
+}
+.beasiswa-dash-filter-panel .panel-head {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.beasiswa-dash-filter-panel .panel-head button {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+.beasiswa-dash-filter-panel .panel-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.beasiswa-dash-filter-panel .panel-opts label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ── Section panels — wrap each Grafik card group ────────────────────────── */
+.beasiswa-dash-section-panel {
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 0.8rem;
+}
+.beasiswa-dash-section-title {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+  margin-bottom: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.beasiswa-dash-section-title::before {
+  content: '';
+  width: 3px;
+  height: 11px;
+  background: var(--primary);
+  border-radius: 2px;
 }
 
 /* ── Summary stat cards — base + tint modifiers ──────────────────────────── */
 .beasiswa-dash-stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
   padding: 1rem 1.1rem;
 }
 .beasiswa-dash-stat-card .label {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 .beasiswa-dash-stat-card .value {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text);
   margin-top: 0.25rem;
 }
 
@@ -81,10 +183,10 @@
 
 /* ── Chart/table cards — neutral, uniform ────────────────────────────────── */
 .beasiswa-dash-chart-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-md);
+  background: var(--card);
+  border-radius: var(--r-md);
   padding: 1rem;
-  border-top: 3px solid var(--border-color);
+  border-top: 3px solid var(--border);
   box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
 }
 .beasiswa-dash-chart-card canvas {
@@ -106,5 +208,5 @@
 .beasiswa-dash-chart-card.compact table thead th {
   position: sticky;
   top: 0;
-  background: var(--bg-card);
+  background: var(--card);
 }
