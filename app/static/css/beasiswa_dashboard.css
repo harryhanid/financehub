@@ -1,0 +1,110 @@
+/* static/css/beasiswa_dashboard.css — Beasiswa Dashboard tab, page-specific.
+   Not shared with Sahabat ETF or Budget Monitoring dashboard (both still use
+   the generic .budget-* classes in budget.css) — see
+   docs/superpowers/specs/2026-07-24-beasiswa-dashboard-card-redesign-design.md */
+
+/* ── Layout containers ─────────────────────────────────────────────────── */
+.beasiswa-dash-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Fixed 2-column pairing (bulan/tahun, monthly-compare/kategori, etc.) rather
+   than auto-fit, which would flow all 9 cards into 3-4 columns on a wide
+   viewport and break the pairing — carried over from .setf-grafik-grid. */
+.beasiswa-dash-grafik-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.beasiswa-dash-grafik-grid .beasiswa-dash-chart-card {
+  min-width: 0;
+}
+.beasiswa-dash-grafik-grid canvas {
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  .beasiswa-dash-grafik-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Section grouping labels inside the grafik grid ──────────────────────── */
+.beasiswa-dash-section-label {
+  grid-column: 1 / -1;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin: 0.6rem 0 0.1rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border-color);
+}
+.beasiswa-dash-section-label:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+/* ── Summary stat cards — base + tint modifiers ──────────────────────────── */
+.beasiswa-dash-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+}
+.beasiswa-dash-stat-card .label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.beasiswa-dash-stat-card .value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 0.25rem;
+}
+
+.beasiswa-dash-stat-card.tint-budget     { background: #eff6ff; border-color: #bfdbfe; }
+.beasiswa-dash-stat-card.tint-budget     .value { color: #1d4ed8; }
+.beasiswa-dash-stat-card.tint-klaim      { background: #fffbeb; border-color: #fde68a; }
+.beasiswa-dash-stat-card.tint-klaim      .value { color: #b45309; }
+.beasiswa-dash-stat-card.tint-realisasi  { background: #f0fdf4; border-color: #bbf7d0; }
+.beasiswa-dash-stat-card.tint-realisasi  .value { color: #15803d; }
+.beasiswa-dash-stat-card.tint-negative   { background: #fef2f2; border-color: #fecaca; }
+.beasiswa-dash-stat-card.tint-negative   .value { color: #b91c1c; }
+
+/* ── Chart/table cards — neutral, uniform ────────────────────────────────── */
+.beasiswa-dash-chart-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  border-top: 3px solid var(--border-color);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+}
+.beasiswa-dash-chart-card canvas {
+  max-height: 260px;
+}
+
+/* Compact cards (tables): smaller heading, denser rows, capped scroll height —
+   carried over unchanged from .setf-compact-card / .setf-compact-scroll in
+   budget.css (that scroll wrapper class itself is untouched in the markup). */
+.beasiswa-dash-chart-card.compact h3 {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.beasiswa-dash-chart-card.compact table th,
+.beasiswa-dash-chart-card.compact table td {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+}
+.beasiswa-dash-chart-card.compact table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+}
