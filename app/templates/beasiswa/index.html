@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Beasiswa{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/beasiswa_dashboard.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+{% endblock %}
 {% block content %}
 {# ── Focus mode exit button (fixed, visible only in focus mode) ─────────── #}
 <button id="fh-focus-exit" onclick="exitFocusMode()" title="Keluar Focus Mode (Esc)">
@@ -12,6 +18,7 @@
   <div class="page-toolbar">
     <h1 class="page-title" style="margin-bottom:0">Beasiswa</h1>
     <div class="tabs" style="margin-bottom:0" title="Alt+&#8592; / Alt+&#8594; untuk pindah tab">
+      <button class="tab-btn" data-tab="tab-dashboard" onclick="loadDashboard()">Dashboard</button>
       <button class="tab-btn" data-tab="tab-siswa" onclick="loadRekap()">Data Siswa</button>
       <button class="tab-btn" data-tab="tab-budget" onclick="loadBudgetList()">Data Budget</button>
       <button class="tab-btn" data-tab="tab-payment" onclick="loadPaymentList()">Data Payment</button>
@@ -33,6 +40,158 @@
     </div>
   </div>
 </div>
+
+  <!-- TAB DASHBOARD -->
+  <div class="tab-panel" id="tab-dashboard">
+    <div class="budget-page" style="padding:0">
+      <p style="color:var(--text-muted);font-size:.8rem;margin-bottom:1rem">
+        Semua nilai pada dashboard ini ditampilkan dalam jutaan rupiah (Jt).
+      </p>
+
+      <details class="setf-accordion" open>
+        <summary>Ringkasan</summary>
+        <div class="setf-accordion-body">
+          <div class="filter-bar">
+            <div class="filter-field setf-filter-field-wide">
+              <label>Tahun</label>
+              <button type="button" id="dash-year-select-all" class="btn btn-secondary btn-sm" style="margin-bottom:.375rem">Pilih Semua</button>
+              <div id="dash-filter-tahun">
+                {% for y in range(2023, 2027) %}
+                <label style="display:inline-flex;align-items:center;gap:.25rem;margin-right:.75rem;font-weight:400">
+                  <input type="checkbox" class="dash-year-cb" value="{{ y }}" checked>
+                  {{ y }}
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="filter-field">
+              <label>Pillar</label>
+              <div id="dash-filter-pillar">
+                {% for p in pillar %}
+                <label style="display:inline-flex;align-items:center;gap:.25rem;margin-right:.75rem;font-weight:400">
+                  <input type="checkbox" class="dash-pillar-cb" value="{{ p }}" checked>
+                  {{ p }}
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            
+            <div class="filter-field" style="position:relative;">
+              <label>Program</label>
+              <button type="button" class="btn btn-secondary btn-sm" style="margin-bottom:.375rem" onclick="document.querySelectorAll('.dash-program-cb').forEach(c=>c.checked=true);loadDashboard()">Pilih Semua</button>
+              <div id="dash-filter-program" style="max-height:80px; overflow-y:auto; border:1px solid #e2e8f0; padding:4px; border-radius:4px; background:var(--card, #fff); min-width:180px;">
+                {% for p in program %}
+                <label style="display:block;font-weight:400;margin-bottom:2px">
+                  <input type="checkbox" class="dash-program-cb" value="{{ p }}" checked>
+                  {{ p }}
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            
+            <div class="filter-field" style="position:relative;">
+              <label>Jenjang Studi</label>
+              <button type="button" class="btn btn-secondary btn-sm" style="margin-bottom:.375rem" onclick="document.querySelectorAll('.dash-jenjang-cb').forEach(c=>c.checked=true);loadDashboard()">Pilih Semua</button>
+              <div id="dash-filter-jenjang" style="max-height:80px; overflow-y:auto; border:1px solid #e2e8f0; padding:4px; border-radius:4px; background:var(--card, #fff); min-width:140px;">
+                {% for j in jenjang %}
+                <label style="display:block;font-weight:400;margin-bottom:2px">
+                  <input type="checkbox" class="dash-jenjang-cb" value="{{ j }}" checked>
+                  {{ j }}
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          
+          <div class="beasiswa-dash-summary-grid" id="dash-summary"></div>
+        </div>
+      </details>
+
+      <details class="setf-accordion" id="dash-grafik-accordion" open>
+        <summary>Grafik</summary>
+        <div class="setf-accordion-body">
+          <div class="beasiswa-dash-grafik-grid">
+            <div class="beasiswa-dash-section-label">Trend</div>
+            <div class="beasiswa-dash-chart-card"><h3>Trend per Bulan</h3><canvas id="dash-chart-bulanan"></canvas></div>
+            <div class="beasiswa-dash-chart-card"><h3>Trend per Tahun</h3><canvas id="dash-chart-tahunan"></canvas></div>
+
+            <div class="beasiswa-dash-chart-card compact">
+              <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
+              <div class="setf-compact-scroll">
+                <table id="dash-monthly-table">
+                  <thead><tr id="dash-monthly-thead-row"><th>Bulan</th></tr></thead>
+                  <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="beasiswa-dash-section-label">Breakdown Realisasi</div>
+            <div class="beasiswa-dash-chart-card"><h3>Realisasi per Kategori</h3><canvas id="dash-chart-kategori"></canvas></div>
+            <div class="beasiswa-dash-chart-card compact">
+              <h3>Realisasi per Kategori (Tabel)</h3>
+              <div class="setf-compact-scroll">
+                <table id="dash-kategori-table">
+                  <thead><tr><th>Kategori</th><th>Budget</th><th>Realisasi</th><th>Sisa</th></tr></thead>
+                  <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="beasiswa-dash-chart-card compact">
+              <h3>Realisasi per Jenjang Studi</h3>
+              <div class="setf-compact-scroll">
+                <table id="dash-jenjang-table">
+                  <thead><tr><th>Jenjang</th><th class="num-right">Budget</th><th class="num-right">Realisasi</th><th class="num-right">Sisa</th></tr></thead>
+                  <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="beasiswa-dash-chart-card compact">
+              <h3>Realisasi per Pillar per Tahun</h3>
+              <div class="setf-compact-scroll">
+                <table id="dash-pillar-year-table">
+                  <thead><tr id="dash-pillar-year-thead"><th>Pillar</th></tr></thead>
+                  <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="beasiswa-dash-section-label">Detail Transaksi</div>
+            <div class="beasiswa-dash-chart-card compact">
+              <h3>20 Transaksi Terakhir</h3>
+              <div class="setf-compact-scroll" style="max-height: 550px;">
+                <table id="dash-latest-payments-table">
+                  <thead>
+                    <tr>
+                      <th>Tanggal</th>
+                      <th>Nama</th>
+                      <th>Kategori</th>
+                      <th>Kategori 2</th>
+                      <th class="num-right">Realisasi</th>
+                    </tr>
+                  </thead>
+                  <tbody><tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="beasiswa-dash-chart-card compact">
+              <h3>Rincian Budget vs Realisasi per Program</h3>
+              <div class="setf-compact-scroll">
+                <table id="dash-program-table">
+                  <thead>
+                    <tr><th>Program</th><th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th></tr>
+                  </thead>
+                  <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
 
   <!-- TAB DATA BEASISWA (siswa + rekap) -->
   <div class="tab-panel" id="tab-siswa">
@@ -693,6 +852,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard_beasiswa.js') }}"></script>
 <script>
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -761,10 +921,15 @@ async function simpanSiswa() {
     payload[`ipk_pen${i}`] = el ? (parseFloat(el.value) || 0) : 0;
   }
   const url = _editMode ? `/beasiswa/siswa/${_editCode}/update` : "/beasiswa/siswa/tambah";
-  const resp = await apiFetch(url, { method:"POST", body:JSON.stringify(payload) });
-  const data = await resp.json();
-  showToast(data.pesan, data.ok ? "success" : "error");
-  if (data.ok) { closeModal("modal-siswa-tambah"); setTimeout(() => location.reload(), 800); }
+  showLoading("Menyimpan data siswa...");
+  try {
+    const resp = await apiFetch(url, { method:"POST", body:JSON.stringify(payload) });
+    const data = await resp.json();
+    showToast(data.pesan, data.ok ? "success" : "error");
+    if (data.ok) { closeModal("modal-siswa-tambah"); setTimeout(() => location.reload(), 800); }
+  } finally {
+    hideLoading();
+  }
 }
 
 function openTambahSiswa() {
@@ -807,9 +972,14 @@ async function openEditSiswa(code) {
 
 async function hapusSiswa(code, nama) {
   if (!await confirmModal(`Hapus siswa "${nama}" (${code})? Semua data budget dan payment siswa ini juga akan dihapus permanen.`, { type: 'danger', confirmText: 'Hapus' })) return;
-  const d = await (await apiFetch(`/beasiswa/siswa/${code}/hapus`, { method: "POST" })).json();
-  showToast(d.pesan, d.ok ? "success" : "error");
-  if (d.ok) setTimeout(() => location.reload(), 800);
+  showLoading("Menghapus siswa...");
+  try {
+    const d = await (await apiFetch(`/beasiswa/siswa/${code}/hapus`, { method: "POST" })).json();
+    showToast(d.pesan, d.ok ? "success" : "error");
+    if (d.ok) setTimeout(() => location.reload(), 800);
+  } finally {
+    hideLoading();
+  }
 }
 
 async function openBudgetSiswa(code, nama) {
@@ -1005,9 +1175,14 @@ async function bgtSaveRow() {
   if (!tanggal) { showToast("Tanggal wajib diisi.", "error"); return; }
   if (amount <= 0) { showToast("Amount harus lebih dari 0.", "error"); return; }
   const body = JSON.stringify({ cat1, cat2, tanggal, pillar, amount });
-  const d = await (await apiFetch(`/beasiswa/budget/${id}/update`, { method: "POST", body })).json();
-  showToast(d.pesan, d.ok ? "success" : "error");
-  if (d.ok) { closeModal("modal-bgt-form"); await _bgtAfterSave(); }
+  showLoading("Memperbarui budget...");
+  try {
+    const d = await (await apiFetch(`/beasiswa/budget/${id}/update`, { method: "POST", body })).json();
+    showToast(d.pesan, d.ok ? "success" : "error");
+    if (d.ok) { closeModal("modal-bgt-form"); await _bgtAfterSave(); }
+  } finally {
+    hideLoading();
+  }
 }
 
 function _mkDrop(opts, ph) {
@@ -1104,16 +1279,26 @@ async function bgtSaveRows() {
   })).filter(it => it.amount > 0);
   if (!items.length) { showToast("Minimal 1 baris dengan amount > 0.", "error"); return; }
   const body = JSON.stringify({ code: _bgtCode, tanggal, pillar, items });
-  const d = await (await apiFetch("/beasiswa/budget/tambah", { method: "POST", body })).json();
-  showToast(d.pesan, d.ok ? "success" : "error");
-  if (d.ok) { closeModal("modal-bgt-form"); await _bgtAfterSave(); }
+  showLoading("Menyimpan budget...");
+  try {
+    const d = await (await apiFetch("/beasiswa/budget/tambah", { method: "POST", body })).json();
+    showToast(d.pesan, d.ok ? "success" : "error");
+    if (d.ok) { closeModal("modal-bgt-form"); await _bgtAfterSave(); }
+  } finally {
+    hideLoading();
+  }
 }
 
 async function bgtDeleteRow(id) {
   if (!await confirmModal("Hapus baris budget ini? Data tidak dapat dikembalikan.", { type: 'danger', confirmText: 'Hapus' })) return;
-  const d = await (await apiFetch(`/beasiswa/budget/${id}/hapus`, { method: "POST" })).json();
-  showToast(d.pesan, d.ok ? "success" : "error");
-  if (d.ok) await _bgtAfterSave();
+  showLoading("Menghapus budget...");
+  try {
+    const d = await (await apiFetch(`/beasiswa/budget/${id}/hapus`, { method: "POST" })).json();
+    showToast(d.pesan, d.ok ? "success" : "error");
+    if (d.ok) await _bgtAfterSave();
+  } finally {
+    hideLoading();
+  }
 }
 
 // ── Input Budget tab ──────────────────────────────────────────────────────────
@@ -1123,6 +1308,10 @@ let _bgtContext = "list";
 async function _bgtAfterSave() {
   if (_bgtContext === "input") {
     await loadInputBudget(_ibgtCode);
+    // Budget saved via the "Input Budget" modal changes this student's
+    // total_budget/sisa — refresh the Data Siswa table underneath too, or
+    // it keeps showing pre-edit figures until the tab is manually reloaded.
+    if (document.getElementById("rekap-tbody")) await loadRekap();
   } else {
     await loadBudgetList();
   }
@@ -1185,12 +1374,17 @@ async function ibgtSaveCatatan() {
   if (!_ibgtCode) return;
   if (!await confirmModal("Simpan catatan input budget?")) return;
   const catatan = document.getElementById("ibgt-catatan-input").value;
-  const d = await (await apiFetch(`/beasiswa/siswa/${_ibgtCode}/catatan`,
-    { method: "POST", body: JSON.stringify({ catatan }) })).json();
-  showToast(d.pesan, d.ok ? "success" : "error");
-  if (d.ok) {
-    document.getElementById("ibgt-catatan-text").textContent = catatan.trim() || "—";
-    ibgtCancelCatatan();
+  showLoading("Menyimpan catatan...");
+  try {
+    const d = await (await apiFetch(`/beasiswa/siswa/${_ibgtCode}/catatan`,
+      { method: "POST", body: JSON.stringify({ catatan }) })).json();
+    showToast(d.pesan, d.ok ? "success" : "error");
+    if (d.ok) {
+      document.getElementById("ibgt-catatan-text").textContent = catatan.trim() || "—";
+      ibgtCancelCatatan();
+    }
+  } finally {
+    hideLoading();
   }
 }
 
@@ -1281,9 +1475,14 @@ async function loadPaymentList() {
 
 async function payDeleteRow(id) {
   if (!await confirmModal("Hapus baris payment ini? Data tidak dapat dikembalikan.", { type: 'danger', confirmText: 'Hapus' })) return;
-  const d = await (await apiFetch(`/beasiswa/payment/${id}/hapus`, { method: "POST" })).json();
-  showToast(d.pesan, d.ok ? "success" : "error");
-  if (d.ok) await loadPaymentList();
+  showLoading("Menghapus payment...");
+  try {
+    const d = await (await apiFetch(`/beasiswa/payment/${id}/hapus`, { method: "POST" })).json();
+    showToast(d.pesan, d.ok ? "success" : "error");
+    if (d.ok) await loadPaymentList();
+  } finally {
+    hideLoading();
+  }
 }
 
 function openEditPayment(id) {
@@ -1329,13 +1528,18 @@ async function submitEditPayment() {
   if (!pamInput.disabled && pamInput.value.trim()) payload.pam = pamInput.value.trim();
   if (!tglInput.disabled && tglInput.value) payload.tanggal_bayar = tglInput.value;
 
-  const res = await apiFetch(`/beasiswa/payment/${id}/edit`, {
-    method: 'POST', body: JSON.stringify(payload)
-  });
-  if (!res) return;
-  const data = await res.json();
-  showToast(data.pesan, data.ok ? 'success' : 'error');
-  if (data.ok) { closeModal('modal-edit-payment'); await loadPaymentList(); }
+  showLoading("Menyimpan perubahan...");
+  try {
+    const res = await apiFetch(`/beasiswa/payment/${id}/edit`, {
+      method: 'POST', body: JSON.stringify(payload)
+    });
+    if (!res) return;
+    const data = await res.json();
+    showToast(data.pesan, data.ok ? 'success' : 'error');
+    if (data.ok) { closeModal('modal-edit-payment'); await loadPaymentList(); }
+  } finally {
+    hideLoading();
+  }
 }
 
 function _renderTabSummary(prefix, bgtTotals, payTotals) {
@@ -1403,6 +1607,12 @@ function exportPayment(fmt) {
     program: document.getElementById("pay-filter-program")?.value || "",
   });
   window.location.href = `/beasiswa/payment/export/${fmt}?${p}`;
+}
+
+function loadDashboard() {
+  if (typeof initDashboard === 'function') {
+    initDashboard();
+  }
 }
 
 async function loadRekap() {
