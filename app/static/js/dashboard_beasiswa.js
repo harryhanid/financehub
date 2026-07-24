@@ -461,25 +461,66 @@ function dashApplyFilters() {
   }
 }
 
+function dashUpdateChipSummary(chip) {
+  const boxes = chip.querySelectorAll(".panel-opts input[type=checkbox]");
+  const total = boxes.length;
+  const checked = chip.querySelectorAll(".panel-opts input[type=checkbox]:checked").length;
+  const valEl = chip.querySelector(".val");
+  if (checked === total) {
+    valEl.textContent = "Semua";
+  } else if (checked === 0) {
+    valEl.textContent = "Tidak ada";
+  } else {
+    valEl.textContent = checked + " dipilih";
+  }
+}
+
 function initDashboard() {
   // Hanya inisialisasi satu kali
   if (window._dashInitialized) return;
   window._dashInitialized = true;
-  
-  document.querySelectorAll(".dash-year-cb").forEach(function (cb) {
-    cb.addEventListener("change", dashApplyFilters);
-  });
-  document.querySelectorAll(".dash-pillar-cb").forEach(function (cb) {
-    cb.addEventListener("change", dashApplyFilters);
-  });
-  const selectAllBtn = document.getElementById("dash-year-select-all");
-  if (selectAllBtn) {
-    selectAllBtn.addEventListener("click", function () {
-      document.querySelectorAll(".dash-year-cb").forEach(function (cb) { cb.checked = true; });
-      dashApplyFilters();
+
+  document.querySelectorAll(".beasiswa-dash-filter-chip").forEach(function (chip) {
+    chip.querySelectorAll(".panel-opts input[type=checkbox]").forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        dashUpdateChipSummary(chip);
+        dashApplyFilters();
+      });
     });
-  }
-  
+    const allBtn = chip.querySelector('[data-act="all"]');
+    if (allBtn) {
+      allBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        chip.querySelectorAll(".panel-opts input[type=checkbox]").forEach(function (cb) { cb.checked = true; });
+        dashUpdateChipSummary(chip);
+        dashApplyFilters();
+      });
+    }
+    const noneBtn = chip.querySelector('[data-act="none"]');
+    if (noneBtn) {
+      noneBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        chip.querySelectorAll(".panel-opts input[type=checkbox]").forEach(function (cb) { cb.checked = false; });
+        dashUpdateChipSummary(chip);
+        dashApplyFilters();
+      });
+    }
+    chip.addEventListener("click", function (e) {
+      if (e.target.closest(".beasiswa-dash-filter-panel")) return;
+      document.querySelectorAll(".beasiswa-dash-filter-chip.open").forEach(function (c) {
+        if (c !== chip) c.classList.remove("open");
+      });
+      chip.classList.toggle("open");
+    });
+    dashUpdateChipSummary(chip);
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".beasiswa-dash-filter-chip")) {
+      document.querySelectorAll(".beasiswa-dash-filter-chip.open").forEach(function (c) { c.classList.remove("open"); });
+    }
+  });
+
   dashApplyFilters();
 }
 
