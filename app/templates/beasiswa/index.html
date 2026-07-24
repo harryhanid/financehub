@@ -128,81 +128,89 @@
       <details class="setf-accordion" id="dash-grafik-accordion" open>
         <summary>Grafik</summary>
         <div class="setf-accordion-body">
-          <div class="beasiswa-dash-grafik-grid">
-            <div class="beasiswa-dash-section-label">Trend</div>
-            <div class="beasiswa-dash-chart-card"><h3>Trend per Bulan</h3><canvas id="dash-chart-bulanan"></canvas></div>
-            <div class="beasiswa-dash-chart-card"><h3>Trend per Tahun</h3><canvas id="dash-chart-tahunan"></canvas></div>
-
-            <div class="beasiswa-dash-chart-card compact">
-              <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
-              <div class="setf-compact-scroll">
-                <table id="dash-monthly-table">
-                  <thead><tr id="dash-monthly-thead-row"><th>Bulan</th></tr></thead>
-                  <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-                </table>
+          <div class="beasiswa-dash-grafik-wrap">
+            <div class="beasiswa-dash-section-panel">
+              <div class="beasiswa-dash-section-title">Trend</div>
+              <div class="beasiswa-dash-grafik-grid">
+                <div class="beasiswa-dash-chart-card"><h3>Trend per Bulan</h3><canvas id="dash-chart-bulanan"></canvas></div>
+                <div class="beasiswa-dash-chart-card"><h3>Trend per Tahun</h3><canvas id="dash-chart-tahunan"></canvas></div>
+                <div class="beasiswa-dash-chart-card compact">
+                  <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
+                  <div class="setf-compact-scroll">
+                    <table id="dash-monthly-table">
+                      <thead><tr id="dash-monthly-thead-row"><th>Bulan</th></tr></thead>
+                      <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="beasiswa-dash-section-label">Breakdown Realisasi</div>
-            <div class="beasiswa-dash-chart-card"><h3>Realisasi per Kategori</h3><canvas id="dash-chart-kategori"></canvas></div>
-            <div class="beasiswa-dash-chart-card compact">
-              <h3>Realisasi per Kategori (Tabel)</h3>
-              <div class="setf-compact-scroll">
-                <table id="dash-kategori-table">
-                  <thead><tr><th>Kategori</th><th>Budget</th><th>Realisasi</th><th>Sisa</th></tr></thead>
-                  <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-                </table>
+            <div class="beasiswa-dash-section-panel">
+              <div class="beasiswa-dash-section-title">Breakdown Realisasi</div>
+              <div class="beasiswa-dash-grafik-grid">
+                <div class="beasiswa-dash-chart-card"><h3>Realisasi per Kategori</h3><canvas id="dash-chart-kategori"></canvas></div>
+                <div class="beasiswa-dash-chart-card compact">
+                  <h3>Realisasi per Kategori (Tabel)</h3>
+                  <div class="setf-compact-scroll">
+                    <table id="dash-kategori-table">
+                      <thead><tr><th>Kategori</th><th>Budget</th><th>Realisasi</th><th>Sisa</th></tr></thead>
+                      <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="beasiswa-dash-chart-card compact">
+                  <h3>Realisasi per Jenjang Studi</h3>
+                  <div class="setf-compact-scroll">
+                    <table id="dash-jenjang-table">
+                      <thead><tr><th>Jenjang</th><th class="num-right">Budget</th><th class="num-right">Realisasi</th><th class="num-right">Sisa</th></tr></thead>
+                      <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="beasiswa-dash-chart-card compact">
+                  <h3>Realisasi per Pillar per Tahun</h3>
+                  <div class="setf-compact-scroll">
+                    <table id="dash-pillar-year-table">
+                      <thead><tr id="dash-pillar-year-thead"><th>Pillar</th></tr></thead>
+                      <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="beasiswa-dash-chart-card compact">
-              <h3>Realisasi per Jenjang Studi</h3>
-              <div class="setf-compact-scroll">
-                <table id="dash-jenjang-table">
-                  <thead><tr><th>Jenjang</th><th class="num-right">Budget</th><th class="num-right">Realisasi</th><th class="num-right">Sisa</th></tr></thead>
-                  <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="beasiswa-dash-chart-card compact">
-              <h3>Realisasi per Pillar per Tahun</h3>
-              <div class="setf-compact-scroll">
-                <table id="dash-pillar-year-table">
-                  <thead><tr id="dash-pillar-year-thead"><th>Pillar</th></tr></thead>
-                  <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="beasiswa-dash-section-label">Detail Transaksi</div>
-            <div class="beasiswa-dash-chart-card compact">
-              <h3>20 Transaksi Terakhir</h3>
-              <div class="setf-compact-scroll" style="max-height: 550px;">
-                <table id="dash-latest-payments-table">
-                  <thead>
-                    <tr>
-                      <th>Tanggal</th>
-                      <th>Nama</th>
-                      <th>Kategori</th>
-                      <th>Kategori 2</th>
-                      <th class="num-right">Realisasi</th>
-                    </tr>
-                  </thead>
-                  <tbody><tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="beasiswa-dash-chart-card compact">
-              <h3>Rincian Budget vs Realisasi per Program</h3>
-              <div class="setf-compact-scroll">
-                <table id="dash-program-table">
-                  <thead>
-                    <tr><th>Program</th><th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th></tr>
-                  </thead>
-                  <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-                </table>
+            <div class="beasiswa-dash-section-panel">
+              <div class="beasiswa-dash-section-title">Detail Transaksi</div>
+              <div class="beasiswa-dash-grafik-grid">
+                <div class="beasiswa-dash-chart-card compact">
+                  <h3>20 Transaksi Terakhir</h3>
+                  <div class="setf-compact-scroll" style="max-height: 550px;">
+                    <table id="dash-latest-payments-table">
+                      <thead>
+                        <tr>
+                          <th>Tanggal</th>
+                          <th>Nama</th>
+                          <th>Kategori</th>
+                          <th>Kategori 2</th>
+                          <th class="num-right">Realisasi</th>
+                        </tr>
+                      </thead>
+                      <tbody><tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="beasiswa-dash-chart-card compact">
+                  <h3>Rincian Budget vs Realisasi per Program</h3>
+                  <div class="setf-compact-scroll">
+                    <table id="dash-program-table">
+                      <thead>
+                        <tr><th>Program</th><th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th></tr>
+                      </thead>
+                      <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
