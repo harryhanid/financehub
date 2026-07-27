@@ -89,10 +89,13 @@
       50%      { opacity: 1; transform: scale(1.6); }
     }
 
-    /* Hover: brighten the hovered company's line, dim the other */
+    /* Hover: brighten the hovered company's line, dim the other.
+       !important is required here: .chart-shadow has a running
+       opacity keyframe animation, which always outranks a plain
+       author declaration in the cascade. */
     body.branch-hover-smt .chart-primary { stroke-width: 3.2; opacity: 1; }
-    body.branch-hover-smt .chart-shadow  { opacity: .18; }
-    body.branch-hover-etf .chart-shadow  { stroke-width: 2.4; opacity: 1; }
+    body.branch-hover-smt .chart-shadow  { opacity: .18 !important; }
+    body.branch-hover-etf .chart-shadow  { stroke-width: 2.4; opacity: 1 !important; }
     body.branch-hover-etf .chart-primary { opacity: .5; }
 
     /* Click flourish: brief brighten + glow before the form submits */
