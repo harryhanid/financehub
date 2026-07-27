@@ -12,7 +12,10 @@ from modules.beasiswa.service import (
     get_financial_summary,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
     get_vendors, get_distinct_universitas,
+    get_dashboard_summary, get_dashboard_breakdown, get_dashboard_monthly,
+    get_dashboard_latest_payments, get_dashboard_program_summary, get_dashboard_pillar_yearly,
 )
+from modules.sahabat_etf.service import get_available_years, get_available_pillars
 import config
 
 bp = Blueprint("beasiswa", __name__, url_prefix="/beasiswa")
@@ -55,6 +58,9 @@ def index():
         universitas_list=get_distinct_universitas(_cid()),
         cat3_medical=config.CAT3_MEDICAL,
         active_page="beasiswa",
+        wrong_company=(session.get("company_code") != "ETF"),
+        available_years=get_available_years(_cid()),
+        available_pillars=get_available_pillars(_cid()),
         **_ctx()
     )
 
@@ -793,3 +799,88 @@ def rekap_export_pdf():
     buffer.seek(0)
     return send_file(buffer, mimetype="application/pdf",
                      download_name="rekap_beasiswa.pdf", as_attachment=True)
+
+
+# --- Dashboard API Endpoints ---
+
+@bp.route("/api/dashboard/summary")
+@jwt_html_required
+def api_dashboard_summary():
+    years_str = request.args.get("years", "")
+    pillars_str = request.args.get("pillars", "")
+    years = [int(y) for y in years_str.split(",")] if years_str else []
+    pillars = [p for p in pillars_str.split(",") if p]
+    programs_str = request.args.get("programs", "")
+    jenjangs_str = request.args.get("jenjangs", "")
+    programs = [p for p in programs_str.split(",") if p]
+    jenjangs = [j for j in jenjangs_str.split(",") if j]
+    return jsonify({"ok": True, "data": get_dashboard_summary(_cid(), years, pillars, programs, jenjangs)})
+
+
+@bp.route("/api/dashboard/breakdown")
+@jwt_html_required
+def api_dashboard_breakdown():
+    years_str = request.args.get("years", "")
+    pillars_str = request.args.get("pillars", "")
+    years = [int(y) for y in years_str.split(",")] if years_str else []
+    pillars = [p for p in pillars_str.split(",") if p]
+    programs_str = request.args.get("programs", "")
+    jenjangs_str = request.args.get("jenjangs", "")
+    programs = [p for p in programs_str.split(",") if p]
+    jenjangs = [j for j in jenjangs_str.split(",") if j]
+    return jsonify({"ok": True, "data": get_dashboard_breakdown(_cid(), years, pillars, programs, jenjangs)})
+
+
+@bp.route("/api/dashboard/monthly")
+@jwt_html_required
+def api_dashboard_monthly():
+    years_str = request.args.get("years", "")
+    pillars_str = request.args.get("pillars", "")
+    years = [int(y) for y in years_str.split(",")] if years_str else []
+    pillars = [p for p in pillars_str.split(",") if p]
+    programs_str = request.args.get("programs", "")
+    jenjangs_str = request.args.get("jenjangs", "")
+    programs = [p for p in programs_str.split(",") if p]
+    jenjangs = [j for j in jenjangs_str.split(",") if j]
+    return jsonify({"ok": True, "data": get_dashboard_monthly(_cid(), years, pillars, programs, jenjangs)})
+
+
+@bp.route("/api/dashboard/latest_payments")
+@jwt_html_required
+def api_dashboard_latest_payments():
+    years_str = request.args.get("years", "")
+    pillars_str = request.args.get("pillars", "")
+    years = [int(y) for y in years_str.split(",")] if years_str else []
+    pillars = [p for p in pillars_str.split(",") if p]
+    programs_str = request.args.get("programs", "")
+    jenjangs_str = request.args.get("jenjangs", "")
+    programs = [p for p in programs_str.split(",") if p]
+    jenjangs = [j for j in jenjangs_str.split(",") if j]
+    return jsonify({"ok": True, "data": get_dashboard_latest_payments(_cid(), years, pillars, programs, jenjangs)})
+
+
+@bp.route("/api/dashboard/program_summary")
+@jwt_html_required
+def api_dashboard_program_summary():
+    years_str = request.args.get("years", "")
+    pillars_str = request.args.get("pillars", "")
+    years = [int(y) for y in years_str.split(",")] if years_str else []
+    pillars = [p for p in pillars_str.split(",") if p]
+    programs_str = request.args.get("programs", "")
+    jenjangs_str = request.args.get("jenjangs", "")
+    programs = [p for p in programs_str.split(",") if p]
+    jenjangs = [j for j in jenjangs_str.split(",") if j]
+    return jsonify({"ok": True, "data": get_dashboard_program_summary(_cid(), years, pillars, programs, jenjangs)})
+
+
+@bp.route("/api/dashboard/pillar_yearly")
+@jwt_html_required
+def api_dashboard_pillar_yearly():
+    pillars_str = request.args.get("pillars", "")
+    pillars = [p for p in pillars_str.split(",") if p]
+    programs_str = request.args.get("programs", "")
+    jenjangs_str = request.args.get("jenjangs", "")
+    programs = [p for p in programs_str.split(",") if p]
+    jenjangs = [j for j in jenjangs_str.split(",") if j]
+    return jsonify({"ok": True, "data": get_dashboard_pillar_yearly(_cid(), pillars, programs, jenjangs)})
+
