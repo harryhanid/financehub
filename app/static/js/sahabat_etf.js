@@ -650,6 +650,12 @@ function setfApplyFilters() {
 }
 
 function initSahabatEtf() {
+  // Hanya inisialisasi satu kali — dipanggil dari onclick tombol tab
+  // "Sahabat ETF" di Beasiswa setiap kali tab diklik, tidak hanya sekali
+  // seperti DOMContentLoaded pada halaman standalone-nya.
+  if (window._sahabatInitialized) return;
+  window._sahabatInitialized = true;
+
   document.querySelectorAll(".setf-year-cb").forEach(function (cb) {
     cb.addEventListener("change", setfApplyFilters);
   });
