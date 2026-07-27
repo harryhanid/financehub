@@ -14,10 +14,9 @@
   --sl-600: #475569; --sl-700: #334155; --sl-800: #1E293B;
   --sl-900: #0F172A;
 
-  /* Accent — FLOW gradient (cobalt → cyan), selective use only */
-  --accent:         #2D6ADF;
+  /* Accent — blue, kept consistent */
+  --accent:         #2563EB;
   --accent-dark:    #1D4ED8;
-  --accent-2:       #0EA5C4;
   --accent-surface: #EFF6FF;
   --accent-border:  #BFDBFE;
   --accent-text:    #1D4ED8;
@@ -92,6 +91,8 @@ button { font-family: inherit; }
 }
 .navbar-brand-icon {
   width: 24px; height: 24px;
+  background: var(--sl-900);
+  border-radius: var(--r-md);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
@@ -400,12 +401,7 @@ th[data-sort-dir="desc"]::after { content: ' ▼'; opacity: 1; color: var(--acce
   font-variant-numeric: tabular-nums;
 }
 .stat-value.currency { font-size: 1.0625rem; }
-.stat-card.primary .stat-value {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
+.stat-card.primary .stat-value { color: var(--accent); }
 .stat-card.positive .stat-value { color: var(--positive); }
 .stat-card.caution  .stat-value { color: var(--caution);  }
 
@@ -438,11 +434,10 @@ th[data-sort-dir="desc"]::after { content: ' ▼'; opacity: 1; color: var(--acce
 }
 .btn:active { opacity: .82; }
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #FFF;
+  background: var(--accent); color: #FFF;
   border: 1px solid transparent;
 }
-.btn-primary:hover { filter: brightness(0.94); }
+.btn-primary:hover { background: var(--accent-dark); }
 .btn-secondary {
   background: #FFF; color: var(--sl-700);
   border: 1px solid var(--sl-200);
@@ -581,9 +576,9 @@ input[readonly], input[disabled] {
   font-family: inherit;
 }
 .tab-btn.active {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: #fff;
-  box-shadow: 0 4px 14px rgba(45,106,223,.3);
+  box-shadow: 0 4px 14px rgba(37,99,235,.3);
 }
 .tab-btn:hover:not(.active) { background: var(--accent-surface); color: var(--accent-text); }
 .tab-panel { display: none; }
@@ -972,12 +967,11 @@ body.fh-focus #fh-focus-exit { display: flex; }
   --sl-300: #475569; --sl-400: #64748B; --sl-500: #94A3B8;
   --sl-600: #CBD5E1; --sl-700: #E2E8F0; --sl-800: #F1F5F9; --sl-900: #F8FAFC;
 
-  /* Accent — FLOW gradient (cobalt → cyan), selective use only */
-  --accent:         #5B8CFF;
+  /* Accent stays blue but surface/border adapt */
+  --accent:         #3B82F6;
   --accent-dark:    #2563EB;
-  --accent-2:       #22D3EE;
-  --accent-surface: rgba(91,140,255,0.12);
-  --accent-border:  rgba(91,140,255,0.3);
+  --accent-surface: rgba(59,130,246,0.12);
+  --accent-border:  rgba(59,130,246,0.3);
   --accent-text:    #93C5FD;
 
   /* Semantic — lighter tones for dark bg */
@@ -1008,6 +1002,7 @@ body.fh-focus #fh-focus-exit { display: flex; }
   border-bottom-color: rgba(255,255,255,0.07);
 }
 [data-theme="dark"] .navbar-brand { color: var(--sl-900); }
+[data-theme="dark"] .navbar-brand-icon { background: var(--accent); }
 [data-theme="dark"] .navbar-company:hover { background: rgba(255,255,255,0.06); color: var(--sl-800); }
 [data-theme="dark"] .btn-logout {
   border-color: rgba(255,255,255,0.1);
@@ -1024,7 +1019,7 @@ body.fh-focus #fh-focus-exit { display: flex; }
 [data-theme="dark"] .stat-card { background: var(--card); border-color: var(--border); }
 
 /* Dark: tables */
-[data-theme="dark"] thead tr { background: rgba(255,255,255,0.04) !important; }
+[data-theme="dark"] thead tr { background: rgba(255,255,255,0.04); }
 [data-theme="dark"] th { color: var(--sl-500); border-bottom-color: var(--border); }
 [data-theme="dark"] td { color: var(--sl-600); border-bottom-color: rgba(255,255,255,0.04); }
 [data-theme="dark"] tbody tr:hover td { background: var(--positive-surface); }
@@ -1040,9 +1035,9 @@ body.fh-focus #fh-focus-exit { display: flex; }
 [data-theme="dark"] input,
 [data-theme="dark"] select,
 [data-theme="dark"] textarea {
-  background: rgba(255,255,255,0.05) !important;
-  border-color: rgba(255,255,255,0.12) !important;
-  color: var(--sl-900) !important;
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.12);
+  color: var(--sl-900);
   /* Some Chromium versions only pick the dark native-popup rendering    */
   /* (the <select> options list) when color-scheme is set on the field   */
   /* itself, not just inherited from an ancestor like <html>.            */
@@ -1148,92 +1143,13 @@ body.fh-focus #fh-focus-exit { display: flex; }
 [data-theme="dark"] .icon-moon { display: none; }
 
 /* ── Dark: JS-generated table rows (inline style override) ───────── */
-/* payment_memo: SML, APP, AGRI, SETF, SMT, Advance tabs use JS zebra-stripe via inline style */
+/* payment_memo: SML, APP, AGRI tabs use JS zebra-stripe via inline style */
 [data-theme="dark"] .sml-row,
 [data-theme="dark"] .fiori-row,
-[data-theme="dark"] #pam-tbody tr,
-[data-theme="dark"] #sml-tbody tr,
-[data-theme="dark"] #setf-tbody tr,
-[data-theme="dark"] #smt-tbody tr,
-[data-theme="dark"] #advance-tbody tr,
-[data-theme="dark"] #pa-advance-tbody tr,
-[data-theme="dark"] #klaim-tbody tr,
-[data-theme="dark"] #ipay-tbody tr { background: var(--card) !important; }
+[data-theme="dark"] #pam-tbody tr { background: var(--card) !important; }
 [data-theme="dark"] .sml-row:hover td,
 [data-theme="dark"] .fiori-row:hover td,
-[data-theme="dark"] #pam-tbody tr:hover td,
-[data-theme="dark"] #sml-tbody tr:hover td,
-[data-theme="dark"] #setf-tbody tr:hover td,
-[data-theme="dark"] #smt-tbody tr:hover td,
-[data-theme="dark"] #advance-tbody tr:hover td,
-[data-theme="dark"] #pa-advance-tbody tr:hover td,
-[data-theme="dark"] #klaim-tbody tr:hover td,
-[data-theme="dark"] #ipay-tbody tr:hover td { background: var(--positive-surface) !important; }
-/* Open PAM tab: Grand Total summary row (its own tbody, not covered above) */
-[data-theme="dark"] .pam-grandtotal-row { background: rgba(255,255,255,0.04) !important; }
-
-/* ── Dark: expandable detail panels (SMT transaction-lines, klaim medis) ─ */
-/* .smt-detail-rows: nested mini-table injected under a PAM List row, all inline-styled */
-[data-theme="dark"] .smt-detail-rows,
-[data-theme="dark"] .smt-detail-rows > td,
-[data-theme="dark"] .smt-detail-rows table,
-[data-theme="dark"] .smt-detail-rows tr,
-[data-theme="dark"] .smt-detail-rows td,
-[data-theme="dark"] .smt-detail-rows th,
-[data-theme="dark"] .smt-detail-rows > td > div {
-  background: var(--card) !important;
-  color: var(--sl-800) !important;
-  border-color: var(--border) !important;
-}
-[data-theme="dark"] .smt-detail-rows [style*="color:#ef4444"] { color: #FCA5A5 !important; }
-[data-theme="dark"] .smt-detail-rows [style*="color:#64748b"] { color: var(--sl-500) !important; }
-[data-theme="dark"] .smt-detail-rows [style*="color:#94a3b8"] { color: var(--sl-500) !important; }
-[data-theme="dark"] .smt-detail-rows [style*="color:#334155"] { color: var(--sl-700) !important; }
-[data-theme="dark"] .smt-detail-rows [style*="color:#0f172a"] { color: var(--sl-900) !important; }
-/* .ipay-medis-row: expandable "Data Medis" panel under an Input Payment claim row */
-[data-theme="dark"] .ipay-medis-row td,
-[data-theme="dark"] .ipay-medis-row [style*="background:#fff8ed"] {
-  background: var(--card) !important;
-  color: var(--sl-800) !important;
-  border-color: var(--border) !important;
-}
-[data-theme="dark"] .ipay-medis-row [style*="color:#6b7280"] { color: var(--sl-500) !important; }
-[data-theme="dark"] .ipay-medis-row [style*="color:#b45309"] { color: #FCD34D !important; }
-[data-theme="dark"] .ipay-medis-row [style*="background:#fef2f2"] {
-  background: rgba(248,113,113,0.1) !important;
-  color: #FCA5A5 !important;
-  border-color: rgba(248,113,113,0.3) !important;
-}
-
-/* ── Dark: bulk-edit warning bars (AGRI/APP/PAM List tabs) ────────────── */
-[data-theme="dark"] #agri-bulk-bar,
-[data-theme="dark"] #fiori-bulk-bar,
-[data-theme="dark"] #smt-bulk-bar {
-  background: rgba(251,191,36,0.1) !important;
-  border-color: rgba(251,191,36,0.25) !important;
-  color: var(--sl-900) !important;
-}
-
-/* ── Dark: dynamically-created dropdown panels (no static id — class-based) ─ */
-/* Covers custom kategori-2 select, siswa/vendor autocomplete floating lists  */
-[data-theme="dark"] .dyn-sugg-trigger {
-  background: var(--card) !important;
-  border-color: rgba(255,255,255,0.12) !important;
-}
-[data-theme="dark"] .dyn-sugg-panel {
-  background: var(--card) !important;
-  border-color: var(--border) !important;
-  color: var(--sl-900) !important;
-}
-[data-theme="dark"] .dyn-sugg-panel > div:hover,
-[data-theme="dark"] .dyn-sugg-trigger:hover { background: rgba(255,255,255,0.06) !important; }
-[data-theme="dark"] .dyn-sugg-panel [style*="color:#6b7280"],
-[data-theme="dark"] .dyn-sugg-panel [style*="color:#9ca3af"] { color: var(--sl-500) !important; }
-[data-theme="dark"] .dyn-sugg-panel [style*="color:#374151"] { color: var(--sl-700) !important; }
-[data-theme="dark"] .dyn-sugg-panel [style*="color:#111827"] { color: var(--sl-900) !important; }
-[data-theme="dark"] .dyn-sugg-panel [style*="color:#1a56db"] { color: var(--accent-text) !important; }
-[data-theme="dark"] .dyn-sugg-panel [style*="color:#dc2626"] { color: #FCA5A5 !important; }
-[data-theme="dark"] .dyn-sugg-panel [style*="background:#f3f4f6"] { background: rgba(255,255,255,0.06) !important; }
+[data-theme="dark"] #pam-tbody tr:hover td { background: var(--positive-surface) !important; }
 
 /* ── Dark: suggestion / dropdown panels (inline style override) ──── */
 /* Targets both static HTML inline-style panels and JS-set IDs */
@@ -1465,21 +1381,6 @@ body.fh-focus #fh-focus-exit { display: flex; }
 }
 [data-theme="dark"] #ibgt-catatan-form label { color: #FCD34D !important; }
 [data-theme="dark"] #ibgt-title { color: var(--accent-text) !important; }
-/* Update Data Siswa modal: unsaved-payment-change warning banner */
-[data-theme="dark"] #edit-payment-warning {
-  background: rgba(251,191,36,0.08) !important;
-  border-color: rgba(251,191,36,0.25) !important;
-  color: #FCD34D !important;
-}
-/* Rekam Medis detail modal: summary grid card */
-[data-theme="dark"] #rm-detail-content [style*="background:#f8fafc"] { background: rgba(255,255,255,0.04) !important; }
-/* Dashboard beasiswa: pillar-by-year Total row */
-[data-theme="dark"] #dash-pillar-year-table tbody tr[style*="background:#f8fafc"] { background: rgba(255,255,255,0.04) !important; }
-/* Coming Soon page badge */
-[data-theme="dark"] [style*="background:#fef3c7"][style*="color:#92400e"] {
-  background: rgba(251,191,36,0.12) !important;
-  color: #FCD34D !important;
-}
 
 /* ── Dark: hardcoded gray/dark text overrides (targeted scope) ────── */
 /* ipay-catatan label subtext */
