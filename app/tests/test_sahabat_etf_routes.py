@@ -32,11 +32,12 @@ def test_index_shows_wrong_company_notice_for_smt(client):
     assert b"Ganti Company" in resp.data
 
 
-def test_beasiswa_page_has_link_to_sahabat_etf(client):
+def test_beasiswa_page_has_sahabat_etf_tab(client):
     login(client)
     _select_etf(client)
     resp = client.get("/beasiswa/")
-    assert b"/beasiswa/sahabat" in resp.data
+    assert b'data-tab="tab-sahabat"' in resp.data
+    assert b'id="tab-sahabat"' in resp.data
 
 
 def _seed_one_siswa(client):
