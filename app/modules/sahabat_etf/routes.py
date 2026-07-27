@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import Blueprint, render_template, session, jsonify, request
+from flask import Blueprint, render_template, session, jsonify, request, redirect, url_for
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.sahabat_etf.service import (
@@ -55,15 +55,10 @@ def etf_company_required(f):
 @bp.route("/")
 @jwt_html_required
 def index():
-    cid = _cid()
-    return render_template(
-        "sahabat_etf/index.html",
-        active_page="sahabat_etf",
-        wrong_company=(session.get("company_code") != "ETF"),
-        available_years=get_available_years(cid),
-        available_pillars=get_available_pillars(cid),
-        **_ctx(),
-    )
+    # The standalone page is now embedded as a tab in Beasiswa (see
+    # templates/beasiswa/index.html's tab-sahabat panel) — redirect old
+    # bookmarks/links there instead of rendering a separate page.
+    return redirect(url_for("beasiswa.index", tab="sahabat"))
 
 
 @bp.route("/api/summary")
