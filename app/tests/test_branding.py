@@ -32,3 +32,18 @@ def test_base_html_links_favicon(client):
     html = resp.data.decode()
     assert 'rel="icon"' in html
     assert "favicon.svg" in html
+
+
+def test_login_page_shows_flow_branding(client):
+    resp = client.get("/auth/login")
+    html = resp.data.decode()
+    assert "<title>Login — FLOW</title>" in html
+    assert "Finance Hub" not in html
+    assert "Financial Ledger and Operational Workspace" in html
+    assert 'rel="icon"' in html
+
+
+def test_login_page_wordmark_uses_flow_text(client):
+    resp = client.get("/auth/login")
+    html = resp.data.decode()
+    assert '<span class="wordmark-text">FLOW</span>' in html

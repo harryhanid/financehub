@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login — Finance Hub</title>
+  <title>Login — FLOW</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -18,9 +19,9 @@
       --ink-2:     #9896B0;
       --ink-3:     #4E4D63;
       --rule:      rgba(255,255,255,0.07);
-      --accent:    #2563EB;
-      --accent-glow: rgba(37,99,235,0.2);
-      --accent-2:  #3B82F6;
+      --accent:    #5B8CFF;
+      --accent-glow: rgba(91,140,255,0.22);
+      --accent-2:  #22D3EE;
       --danger:    #FF5757;
       --font:      'Figtree', system-ui, sans-serif;
       --mono:      'DM Mono', monospace;
@@ -74,14 +75,14 @@
       display: flex;
       align-items: center;
       gap: .75rem;
-      margin-bottom: 2.5rem;
+      margin-bottom: .6rem;
       animation: rise .5s cubic-bezier(.22,.72,0,1) both;
     }
 
     .wordmark-icon {
       width: 34px; height: 34px;
       border-radius: 10px;
-      background: var(--accent);
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 0 24px var(--accent-glow), inset 0 1px 1px rgba(255,255,255,0.2);
       flex-shrink: 0;
@@ -110,6 +111,17 @@
       letter-spacing: .15em;
       text-transform: uppercase;
       color: var(--ink-3);
+    }
+
+    .wordmark-tagline {
+      margin-bottom: 2.5rem;
+      font-size: .625rem;
+      font-family: var(--mono);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      text-align: center;
+      animation: rise .55s cubic-bezier(.22,.72,0,1) .04s both;
     }
 
     /* ── Card (double-bezel) ── */
@@ -237,7 +249,7 @@
       justify-content: center; gap: .625rem;
       font-family: var(--font); font-size: .875rem;
       font-weight: 700; color: #fff;
-      background: var(--accent);
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
       border: none; border-radius: 10px;
       cursor: pointer; position: relative; overflow: hidden;
       transition: all .3s cubic-bezier(.32,.72,0,1);
@@ -312,15 +324,15 @@
     <!-- Wordmark -->
     <div class="wordmark">
       <div class="wordmark-icon">
-        <svg viewBox="0 0 16 16">
-          <rect x="1" y="9" width="3.5" height="5.5" rx=".75"/>
-          <rect x="6.25" y="5" width="3.5" height="9.5" rx=".75"/>
-          <rect x="11.5" y="1.5" width="3.5" height="13" rx=".75"/>
+        <svg viewBox="0 0 16 16" fill="none">
+          <path d="M1.5 10.2c1.6-3.2 3.6-3.2 5 0s3.4 3.2 5 0s2.5-4 2.5-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M1.5 5.8c1.6-3.2 3.6-3.2 5 0s3.4 3.2 5 0" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity="0.55"/>
         </svg>
       </div>
-      <span class="wordmark-text">Finance Hub</span>
+      <span class="wordmark-text">FLOW</span>
       <span class="wordmark-pill">Internal</span>
     </div>
+    <div class="wordmark-tagline">Financial Ledger and Operational Workspace</div>
 
     <!-- Double-bezel card -->
     <div class="card-shell">
@@ -332,7 +344,7 @@
             Sign in
           </div>
           <div class="card-title">Selamat Datang</div>
-          <div class="card-sub">Masuk ke akun Finance Hub Anda</div>
+          <div class="card-sub">Masuk ke akun FLOW Anda</div>
         </div>
 
         <div id="login-error" class="login-error"></div>
@@ -371,7 +383,7 @@
       </div>
     </div>
 
-    <div class="tagline">© 2026 Finance Hub &nbsp;·&nbsp; Internal Use Only</div>
+    <div class="tagline">© 2026 FLOW &nbsp;·&nbsp; Internal Use Only</div>
   </div>
 
 <script>
