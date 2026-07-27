@@ -349,7 +349,17 @@ function initTabs(container) {
       panel.addEventListener("change", recompute);
     });
   }
-  if (tabs.length > 0) tabs[0].click();
+  // Deep-link support: ?tab=<name> selects [data-tab="tab-<name>"] instead
+  // of always defaulting to the first tab — used by redirects like
+  // /beasiswa/sahabat -> /beasiswa/?tab=sahabat. Falls back to today's
+  // default behavior when absent or no match is found.
+  const requestedTab = new URLSearchParams(window.location.search).get("tab");
+  const requested = requestedTab && container.querySelector(`[data-tab="tab-${requestedTab}"]`);
+  if (requested) {
+    requested.click();
+  } else if (tabs.length > 0) {
+    tabs[0].click();
+  }
 }
 
 function fmtRupiah(n) {
