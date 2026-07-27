@@ -1,5 +1,5 @@
 """
-Finance Hub — Production entry point
+FLOW — Production entry point
 Jalankan: python run.py
 Akses LAN: http://<IP-laptop>:8080
 """
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     except Exception:
         local_ip = "127.0.0.1"
     print("=" * 50)
-    print("  Finance Hub — Production Server")
+    print("  FLOW — Production Server")
     print(f"  Local : http://localhost:8080")
     print(f"  LAN   : http://{local_ip}:8080")
     print("  Tekan Ctrl+C untuk berhenti")

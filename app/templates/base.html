@@ -6,26 +6,41 @@
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Finance Hub{% endblock %} — Finance Hub</title>
+  <title>{% block title %}FLOW{% endblock %} — FLOW</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap&font-display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   {% block head %}{% endblock %}
 </head>
 <body data-module="{{ active_page or '' }}">
 <nav class="navbar">
   <a class="navbar-brand" href="/">
     <span class="navbar-brand-icon">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,.95)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="1" y="6" width="3" height="6" rx=".5"/><rect x="5.5" y="2" width="3" height="10" rx=".5"/><rect x="10" y="4" width="3" height="8" rx=".5"/>
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+        <defs>
+          <linearGradient id="flow-mark-grad" x1="0" y1="0" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+            <stop offset="0" style="stop-color:var(--accent)"/>
+            <stop offset="1" style="stop-color:var(--accent-2)"/>
+          </linearGradient>
+        </defs>
+        <path d="M2 13c2-4 4-4 6 0s4 4 6 0s3-5 3-5" stroke="url(#flow-mark-grad)" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M2 8c2-4 4-4 6 0s4 4 6 0" stroke="url(#flow-mark-grad)" stroke-width="1.1" stroke-linecap="round" opacity="0.45"/>
       </svg>
     </span>
-    Finance Hub
+    FLOW
   </a>
   {% if company_name %}
   <span class="navbar-sep">/</span>
   <a class="navbar-company" href="/select-company" title="Ganti perusahaan">{{ company_name }}</a>
+  {% endif %}
+  {% if nav_modules %}
+  <div class="navbar-menu">
+    {% for m in nav_modules %}
+    <a class="navbar-menu-item{{ ' active' if m.key == active_page else '' }}" href="{{ m.url }}">{{ m.name }}</a>
+    {% endfor %}
+  </div>
   {% endif %}
   {% if company_name %}
   <button id="fh-cmd-btn" class="fh-cmd-btn" title="Cari modul (Alt+K)">

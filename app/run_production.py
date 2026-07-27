@@ -49,7 +49,7 @@ if __name__ == "__main__":
         mdns_ok = False
 
     print("=" * 55)
-    print("  Finance Hub — Production Server")
+    print("  FLOW — Production Server")
     print("=" * 55)
     print(f"  Local    :  http://localhost:{port}")
     print(f"  LAN      :  http://{local_ip}:{port}")

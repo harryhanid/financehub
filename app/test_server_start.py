@@ -39,7 +39,7 @@ finally:
         pass
 
 # Check output for critical strings
-banner_found = any("Finance Hub — Production Server" in line for line in output_lines)
+banner_found = any("FLOW — Production Server" in line for line in output_lines)
 mdns_ok = any("✓" in line for line in output_lines)
 domain_line = [line for line in output_lines if "Domain" in line]
 
