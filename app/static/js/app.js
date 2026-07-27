@@ -324,6 +324,14 @@ function initTabs(container) {
       btn.classList.add("active");
       const target = container.querySelector(`#${btn.dataset.tab}`);
       if (target) target.classList.add("active");
+      // Sync the active tab into the URL (no reload) so a save action that
+      // triggers location.reload()/window.location.reload() while on a
+      // non-first tab lands back on the same tab instead of silently
+      // resetting to the first one on next page load.
+      const tabName = btn.dataset.tab.replace(/^tab-/, "");
+      const url = new URL(window.location);
+      url.searchParams.set("tab", tabName);
+      history.replaceState(null, "", url);
       // Filter panel always starts collapsed when switching sub-modules —
       // see docs/superpowers/specs/2026-07-12-financehub-page-toolbar-layout-design.md §2.3
       container.querySelectorAll(".filter-bar.collapsible.open").forEach(p => p.classList.remove("open"));
