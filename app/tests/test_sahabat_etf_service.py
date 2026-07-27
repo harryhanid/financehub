@@ -526,14 +526,14 @@ def test_get_family_summary_single_member_shows_name_directly():
     assert by_key["fam5"] == "Claudia Samaoen"
 
 
-def test_get_family_summary_multi_member_labeled_family_n_in_order():
+def test_get_family_summary_multi_member_labeled_sahabat_n_in_order():
     _add_siswa("1260001", "Budi Widjaja")          # fam3, member 1
     _add_siswa("5250001", "Birgitta Jennifer Widjaja")  # fam3, member 2
     _add_siswa("5260001", "Claudia Samaoen")       # fam5, single -> not counted
 
     families = get_family_summary(COMPANY_ID)
     by_key = {f["family_key"]: f["label"] for f in families}
-    assert by_key["fam3"] == "Family 1"
+    assert by_key["fam3"] == "Sahabat 1"
     assert by_key["fam5"] == "Claudia Samaoen"
 
 

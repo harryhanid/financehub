@@ -239,7 +239,7 @@ function setfRenderStackedBarChart(canvasId, families) {
 function setfRenderFamilyTable(families) {
   const tbody = document.querySelector("#setf-family-table tbody");
   if (!families.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada data keluarga.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada data sahabat.</td></tr>';
     return;
   }
   tbody.innerHTML = families.map(function (f) {
@@ -610,7 +610,7 @@ function setfApplyFilters() {
       setfRenderStackedBarChart("chart-keluarga", data.families);
       setfRenderFamilyTable(data.families);
     })
-    .catch(function () { showToast("Gagal memuat data keluarga.", "error"); });
+    .catch(function () { showToast("Gagal memuat data sahabat.", "error"); });
 
   fetch("/beasiswa/sahabat/api/summary" + (qs ? "?" + qs : ""))
     .then(function (r) { return r.json(); })

@@ -394,7 +394,7 @@ def get_family_summary(company_id: int, years: list = None, pillars: list = None
     for f in families:
         if len(f["members"]) > 1:
             family_counter += 1
-            f["label"] = f"Family {family_counter}"
+            f["label"] = f"Sahabat {family_counter}"
         else:
             f["label"] = f["members"][0]["nama"]
 
