@@ -9,13 +9,13 @@ import config
 bp = Blueprint("dashboard", __name__)
 
 DASHBOARD_TABS = [
-    ("Dashboard",             "dashboard.index"),
-    ("Beasiswa",              "beasiswa.index"),
-    ("Payment Approval Memo", "payment_memo.index"),
-    ("Payment Application",   "etf_payment_application.index"),
-    ("Budget",                "budget.index"),
-    ("Bank",                  "bank.index"),
-    ("Users",                 "users.index"),
+    ("Dashboard",             "dashboard.index",               "dashboard"),
+    ("Beasiswa",              "beasiswa.index",                "beasiswa"),
+    ("Payment Approval Memo", "payment_memo.index",            "payment_memo"),
+    ("Payment Application",   "etf_payment_application.index", "etf_payment_app"),
+    ("Budget",                "budget.index",                  "budget"),
+    ("Bank",                  "bank.index",                    "bank"),
+    ("Users",                 "users.index",                   "users"),
 ]
 
 
@@ -87,6 +87,5 @@ def index():
         ).fetchone()[0]
         conn.close()
 
-    modules = [{"name": name, "url": url_for(endpoint)} for name, endpoint in DASHBOARD_TABS]
     return render_template("dashboard/index.html", stats=stats, dash=dash,
-                           modules=modules, active_page="dashboard", **get_ctx())
+                           active_page="dashboard", **get_ctx())

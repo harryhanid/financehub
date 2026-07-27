@@ -34,12 +34,12 @@ def test_dashboard_shows_etf_stats(client):
     resp = client.get("/dashboard")
     assert b"Total Siswa" in resp.data
 
-def test_dashboard_shows_module_tabs(client):
+def test_navbar_shows_module_menu_on_dashboard(client):
     login(client)
     select_etf(client)
     resp = client.get("/dashboard")
     html = resp.data.decode()
-    assert 'class="tab-btn active" href="/dashboard"' in html
+    assert 'class="navbar-menu-item active" href="/dashboard"' in html
     for label, href in [
         ("Beasiswa", "/beasiswa/"),
         ("Payment Approval Memo", "/payment-memo/"),
@@ -52,3 +52,13 @@ def test_dashboard_shows_module_tabs(client):
         assert label in html
     assert "Account Payable" not in html
     assert "Coming Soon" not in html
+
+
+def test_navbar_module_menu_appears_on_other_pages_too(client):
+    login(client)
+    select_etf(client)
+    resp = client.get("/bank/")
+    html = resp.data.decode()
+    assert 'class="navbar-menu-item active" href="/bank/"' in html
+    assert 'href="/dashboard"' in html
+    assert "Beasiswa" in html

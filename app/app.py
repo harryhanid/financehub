@@ -60,6 +60,20 @@ def create_app(testing=False):
     from modules.coming_soon.routes import coming_soon_bp
     app.register_blueprint(coming_soon_bp)
 
+    @app.context_processor
+    def inject_nav_modules():
+        from modules.dashboard.routes import DASHBOARD_TABS
+        from flask_jwt_extended import get_jwt
+        try:
+            get_jwt()
+        except Exception:
+            return {"nav_modules": []}
+        nav_modules = [
+            {"name": name, "url": url_for(endpoint), "key": key}
+            for name, endpoint, key in DASHBOARD_TABS
+        ]
+        return {"nav_modules": nav_modules}
+
     @app.route("/")
     def index():
         return redirect(url_for("auth.login_page"))
