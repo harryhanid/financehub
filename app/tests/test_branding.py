@@ -49,14 +49,26 @@ def test_login_page_wordmark_uses_flow_text(client):
     assert '<span class="wordmark-text">FLOW</span>' in html
 
 
-def test_company_select_page_shows_flow_badge(client):
+def test_company_select_page_shows_flow_branding(client):
     login(client)
     resp = client.get("/select-company")
     html = resp.data.decode()
     assert "<title>Pilih Perusahaan — FLOW</title>" in html
-    assert '<div class="cs-badge">FLOW</div>' in html
     assert "FINANCE HUB" not in html
     assert 'rel="icon"' in html
+    assert '<span class="wordmark-text">FLOW</span>' in html
+
+
+def test_company_select_page_has_a_panel_per_company(client):
+    login(client)
+    resp = client.get("/select-company")
+    html = resp.data.decode()
+    assert 'class="company-panel company-panel-smt"' in html
+    assert 'class="company-panel company-panel-etf"' in html
+    assert 'name="company_id" value="1"' in html
+    assert 'name="company_id" value="2"' in html
+    assert "Sinar Mas Tjipta" in html
+    assert "Eka Tjipta Foundation" in html
 
 
 def test_change_password_page_shows_flow_title(client):

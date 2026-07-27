@@ -6,25 +6,270 @@
   <title>Pilih Perusahaan — FLOW</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #06080F;
+      --surface:   #0F1220;
+      --ink:       #F0EEF8;
+      --ink-2:     #9896B0;
+      --ink-3:     #4E4D63;
+      --accent:    #5B8CFF;
+      --accent-2:  #22D3EE;
+      --font:      'Figtree', system-ui, sans-serif;
+      --mono:      'DM Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      font-family: var(--font);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Noise ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+      opacity: 0.5;
+    }
+
+    /* ── Glow orbs (shared with login) ── */
+    .orb {
+      position: fixed; pointer-events: none;
+      border-radius: 9999px; filter: blur(120px); z-index: 0;
+    }
+    .orb-1 {
+      width: 700px; height: 500px;
+      top: -200px; left: 50%; transform: translateX(-50%);
+      background: radial-gradient(ellipse, rgba(79,106,255,0.11) 0%, transparent 65%);
+      animation: breathe-1 12s ease-in-out infinite;
+    }
+    .orb-2 {
+      width: 400px; height: 400px;
+      bottom: -100px; right: 10%;
+      background: radial-gradient(ellipse, rgba(123,143,255,0.07) 0%, transparent 65%);
+      animation: breathe-2 14s ease-in-out infinite -4s;
+    }
+    @keyframes breathe-1 {
+      0%, 100% { transform: translateX(-50%) scale(1); opacity: 1; }
+      50%      { transform: translateX(-50%) scale(1.08); opacity: .85; }
+    }
+    @keyframes breathe-2 {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%      { transform: scale(1.1); opacity: .8; }
+    }
+
+    /* ── Branching ambient chart ── */
+    .chart-ambient {
+      position: fixed; inset: 0; z-index: 0;
+      pointer-events: none;
+      width: 100%; height: 100%;
+    }
+    .chart-primary, .chart-shadow {
+      transition: stroke-width .3s ease, opacity .3s ease, filter .3s ease;
+    }
+    .chart-shadow { animation: chart-shadow-breathe 12s ease-in-out infinite; }
+    @keyframes chart-shadow-breathe {
+      0%, 100% { opacity: .35; }
+      50%      { opacity: .18; }
+    }
+    @keyframes land-pulse {
+      0%, 100% { opacity: .5; transform: scale(1); }
+      50%      { opacity: 1; transform: scale(1.6); }
+    }
+
+    /* Hover: brighten the hovered company's line, dim the other */
+    body.branch-hover-smt .chart-primary { stroke-width: 3.2; opacity: 1; }
+    body.branch-hover-smt .chart-shadow  { opacity: .18; }
+    body.branch-hover-etf .chart-shadow  { stroke-width: 2.4; opacity: 1; }
+    body.branch-hover-etf .chart-primary { opacity: .5; }
+
+    /* Click flourish: brief brighten + glow before the form submits */
+    body.branch-firing-smt .chart-primary {
+      stroke-width: 4; filter: drop-shadow(0 0 6px rgba(91,140,255,.8));
+    }
+    body.branch-firing-etf .chart-shadow {
+      stroke-width: 3; filter: drop-shadow(0 0 6px rgba(34,211,238,.8));
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .orb, .wordmark-icon, .wordmark, .wordmark-tagline, .company-row,
+      .chart-shadow, .chart-primary, .chart-shadow {
+        animation: none !important;
+        opacity: 1 !important;
+      }
+      .chart-dot, .chart-dot-glow, .company-landing-dot { display: none; }
+    }
+
+    /* ── Wordmark (matches login.html for View Transitions continuity) ── */
+    .page {
+      position: relative; z-index: 1;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+      gap: 2.5rem;
+    }
+
+    .wordmark {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      animation: rise .5s cubic-bezier(.22,.72,0,1) .1s both;
+    }
+
+    .wordmark-icon {
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 24px rgba(91,140,255,0.22), inset 0 1px 1px rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+    .wordmark-icon svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; }
+    .wordmark-text { font-size: .875rem; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+    .wordmark-pill {
+      padding: .2rem .55rem; border-radius: 9999px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+      font-size: .55rem; font-family: var(--mono); letter-spacing: .15em;
+      text-transform: uppercase; color: var(--ink-3);
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .page-title {
+      font-size: 1rem; font-weight: 600; color: var(--ink-2);
+      text-align: center;
+      animation: rise .5s cubic-bezier(.22,.72,0,1) .2s both;
+    }
+
+    /* ── Company panels ── */
+    .company-row {
+      display: flex; flex-direction: column; gap: 1rem;
+      width: min(720px, 100%);
+      animation: rise .6s cubic-bezier(.22,.72,0,1) .32s both;
+    }
+    @media (min-width: 640px) {
+      .company-row { flex-direction: row; }
+    }
+
+    .company-form { flex: 1; display: flex; }
+
+    .company-panel {
+      flex: 1; width: 100%;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 2rem 1.5rem;
+      display: flex; flex-direction: column; align-items: center; gap: .75rem;
+      cursor: pointer; color: inherit; font-family: inherit;
+      transition: border-color .2s ease, background .2s ease;
+    }
+    .company-panel:hover { background: rgba(255,255,255,0.05); }
+    .company-panel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .company-panel-smt:hover, .company-panel-smt:focus-visible { border-color: rgba(91,140,255,.4); }
+    .company-panel-etf:hover, .company-panel-etf:focus-visible { border-color: rgba(34,211,238,.4); }
+
+    .company-landing-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      animation: land-pulse 2s ease-in-out infinite;
+    }
+    .company-panel-smt .company-landing-dot { background: #5B8CFF; box-shadow: 0 0 10px #5B8CFF; }
+    .company-panel-etf .company-landing-dot { background: #22D3EE; box-shadow: 0 0 10px #22D3EE; animation-delay: .5s; }
+
+    .company-name { font-size: 1rem; font-weight: 700; color: var(--ink); text-align: center; }
+    .company-code {
+      font-size: .625rem; font-family: var(--mono); letter-spacing: .1em;
+      text-transform: uppercase; color: var(--ink-3);
+    }
+  </style>
 </head>
 <body>
-<div class="cs-split">
-  <div class="cs-badge">FLOW</div>
-  {% for c in companies %}
-  {% if not loop.first %}<div class="cs-divider"></div>{% endif %}
-  <form method="POST" action="/select-company" class="cs-form">
-    <button type="submit" name="company_id" value="{{ c.id }}"
-            class="cs-panel cs-panel-{{ c.code | lower }}">
-      <div class="cs-icon">{{ '🏢' if c.code == 'SMT' else '🏛️' }}</div>
-      <div class="cs-name">{{ c.name }}</div>
-      <div class="cs-code">{{ c.code }}</div>
-      <div class="cs-hint">Pilih →</div>
-    </button>
-  </form>
-  {% endfor %}
-</div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <svg class="chart-ambient" viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" fill="none" aria-hidden="true">
+    <path class="chart-primary" d="M-100,120 C300,160 500,110 700,180 C820,220 850,280 700,340 C500,415 350,460 300,560 C270,610 290,650 340,680"
+      stroke="#5B8CFF" stroke-width="2.2" stroke-linecap="round"/>
+    <path class="chart-shadow" d="M-100,180 C300,220 550,160 750,220 C900,260 950,320 850,380 C1050,430 1250,480 1280,580 C1300,625 1280,655 1230,680"
+      stroke="#22D3EE" stroke-width="1.2" opacity="0.35"/>
+    <circle class="chart-dot-glow" r="9" fill="#5B8CFF" opacity="0.25">
+      <animateMotion dur="7s" repeatCount="indefinite" path="M-100,120 C300,160 500,110 700,180 C820,220 850,280 700,340 C500,415 350,460 300,560 C270,610 290,650 340,680"/>
+    </circle>
+    <circle class="chart-dot" r="4" fill="#5B8CFF">
+      <animateMotion dur="7s" repeatCount="indefinite" path="M-100,120 C300,160 500,110 700,180 C820,220 850,280 700,340 C500,415 350,460 300,560 C270,610 290,650 340,680"/>
+    </circle>
+    <circle class="chart-dot-glow" r="7.5" fill="#22D3EE" opacity="0.22">
+      <animateMotion dur="7s" repeatCount="indefinite" path="M-100,180 C300,220 550,160 750,220 C900,260 950,320 850,380 C1050,430 1250,480 1280,580 C1300,625 1280,655 1230,680"/>
+    </circle>
+    <circle class="chart-dot" r="3.5" fill="#22D3EE">
+      <animateMotion dur="7s" repeatCount="indefinite" path="M-100,180 C300,220 550,160 750,220 C900,260 950,320 850,380 C1050,430 1250,480 1280,580 C1300,625 1280,655 1230,680"/>
+    </circle>
+  </svg>
+
+  <div class="page">
+    <div class="wordmark">
+      <div class="wordmark-icon">
+        <svg viewBox="0 0 16 16" fill="none">
+          <path d="M1.5 10.2c1.6-3.2 3.6-3.2 5 0s3.4 3.2 5 0s2.5-4 2.5-4" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M1.5 5.8c1.6-3.2 3.6-3.2 5 0s3.4 3.2 5 0" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity="0.55"/>
+        </svg>
+      </div>
+      <span class="wordmark-text">FLOW</span>
+      <span class="wordmark-pill">Internal</span>
+    </div>
+
+    <div class="page-title">Pilih perusahaan untuk melanjutkan</div>
+
+    <div class="company-row">
+      {% for c in companies %}
+      <form method="POST" action="/select-company" class="company-form">
+        <button type="submit" name="company_id" value="{{ c.id }}"
+                class="company-panel company-panel-{{ c.code | lower }}"
+                data-code="{{ c.code }}">
+          <span class="company-landing-dot"></span>
+          <span class="company-name">{{ c.name }}</span>
+          <span class="company-code">{{ c.code }}</span>
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+
+<script>
+(function () {
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  document.querySelectorAll('.company-panel').forEach(function (btn) {
+    var code = btn.dataset.code.toLowerCase();
+
+    btn.addEventListener('mouseenter', function () { document.body.classList.add('branch-hover-' + code); });
+    btn.addEventListener('mouseleave', function () { document.body.classList.remove('branch-hover-' + code); });
+    btn.addEventListener('focus', function () { document.body.classList.add('branch-hover-' + code); });
+    btn.addEventListener('blur', function () { document.body.classList.remove('branch-hover-' + code); });
+
+    if (reduceMotion) return;
+
+    btn.addEventListener('click', function (e) {
+      if (btn.dataset.firing) return;
+      e.preventDefault();
+      btn.dataset.firing = '1';
+      document.body.classList.add('branch-firing-' + code);
+      setTimeout(function () { btn.form.requestSubmit(btn); }, 180);
+    });
+  });
+})();
+</script>
 </body>
 </html>
