@@ -23,6 +23,10 @@
       --mono:      'DM Mono', monospace;
     }
 
+    @view-transition {
+      navigation: auto;
+    }
+
     html, body {
       height: 100%;
       background: var(--bg);
@@ -70,6 +74,7 @@
       position: fixed; inset: 0; z-index: 0;
       pointer-events: none;
       width: 100%; height: 100%;
+      view-transition-name: flow-ambient;
     }
     .chart-primary, .chart-shadow {
       transition: stroke-width .3s ease, opacity .3s ease, filter .3s ease;
@@ -124,6 +129,7 @@
       align-items: center;
       gap: .75rem;
       animation: rise .5s cubic-bezier(.22,.72,0,1) .1s both;
+      view-transition-name: flow-wordmark;
     }
 
     .wordmark-icon {
