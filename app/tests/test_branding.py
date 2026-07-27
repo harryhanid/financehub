@@ -47,3 +47,21 @@ def test_login_page_wordmark_uses_flow_text(client):
     resp = client.get("/auth/login")
     html = resp.data.decode()
     assert '<span class="wordmark-text">FLOW</span>' in html
+
+
+def test_company_select_page_shows_flow_badge(client):
+    login(client)
+    resp = client.get("/select-company")
+    html = resp.data.decode()
+    assert "<title>Pilih Perusahaan — FLOW</title>" in html
+    assert '<div class="cs-badge">FLOW</div>' in html
+    assert "FINANCE HUB" not in html
+    assert 'rel="icon"' in html
+
+
+def test_change_password_page_shows_flow_title(client):
+    login(client)
+    resp = client.get("/auth/change-password")
+    html = resp.data.decode()
+    assert "<title>Ganti Password — FLOW</title>" in html
+    assert 'rel="icon"' in html
