@@ -1,7 +1,7 @@
 # modules/dashboard/routes.py
 from flask import Blueprint, render_template, redirect, url_for, request, session
 from flask_jwt_extended import get_jwt
-from auth.middleware import jwt_html_required, is_admin
+from auth.middleware import jwt_html_required
 from database import get_conn
 from modules.dashboard.service import get_etf_dashboard_data
 import config
