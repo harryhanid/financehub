@@ -56,6 +56,10 @@ No backend/logic changes. Existing tests (`test_dashboard_after_company_selectio
 - In a View-Transitions-supporting browser (Chrome/Edge), confirm the wordmark visibly glides from its centered position to the navbar rather than popping instantly.
 - Confirm no visual/functional change to any other page's navigation (Bank↔Beasiswa, etc. — View Transitions must not activate there).
 
+**Known limitation, confirmed 2026-07-28 (not a bug — accepted as-is):** Chrome does not fire cross-document View Transitions for navigations triggered by a POST form submission, by design (browsers are conservative about animating state-mutating requests). `company_select.html`'s form to `/select-company` is a POST, so the wordmark morph described above never actually plays for this hop — the CSS is correctly in place and harmless, it's just inert given this navigation's own semantics. Confirmed via Chrome 150 with `document.startViewTransition` and cross-document view transitions both supported; the CSS (`view-transition-name: flow-wordmark`) is verified present on the live rendered Dashboard page via `getComputedStyle`. Fixing this for real would mean switching the click handler from native form submission to `fetch()` POST + a separate script-initiated `location.href` navigation — which was deliberately rejected to avoid contradicting this project's "native form, no client-side routing" constraint. The dark-mode-on-first-visit continuity (a plain `localStorage` mechanism, unrelated to View Transitions) is unaffected and works normally.
+
+Sources: [Chrome for Developers — Cross-document view transitions](https://developer.chrome.com/docs/web-platform/view-transitions/cross-document), [CSS-Tricks — Cross-Document View Transitions: The Gotchas Nobody Mentions](https://css-tricks.com/cross-document-view-transitions-part-1/)
+
 ## Out of Scope
 
 - Extending View Transitions to any other page pair in the app.
