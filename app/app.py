@@ -48,6 +48,9 @@ def create_app(testing=False):
     from modules.bank.routes import bp as bank_bp
     app.register_blueprint(bank_bp)
 
+    from modules.sponsorship.routes import bp as sponsorship_bp
+    app.register_blueprint(sponsorship_bp)
+
     from modules.users.routes import bp as users_bp
     app.register_blueprint(users_bp)
 

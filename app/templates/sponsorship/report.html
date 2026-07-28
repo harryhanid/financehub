@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Sponsorship Report{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+{% endblock %}
+{% block content %}
+<div class="budget-page">
+  <h1>Sponsorship — Report</h1>
+  {% include "sponsorship/_toolbar.html" with context %}
+  {% set active_tab = "report" %}
+  {% if wrong_company %}
+    {% include "sponsorship/_notice.html" %}
+  {% else %}
+  <div class="budget-card">
+    <h3>Fitur Report akan datang</h3>
+    <p>Export dan laporan Sponsorship sedang dalam pengembangan. Coming soon.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

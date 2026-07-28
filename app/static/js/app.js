@@ -10,7 +10,7 @@ const FH_MODULES = [
   { name: "Account Payable",       url: null,                       active: false },
   { name: "Advance",               url: null,                       active: false },
   { name: "Petty Cash",            url: null,                       active: false },
-  { name: "Sponsorship",           url: null,                       active: false },
+  { name: "Sponsorship",           url: "/sponsorship/",            active: true  },
 ];
 const FH_RECENT_KEY = 'fh_recent_modules';
 

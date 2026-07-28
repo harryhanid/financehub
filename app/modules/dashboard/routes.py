@@ -15,6 +15,7 @@ DASHBOARD_TABS = [
     ("Payment Application",   "etf_payment_application.index", "etf_payment_app"),
     ("Budget",                "budget.index",                  "budget"),
     ("Bank",                  "bank.index",                    "bank"),
+    ("Sponsorship",           "sponsorship.index",             "sponsorship"),
     ("Users",                 "users.index",                   "users"),
 ]
 

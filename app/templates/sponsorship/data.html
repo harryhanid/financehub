@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Sponsorship Data{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+{% endblock %}
+{% block content %}
+<div class="budget-page">
+  <h1>Sponsorship — Data</h1>
+  {% include "sponsorship/_toolbar.html" with context %}
+  {% set active_tab = "data" %}
+  {% if wrong_company %}
+    {% include "sponsorship/_notice.html" %}
+  {% else %}
+  <form class="budget-toolbar" method="get" id="sp-data-filter-form">
+    <select name="cat" onchange="this.form.submit()">
+      <option value="">Semua Cat</option>
+      {% for c in cat_choices %}<option value="{{ c }}" {% if filters.cat == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <select name="cat3" onchange="this.form.submit()">
+      <option value="">Semua Pillar</option>
+      {% for p in pillar_choices %}<option value="{{ p }}" {% if filters.cat3 == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+    </select>
+    <select name="description" onchange="this.form.submit()">
+      <option value="">Semua Description</option>
+      {% for d in description_choices %}<option value="{{ d }}" {% if filters.description == d %}selected{% endif %}>{{ d }}</option>{% endfor %}
+    </select>
+    <select name="tahun" onchange="this.form.submit()">
+      <option value="">Semua Tahun</option>
+      {% for y in years %}<option value="{{ y }}" {% if filters.tahun == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+    </select>
+    <input type="text" name="status" placeholder="Filter Status..." value="{{ filters.status or '' }}">
+    <button type="submit" class="budget-btn">Terapkan Filter</button>
+  </form>
+  <table class="budget-table">
+    <thead>
+      <tr>
+        <th>ID</th><th>Cat</th><th>Description</th><th>Tgl Form</th><th>Tgl Payment</th>
+        <th>Cat1</th><th>Cat2</th><th>Cat3</th><th>Lembaga/Perorangan</th><th>Perihal</th>
+        <th>Amount Request</th><th>AGRI</th><th>APP</th><th>ENERGY & FINANCE</th><th>PROPERTY</th>
+        <th>Reff</th><th>Status</th><th>Cat4</th><th>COA</th><th>CC Total</th><th>CC</th><th>Source</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr data-transaksi-id="{{ r.id }}">
+        <td>{{ r.id }}</td><td>{{ r.cat }}</td><td>{{ r.description }}</td>
+        <td>{{ r.tanggal_form_sponsor }}</td><td>{{ r.tanggal_payment or '' }}</td>
+        <td>{{ r.cat1 }}</td><td>{{ r.cat2 }}</td><td>{{ r.cat3 }}</td>
+        <td>{{ r.lembaga_perorangan }}</td><td>{{ r.perihal or '' }}</td>
+        <td>{{ r.amount_request }}</td>
+        <td>{{ r.agri_amount }}</td><td>{{ r.app_amount }}</td>
+        <td>{{ r.energy_finance_amount }}</td><td>{{ r.property_amount }}</td>
+        <td>{{ r.reff or '' }}</td><td>{{ r.status or '' }}</td><td>{{ r.cat4 or '' }}</td>
+        <td>{{ r.coa }}</td><td>{{ r.cc_total }}</td><td>{{ r.cc }}</td><td>{{ r.source }}</td>
+        <td><button class="budget-btn" onclick="sponsorshipDataEdit({{ r.id }})">Edit</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if total_pages and total_pages > 1 %}
+  <div class="budget-pagination">
+    <span class="budget-pagination-info">Halaman {{ page }} dari {{ total_pages }} ({{ total_count }} data)</span>
+    <div class="budget-pagination-nav">
+      <a class="budget-btn {% if page <= 1 %}disabled{% endif %}" href="?page={{ page - 1 }}">‹ Prev</a>
+      <a class="budget-btn {% if page >= total_pages %}disabled{% endif %}" href="?page={{ page + 1 }}">Next ›</a>
+    </div>
+  </div>
+  {% endif %}
+
+  <div id="sp-edit-modal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-header"><span class="modal-title">Edit Transaksi Sponsorship</span></div>
+      <div class="modal-body">
+        <form id="sp-edit-form">
+          <input type="hidden" id="sp-ed-id">
+          <label>Perihal <input type="text" id="sp-ed-perihal"></label>
+          <label>Amount Request <input type="number" id="sp-ed-amount" min="0"></label>
+          <label>Tanggal Payment <input type="date" id="sp-ed-tanggal-payment"></label>
+          <label>Reff <input type="text" id="sp-ed-reff"></label>
+          <label>Status <input type="text" id="sp-ed-status"></label>
+          <label>COA <input type="text" id="sp-ed-coa"></label>
+          <label>CC Total <input type="text" id="sp-ed-cc-total"></label>
+          <label>CC <input type="text" id="sp-ed-cc"></label>
+          <label>Source <input type="text" id="sp-ed-source"></label>
+        </form>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem">
+        <button class="btn btn-secondary" onclick="closeModal('sp-edit-modal')">Batal</button>
+        <button class="budget-btn" onclick="sponsorshipDataSave()">Simpan</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/sponsorship.js') }}"></script>
+{% endblock %}
