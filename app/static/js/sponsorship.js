@@ -71,6 +71,53 @@ function sponsorshipInputSubmit() {
     .finally(function () { hideLoading(); });
 }
 
+function sponsorshipDataEdit(id) {
+  showLoading("Memuat transaksi...");
+  apiFetch("/sponsorship/data/" + id).then(function (r) { return r.json(); }).then(function (data) {
+    if (!data.ok) { showToast(data.pesan, "error"); return; }
+    const t = data.transaksi;
+    document.getElementById("sp-ed-id").value = t.id;
+    document.getElementById("sp-ed-perihal").value = t.perihal || "";
+    document.getElementById("sp-ed-amount").value = t.amount_request;
+    document.getElementById("sp-ed-tanggal-payment").value = t.tanggal_payment || "";
+    document.getElementById("sp-ed-reff").value = t.reff || "";
+    document.getElementById("sp-ed-status").value = t.status || "";
+    document.getElementById("sp-ed-coa").value = t.coa || "";
+    document.getElementById("sp-ed-cc-total").value = t.cc_total || "";
+    document.getElementById("sp-ed-cc").value = t.cc || "";
+    document.getElementById("sp-ed-source").value = t.source || "";
+    openModal("sp-edit-modal");
+  }).catch(function () {
+    showToast("Gagal memuat transaksi.", "error");
+  }).finally(function () {
+    hideLoading();
+  });
+}
+
+function sponsorshipDataSave() {
+  const id = document.getElementById("sp-ed-id").value;
+  const payload = {
+    perihal: document.getElementById("sp-ed-perihal").value,
+    amount_request: document.getElementById("sp-ed-amount").value,
+    tanggal_payment: document.getElementById("sp-ed-tanggal-payment").value,
+    reff: document.getElementById("sp-ed-reff").value,
+    status: document.getElementById("sp-ed-status").value,
+    coa: document.getElementById("sp-ed-coa").value,
+    cc_total: document.getElementById("sp-ed-cc-total").value,
+    cc: document.getElementById("sp-ed-cc").value,
+    source: document.getElementById("sp-ed-source").value,
+  };
+  showLoading("Memperbarui transaksi...");
+  apiFetch("/sponsorship/data/" + id + "/update", { method: "POST", body: JSON.stringify(payload) })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      showToast(data.pesan, data.ok ? "success" : "error");
+      if (data.ok) { closeModal("sp-edit-modal"); setTimeout(function () { window.location.reload(); }, 1000); }
+    })
+    .catch(function () { showToast("Gagal memperbarui transaksi.", "error"); })
+    .finally(function () { hideLoading(); });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   sponsorshipLoadLookups();
   const search = document.getElementById("sp-in-cat1-search");
