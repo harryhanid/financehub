@@ -44,7 +44,7 @@ def fixture_transaksi_xlsx(tmp_path):
                None, None, None, None, None, None, None, None, None, None, None])
     ws.append([
         "Sponsorship", "Media", 2026, datetime.datetime(2026, 3, 1), None,
-        "TAPIAN", "Media Partner", "Iklan", 500000, "-", None,
+        "TAPIAN", "Media Partner", "Iklan", 500000, "Shingo Kobayashi", None,
         None, "AGRI", "AGRI", 0, 500000, 0, 0,
         "701078002", "SMT - Corporate Communication", "POSPON", "Sponsor",
     ])
@@ -96,3 +96,14 @@ def test_migrate_is_idempotent_for_perusahaan(app, fixture_perusahaan_xlsx, fixt
     result = migrate_sponsorship_from_excel(fixture_perusahaan_xlsx, fixture_transaksi_xlsx)
     assert result["perusahaan"] == 0  # INSERT OR IGNORE, already seeded
     assert count_transaksi(1) == 6  # re-running re-imports transaksi rows (by design — see Step 3 note)
+
+
+def test_migrate_converts_reff_dash_to_none_and_passes_through_values(app, fixture_perusahaan_xlsx, fixture_transaksi_xlsx):
+    migrate_sponsorship_from_excel(fixture_perusahaan_xlsx, fixture_transaksi_xlsx)
+    rows = list_transaksi(1)
+    # Row with Reff="-" should convert to None
+    klenteng_row = next(r for r in rows if r["lembaga_perorangan"] == "Klenteng Kong Miao TMII")
+    assert klenteng_row["reff"] is None
+    # Row with Reff="Shingo Kobayashi" should pass through unchanged
+    media_row = next(r for r in rows if r["lembaga_perorangan"] == "Media Partner")
+    assert media_row["reff"] == "Shingo Kobayashi"
