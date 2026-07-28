@@ -62,8 +62,9 @@ def _parse_filters():
 @bp.route("/")
 @jwt_html_required
 def index():
+    years = get_available_years(_cid()) if not _wrong_company() else []
     return render_template("sponsorship/dashboard.html", active_page="sponsorship",
-                            wrong_company=_wrong_company(), **_ctx())
+                            wrong_company=_wrong_company(), years=years, **_ctx())
 
 
 @bp.route("/api/dashboard-data")

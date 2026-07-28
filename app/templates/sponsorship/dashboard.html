@@ -14,7 +14,9 @@
     {% include "sponsorship/_notice.html" %}
   {% else %}
   <div class="budget-toolbar">
-    <select id="sp-filter-tahun"><option value="">Semua Tahun</option></select>
+    <select id="sp-filter-tahun"><option value="">Semua Tahun</option>
+      {% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+    </select>
     <select id="sp-filter-cat3">
       <option value="">Semua Pillar</option>
       {% for p in ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY"] %}

@@ -135,3 +135,64 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 });
+
+let sponsorshipCharts = {};
+
+function _sponsorshipFormatRupiah(n) {
+  return "Rp " + Number(n || 0).toLocaleString("id-ID");
+}
+
+function _sponsorshipRenderSummary(summary) {
+  const el = document.getElementById("sp-summary");
+  const cards = [
+    ["Total Amount", _sponsorshipFormatRupiah(summary.total_amount)],
+    ["Jumlah Transaksi", summary.total_count],
+  ];
+  el.innerHTML = cards.map(function (c) {
+    return '<div class="budget-stat-card"><div class="label">' + c[0] +
+      '</div><div class="value">' + c[1] + "</div></div>";
+  }).join("");
+}
+
+function _sponsorshipRenderBarChart(canvasId, labels, values) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (sponsorshipCharts[canvasId]) sponsorshipCharts[canvasId].destroy();
+  sponsorshipCharts[canvasId] = new Chart(ctx, {
+    type: "bar",
+    data: { labels: labels, datasets: [{ label: "Amount", data: values, backgroundColor: "#2D6ADF" }] },
+    options: { responsive: true, plugins: { legend: { display: false } } },
+  });
+}
+
+function sponsorshipLoadDashboard() {
+  const summaryEl = document.getElementById("sp-summary");
+  if (!summaryEl) return;  // not on the Dashboard page
+  const tahun = document.getElementById("sp-filter-tahun").value;
+  const cat3 = document.getElementById("sp-filter-cat3").value;
+  const params = new URLSearchParams();
+  if (tahun) params.set("tahun", tahun);
+  if (cat3) params.set("cat3", cat3);
+  apiFetch("/sponsorship/api/dashboard-data?" + params.toString())
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      _sponsorshipRenderSummary(data.summary);
+      _sponsorshipRenderBarChart("sp-chart-monthly",
+        data.monthlyChart.map(function (r) { return r.month; }),
+        data.monthlyChart.map(function (r) { return r.amount; }));
+      _sponsorshipRenderBarChart("sp-chart-pillar",
+        data.pillarChart.map(function (r) { return r.pillar; }),
+        data.pillarChart.map(function (r) { return r.amount; }));
+      _sponsorshipRenderBarChart("sp-chart-description",
+        data.descriptionChart.map(function (r) { return r.description; }),
+        data.descriptionChart.map(function (r) { return r.amount; }));
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  sponsorshipLoadDashboard();
+  const tahunFilter = document.getElementById("sp-filter-tahun");
+  const cat3Filter = document.getElementById("sp-filter-cat3");
+  if (tahunFilter) tahunFilter.addEventListener("change", sponsorshipLoadDashboard);
+  if (cat3Filter) cat3Filter.addEventListener("change", sponsorshipLoadDashboard);
+});
