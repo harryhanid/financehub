@@ -3928,8 +3928,12 @@ function ipayPerusahaanSearch() {
     document.getElementById("ipay-perusahaan-search").value = v.name;
     document.getElementById("ipay-perusahaan").value = v.name;
     document.getElementById("ipay-cc").value = v.cost_center || "";
-    // SMT/Advance: pillar stays whatever Tipe PAM set it to
-    if (COMPANY_CODE !== "SMT") document.getElementById("ipay-pillar").value = v.pillar;
+    // SMT/Advance and Beasiswa: pillar stays whatever Tipe PAM set it to —
+    // no vendor is reliably tagged with the right pillar (in particular,
+    // zero vendors are ever tagged pillar=LAND), so letting a vendor pick
+    // silently overwrite it here breaks Beasiswa PAMs saved as LAND.
+    const _ipayTx = document.getElementById("ipay-tx")?.value;
+    if (COMPANY_CODE !== "SMT" && _ipayTx !== "beasiswa") document.getElementById("ipay-pillar").value = v.pillar;
     sugg.style.display = "none";
   });
   _vendorPos(inp, sugg); sugg.style.display = "block";
@@ -4077,9 +4081,13 @@ function ipayReset() {
   // per-vendor pillar tagging concept there), so re-derive it here instead
   // of blanking it — otherwise this reset (called at the end of
   // ipayOnTypeChange()) would immediately wipe out the pillar it just set.
+  // Beasiswa: same reasoning — no vendor in the vendors table is ever tagged
+  // pillar=LAND (or reliably tagged at all), so leaving this blank meant a
+  // LAND-type Beasiswa PAM could never actually be saved with pillar=LAND.
+  // Tipe PAM is the authoritative source here too.
   document.getElementById("ipay-pillar").value = (COMPANY_CODE === "SMT")
     ? (document.getElementById("ipay-type")?.value || "").toUpperCase()
-    : "";
+    : (_IPAY_LABEL[document.getElementById("ipay-type")?.value] || "");
   document.getElementById("ipay-perusahaan-sugg").style.display = "none";
   const catatanEl = document.getElementById("ipay-catatan");
   if (catatanEl) catatanEl.value = "";
