@@ -163,7 +163,7 @@ def update_transaksi(transaksi_id: int, payload: dict) -> dict:
             return {"ok": False, "pesan": "Amount Request harus berupa angka."}
 
     editable_fields = [
-        "cat", "description", "tanggal_form_sponsor", "tanggal_payment", "cat1", "cat2", "cat3",
+        "cat", "description", "tanggal_form_sponsor", "tanggal_payment", "cat1",
         "lembaga_perorangan", "perihal", "amount_request", "reff", "status", "cat4",
         "coa", "cc_total", "cc", "source",
     ]

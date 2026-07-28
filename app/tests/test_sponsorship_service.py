@@ -213,3 +213,13 @@ def test_get_available_years(app):
     create_transaksi(SMT, _valid_payload(tanggal_form_sponsor="2025-06-01"))
     create_transaksi(SMT, _valid_payload(tanggal_form_sponsor="2026-01-01"))
     assert get_available_years(SMT) == ["2026", "2025"]
+
+
+def test_update_transaksi_ignores_direct_cat2_cat3_without_cat1(app):
+    _seed_one_perusahaan()
+    created = create_transaksi(SMT, _valid_payload())  # cat1=SMART -> cat2=AGRI, cat3=AGRI
+    result = update_transaksi(created["id"], {"cat2": "TOTALLY_MADE_UP_CAT2", "cat3": "FAKE_PILLAR"})
+    assert result["ok"] is True  # update succeeds (no other fields to reject), but ignores cat2/cat3
+    row = get_transaksi(created["id"])
+    assert row["cat2"] == "AGRI"  # unchanged — cat2/cat3 cannot be set directly
+    assert row["cat3"] == "AGRI"
