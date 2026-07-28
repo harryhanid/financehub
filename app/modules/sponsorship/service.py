@@ -249,3 +249,35 @@ def get_available_years(company_id: int) -> list:
     ).fetchall()
     conn.close()
     return [r["yy"] for r in rows if r["yy"]]
+
+
+def get_dashboard_data(company_id: int, filters: dict = None) -> dict:
+    rows = list_transaksi(company_id, filters)
+
+    total_amount = sum(r["amount_request"] for r in rows)
+    total_count = len(rows)
+
+    monthly = {}
+    for r in rows:
+        month = r["tanggal_form_sponsor"][:7]  # 'YYYY-MM'
+        monthly[month] = monthly.get(month, 0) + r["amount_request"]
+    monthly_chart = [{"month": m, "amount": monthly[m]} for m in sorted(monthly)]
+
+    pillar_totals = {p: 0.0 for p in config.SPONSORSHIP_PILLARS}
+    for r in rows:
+        if r["cat3"] in pillar_totals:
+            pillar_totals[r["cat3"]] += r["amount_request"]
+    pillar_chart = [{"pillar": p, "amount": pillar_totals[p]} for p in config.SPONSORSHIP_PILLARS]
+
+    desc_totals = {d: 0.0 for d in config.SPONSORSHIP_DESCRIPTION}
+    for r in rows:
+        if r["description"] in desc_totals:
+            desc_totals[r["description"]] += r["amount_request"]
+    description_chart = [{"description": d, "amount": desc_totals[d]} for d in config.SPONSORSHIP_DESCRIPTION]
+
+    return {
+        "summary": {"total_amount": total_amount, "total_count": total_count},
+        "monthlyChart": monthly_chart,
+        "pillarChart": pillar_chart,
+        "descriptionChart": description_chart,
+    }
