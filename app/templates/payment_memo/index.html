@@ -132,6 +132,7 @@
       <button class="tab-btn" data-tab="tab-sml" onclick="loadSML()">LAND</button>
       <button class="tab-btn" data-tab="tab-setf" onclick="loadSETF()">SETF</button>
       <button class="tab-btn" data-tab="tab-pa-advance" onclick="loadPaAdvance()">Advance</button>
+      <button class="tab-btn" data-tab="tab-vendors" onclick="loadVendors()">Vendors</button>
       {% endif %}
       <button class="tab-btn" data-tab="tab-draft-memo">Print Memo</button>
     </div>
@@ -1049,6 +1050,59 @@
         </thead>
         <tbody id="pa-advance-tbody">
           <tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Vendors Tab -->
+  <div class="tab-panel" id="tab-vendors">
+    <div id="pam-filter-vendors" class="filter-bar collapsible" style="align-items:center;gap:6px">
+      <input id="vendors-search" type="text" placeholder="Cari nama vendor..."
+             style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
+             oninput="loadVendorsDebounced()">
+      <select id="vendors-filter-pillar" onchange="loadVendorsDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:100px">
+        <option value="">Semua Pillar</option>
+        <option value="AGRI">AGRI</option>
+        <option value="APP">APP</option>
+        <option value="LAND">LAND</option>
+        <option value="SETF">SETF</option>
+      </select>
+      <span id="vendors-count" style="font-size:11px;color:var(--text-muted)"></span>
+    </div>
+    <div style="display:flex;align-items:end;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <div class="form-group" style="margin:0">
+        <label style="font-size:.72rem;font-weight:600">Nama Vendor</label>
+        <input id="vendors-add-name" type="text" placeholder="Nama perusahaan..." style="font-size:.82rem">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:.72rem;font-weight:600">Pillar</label>
+        <select id="vendors-add-pillar" style="font-size:.82rem">
+          <option value="AGRI">AGRI</option>
+          <option value="APP">APP</option>
+          <option value="LAND">LAND</option>
+          <option value="SETF">SETF</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:.72rem;font-weight:600">Cost Center</label>
+        <input id="vendors-add-cc" type="text" placeholder="Opsional" style="font-size:.82rem">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addVendor()">+ Tambah Vendor</button>
+    </div>
+    <div class="pillar-table-wrap">
+      <table id="vendors-table" style="min-width:700px;border-collapse:collapse;font-size:12px;">
+        <thead class="thead-primary">
+          <tr>
+            <th style="padding:7px 8px;">Nama</th>
+            <th style="padding:7px 8px;white-space:nowrap">Pillar</th>
+            <th style="padding:7px 8px;white-space:nowrap">Cost Center</th>
+            <th style="padding:7px 8px;white-space:nowrap">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="vendors-tbody">
+          <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);">Memuat...</td></tr>
         </tbody>
       </table>
     </div>
@@ -2101,6 +2155,83 @@ async function loadPaAdvance() {
         ? `<button class="btn btn-sm btn-primary" onclick="openRealizeModal(${r.id}, ${r.advance_amount})">Realisasi</button>`
         : '-'}</td>
     </tr>`).join('');
+}
+
+let _vendorsDebounce;
+function loadVendorsDebounced() { clearTimeout(_vendorsDebounce); _vendorsDebounce = setTimeout(loadVendors, 300); }
+
+async function loadVendors() {
+  const search = (document.getElementById('vendors-search')?.value || '').trim();
+  const pillar = (document.getElementById('vendors-filter-pillar')?.value || '');
+  const tbody = document.getElementById('vendors-tbody');
+  tbody.innerHTML = skeletonRows(4);
+  const res = await apiFetch('/payment-memo/vendors?' + new URLSearchParams({ search }));
+  if (!res) return;
+  const data = await res.json();
+  const count = document.getElementById('vendors-count');
+  let rows = data.rows || [];
+  if (pillar) rows = rows.filter(r => r.pillar === pillar);
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);">Tidak ada vendor.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = rows.length + ' vendor';
+  tbody.innerHTML = rows.map((r, i) => `
+    <tr data-vendor-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">
+      <td style="padding:6px 8px" class="vendors-cell-name">${esc(r.name)}</td>
+      <td style="padding:6px 8px" class="vendors-cell-pillar">${esc(r.pillar)}</td>
+      <td style="padding:6px 8px" class="vendors-cell-cc">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px"><button class="btn btn-secondary btn-sm" onclick="vendorsStartEdit(${r.id})">Edit</button></td>
+    </tr>
+  `).join('');
+}
+
+async function addVendor() {
+  const name = document.getElementById('vendors-add-name').value.trim();
+  const pillar = document.getElementById('vendors-add-pillar').value;
+  const cost_center = document.getElementById('vendors-add-cc').value.trim();
+  if (!name) { showToast('Nama vendor wajib diisi.', 'error'); return; }
+  const res = await apiFetch('/payment-memo/vendors/add', { method: 'POST', body: JSON.stringify({ name, pillar, cost_center }) });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    document.getElementById('vendors-add-name').value = '';
+    document.getElementById('vendors-add-cc').value = '';
+    loadVendors();
+  }
+}
+
+function vendorsStartEdit(vendorId) {
+  const tr = document.querySelector(`#vendors-tbody tr[data-vendor-id="${vendorId}"]`);
+  if (!tr) return;
+  const nameCell = tr.querySelector('.vendors-cell-name');
+  const pillarCell = tr.querySelector('.vendors-cell-pillar');
+  const ccCell = tr.querySelector('.vendors-cell-cc');
+  const actionCell = tr.lastElementChild;
+  const currentName = nameCell.textContent;
+  const currentPillar = pillarCell.textContent;
+  const currentCc = ccCell.textContent === '-' ? '' : ccCell.textContent;
+  nameCell.innerHTML = `<input type="text" value="${esc(currentName)}" style="width:100%;font-size:12px" class="vendors-edit-name">`;
+  pillarCell.innerHTML = `<select style="font-size:12px" class="vendors-edit-pillar">` +
+    ['AGRI', 'APP', 'LAND', 'SETF'].map(p => `<option value="${p}" ${p === currentPillar ? 'selected' : ''}>${p}</option>`).join('') +
+    `</select>`;
+  ccCell.innerHTML = `<input type="text" value="${esc(currentCc)}" style="width:100%;font-size:12px" class="vendors-edit-cc">`;
+  actionCell.innerHTML = `<button class="btn btn-primary btn-sm" onclick="vendorsSaveEdit(${vendorId})">Simpan</button> <button class="btn btn-secondary btn-sm" onclick="loadVendors()">Batal</button>`;
+}
+
+async function vendorsSaveEdit(vendorId) {
+  const tr = document.querySelector(`#vendors-tbody tr[data-vendor-id="${vendorId}"]`);
+  if (!tr) return;
+  const name = tr.querySelector('.vendors-edit-name').value.trim();
+  const pillar = tr.querySelector('.vendors-edit-pillar').value;
+  const cost_center = tr.querySelector('.vendors-edit-cc').value.trim();
+  const res = await apiFetch(`/payment-memo/vendors/${vendorId}/edit`, { method: 'POST', body: JSON.stringify({ name, pillar, cost_center }) });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadVendors();
 }
 
 async function submitRealize(paymentId, realizedAmount, tglRealisasi) {
