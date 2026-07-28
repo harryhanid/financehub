@@ -1,0 +1,42 @@
+/* static/css/sponsorship.css — Sponsorship module, reuses global tokens only */
+
+.sp-autocomplete-results {
+  position: relative;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--card);
+  display: none;
+}
+
+.sp-autocomplete-results.open {
+  display: block;
+}
+
+.sp-autocomplete-item {
+  padding: .5rem .75rem;
+  cursor: pointer;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.sp-autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.sp-autocomplete-item:hover,
+.sp-autocomplete-item.highlighted {
+  background: var(--bg-muted);
+}
+
+.sp-autocomplete-empty {
+  padding: .5rem .75rem;
+  color: var(--text-muted);
+  font-size: .85rem;
+}
+
+.budget-toolbar .budget-btn.active {
+  background: var(--primary);
+  color: #fff;
+}
