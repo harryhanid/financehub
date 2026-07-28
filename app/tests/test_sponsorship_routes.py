@@ -54,6 +54,14 @@ def test_input_page_renders_for_smt(client):
     assert b"Input" in resp.data
 
 
+def test_input_page_has_cat1_search_and_lembaga_datalist(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/sponsorship/input")
+    assert b'id="sp-in-cat1-search"' in resp.data
+    assert b'id="sp-lembaga-datalist"' in resp.data
+
+
 def test_api_lookups_returns_perusahaan_and_lembaga(client):
     login(client)
     _select_smt(client)
