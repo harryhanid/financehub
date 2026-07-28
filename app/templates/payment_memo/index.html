@@ -62,7 +62,7 @@
 
 /* ── AGRI frozen columns — dark mode ─────────────────────────────────── */
 /* Rows are JS-rendered (loadPAM()) and each sticky td gets its OWN inline */
-/* style="background:${i%2===0?'#fff':'#f8fafc'}" for zebra-striping — an  */
+/* style="background:${i%2===0?'var(--card)':'var(--bg)'}" for zebra-striping — an  */
 /* inline style beats any selector-based rule, so every override below    */
 /* needs !important or it silently loses to the inline zebra color.       */
 [data-theme="dark"] #pam-table th.s0,[data-theme="dark"] #pam-table td.s0,
@@ -1807,8 +1807,8 @@ async function loadSML() {
   }
   if (count) count.textContent = data.rows.length + ' baris';
   tbody.innerHTML = data.rows.map((r, i) => `
-    <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
+    <tr class="setf-row" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};cursor:pointer" onclick="_toggleEtfExpandGeneric(event, this, ${r.id}, 16, 'setf')">
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap"><span style="display:inline-block;margin-right:4px;color:#3b82f6">&#9658;</span>${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
@@ -2036,8 +2036,8 @@ async function loadSETF() {
   }
   if (count) count.textContent = data.rows.length + ' baris';
   tbody.innerHTML = data.rows.map((r, i) => `
-    <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
+    <tr class="sml-row" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};cursor:pointer" onclick="_toggleEtfExpandGeneric(event, this, ${r.id}, 25, 'sml')">
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap"><span style="display:inline-block;margin-right:4px;color:#3b82f6">&#9658;</span>${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
@@ -2206,13 +2206,13 @@ function _smtRenderPage() {
   const start = (_smtPage - 1) * _smtPageSize;
   const pageRows = _smtAllRows.slice(start, start + _smtPageSize);
   tbody.innerHTML = pageRows.map((r, i) => `
-    <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};cursor:pointer" onclick="smtToggleExpand(this.querySelector('.smt-toggle'),${r.id})">
-      <td class="smt-sc0" style="padding:6px 4px;text-align:center;background:${i % 2 === 0 ? '#fff' : '#f8fafc'}">
+    <tr style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};cursor:pointer" onclick="smtToggleExpand(this.querySelector('.smt-toggle'),${r.id})">
+      <td class="smt-sc0" style="padding:6px 4px;text-align:center;background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">
         <input type="checkbox" class="smt-cb" value="${r.id}" ${_smtSelectedIds.has(r.id) ? 'checked' : ''} onchange="_smtToggleSelect(${r.id}, this.checked)" onclick="event.stopPropagation()">
         <span class="smt-toggle" style="font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:2px">&#9658;</span>
       </td>
-      <td class="smt-sc1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i % 2 === 0 ? '#fff' : '#f8fafc'}">${esc(r.pam_no)}</td>
-      <td class="smt-sc2" style="padding:6px 8px;white-space:nowrap;background:${i % 2 === 0 ? '#fff' : '#f8fafc'}">${esc(r.pam_date || '-')}</td>
+      <td class="smt-sc1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">${esc(r.pam_no)}</td>
+      <td class="smt-sc2" style="padding:6px 8px;white-space:nowrap;background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">${esc(r.pam_date || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
@@ -2394,7 +2394,7 @@ async function smtFetchLines(masterTr, toggleEl, pamId) {
     sumOthers += r.others || 0;
     sumTot += r.total_amount;
     html += `
-      <tr style="border-bottom:1px solid #e2e8f0;background:${idx%2===0?'#fff':'#f8fafc'}">
+      <tr style="border-bottom:1px solid #e2e8f0;background:${idx%2===0?'var(--card)':'var(--bg)'}">
         <td style="padding:6px">${idx+1}</td>
         <td style="padding:6px;font-family:monospace">${esc(r.gl_account || '-')}</td>
         <td style="padding:6px;font-family:monospace">${esc(r.cost_center || '-')}</td>
@@ -2448,7 +2448,7 @@ async function loadAdvance() {
   }
   if (count) count.textContent = data.rows.length + ' baris';
   tbody.innerHTML = data.rows.map((r, i) => `
-    <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+    <tr style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};">
       <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
       <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
@@ -2500,13 +2500,13 @@ async function loadFIORI() {
   }
   if (count) count.textContent = data.rows.length + ' baris';
   tbody.innerHTML = data.rows.map((r, i) => `
-    <tr class="fiori-row" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
-      <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="fiori-cb" data-id="${r.id}" style="cursor:pointer;vertical-align:middle" onchange="fioriToggleCb(this)"></td>
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
-      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
+    <tr class="fiori-row" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};cursor:pointer" onclick="_toggleEtfExpandGeneric(event, this, ${r.id}, 26, 'fiori')">
+      <td class="f0" style="padding:6px 8px;text-align:center;background:${i%2===0?'var(--card)':'var(--bg)'}"><input type="checkbox" class="fiori-cb" data-id="${r.id}" style="cursor:pointer;vertical-align:middle" onchange="fioriToggleCb(this)"></td>
+      <td class="f1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}"><span style="display:inline-block;margin-right:4px;color:#3b82f6">&#9658;</span>${esc(r.pam_no)}</td>
+      <td class="f2" style="padding:6px 8px;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pam_date || '-')}</td>
+      <td class="f3" style="padding:6px 8px;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pt || '-')}</td>
+      <td class="f4" style="padding:6px 8px;font-family:monospace;font-size:11px;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
-      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
       <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
@@ -2949,15 +2949,15 @@ function _agriRenderPage() {
   const start = (_agriPage - 1) * _agriPageSize;
   const pageRows = _agriAllRows.slice(start, start + _agriPageSize);
   tbody.innerHTML = pageRows.map((r, i) => `
-    <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};"
+    <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};"
       ${r.source === 'beasiswa' ? `onclick="agriToggleExpand(this.querySelector('.pam-toggle'),${r.id})"` : ''}>
       ${r.source === 'beasiswa'
-        ? `<td class="s0" style="padding:4px 2px;text-align:center;white-space:nowrap;background:${i%2===0?'#fff':'#f8fafc'}"><input type="checkbox" id="pam-cb-${r.id}" style="cursor:pointer;vertical-align:middle" onclick="event.stopPropagation()" onchange="agriTogglePamSelect(${r.id},this.checked)"><span class="pam-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:4px" onclick="agriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span></td>`
-        : `<td class="s0" style="text-align:center;color:#cbd5e1;font-size:11px;padding:4px;background:${i%2===0?'#fff':'#f8fafc'}">&#8212;</td>`}
-      <td class="s1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.pam_no)}</td>
-      <td class="s2" style="padding:6px 8px;white-space:nowrap;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.pam_date || '-')}</td>
-      <td class="s3" style="padding:6px 8px;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.pt || '-')}</td>
-      <td class="s4" style="padding:6px 8px;font-family:monospace;font-size:11px;background:${i%2===0?'#fff':'#f8fafc'}">${esc(r.cost_center || '-')}</td>
+        ? `<td class="s0" style="padding:4px 2px;text-align:center;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}"><input type="checkbox" id="pam-cb-${r.id}" style="cursor:pointer;vertical-align:middle" onclick="event.stopPropagation()" onchange="agriTogglePamSelect(${r.id},this.checked)"><span class="pam-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:4px" onclick="agriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span></td>`
+        : `<td class="s0" style="text-align:center;color:#cbd5e1;font-size:11px;padding:4px;background:${i%2===0?'var(--card)':'var(--bg)'}">&#8212;</td>`}
+      <td class="s1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pam_no)}</td>
+      <td class="s2" style="padding:6px 8px;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pam_date || '-')}</td>
+      <td class="s3" style="padding:6px 8px;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pt || '-')}</td>
+      <td class="s4" style="padding:6px 8px;font-family:monospace;font-size:11px;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px" id="gl-cell-${r.id}"></td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
