@@ -28,6 +28,7 @@ from modules.payment_memo.service import (
     get_pam_beasiswa_lines,
     get_advance_payments, realize_advance_payment,
 )
+from modules.payment_memo.service import list_vendors, add_vendor, update_vendor
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
     export_pam_pdf_custom, export_pam_excel_custom,
@@ -764,3 +765,24 @@ def open_pam_mark_complete():
         return jsonify({"ok": False, "pesan": "Pilih PAM dan isi Tanggal Paid."})
         
     return jsonify(bulk_complete_pams(company_id, pams, tanggal_bayar))
+
+
+@bp.route("/vendors")
+@jwt_html_required
+def vendors_list():
+    search = request.args.get("search", "").strip()
+    return jsonify({"ok": True, "rows": list_vendors(search)})
+
+
+@bp.route("/vendors/add", methods=["POST"])
+@jwt_html_required
+def vendors_add():
+    data = request.get_json(force=True) or {}
+    return jsonify(add_vendor(data.get("name", ""), data.get("pillar", ""), data.get("cost_center", "")))
+
+
+@bp.route("/vendors/<int:vendor_id>/edit", methods=["POST"])
+@jwt_html_required
+def vendors_edit(vendor_id):
+    data = request.get_json(force=True) or {}
+    return jsonify(update_vendor(vendor_id, data.get("name", ""), data.get("pillar", ""), data.get("cost_center", "")))
