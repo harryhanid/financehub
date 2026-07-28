@@ -44,6 +44,18 @@ STATUS_SISWA = ["Aktif", "lulus", "gugur", "undur diri"]
 
 PILLAR = ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY", "SETF", "NON PILLAR", "NON ALLOCATED"]
 
+SPONSORSHIP_CAT = ["Sponsorship", "CSR Gedung"]
+
+SPONSORSHIP_DESCRIPTION = [
+    "Akademisi", "Asosiasi", "Keagamaan", "Kesenian & Kebudayaan",
+    "Lembaga Kajian", "Media", "Organisasi Komunitas",
+    "Organisasi Profesional", "Sosial", "Lainnya",
+]
+
+SPONSORSHIP_CAT4 = ["Include", "Exclude"]
+
+SPONSORSHIP_PILLARS = ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY"]
+
 CAT1_BGT = ["By Pendidikan", "By Tunjangan", "By Penelitian", "By Medical"]
 
 CAT2_SEM = [

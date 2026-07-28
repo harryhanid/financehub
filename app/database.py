@@ -523,6 +523,39 @@ CREATE TABLE IF NOT EXISTS bank_setf (
 );
 
 CREATE INDEX IF NOT EXISTS idx_bank_setf_company_tanggal ON bank_setf(company_id, tanggal);
+
+CREATE TABLE IF NOT EXISTS sponsorship_perusahaan (
+    cat1 TEXT PRIMARY KEY,
+    cat2 TEXT NOT NULL,
+    cat3 TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sponsorship_transaksi (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id            INTEGER NOT NULL REFERENCES companies(id),
+    cat                   TEXT NOT NULL,
+    description           TEXT NOT NULL,
+    tanggal_form_sponsor  TEXT NOT NULL,
+    tanggal_payment       TEXT,
+    cat1                  TEXT NOT NULL,
+    cat2                  TEXT NOT NULL,
+    cat3                  TEXT NOT NULL,
+    lembaga_perorangan    TEXT NOT NULL,
+    perihal               TEXT,
+    amount_request        REAL NOT NULL DEFAULT 0,
+    reff                  TEXT,
+    status                TEXT,
+    cat4                  TEXT,
+    coa                   TEXT DEFAULT '701078002',
+    cc_total              TEXT DEFAULT 'SMT - Corporate Communication',
+    cc                    TEXT DEFAULT 'POSPON',
+    source                TEXT DEFAULT 'Sponsor',
+    created_at            TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at            TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_sponsorship_transaksi_company ON sponsorship_transaksi(company_id);
+CREATE INDEX IF NOT EXISTS idx_sponsorship_transaksi_cat3 ON sponsorship_transaksi(cat3);
 """
 
 VENDOR_SEED = [
