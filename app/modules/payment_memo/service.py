@@ -1,6 +1,7 @@
 import re
 import calendar
 import config
+import sqlite3
 from datetime import datetime
 from database import get_conn
 from modules.bank.service import sync_pam_to_bank_setf
@@ -2689,3 +2690,62 @@ def get_pam_beasiswa_lines(pam_id: int, company_id: int) -> list | None:
     ).fetchall()]
     conn.close()
     return rows
+
+
+def list_vendors(search: str = "") -> list:
+    conn = get_conn()
+    if search:
+        rows = conn.execute(
+            "SELECT id, name, pillar, cost_center FROM vendors WHERE name LIKE ? ORDER BY name",
+            (f"%{search}%",)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, name, pillar, cost_center FROM vendors ORDER BY name"
+        ).fetchall()
+    conn.close()
+    return [{"id": r["id"], "name": r["name"], "pillar": r["pillar"], "cost_center": r["cost_center"] or ""} for r in rows]
+
+
+def add_vendor(name: str, pillar: str, cost_center: str = "") -> dict:
+    name = (name or "").strip()
+    pillar = (pillar or "").strip()
+    if not name:
+        return {"ok": False, "pesan": "Nama vendor wajib diisi."}
+    if not pillar:
+        return {"ok": False, "pesan": "Pillar wajib dipilih."}
+    conn = get_conn()
+    try:
+        cur = conn.execute(
+            "INSERT INTO vendors (name, pillar, cost_center) VALUES (?, ?, ?)",
+            (name, pillar, (cost_center or "").strip())
+        )
+        conn.commit()
+        return {"ok": True, "pesan": f"Vendor {name} berhasil ditambahkan.", "id": cur.lastrowid}
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        return {"ok": False, "pesan": "Nama vendor sudah terdaftar."}
+    finally:
+        conn.close()
+
+
+def update_vendor(vendor_id: int, name: str, pillar: str, cost_center: str = "") -> dict:
+    name = (name or "").strip()
+    pillar = (pillar or "").strip()
+    if not name:
+        return {"ok": False, "pesan": "Nama vendor wajib diisi."}
+    if not pillar:
+        return {"ok": False, "pesan": "Pillar wajib dipilih."}
+    conn = get_conn()
+    try:
+        conn.execute(
+            "UPDATE vendors SET name = ?, pillar = ?, cost_center = ? WHERE id = ?",
+            (name, pillar, (cost_center or "").strip(), vendor_id)
+        )
+        conn.commit()
+        return {"ok": True, "pesan": f"Vendor {name} berhasil diperbarui."}
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        return {"ok": False, "pesan": "Nama vendor sudah terdaftar."}
+    finally:
+        conn.close()

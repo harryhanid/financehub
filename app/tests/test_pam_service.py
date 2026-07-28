@@ -9,6 +9,7 @@ from modules.payment_memo.service import (
     generate_pam_number, create_pam_record,
     get_pam_list, get_coa_list, update_pam_gl_account,
     update_pam_status, update_pam_record, get_pam_payments,
+    list_vendors, add_vendor, update_vendor,
 )
 
 COMPANY_ID   = 2   # ETF
@@ -932,3 +933,71 @@ def test_save_pa_payment_no_pa_line_id_defaults_to_gl():
     ).fetchone()
     conn.close()
     assert pam["pillar"] == "AGRI"
+
+
+# ── Vendors ─────────────────────────────────────────────────────────────
+
+def test_list_vendors_returns_seeded_rows():
+    rows = list_vendors()
+    assert len(rows) > 0
+    assert all(set(r.keys()) >= {"id", "name", "pillar", "cost_center"} for r in rows)
+
+
+def test_list_vendors_filters_by_search():
+    all_rows = list_vendors()
+    target = all_rows[0]["name"]
+    rows = list_vendors(search=target[:5])
+    assert any(r["name"] == target for r in rows)
+
+
+def test_add_vendor_success():
+    result = add_vendor("PT Vendor Baru Test", "LAND", "9999C1POFF")
+    assert result["ok"] is True
+    assert "id" in result
+    rows = list_vendors(search="PT Vendor Baru Test")
+    assert len(rows) == 1
+    assert rows[0]["pillar"] == "LAND"
+    assert rows[0]["cost_center"] == "9999C1POFF"
+
+
+def test_add_vendor_duplicate_name_rejected():
+    add_vendor("PT Duplikat Test", "AGRI", "")
+    result = add_vendor("PT Duplikat Test", "APP", "")
+    assert result["ok"] is False
+    assert "sudah terdaftar" in result["pesan"]
+    # confirm the second attempt did not overwrite the first
+    rows = list_vendors(search="PT Duplikat Test")
+    assert len(rows) == 1
+    assert rows[0]["pillar"] == "AGRI"
+
+
+def test_add_vendor_requires_name_and_pillar():
+    assert add_vendor("", "AGRI", "")["ok"] is False
+    assert add_vendor("PT Tanpa Pillar", "", "")["ok"] is False
+
+
+def test_update_vendor_success():
+    added = add_vendor("PT Update Test", "APP", "1111C1POFF")
+    result = update_vendor(added["id"], "PT Update Test Renamed", "SETF", "2222C1POFF")
+    assert result["ok"] is True
+    rows = list_vendors(search="PT Update Test Renamed")
+    assert len(rows) == 1
+    assert rows[0]["pillar"] == "SETF"
+    assert rows[0]["cost_center"] == "2222C1POFF"
+
+
+def test_update_vendor_duplicate_name_rejected():
+    a = add_vendor("PT Update A", "AGRI", "")
+    add_vendor("PT Update B", "AGRI", "")
+    result = update_vendor(a["id"], "PT Update B", "AGRI", "")
+    assert result["ok"] is False
+    assert "sudah terdaftar" in result["pesan"]
+
+
+def test_update_vendor_same_name_noop_allowed():
+    added = add_vendor("PT Update Self", "AGRI", "")
+    result = update_vendor(added["id"], "PT Update Self", "LAND", "changed-cc")
+    assert result["ok"] is True
+    rows = list_vendors(search="PT Update Self")
+    assert rows[0]["pillar"] == "LAND"
+    assert rows[0]["cost_center"] == "changed-cc"
