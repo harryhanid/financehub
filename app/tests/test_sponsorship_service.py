@@ -122,6 +122,50 @@ def test_update_transaksi_not_found(app):
     assert result["ok"] is False
 
 
+def test_update_transaksi_rejects_unknown_cat1(app):
+    _seed_one_perusahaan()
+    created = create_transaksi(SMT, _valid_payload())
+    result = update_transaksi(created["id"], {"cat1": "Perusahaan Fiktif"})
+    assert result["ok"] is False
+    row = get_transaksi(created["id"])
+    assert row["cat1"] == "SMART"  # unchanged
+
+
+def test_update_transaksi_recomputes_cat2_cat3_on_cat1_change(app):
+    _seed_one_perusahaan()
+    seed_perusahaan([("PT KUNCIRANMAS SEJATI", "Property", "PROPERTY")])
+    created = create_transaksi(SMT, _valid_payload())  # cat1=SMART -> AGRI
+    result = update_transaksi(created["id"], {"cat1": "PT KUNCIRANMAS SEJATI"})
+    assert result["ok"] is True
+    row = get_transaksi(created["id"])
+    assert row["cat1"] == "PT KUNCIRANMAS SEJATI"
+    assert row["cat2"] == "Property"
+    assert row["cat3"] == "PROPERTY"
+
+
+def test_update_transaksi_rejects_invalid_cat(app):
+    _seed_one_perusahaan()
+    created = create_transaksi(SMT, _valid_payload())
+    result = update_transaksi(created["id"], {"cat": "Not Valid"})
+    assert result["ok"] is False
+
+
+def test_update_transaksi_coerces_amount_to_float(app):
+    _seed_one_perusahaan()
+    created = create_transaksi(SMT, _valid_payload())
+    result = update_transaksi(created["id"], {"amount_request": "12345"})
+    assert result["ok"] is True
+    row = get_transaksi(created["id"])
+    assert row["amount_request"] == 12345.0
+
+
+def test_update_transaksi_rejects_invalid_amount(app):
+    _seed_one_perusahaan()
+    created = create_transaksi(SMT, _valid_payload())
+    result = update_transaksi(created["id"], {"amount_request": "not-a-number"})
+    assert result["ok"] is False
+
+
 def test_list_and_count_transaksi_filters_by_company(app):
     _seed_one_perusahaan()
     create_transaksi(SMT, _valid_payload())

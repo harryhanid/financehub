@@ -131,12 +131,57 @@ def update_transaksi(transaksi_id: int, payload: dict) -> dict:
     if not row:
         conn.close()
         return {"ok": False, "pesan": "Transaksi tidak ditemukan."}
+
+    # Validate fields present in payload
+    if "cat" in payload and payload["cat"] not in config.SPONSORSHIP_CAT:
+        conn.close()
+        return {"ok": False, "pesan": f"Cat harus salah satu dari: {', '.join(config.SPONSORSHIP_CAT)}."}
+
+    if "description" in payload and payload["description"] not in config.SPONSORSHIP_DESCRIPTION:
+        conn.close()
+        return {"ok": False, "pesan": f"Description harus salah satu dari: {', '.join(config.SPONSORSHIP_DESCRIPTION)}."}
+
+    if "cat4" in payload:
+        cat4 = payload["cat4"]
+        if cat4 not in (None, "", *config.SPONSORSHIP_CAT4):
+            conn.close()
+            return {"ok": False, "pesan": f"Cat4 harus salah satu dari: {', '.join(config.SPONSORSHIP_CAT4)} atau kosong."}
+
+    if "lembaga_perorangan" in payload and not payload["lembaga_perorangan"]:
+        conn.close()
+        return {"ok": False, "pesan": "Lembaga/Perorangan wajib diisi."}
+
+    if "tanggal_form_sponsor" in payload and not payload["tanggal_form_sponsor"]:
+        conn.close()
+        return {"ok": False, "pesan": "Tanggal Form Sponsor wajib diisi."}
+
+    if "amount_request" in payload:
+        try:
+            float(payload["amount_request"])
+        except (TypeError, ValueError):
+            conn.close()
+            return {"ok": False, "pesan": "Amount Request harus berupa angka."}
+
     editable_fields = [
         "cat", "description", "tanggal_form_sponsor", "tanggal_payment", "cat1", "cat2", "cat3",
         "lembaga_perorangan", "perihal", "amount_request", "reff", "status", "cat4",
         "coa", "cc_total", "cc", "source",
     ]
     updates = {k: payload[k] for k in editable_fields if k in payload}
+
+    # If cat1 is being updated, look it up and override cat2/cat3
+    if "cat1" in updates:
+        perusahaan = get_perusahaan(updates["cat1"])
+        if not perusahaan:
+            conn.close()
+            return {"ok": False, "pesan": "Cat1 tidak ditemukan di daftar perusahaan. Pilih dari daftar yang tersedia."}
+        updates["cat2"] = perusahaan["cat2"]
+        updates["cat3"] = perusahaan["cat3"]
+
+    # Coerce amount_request to float
+    if "amount_request" in updates:
+        updates["amount_request"] = float(updates["amount_request"])
+
     if not updates:
         conn.close()
         return {"ok": True, "pesan": "Tidak ada perubahan."}
