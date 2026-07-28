@@ -889,7 +889,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <div class="modal" style="max-width:660px; width:95%">
     <div class="modal-header">
       <span class="modal-title" id="edit-pa-title">Edit PA</span>
-      <button class="modal-close" onclick="closeModal('modal-edit-pa')">x</button>
+      <button class="modal-close" onclick="closeModal('modal-edit-pa')" aria-label="Tutup">x</button>
     </div>
     <input type="hidden" id="edit-pa-id">
     <input type="hidden" id="edit-line-id">
@@ -978,7 +978,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <div class="modal" style="width:min(700px,95vw);max-height:90vh;overflow-y:auto">
     <div class="modal-header" style="position:sticky;top:0;background:#fff;z-index:10;border-bottom:1px solid #e5e7eb;padding-bottom:.625rem">
       <span class="modal-title" id="etfpa-esiswa-title">Update Data Siswa</span>
-      <button class="modal-close" onclick="closeModal('modal-etfpa-edit-siswa')">✕</button>
+      <button class="modal-close" onclick="closeModal('modal-etfpa-edit-siswa')" aria-label="Tutup">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem">
       <div class="form-group"><label>Code Siswa</label>
