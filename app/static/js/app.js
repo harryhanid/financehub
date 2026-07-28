@@ -438,6 +438,10 @@ function toggleFilterPanel(panelId, btnId) {
   if (!panel) return;
   const open = panel.classList.toggle("open");
   if (btn) btn.classList.toggle("active", open);
+  if (open && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    const searchInput = panel.querySelector('input[type="text"]');
+    if (searchInput) searchInput.focus();
+  }
 }
 
 // Toggle the .filter-bar.collapsible panel belonging to the currently active
