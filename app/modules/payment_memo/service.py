@@ -1,7 +1,6 @@
 import re
 import calendar
 import config
-import sqlite3
 from datetime import datetime
 from database import get_conn
 from modules.bank.service import sync_pam_to_bank_setf
@@ -35,7 +34,7 @@ def get_draft_payments(company_id: int) -> list:
     # Rows dari payment_beasiswa — JOIN ke pam_records untuk pillar & due_date
     rows = [dict(r) for r in conn.execute(
         """SELECT pb.*, s.nama, s.bank, s.norek, s.namarek, 'beasiswa' AS _type,
-                  pr.id AS pam_record_id, pr.pillar, pr.due_date, pr.status AS pam_status
+                  pr.id AS pam_record_id, pr.pillar, pr.due_date
            FROM payment_beasiswa pb
            LEFT JOIN siswa s  ON s.company_id  = pb.company_id AND s.code   = pb.siswa_code
            LEFT JOIN pam_records pr ON pr.pam_no = pb.pam AND pr.company_id = pb.company_id
@@ -51,7 +50,7 @@ def get_draft_payments(company_id: int) -> list:
                NULL AS siswa_code, NULL AS cat1, NULL AS cat2,
                NULL AS nama, NULL AS bank, NULL AS norek, NULL AS namarek,
                NULL AS etf_pa_line_id, 'pam_record' AS _type,
-               id AS pam_record_id, status AS pam_status
+               id AS pam_record_id
            FROM pam_records
            WHERE company_id = ? AND source IN ('others', 'tagihan', 'sponsor')
            AND status = 'open'
@@ -627,11 +626,11 @@ def save_klaim_payment(company_id: int, company_code: str, data: dict) -> dict:
         conn.execute(
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
-                total_amount, dpp, pt, due_date, pillar, source, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                total_amount, due_date, pillar, source, status, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (company_id, pam_no, tanggal,
              config.PAM_DEFAULT_REQUESTOR, keterangan,
-             grand_total, grand_total, perusahaan, due_date, pillar, "klaim_medis", "open", _ts())
+             grand_total, due_date, pillar, "klaim_medis", "open", _ts())
         )
         conn.commit()
     except Exception as e:
@@ -1065,9 +1064,8 @@ def update_pam_status(pam_id: int, new_status: str, company_id: int) -> dict:
     conn.commit()
     conn.close()
 
-    # Not just on completion: reverting away from 'complete' must also
-    # remove any previously-synced bank_setf row (see sync_pam_to_bank_setf).
-    sync_pam_to_bank_setf(pam_id)
+    if new_status == "complete":
+        sync_pam_to_bank_setf(pam_id)
 
     return {"ok": True, "pesan": f"Status PAM diubah ke '{new_status}'."}
 
@@ -1097,10 +1095,6 @@ def update_pam_record(pam_id: int, data: dict, company_id: int) -> dict:
     )
     conn.commit()
     conn.close()
-
-    # total_amount/tanggal_bayar may have changed on an already-synced SETF PAM.
-    sync_pam_to_bank_setf(pam_id)
-
     return {"ok": True, "pesan": "PAM record berhasil diperbarui."}
 
 
@@ -1759,14 +1753,6 @@ def update_pam_and_application(pam_id: int, pam_data: dict,
     new_pam_no = (pam_data.get("pam_no") or "").strip() or None
     pam_no_changed = new_pam_no and new_pam_no != old_pam_no
 
-    # Reject multi-value input (e.g. "PA1,PA2") — pam_no must identify exactly
-    # one PAM. A joined value here silently breaks the payment_beasiswa.pam
-    # cascade below: it gets written verbatim and never matches any single
-    # pam_records.pam_no again (Mark Complete then finds 0 rows to update).
-    if pam_no_changed and ("," in new_pam_no or ";" in new_pam_no):
-        conn.close()
-        return {"ok": False, "pesan": f"No. PAM '{new_pam_no}' harus satu nomor saja, tidak boleh gabungan/multi-value."}
-
     # Validate new pam_no not already used by another record
     if pam_no_changed:
         conflict = conn.execute(
@@ -1815,10 +1801,6 @@ def update_pam_and_application(pam_id: int, pam_data: dict,
 
     conn.commit()
     conn.close()
-
-    # total_amount/tanggal_bayar may have changed on an already-synced SETF PAM.
-    sync_pam_to_bank_setf(pam_id)
-
     msg = "PAM berhasil diperbarui."
     if pam_no_changed:
         msg = f"No. PAM diubah dari '{old_pam_no}' → '{new_pam_no}' dan semua referensi sudah diperbarui."
@@ -2508,25 +2490,21 @@ def set_pam_complete_cascade(pam_id: int, tanggal_bayar: str, company_id: int) -
         pillar = pam.get("pillar") or ""
         if pillar == "ADVANCE":
             conn.execute(
-                "UPDATE payment_beasiswa SET status='paid' WHERE pam=? AND company_id=? AND status != 'paid'",
+                "UPDATE payment_beasiswa SET status='paid' WHERE pam=? AND company_id=?",
                 (pam_no, company_id)
             )
             pa_header_status = "paid"
         else:
-            # status != 'complete' guard: a PAM can arrive here already holding
-            # some 'complete' lines from an earlier partial completion (see
-            # mark_beasiswa_lines_complete) — don't clobber their own paid-date
-            # with this call's tanggal_bayar, only close out what's still open.
             paid_col = _BEASISWA_PAID_COL.get(pillar)
             if paid_col:
                 conn.execute(
                     f'UPDATE payment_beasiswa SET status=\'complete\', "{paid_col}"=? '
-                    f'WHERE pam=? AND company_id=? AND status != \'complete\'',
+                    f'WHERE pam=? AND company_id=?',
                     (tanggal_bayar, pam_no, company_id)
                 )
             else:
                 conn.execute(
-                    "UPDATE payment_beasiswa SET status='complete' WHERE pam=? AND company_id=? AND status != 'complete'",
+                    "UPDATE payment_beasiswa SET status='complete' WHERE pam=? AND company_id=?",
                     (pam_no, company_id)
                 )
             pa_header_status = "complete"
@@ -2562,132 +2540,6 @@ def set_pam_complete_cascade(pam_id: int, tanggal_bayar: str, company_id: int) -
     sync_pam_to_bank_setf(pam_id)
 
     return {"ok": True, "pesan": "Tgl Paid disimpan, PAM selesai."}
-
-
-def mark_beasiswa_lines_complete(payment_ids: list, tanggal_bayar: str, company_id: int) -> dict:
-    """Mark specific payment_beasiswa rows complete+paid, independent of sibling
-    rows under the same PAM (unlike set_pam_complete_cascade, which closes a whole
-    PAM at once). Once every row sharing a pam_no is complete, that PAM header
-    flips to 'complete' (full cascade to PA tables, same as the whole-PAM path).
-    While some rows are still open, the PAM header is set to 'partial' so it's
-    visibly distinct from a PAM where nothing has been paid yet.
-    """
-    if not tanggal_bayar or not payment_ids:
-        return {"ok": False, "pesan": "Pilih baris dan isi Tanggal Paid."}
-    conn = get_conn()
-    ts  = _ts()
-    ph0 = ",".join("?" * len(payment_ids))
-    rows = conn.execute(
-        f"""SELECT id, pam FROM payment_beasiswa
-            WHERE company_id=? AND status='open' AND id IN ({ph0})""",
-        [company_id] + list(payment_ids)
-    ).fetchall()
-    if not rows:
-        conn.close()
-        return {"ok": False, "pesan": "Tidak ada baris open yang cocok."}
-
-    pam_nos = sorted({r["pam"] for r in rows if r["pam"]})
-    if not pam_nos:
-        conn.close()
-        return {"ok": False, "pesan": "Baris terpilih belum terhubung ke nomor PAM."}
-
-    skipped_advance = 0
-    processed = 0
-    for pam_no in pam_nos:
-        pam = conn.execute(
-            "SELECT id, pillar FROM pam_records WHERE pam_no=? AND company_id=?",
-            (pam_no, company_id)
-        ).fetchone()
-        if not pam:
-            continue
-        if pam["pillar"] == "ADVANCE":
-            # ADVANCE has its own realization flow (status='paid', amount
-            # correction) via realize_advance_payment — not a plain complete.
-            skipped_advance += 1
-            continue
-
-        ids_for_pam = [r["id"] for r in rows if r["pam"] == pam_no]
-        ph1 = ",".join("?" * len(ids_for_pam))
-        paid_col = _BEASISWA_PAID_COL.get(pam["pillar"] or "")
-        if paid_col:
-            conn.execute(
-                f'UPDATE payment_beasiswa SET status=\'complete\', "{paid_col}"=? WHERE id IN ({ph1})',
-                [tanggal_bayar] + ids_for_pam
-            )
-        else:
-            conn.execute(
-                f"UPDATE payment_beasiswa SET status='complete' WHERE id IN ({ph1})",
-                ids_for_pam
-            )
-
-        # Cascade to PA headers whose every line is now complete (mirrors the
-        # per-PA-header "still_open" check in realize_advance_payment).
-        line_rows = conn.execute(
-            "SELECT DISTINCT etf_pa_line_id, pillar FROM payment_beasiswa "
-            "WHERE pam=? AND company_id=? AND etf_pa_line_id IS NOT NULL",
-            (pam_no, company_id)
-        ).fetchall()
-        ids_by_pillar: dict = {}
-        for r in line_rows:
-            ids_by_pillar.setdefault(r["pillar"], []).append(r["etf_pa_line_id"])
-        for line_pillar, line_ids in ids_by_pillar.items():
-            pair = _PILLAR_PA_TBL.get(line_pillar)
-            if not pair:
-                continue
-            lines_tbl, pa_tbl = pair
-            ph2 = ",".join("?" * len(line_ids))
-            pa_ids = [r[0] for r in conn.execute(
-                f"SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph2})", line_ids
-            ).fetchall()]
-            for pa_id in pa_ids:
-                sibling_ids = [r[0] for r in conn.execute(
-                    f"SELECT id FROM {lines_tbl} WHERE pa_id=?", (pa_id,)
-                ).fetchall()]
-                ph3 = ",".join("?" * len(sibling_ids))
-                still_open = conn.execute(
-                    f"""SELECT COUNT(*) FROM payment_beasiswa
-                        WHERE etf_pa_line_id IN ({ph3}) AND status != 'complete'""",
-                    sibling_ids
-                ).fetchone()[0]
-                if still_open == 0:
-                    conn.execute(
-                        f"UPDATE {pa_tbl} SET tanggal_bayar=?, status='complete', updated_at=? WHERE id=?",
-                        (tanggal_bayar, ts, pa_id)
-                    )
-                elif still_open < len(sibling_ids):
-                    # Some but not all of this PA's own lines are complete —
-                    # mirrors the PAM-level 'partial' status so it's visible
-                    # on the Payment Application screen too, not just Open PAM.
-                    conn.execute(
-                        f"UPDATE {pa_tbl} SET status='partial', updated_at=? WHERE id=?",
-                        (ts, pa_id)
-                    )
-
-        remaining_open = conn.execute(
-            "SELECT COUNT(*) FROM payment_beasiswa WHERE pam=? AND company_id=? AND status != 'complete'",
-            (pam_no, company_id)
-        ).fetchone()[0]
-        if remaining_open == 0:
-            conn.execute(
-                "UPDATE pam_records SET status='complete', tanggal_bayar=?, updated_at=? WHERE id=?",
-                (tanggal_bayar, ts, pam["id"])
-            )
-        else:
-            conn.execute(
-                "UPDATE pam_records SET status='partial', updated_at=? WHERE id=?",
-                (ts, pam["id"])
-            )
-        processed += len(ids_for_pam)
-        conn.commit()
-        sync_pam_to_bank_setf(pam["id"])
-
-    conn.close()
-    if processed == 0:
-        return {"ok": False, "pesan": "Baris ADVANCE tidak bisa di-complete dari sini — pakai tab Advance (realisasi)."}
-    msg = f"{processed} baris berhasil ditandai complete."
-    if skipped_advance:
-        msg += f" ({skipped_advance} PAM ADVANCE dilewati — pakai tab Advance untuk realisasi.)"
-    return {"ok": True, "pesan": msg}
 
 
 def realize_advance_payment(payment_id: int, realized_amount, tgl_realisasi: str,
@@ -2837,62 +2689,3 @@ def get_pam_beasiswa_lines(pam_id: int, company_id: int) -> list | None:
     ).fetchall()]
     conn.close()
     return rows
-
-
-def list_vendors(search: str = "") -> list:
-    conn = get_conn()
-    if search:
-        rows = conn.execute(
-            "SELECT id, name, pillar, cost_center FROM vendors WHERE name LIKE ? ORDER BY name",
-            (f"%{search}%",)
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT id, name, pillar, cost_center FROM vendors ORDER BY name"
-        ).fetchall()
-    conn.close()
-    return [{"id": r["id"], "name": r["name"], "pillar": r["pillar"], "cost_center": r["cost_center"] or ""} for r in rows]
-
-
-def add_vendor(name: str, pillar: str, cost_center: str = "") -> dict:
-    name = (name or "").strip()
-    pillar = (pillar or "").strip()
-    if not name:
-        return {"ok": False, "pesan": "Nama vendor wajib diisi."}
-    if not pillar:
-        return {"ok": False, "pesan": "Pillar wajib dipilih."}
-    conn = get_conn()
-    try:
-        cur = conn.execute(
-            "INSERT INTO vendors (name, pillar, cost_center) VALUES (?, ?, ?)",
-            (name, pillar, (cost_center or "").strip())
-        )
-        conn.commit()
-        return {"ok": True, "pesan": f"Vendor {name} berhasil ditambahkan.", "id": cur.lastrowid}
-    except sqlite3.IntegrityError:
-        conn.rollback()
-        return {"ok": False, "pesan": "Nama vendor sudah terdaftar."}
-    finally:
-        conn.close()
-
-
-def update_vendor(vendor_id: int, name: str, pillar: str, cost_center: str = "") -> dict:
-    name = (name or "").strip()
-    pillar = (pillar or "").strip()
-    if not name:
-        return {"ok": False, "pesan": "Nama vendor wajib diisi."}
-    if not pillar:
-        return {"ok": False, "pesan": "Pillar wajib dipilih."}
-    conn = get_conn()
-    try:
-        conn.execute(
-            "UPDATE vendors SET name = ?, pillar = ?, cost_center = ? WHERE id = ?",
-            (name, pillar, (cost_center or "").strip(), vendor_id)
-        )
-        conn.commit()
-        return {"ok": True, "pesan": f"Vendor {name} berhasil diperbarui."}
-    except sqlite3.IntegrityError:
-        conn.rollback()
-        return {"ok": False, "pesan": "Nama vendor sudah terdaftar."}
-    finally:
-        conn.close()
