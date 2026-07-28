@@ -1,5 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
+{% block head %}
+<style>
+  /* Scoped to this template only -- do not move to base.html or
+     static/css/style.css. Keeps the View Transition limited to
+     company-select -> dashboard, not every module navigation. */
+  @view-transition {
+    navigation: auto;
+  }
+  .navbar-brand {
+    view-transition-name: flow-wordmark;
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div class="page-header">
   <div class="page-toolbar">

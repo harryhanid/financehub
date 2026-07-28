@@ -268,6 +268,13 @@
     btn.addEventListener('focus', function () { document.body.classList.add('branch-hover-' + code); });
     btn.addEventListener('blur', function () { document.body.classList.remove('branch-hover-' + code); });
 
+    // Runs unconditionally (not gated by reduceMotion below) -- Dashboard's
+    // existing theme-detection script in base.html reads this on next load.
+    // Never overrides a theme the user already explicitly chose.
+    btn.addEventListener('click', function () {
+      if (!localStorage.getItem('fh-theme')) localStorage.setItem('fh-theme', 'dark');
+    });
+
     if (reduceMotion) return;
 
     btn.addEventListener('click', function (e) {

@@ -62,3 +62,12 @@ def test_navbar_module_menu_appears_on_other_pages_too(client):
     assert 'class="navbar-menu-item active" href="/bank/"' in html
     assert 'href="/dashboard"' in html
     assert "Beasiswa" in html
+
+
+def test_dashboard_page_opts_into_view_transitions(client):
+    login(client)
+    select_etf(client)
+    resp = client.get("/dashboard")
+    html = resp.data.decode()
+    assert "@view-transition" in html
+    assert "view-transition-name: flow-wordmark" in html
