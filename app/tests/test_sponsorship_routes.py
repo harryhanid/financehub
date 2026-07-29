@@ -200,3 +200,54 @@ def test_edit_modal_preserves_out_of_whitelist_description_on_unrelated_save(cli
     conn.close()
     resp = client.post(f"/sponsorship/data/{tid}/update", json={"description": "Legacy Category Not In List", "perihal": "Edited"})
     assert resp.get_json()["ok"] is True
+
+
+def test_api_report_data_rejects_non_smt(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/sponsorship/api/report-data")
+    assert resp.status_code == 403
+
+
+def test_api_report_data_returns_expected_structure(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    client.post("/sponsorship/input/create", json={
+        "cat": "Sponsorship", "description": "Sosial",
+        "tanggal_form_sponsor": "2026-01-15", "cat1": "SMART",
+        "lembaga_perorangan": "Yayasan Test", "amount_request": 1000,
+    })
+    resp = client.get("/sponsorship/api/report-data?tahun=2026&cat4=all")
+    data = resp.get_json()
+    assert data["tahun"] == "2026"
+    assert data["cat4_mode"] == "all"
+    assert data["sections"][0]["description"] == "Sosial"
+    assert data["grand_total"]["total"] == 1000
+
+
+def test_api_report_data_defaults_cat4_to_all_when_invalid(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/sponsorship/api/report-data?cat4=bogus")
+    data = resp.get_json()
+    assert data["cat4_mode"] == "all"
+
+
+def test_api_report_data_defaults_tahun_to_latest_available(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    client.post("/sponsorship/input/create", json={
+        "cat": "Sponsorship", "description": "Sosial",
+        "tanggal_form_sponsor": "2025-01-15", "cat1": "SMART",
+        "lembaga_perorangan": "Yayasan Lama", "amount_request": 1000,
+    })
+    client.post("/sponsorship/input/create", json={
+        "cat": "Sponsorship", "description": "Sosial",
+        "tanggal_form_sponsor": "2026-01-15", "cat1": "SMART",
+        "lembaga_perorangan": "Yayasan Baru", "amount_request": 2000,
+    })
+    resp = client.get("/sponsorship/api/report-data")  # no tahun param
+    data = resp.get_json()
+    assert data["tahun"] == "2026"

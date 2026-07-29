@@ -1,4 +1,5 @@
 # modules/sponsorship/routes.py
+from datetime import datetime
 from functools import wraps
 from flask import Blueprint, render_template, request, jsonify, session
 from flask_jwt_extended import get_jwt
@@ -6,7 +7,7 @@ from auth.middleware import jwt_html_required
 from modules.sponsorship.service import (
     list_perusahaan, get_lembaga_suggestions, create_transaksi, get_transaksi,
     update_transaksi, list_transaksi, count_transaksi, get_available_years,
-    get_dashboard_data,
+    get_dashboard_data, get_sponsorship_report,
 )
 import config
 
@@ -59,6 +60,17 @@ def _parse_filters():
     return filters
 
 
+def _parse_report_params():
+    tahun = request.args.get("tahun") or ""
+    if not tahun:
+        years = get_available_years(_cid())
+        tahun = years[0] if years else str(datetime.now().year)
+    cat4 = (request.args.get("cat4") or "all").lower()
+    if cat4 not in ("include", "exclude", "all"):
+        cat4 = "all"
+    return tahun, cat4
+
+
 @bp.route("/")
 @jwt_html_required
 def index():
@@ -75,6 +87,15 @@ def index():
 @smt_company_required
 def api_dashboard_data():
     data = get_dashboard_data(_cid(), _parse_filters())
+    return jsonify(data)
+
+
+@bp.route("/api/report-data")
+@jwt_html_required
+@smt_company_required
+def api_report_data():
+    tahun, cat4 = _parse_report_params()
+    data = get_sponsorship_report(_cid(), tahun, cat4)
     return jsonify(data)
 
 
