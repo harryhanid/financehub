@@ -555,7 +555,7 @@ git commit -m "feat: migrate Beasiswa to unified header navigation"
 
 **Note:** `app/templates/payment_memo/routes.py` and `app/templates/payment_memo/index.html` were heavily touched by earlier work this session (Vendors tab, LAND-pillar fix, dark-mode fix) — re-run `git status --porcelain -- app/templates/payment_memo/index.html app/modules/payment_memo/routes.py` immediately before editing to confirm the file is clean relative to HEAD (it was at plan-writing time) and no new concurrent WIP has landed on these specific lines since.
 
-- [ ] **Step 1: Add the `module_tabs` block override**
+- [x] **Step 1: Add the `module_tabs` block override**
 
 In `app/templates/payment_memo/index.html`, find the file's `{% block head %}...{% endblock %}` near the top and insert immediately after it, before `{% block content %}`:
 
@@ -580,7 +580,7 @@ In `app/templates/payment_memo/index.html`, find the file's `{% block head %}...
 {% endblock %}
 ```
 
-- [ ] **Step 2: Remove the old header row, relocate Filter/Full Screen**
+- [x] **Step 2: Remove the old header row, relocate Filter/Full Screen**
 
 Replace this block (current lines 119-152):
 
@@ -641,16 +641,16 @@ with:
 </div>
 ```
 
-- [ ] **Step 3: Flip the flag**
+- [x] **Step 3: Flip the flag**
 
 In `app/modules/payment_memo/routes.py`, find the `render_template(...)` call (starts at line 66) that passes `active_page="payment_memo"` (line 74) and add `use_unified_header=True` as a sibling kwarg on the same call.
 
-- [ ] **Step 4: Run the existing regression suite**
+- [x] **Step 4: Run the existing regression suite**
 
 Run: `cd app && python -m pytest tests/test_payment_memo_ipay.py tests/test_payment_memo_open_pam.py tests/test_payment_memo_service.py tests/test_payment_memo_sla.py tests/test_payment_memo_vendors.py -v`
 Expected: all tests pass unchanged.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/templates/payment_memo/index.html app/modules/payment_memo/routes.py
