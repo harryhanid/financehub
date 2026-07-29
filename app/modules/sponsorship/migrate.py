@@ -50,8 +50,14 @@ def migrate_sponsorship_from_excel(perusahaan_xlsx_path: str, transaksi_xlsx_pat
 
             tanggal_form = row[idx["Tanggal Form Sponsor"]]
             if not hasattr(tanggal_form, "strftime"):
-                skipped.append(f"row with lembaga={row[idx['Lembaga/Perorangan']]!r}: Tanggal Form Sponsor is not a date ({tanggal_form!r})")
-                continue
+                year = row[idx["Year"]]
+                if isinstance(year, int):
+                    tanggal_form_str = f"{year}-01-01"
+                else:
+                    skipped.append(f"row with lembaga={row[idx['Lembaga/Perorangan']]!r}: Tanggal Form Sponsor is not a date ({tanggal_form!r}) and Year is also missing/invalid ({year!r})")
+                    continue
+            else:
+                tanggal_form_str = _cell_date(tanggal_form)
 
             if not row[idx["Description"]] or not row[idx["Lembaga/Perorangan"]]:
                 skipped.append(f"row with lembaga={row[idx['Lembaga/Perorangan']]!r}: missing required Description or Lembaga/Perorangan")
@@ -68,7 +74,7 @@ def migrate_sponsorship_from_excel(perusahaan_xlsx_path: str, transaksi_xlsx_pat
                     """,
                     (
                         company_id, cat, row[idx["Description"]],
-                        _cell_date(tanggal_form), _cell_date(row[idx["Tanggal Payment"]]),
+                        tanggal_form_str, _cell_date(row[idx["Tanggal Payment"]]),
                         row[idx["Cat1"]], row[idx["Cat2"]], row[idx["Cat3"]],
                         row[idx["Lembaga/Perorangan"]], row[idx["Perihal"]],
                         float(row[idx["Amount Request"]] or 0),
