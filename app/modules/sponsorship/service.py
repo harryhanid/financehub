@@ -219,6 +219,9 @@ def _apply_filters(query: str, params: list, company_id: int, filters: dict):
     if filters.get("cat3"):
         query += " AND cat3 = ?"
         params.append(filters["cat3"])
+    if filters.get("cat4"):
+        query += " AND cat4 = ?"
+        params.append(filters["cat4"])
     if filters.get("description"):
         query += " AND description = ?"
         params.append(filters["description"])
@@ -293,4 +296,82 @@ def get_dashboard_data(company_id: int, filters: dict = None) -> dict:
         "monthlyChart": monthly_chart,
         "pillarChart": pillar_chart,
         "descriptionChart": description_chart,
+    }
+
+
+def get_sponsorship_report(company_id: int, tahun: str, cat4_mode: str) -> dict:
+    """Rekap sponsorship per description-section, dipivot per pillar (cat3),
+    difilter cat4_mode ('include' | 'exclude' | 'all'). Section tanpa transaksi
+    untuk tahun+cat4_mode ini disembunyikan; section yang ada urut sesuai
+    config.SPONSORSHIP_DESCRIPTION. Baris dalam tiap section urut TOTAL desc.
+    """
+    filters = {"tahun": tahun}
+    if cat4_mode == "include":
+        filters["cat4"] = "Include"
+    elif cat4_mode == "exclude":
+        filters["cat4"] = "Exclude"
+    # cat4_mode == "all": no cat4 filter, includes NULL/blank cat4 rows
+
+    rows = list_transaksi(company_id, filters)
+    pillar_cols = list(PILLAR_COLUMNS.values())
+
+    by_description = {}
+    for r in rows:
+        by_description.setdefault(r["description"], []).append(r)
+
+    # Fixed config order first, then any legacy/migrated description values that
+    # aren't in config.SPONSORSHIP_DESCRIPTION (new inserts can't produce these —
+    # _validate_payload() blocks them — but historical/migrated rows might have
+    # them; they must still show up as their own section, not vanish silently).
+    ordered_descriptions = list(config.SPONSORSHIP_DESCRIPTION)
+    for description in by_description:
+        if description not in ordered_descriptions:
+            ordered_descriptions.append(description)
+
+    sections = []
+    for description in ordered_descriptions:
+        group = by_description.get(description)
+        if not group:
+            continue
+        group.sort(key=lambda r: r["amount_request"], reverse=True)
+
+        section_rows = []
+        subtotal = {col: 0.0 for col in pillar_cols}
+        subtotal["total"] = 0.0
+        for i, r in enumerate(group, start=1):
+            row_out = {
+                "no": i,
+                "lembaga_perorangan": r["lembaga_perorangan"],
+                "perihal": r["perihal"],
+                "total": r["amount_request"],
+            }
+            for col in pillar_cols:
+                row_out[col] = r[col]
+                subtotal[col] += r[col]
+            subtotal["total"] += r["amount_request"]
+            section_rows.append(row_out)
+
+        sections.append({
+            "description": description,
+            "rows": section_rows,
+            "subtotal": subtotal,
+        })
+
+    grand_total = {col: 0.0 for col in pillar_cols}
+    grand_total["total"] = 0.0
+    for s in sections:
+        for col in pillar_cols:
+            grand_total[col] += s["subtotal"][col]
+        grand_total["total"] += s["subtotal"]["total"]
+
+    pct_allocation = {}
+    for col in pillar_cols:
+        pct_allocation[col] = round(grand_total[col] / grand_total["total"] * 100) if grand_total["total"] else 0
+
+    return {
+        "tahun": str(tahun),
+        "cat4_mode": cat4_mode,
+        "sections": sections,
+        "grand_total": grand_total,
+        "pct_allocation": pct_allocation,
     }
