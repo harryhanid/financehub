@@ -155,3 +155,17 @@ def test_data_update_rejects_non_smt(client):
     _select_etf(client)
     resp = client.post("/sponsorship/data/1/update", json={"perihal": "x"})
     assert resp.status_code == 403
+
+
+def test_data_page_pagination_preserves_filters(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    for _ in range(150):
+        client.post("/sponsorship/input/create", json={
+            "cat": "Sponsorship", "description": "Sosial",
+            "tanggal_form_sponsor": "2026-01-15", "cat1": "SMART",
+            "lembaga_perorangan": "Yayasan Test", "amount_request": 1000,
+        })
+    resp = client.get("/sponsorship/data?cat3=AGRI&page=1")
+    assert b"cat3=AGRI" in resp.data

@@ -62,8 +62,10 @@
   <div class="budget-pagination">
     <span class="budget-pagination-info">Halaman {{ page }} dari {{ total_pages }} ({{ total_count }} data)</span>
     <div class="budget-pagination-nav">
-      <a class="budget-btn {% if page <= 1 %}disabled{% endif %}" href="?page={{ page - 1 }}">‹ Prev</a>
-      <a class="budget-btn {% if page >= total_pages %}disabled{% endif %}" href="?page={{ page + 1 }}">Next ›</a>
+      <a class="budget-btn {% if page <= 1 %}disabled{% endif %}"
+         href="?page={{ page - 1 }}{% if filters.cat %}&cat={{ filters.cat|urlencode }}{% endif %}{% if filters.cat3 %}&cat3={{ filters.cat3|urlencode }}{% endif %}{% if filters.description %}&description={{ filters.description|urlencode }}{% endif %}{% if filters.tahun %}&tahun={{ filters.tahun|urlencode }}{% endif %}{% if filters.status %}&status={{ filters.status|urlencode }}{% endif %}">‹ Prev</a>
+      <a class="budget-btn {% if page >= total_pages %}disabled{% endif %}"
+         href="?page={{ page + 1 }}{% if filters.cat %}&cat={{ filters.cat|urlencode }}{% endif %}{% if filters.cat3 %}&cat3={{ filters.cat3|urlencode }}{% endif %}{% if filters.description %}&description={{ filters.description|urlencode }}{% endif %}{% if filters.tahun %}&tahun={{ filters.tahun|urlencode }}{% endif %}{% if filters.status %}&status={{ filters.status|urlencode }}{% endif %}">Next ›</a>
     </div>
   </div>
   {% endif %}
