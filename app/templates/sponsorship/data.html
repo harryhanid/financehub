@@ -7,8 +7,8 @@
 {% block content %}
 <div class="budget-page">
   <h1>Sponsorship — Data</h1>
-  {% include "sponsorship/_toolbar.html" with context %}
   {% set active_tab = "data" %}
+  {% include "sponsorship/_toolbar.html" with context %}
   {% if wrong_company %}
     {% include "sponsorship/_notice.html" %}
   {% else %}
