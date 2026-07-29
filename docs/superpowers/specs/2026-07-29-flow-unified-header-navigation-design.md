@@ -40,11 +40,11 @@ different ways:
 
 | Pattern | Modules | Mechanism |
 |---|---|---|
-| Single-page JS tab panels | Beasiswa (7 tabs), Payment Memo (9 tabs) | Click a `<button data-tab>`, JS shows/hides a `.tab-panel`, no page reload. Existing Alt+←/→ shortcuts navigate between tabs. |
+| Single-page JS tab panels | Beasiswa (7 tabs), Payment Memo (9 tabs), Bank (2 tabs) | Click a `<button data-tab>`, JS shows/hides a `.tab-panel`, no page reload. Beasiswa/Payment Memo also have the existing Alt+←/→ shortcuts to navigate between tabs; Bank's simpler `.bank-tabs` block doesn't. |
 | Query-param tabs, full reload | **Payment Application** (nav label — actually backed by the `etf_payment_application` blueprint, `/etf-payment-application`) | Each tab is a link to the same route with a different `?tab=` value; the server re-renders the page with that tab's content. Same visual pill-tab treatment as the JS-panel pattern. |
 | Separate pages, plain link tabs | Sponsorship (4 tabs) | Each tab is a real `<a href>` to its own route/template, styled as a pill via `_toolbar.html`. |
 | Separate pages, mixed toolbar | Budget (3 "tabs" + 5 filter selects) | Navigation links (Kelola Budget / Realisasi / Carryover) and page filters live in the same `.budget-toolbar` div, undifferentiated. |
-| No sub-nav | Bank, Users, Dashboard | Single flat page, just an `<h1>`. |
+| No sub-nav | Users, Dashboard | Single flat page, just an `<h1>`. |
 
 Note: there is a second, separate `payment_application` blueprint (`/payment-application`)
 that is **not linked from anywhere in the app** and does not appear in `DASHBOARD_TABS` —
@@ -80,15 +80,15 @@ FLOW  |  Beasiswa ▾  |  Dashboard  Data Siswa  Data Budget  Data Payment  Repo
 top-level module (same list/order as State A), letting the user jump directly to
 another module without returning to Dashboard first.
 
-**State C — inside a module with no sub-tabs of its own (Bank, Users):**
+**State C — inside a module with no sub-tabs of its own (Users):**
 
 ```
-FLOW  |  Bank ▾   ⋯empty⋯   [🔍] [Eka Tjipta Foundation] [admin] [☀] [Keluar]
+FLOW  |  Users ▾   ⋯empty⋯   [🔍] [Eka Tjipta Foundation] [admin] [☀] [Keluar]
 ```
 
 Same dropdown trigger as State B, simply nothing rendered beside it. This is the
 fallback default — a module that hasn't wired up its own tab list (whether by design,
-like Bank, or because it's newly built and not yet migrated) never breaks the header;
+like Users, or because it's newly built and not yet migrated) never breaks the header;
 it just shows the bare dropdown.
 
 ### Module-switch dropdown
@@ -152,7 +152,7 @@ matters most for Payment Memo, which has 9 tabs.
   - else → render `{{ module_label }} ▾` (the dropdown trigger + its popup menu, sourced
     from `nav_modules`) followed by an optional `module_tabs` list (State B/C) — each
     module's route already knows which case it is and passes `module_tabs` accordingly
-    (empty list for Bank/Users).
+    (empty list for Users).
 - Each module keeps producing its own tab items exactly as it does today (`<a href>` for
   Sponsorship/Budget-style pages, `<button data-tab>` for JS-panel modules) — the shared
   partial only needs one CSS class set (`.fh-menu` / `.fh-item`) applied consistently so
@@ -165,9 +165,10 @@ matters most for Payment Memo, which has 9 tabs.
 1. Build the shared header component (dropdown, scroll+fade tab strip, relocated
    search icon/company name) in `base.html`, wired to render State A on Dashboard.
 2. Migrate modules that already have clean, ready-to-move tab bars: Beasiswa, Payment
-   Memo, Payment Application (`etf_payment_application`). Hoist their existing
-   Filter/Full Screen controls into the new page-content toolbar row.
-3. Migrate modules with no sub-nav today: Bank, Users (bare dropdown, State C).
+   Memo, Payment Application (`etf_payment_application`), Bank. Hoist Beasiswa/Payment
+   Memo/Payment Application's existing Filter/Full Screen controls into the new
+   page-content toolbar row (Bank has no such controls today).
+3. Migrate the one module with no sub-nav today: Users (bare dropdown, State C).
 4. Migrate modules needing restructuring first: Sponsorship (move its existing
    `_toolbar.html` tab links into the header), Budget (split nav links from filters as
    described above).
