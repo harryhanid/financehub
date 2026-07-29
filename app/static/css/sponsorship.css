@@ -62,9 +62,12 @@
   font-weight: 700;
 }
 
-.sp-report-grandtotal-row:hover td { background: #1e3a5f; }
-.sp-report-subtotal-row:hover td,
-.sp-report-section-band:hover td { background: #fef9c3; }
+/* .budget-table tr:hover td is (0,2,2) — one class + :hover + 2 elements (tr, td).
+   A bare .sp-report-*-row:hover td is only (0,2,1) and loses that fight, so these
+   repeat the tr element to match its shape and win on the class count instead. */
+.budget-table tr.sp-report-grandtotal-row:hover td { background: #1e3a5f; }
+.budget-table tr.sp-report-subtotal-row:hover td,
+.budget-table tr.sp-report-section-band:hover td { background: #fef9c3; }
 
 .sp-report-pct-row td {
   color: var(--text-muted);
