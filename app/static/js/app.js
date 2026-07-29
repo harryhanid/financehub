@@ -359,7 +359,14 @@ function doLogout() {
 }
 
 function initTabs(container) {
-  const tabs = container.querySelectorAll(".tab-btn");
+  // Tab buttons now live in the navbar's module_tabs block (unified-header
+  // migration), outside `container` ([data-tabs], which only wraps the
+  // .tab-panel content) — a container-scoped query here always finds zero
+  // buttons, silently skipping every listener attach and the auto-activate
+  // call below, leaving every panel without .active (blank page). Query
+  // globally instead, matching pressTabStep()'s existing '.tabs .tab-btn'
+  // selector, since each page has exactly one such button group.
+  const tabs = document.querySelectorAll(".tabs .tab-btn");
   const panels = container.querySelectorAll(".tab-panel");
   const filterBtn = container.querySelector(".btn-filter-toggle");
   tabs.forEach(btn => {
