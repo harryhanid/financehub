@@ -670,7 +670,7 @@ git commit -m "feat: migrate Payment Approval Memo to unified header navigation"
 
 **Note:** per Global Constraints, re-check `git status --porcelain -- app/templates/etf_payment_application/index.html` before editing — this file has uncommitted concurrent-session WIP as of plan-writing.
 
-- [ ] **Step 1: Add the `module_tabs` block override**
+- [x] **Step 1: Add the `module_tabs` block override**
 
 Insert this block right before the line `{# ── Header: title + tabs + actions in one row ── #}` (current line 173):
 
@@ -687,7 +687,7 @@ Insert this block right before the line `{# ── Header: title + tabs + action
 {% endblock %}
 ```
 
-- [ ] **Step 2: Remove the title+tabs row, relocate Filter/Full Screen**
+- [x] **Step 2: Remove the title+tabs row, relocate Filter/Full Screen**
 
 Replace this block (current lines 174-200 — note the wrapping `<div id="pa-page-header" class="fh-page-header">` does **not** close here; it continues to wrap the filter panel and bulk-action bar below, closing at the existing `</div>{# end pa-page-header #}` near the end of the file — leave that closing tag untouched):
 
@@ -744,15 +744,15 @@ with:
 </div>
 ```
 
-- [ ] **Step 3: Flip the flag**
+- [x] **Step 3: Flip the flag**
 
 In `app/modules/etf_payment_application/routes.py`, find the `render_template(...)` call (starts at line 103) that passes `active_page="etf_payment_app"` (line 125) and add `use_unified_header=True` as a sibling kwarg on the same call.
 
-- [ ] **Step 4: Manual smoke check**
+- [x] **Step 4: Manual smoke check**
 
 No dedicated route/render test file exists for this module's HTML. Using the running dev server, visit `/etf-payment-application` and confirm: the `Open PA / Advance / Input / AGRI / APP / LAND / SETF` tabs render in the navbar with the correct one highlighted per `?tab=`, the Filter and Full Screen buttons appear in a row below the header, and the bulk-select bar (select a row on a data tab) still appears/disappears correctly without layout breakage.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/templates/etf_payment_application/index.html app/modules/etf_payment_application/routes.py
