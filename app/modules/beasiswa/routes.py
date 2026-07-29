@@ -1,4 +1,5 @@
 # modules/beasiswa/routes.py
+from functools import wraps
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, Response
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
@@ -39,14 +40,34 @@ def _cid():
     return session.get("company_id")
 
 
+def _wrong_company():
+    return session.get("company_code") != "ETF"
+
+
+def etf_company_required(f):
+    """Beasiswa data is ETF-only. The index page shows a "Ganti Company"
+    notice via `wrong_company`, but that only guards HTML rendering — it does
+    not stop a non-ETF session from hitting these API/mutating/export URLs
+    directly (see the Sponsorship/Sahabat ETF precedent). Enforce it
+    server-side here. `vendor_list_api` is intentionally excluded — the
+    `vendors` table is a global lookup, not scoped by company_id."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if session.get("company_code") != "ETF":
+            return jsonify({"ok": False, "pesan": "Akses ditolak. Modul ini khusus company ETF."}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
 @bp.route("/")
 @jwt_html_required
 def index():
     if not _cid():
         return redirect(url_for("dashboard.select_company"))
+    wrong_company = _wrong_company()
     return render_template(
         "beasiswa/index.html",
-        siswa_list=get_siswa_list(_cid()),
+        siswa_list=get_siswa_list(_cid()) if not wrong_company else [],
         jenjang=config.JENJANG,
         program=config.PROGRAM,
         status_siswa=config.STATUS_SISWA,
@@ -55,18 +76,19 @@ def index():
         cat2_sem=config.CAT2_SEM,
         perusahaan=config.PERUSAHAAN,
         vendor_list=get_vendors(),
-        universitas_list=get_distinct_universitas(_cid()),
+        universitas_list=get_distinct_universitas(_cid()) if not wrong_company else [],
         cat3_medical=config.CAT3_MEDICAL,
         active_page="beasiswa",
-        wrong_company=(session.get("company_code") != "ETF"),
-        available_years=get_available_years(_cid()),
-        available_pillars=get_available_pillars(_cid()),
+        wrong_company=wrong_company,
+        available_years=get_available_years(_cid()) if not wrong_company else [],
+        available_pillars=get_available_pillars(_cid()) if not wrong_company else [],
         **_ctx()
     )
 
 
 @bp.route("/siswa/generate-kode")
 @jwt_html_required
+@etf_company_required
 def siswa_generate_kode():
     jenjang  = request.args.get("jenjang", "").strip()
     angkatan = request.args.get("angkatan", "").strip()
@@ -78,12 +100,14 @@ def siswa_generate_kode():
 
 @bp.route("/siswa/tambah", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def siswa_tambah():
     return jsonify(add_siswa(_cid(), request.get_json(force=True) or {}))
 
 
 @bp.route("/siswa/<code>")
 @jwt_html_required
+@etf_company_required
 def siswa_detail(code):
     row = get_siswa_detail(_cid(), code)
     if not row:
@@ -93,12 +117,14 @@ def siswa_detail(code):
 
 @bp.route("/siswa/<code>/update", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def siswa_update(code):
     return jsonify(update_siswa(_cid(), code, request.get_json(force=True) or {}))
 
 
 @bp.route("/siswa/<code>/catatan", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def siswa_catatan_update(code):
     data = request.get_json(force=True) or {}
     return jsonify(update_siswa_catatan(_cid(), code, data.get("catatan", "")))
@@ -106,6 +132,7 @@ def siswa_catatan_update(code):
 
 @bp.route("/siswa/<code>/catatan-payment", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def siswa_catatan_payment_update(code):
     data = request.get_json(force=True) or {}
     return jsonify(update_siswa_catatan_payment(_cid(), code, data.get("catatan_payment", "")))
@@ -113,12 +140,14 @@ def siswa_catatan_payment_update(code):
 
 @bp.route("/siswa/<code>/hapus", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def siswa_hapus(code):
     return jsonify(delete_siswa(_cid(), code))
 
 
 @bp.route("/siswa/<code>/sisa-budget")
 @jwt_html_required
+@etf_company_required
 def siswa_sisa_budget(code):
     sisa = get_sisa_budget(_cid(), code)
     return jsonify({"ok": True, **sisa})
@@ -126,6 +155,7 @@ def siswa_sisa_budget(code):
 
 @bp.route("/budget/siswa/<code>")
 @jwt_html_required
+@etf_company_required
 def budget_by_siswa(code):
     result = get_budget(_cid(), code)
     siswa  = get_siswa_detail(_cid(), code)
@@ -135,6 +165,7 @@ def budget_by_siswa(code):
 
 @bp.route("/budget/siswa/<code>/export/<fmt>")
 @jwt_html_required
+@etf_company_required
 def budget_siswa_export(code, fmt):
     result = get_budget(_cid(), code)
     siswa  = get_siswa_detail(_cid(), code)
@@ -204,18 +235,21 @@ def budget_siswa_export(code, fmt):
 
 @bp.route("/budget/<int:row_id>/hapus", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def budget_hapus(row_id):
     return jsonify(delete_budget_row(_cid(), row_id))
 
 
 @bp.route("/budget/<int:row_id>/update", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def budget_update_row(row_id):
     return jsonify(update_budget_row(_cid(), row_id, request.get_json(force=True) or {}))
 
 
 @bp.route("/budget/tambah", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def budget_tambah():
     data   = request.get_json(force=True) or {}
     code   = (data.get("code") or "").strip()
@@ -234,12 +268,14 @@ def vendor_list_api():
 
 @bp.route("/summary")
 @jwt_html_required
+@etf_company_required
 def financial_summary():
     return jsonify({"ok": True, **get_financial_summary(_cid())})
 
 
 @bp.route("/budget/list")
 @jwt_html_required
+@etf_company_required
 def budget_list():
     data = get_budget_list(
         _cid(),
@@ -255,6 +291,7 @@ def budget_list():
 
 @bp.route("/budget/export/csv")
 @jwt_html_required
+@etf_company_required
 def budget_export_csv():
     import csv, io
     rows = get_budget_list(_cid(),
@@ -276,6 +313,7 @@ def budget_export_csv():
 
 @bp.route("/budget/export/pdf")
 @jwt_html_required
+@etf_company_required
 def budget_export_pdf():
     import io
     from flask import send_file
@@ -326,6 +364,7 @@ def budget_export_pdf():
 
 @bp.route("/payment/list")
 @jwt_html_required
+@etf_company_required
 def payment_list():
     data = get_payment_list(
         _cid(),
@@ -342,6 +381,7 @@ def payment_list():
 
 @bp.route("/payment/export/csv")
 @jwt_html_required
+@etf_company_required
 def payment_export_csv():
     import csv, io
     rows = get_payment_list(_cid(),
@@ -364,6 +404,7 @@ def payment_export_csv():
 
 @bp.route("/payment/export/pdf")
 @jwt_html_required
+@etf_company_required
 def payment_export_pdf():
     import io
     from flask import send_file
@@ -415,12 +456,14 @@ def payment_export_pdf():
 
 @bp.route("/payment/<int:row_id>/hapus", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def payment_hapus(row_id):
     return jsonify(delete_payment_row(_cid(), row_id))
 
 
 @bp.route("/payment/<int:row_id>/edit", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def payment_edit(row_id):
     data = request.get_json(force=True) or {}
     return jsonify(update_payment_row(
@@ -432,6 +475,7 @@ def payment_edit(row_id):
 
 @bp.route("/payment/tambah", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def payment_tambah():
     data   = request.get_json(force=True) or {}
     code   = (data.get("code") or "").strip()
@@ -444,6 +488,7 @@ def payment_tambah():
 
 @bp.route("/payment/tambah-multi", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def payment_tambah_multi():
     data = request.get_json(force=True) or {}
     rows = data.get("rows", [])
@@ -461,6 +506,7 @@ def payment_tambah_multi():
 
 @bp.route("/klaim/list")
 @jwt_html_required
+@etf_company_required
 def klaim_list():
     data = get_klaim_list(
         _cid(),
@@ -474,6 +520,7 @@ def klaim_list():
 
 @bp.route("/klaim/tambah-multi", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def klaim_tambah_multi():
     data = request.get_json(force=True) or {}
     rows = data.get("rows", [])
@@ -490,12 +537,14 @@ def klaim_tambah_multi():
 
 @bp.route("/klaim/<int:row_id>/hapus", methods=["POST"])
 @jwt_html_required
+@etf_company_required
 def klaim_hapus(row_id):
     return jsonify(delete_klaim_row(_cid(), row_id))
 
 
 @bp.route("/laporan/siswa/<code>")
 @jwt_html_required
+@etf_company_required
 def laporan_siswa(code):
     data = get_laporan_siswa(_cid(), code)
     if not data:
@@ -505,6 +554,7 @@ def laporan_siswa(code):
 
 @bp.route("/laporan/siswa/<code>/export/<fmt>")
 @jwt_html_required
+@etf_company_required
 def laporan_export(code, fmt):
     data = get_laporan_siswa(_cid(), code)
     if not data:
@@ -711,6 +761,7 @@ def laporan_export(code, fmt):
 
 @bp.route("/rekap/data")
 @jwt_html_required
+@etf_company_required
 def rekap_data():
     rows = get_rekap(_cid(),
         program=request.args.get("program", ""),
@@ -724,6 +775,7 @@ def rekap_data():
 
 @bp.route("/rekap/export/csv")
 @jwt_html_required
+@etf_company_required
 def rekap_export_csv():
     import csv, io
     rows  = get_rekap(_cid(),
@@ -747,6 +799,7 @@ def rekap_export_csv():
 
 @bp.route("/rekap/export/pdf")
 @jwt_html_required
+@etf_company_required
 def rekap_export_pdf():
     import io
     from flask import send_file
@@ -805,6 +858,7 @@ def rekap_export_pdf():
 
 @bp.route("/api/dashboard/summary")
 @jwt_html_required
+@etf_company_required
 def api_dashboard_summary():
     years_str = request.args.get("years", "")
     pillars_str = request.args.get("pillars", "")
@@ -819,6 +873,7 @@ def api_dashboard_summary():
 
 @bp.route("/api/dashboard/breakdown")
 @jwt_html_required
+@etf_company_required
 def api_dashboard_breakdown():
     years_str = request.args.get("years", "")
     pillars_str = request.args.get("pillars", "")
@@ -833,6 +888,7 @@ def api_dashboard_breakdown():
 
 @bp.route("/api/dashboard/monthly")
 @jwt_html_required
+@etf_company_required
 def api_dashboard_monthly():
     years_str = request.args.get("years", "")
     pillars_str = request.args.get("pillars", "")
@@ -847,6 +903,7 @@ def api_dashboard_monthly():
 
 @bp.route("/api/dashboard/latest_payments")
 @jwt_html_required
+@etf_company_required
 def api_dashboard_latest_payments():
     years_str = request.args.get("years", "")
     pillars_str = request.args.get("pillars", "")
@@ -861,6 +918,7 @@ def api_dashboard_latest_payments():
 
 @bp.route("/api/dashboard/program_summary")
 @jwt_html_required
+@etf_company_required
 def api_dashboard_program_summary():
     years_str = request.args.get("years", "")
     pillars_str = request.args.get("pillars", "")
@@ -875,6 +933,7 @@ def api_dashboard_program_summary():
 
 @bp.route("/api/dashboard/pillar_yearly")
 @jwt_html_required
+@etf_company_required
 def api_dashboard_pillar_yearly():
     pillars_str = request.args.get("pillars", "")
     pillars = [p for p in pillars_str.split(",") if p]

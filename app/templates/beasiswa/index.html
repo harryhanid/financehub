@@ -7,6 +7,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 {% endblock %}
 {% block content %}
+{% if wrong_company %}
+  {% include "beasiswa/_notice.html" %}
+{% else %}
 {# ── Focus mode exit button (fixed, visible only in focus mode) ─────────── #}
 <button id="fh-focus-exit" onclick="exitFocusMode()" title="Keluar Focus Mode (Esc)">
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
@@ -879,6 +882,7 @@
     <div id="rm-detail-content"></div>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -906,6 +910,7 @@ const CAT1 = {{ cat1_bgt | tojson }};
 const CAT2 = {{ cat2_sem | tojson }};
 
 const COMPANY_CODE = "{{ company_code }}";
+const WRONG_COMPANY = {{ 'true' if wrong_company else 'false' }};
 let _editMode = false, _editCode = "";
 
 
@@ -1697,6 +1702,7 @@ function exportRekap(fmt) {
 
 
 document.addEventListener("DOMContentLoaded", () => {
+  if (WRONG_COMPANY) return;
   loadRekap();
   loadSummary();
 });
