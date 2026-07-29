@@ -134,3 +134,24 @@ def test_dashboard_registered_in_nav_tabs():
     from modules.dashboard.routes import DASHBOARD_TABS
     keys = [t[2] for t in DASHBOARD_TABS]
     assert "sponsorship" in keys
+
+
+def test_api_lookups_rejects_non_smt(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/sponsorship/api/lookups")
+    assert resp.status_code == 403
+
+
+def test_data_get_rejects_non_smt(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/sponsorship/data/1")
+    assert resp.status_code == 403
+
+
+def test_data_update_rejects_non_smt(client):
+    login(client)
+    _select_etf(client)
+    resp = client.post("/sponsorship/data/1/update", json={"perihal": "x"})
+    assert resp.status_code == 403
