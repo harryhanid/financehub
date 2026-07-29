@@ -5,6 +5,13 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/bank.css') }}">
 {% endblock %}
 
+{% block module_tabs %}
+<div class="tabs">
+  <button type="button" class="tab-btn" data-tab="tab-mutasi">Mutasi &amp; Saldo</button>
+  <button type="button" class="tab-btn" data-tab="tab-open">Open</button>
+</div>
+{% endblock %}
+
 {% block content %}
 <div class="bank-page">
   <div class="bank-header">
@@ -26,11 +33,6 @@
   </div>
 
   <div class="bank-tabs" data-tabs>
-    <div class="tabs">
-      <button type="button" class="tab-btn" data-tab="tab-mutasi">Mutasi & Saldo</button>
-      <button type="button" class="tab-btn" data-tab="tab-open">Open</button>
-    </div>
-
     <div class="tab-content">
       <!-- TAB MUTASI -->
       <div id="tab-mutasi" class="tab-panel">

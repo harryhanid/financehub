@@ -54,6 +54,7 @@ def index():
     return render_template(
         "bank/index.html",
         active_page="bank",
+        use_unified_header=True,
         open_rows=open_rows,
         display_rows=display_rows,
         saldo_current=balance["saldo_current"],
