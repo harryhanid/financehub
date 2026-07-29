@@ -14,14 +14,16 @@
     {% include "sponsorship/_notice.html" %}
   {% else %}
   <div class="budget-toolbar">
-    <select id="sp-filter-tahun"><option value="">Semua Tahun</option>
+    <select class="sp-dash-filter" data-param="tahun"><option value="">Semua Tahun</option>
       {% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
     </select>
-    <select id="sp-filter-cat3">
+    <select class="sp-dash-filter" data-param="cat">
+      <option value="">Semua Cat</option>
+      {% for c in cat_choices %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+    </select>
+    <select class="sp-dash-filter" data-param="cat3">
       <option value="">Semua Pillar</option>
-      {% for p in ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY"] %}
-      <option value="{{ p }}">{{ p }}</option>
-      {% endfor %}
+      {% for p in pillar_choices %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
     </select>
   </div>
   <div class="budget-summary-grid" id="sp-summary"></div>

@@ -168,11 +168,10 @@ function _sponsorshipRenderBarChart(canvasId, labels, values) {
 function sponsorshipLoadDashboard() {
   const summaryEl = document.getElementById("sp-summary");
   if (!summaryEl) return;  // not on the Dashboard page
-  const tahun = document.getElementById("sp-filter-tahun").value;
-  const cat3 = document.getElementById("sp-filter-cat3").value;
   const params = new URLSearchParams();
-  if (tahun) params.set("tahun", tahun);
-  if (cat3) params.set("cat3", cat3);
+  document.querySelectorAll(".sp-dash-filter").forEach(function (el) {
+    if (el.value) params.set(el.dataset.param, el.value);
+  });
   apiFetch("/sponsorship/api/dashboard-data?" + params.toString())
     .then(function (r) { return r.json(); })
     .then(function (data) {
@@ -191,8 +190,7 @@ function sponsorshipLoadDashboard() {
 
 document.addEventListener("DOMContentLoaded", function () {
   sponsorshipLoadDashboard();
-  const tahunFilter = document.getElementById("sp-filter-tahun");
-  const cat3Filter = document.getElementById("sp-filter-cat3");
-  if (tahunFilter) tahunFilter.addEventListener("change", sponsorshipLoadDashboard);
-  if (cat3Filter) cat3Filter.addEventListener("change", sponsorshipLoadDashboard);
+  document.querySelectorAll(".sp-dash-filter").forEach(function (el) {
+    el.addEventListener("change", sponsorshipLoadDashboard);
+  });
 });

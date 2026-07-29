@@ -64,7 +64,10 @@ def _parse_filters():
 def index():
     years = get_available_years(_cid()) if not _wrong_company() else []
     return render_template("sponsorship/dashboard.html", active_page="sponsorship",
-                            wrong_company=_wrong_company(), years=years, **_ctx())
+                            wrong_company=_wrong_company(), years=years,
+                            cat_choices=config.SPONSORSHIP_CAT,
+                            pillar_choices=config.SPONSORSHIP_PILLARS,
+                            **_ctx())
 
 
 @bp.route("/api/dashboard-data")
