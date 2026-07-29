@@ -1,7 +1,8 @@
 # modules/sponsorship/routes.py
 from datetime import datetime
 from functools import wraps
-from flask import Blueprint, render_template, request, jsonify, session
+import io
+from flask import Blueprint, render_template, request, jsonify, session, send_file
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.sponsorship.service import (
@@ -9,6 +10,7 @@ from modules.sponsorship.service import (
     update_transaksi, list_transaksi, count_transaksi, get_available_years,
     get_dashboard_data, get_sponsorship_report,
 )
+from modules.sponsorship.exports import export_report_excel
 import config
 
 bp = Blueprint("sponsorship", __name__, url_prefix="/sponsorship")
@@ -97,6 +99,21 @@ def api_report_data():
     tahun, cat4 = _parse_report_params()
     data = get_sponsorship_report(_cid(), tahun, cat4)
     return jsonify(data)
+
+
+@bp.route("/report/export")
+@jwt_html_required
+@smt_company_required
+def export_report_route():
+    tahun, cat4 = _parse_report_params()
+    xls_bytes = export_report_excel(_cid(), tahun, cat4)
+    filename = f"Sponsorship_Report_{cat4}_{tahun}.xlsx"
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )
 
 
 @bp.route("/input")

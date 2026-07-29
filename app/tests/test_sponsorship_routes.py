@@ -251,3 +251,18 @@ def test_api_report_data_defaults_tahun_to_latest_available(client):
     resp = client.get("/sponsorship/api/report-data")  # no tahun param
     data = resp.get_json()
     assert data["tahun"] == "2026"
+
+
+def test_export_report_rejects_non_smt(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/sponsorship/report/export")
+    assert resp.status_code == 403
+
+
+def test_export_report_returns_xlsx_file(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/sponsorship/report/export?tahun=2026&cat4=all")
+    assert resp.status_code == 200
+    assert resp.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
