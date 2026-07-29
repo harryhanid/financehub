@@ -79,6 +79,7 @@ def index():
         universitas_list=get_distinct_universitas(_cid()) if not wrong_company else [],
         cat3_medical=config.CAT3_MEDICAL,
         active_page="beasiswa",
+        use_unified_header=True,
         wrong_company=wrong_company,
         available_years=get_available_years(_cid()) if not wrong_company else [],
         available_pillars=get_available_pillars(_cid()) if not wrong_company else [],
