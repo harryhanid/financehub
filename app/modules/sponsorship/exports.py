@@ -1,7 +1,7 @@
 # modules/sponsorship/exports.py
 import io
 import openpyxl
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Font, PatternFill, Alignment
 import config
 from modules.sponsorship.service import get_sponsorship_report, PILLAR_COLUMNS
 
@@ -13,7 +13,7 @@ _GRANDTOTAL_FILL = PatternFill("solid", fgColor="1E3A5F")
 _GRANDTOTAL_FONT = Font(color="FFFFFF", bold=True)
 _NUM_FMT = "#,##0"
 
-_COLUMN_LABELS = ["NO", "LEMBAGA / PERORANGAN", "PERIHAL"] + list(config.SPONSORSHIP_PILLARS) + ["TOTAL"]
+_COLUMN_LABELS = ["NO", "LEMBAGA / PERORANGAN", "PERIHAL"] + list(PILLAR_COLUMNS.keys()) + ["TOTAL"]
 
 
 def export_report_excel(company_id: int, tahun: str, cat4_mode: str) -> bytes:
@@ -36,6 +36,9 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str) -> bytes:
             cell.fill = _HEADER_FILL
             cell.font = _HEADER_FONT
 
+    if not data["sections"]:
+        _write_column_header()
+
     for section in data["sections"]:
         _write_column_header()
 
@@ -52,6 +55,8 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str) -> bytes:
             row = ws.max_row
             for col in range(4, len(_COLUMN_LABELS) + 1):
                 ws.cell(row=row, column=col).number_format = _NUM_FMT
+            ws.cell(row=row, column=2).alignment = Alignment(wrap_text=True, vertical="top")
+            ws.cell(row=row, column=3).alignment = Alignment(wrap_text=True, vertical="top")
 
         sub = section["subtotal"]
         ws.append(
@@ -83,8 +88,8 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str) -> bytes:
     ws.append(["% Allocation", "", ""] + [f"{pct[col]}%" for col in pillar_cols] + [""])
 
     ws.column_dimensions["A"].width = 6
-    ws.column_dimensions["B"].width = 32
-    ws.column_dimensions["C"].width = 40
+    ws.column_dimensions["B"].width = 45
+    ws.column_dimensions["C"].width = 60
     for col_letter in ("D", "E", "F", "G", "H"):
         ws.column_dimensions[col_letter].width = 16
 

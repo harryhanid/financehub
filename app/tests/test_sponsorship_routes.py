@@ -277,6 +277,26 @@ def test_report_page_has_toggle_buttons_and_table_container(client):
     assert b'data-cat4="include"' in resp.data
     assert b'data-cat4="exclude"' in resp.data
     assert b'data-cat4="all"' in resp.data
+
+
+def test_export_report_filename_matches_cat4_and_tahun(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/sponsorship/report/export?tahun=2026&cat4=include")
+    assert "Sponsorship_Report_include_2026.xlsx" in resp.headers.get("Content-Disposition", "")
+
+
+def test_report_page_tahun_dropdown_has_options_for_seeded_years(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    client.post("/sponsorship/input/create", json={
+        "cat": "Sponsorship", "description": "Sosial",
+        "tanggal_form_sponsor": "2026-01-15", "cat1": "SMART",
+        "lembaga_perorangan": "Yayasan Test", "amount_request": 1000,
+    })
+    resp = client.get("/sponsorship/report")
+    assert b'<option value="2026">2026</option>' in resp.data
     assert b'id="sp-report-table-container"' in resp.data
     assert b'id="sp-report-tahun"' in resp.data
     assert b'id="sp-report-export"' in resp.data

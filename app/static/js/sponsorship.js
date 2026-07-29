@@ -284,7 +284,10 @@ function sponsorshipLoadReport() {
   const params = new URLSearchParams({ tahun: sponsorshipReportState.tahun, cat4: sponsorshipReportState.cat4 });
   apiFetch("/sponsorship/api/report-data?" + params.toString())
     .then(function (r) { return r.json(); })
-    .then(function (data) { _sponsorshipRenderReportTable(container, data); });
+    .then(function (data) { _sponsorshipRenderReportTable(container, data); })
+    .catch(function () {
+      container.innerHTML = '<div class="budget-card"><p>Gagal memuat data report.</p></div>';
+    });
 }
 
 function _sponsorshipRenderReportTable(container, data) {
