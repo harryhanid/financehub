@@ -40,3 +40,28 @@
   background: var(--primary);
   color: #fff;
 }
+
+.sp-report-table { margin-bottom: 1.5rem; }
+
+.sp-report-section-band td {
+  background: #fef9c3;
+  color: #854d0e;
+  font-weight: 700;
+  padding: .4rem .6rem;
+}
+
+.sp-report-subtotal-row td {
+  background: #fef9c3;
+  font-weight: 700;
+}
+
+.sp-report-grandtotal-row td {
+  background: var(--sl-800);
+  color: #fff;
+  font-weight: 700;
+}
+
+.sp-report-pct-row td {
+  color: var(--text-muted);
+  font-style: italic;
+}

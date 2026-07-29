@@ -2,6 +2,7 @@
 {% block title %}Sponsorship Report{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
 {% endblock %}
 {% block content %}
 <div class="budget-page">
@@ -11,10 +12,20 @@
   {% if wrong_company %}
     {% include "sponsorship/_notice.html" %}
   {% else %}
-  <div class="budget-card">
-    <h3>Fitur Report akan datang</h3>
-    <p>Export dan laporan Sponsorship sedang dalam pengembangan. Coming soon.</p>
+  <div class="budget-toolbar">
+    <button type="button" class="budget-btn active sp-report-cat4-btn" data-cat4="include">Include</button>
+    <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="exclude">Exclude</button>
+    <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="all">All</button>
+    <select id="sp-report-tahun">
+      {% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
+    </select>
+    <button type="button" class="budget-btn" id="sp-report-refresh">Refresh</button>
+    <button type="button" class="budget-btn" id="sp-report-export">Export Excel</button>
   </div>
+  <div id="sp-report-table-container"></div>
   {% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/sponsorship.js') }}"></script>
 {% endblock %}

@@ -122,12 +122,13 @@ def test_data_get_and_update_single_record(client):
     assert resp.get_json()["ok"] is True
 
 
-def test_report_page_renders_placeholder(client):
+def test_report_page_renders_with_toolbar_and_buttons(client):
     login(client)
     _select_smt(client)
     resp = client.get("/sponsorship/report")
     assert resp.status_code == 200
-    assert b"akan datang" in resp.data.lower()
+    assert b"Sponsorship" in resp.data
+    assert b"sp-report-cat4-btn" in resp.data
 
 
 def test_dashboard_registered_in_nav_tabs():
@@ -266,3 +267,16 @@ def test_export_report_returns_xlsx_file(client):
     resp = client.get("/sponsorship/report/export?tahun=2026&cat4=all")
     assert resp.status_code == 200
     assert resp.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def test_report_page_has_toggle_buttons_and_table_container(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/sponsorship/report")
+    assert resp.status_code == 200
+    assert b'data-cat4="include"' in resp.data
+    assert b'data-cat4="exclude"' in resp.data
+    assert b'data-cat4="all"' in resp.data
+    assert b'id="sp-report-table-container"' in resp.data
+    assert b'id="sp-report-tahun"' in resp.data
+    assert b'id="sp-report-export"' in resp.data

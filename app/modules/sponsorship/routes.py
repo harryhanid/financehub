@@ -185,5 +185,6 @@ def data_update(transaksi_id):
 @bp.route("/report")
 @jwt_html_required
 def report_page():
+    years = get_available_years(_cid()) if not _wrong_company() else []
     return render_template("sponsorship/report.html", active_page="sponsorship",
-                            wrong_company=_wrong_company(), **_ctx())
+                            wrong_company=_wrong_company(), years=years, **_ctx())

@@ -263,3 +263,104 @@ document.addEventListener("DOMContentLoaded", function () {
     el.addEventListener("change", sponsorshipLoadDashboard);
   });
 });
+
+// ── Report tab ──────────────────────────────────────────────────────────
+function _sponsorshipEsc(s) {
+  const d = document.createElement("div");
+  d.textContent = String(s ?? "");
+  return d.innerHTML;
+}
+
+const _SP_REPORT_PILLAR_COLS = ["agri_amount", "app_amount", "energy_finance_amount", "property_amount"];
+const _SP_REPORT_PILLAR_LABELS = ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY"];
+
+let sponsorshipReportState = { cat4: "include", tahun: "" };
+
+function sponsorshipLoadReport() {
+  const container = document.getElementById("sp-report-table-container");
+  if (!container) return;  // not on the Report page
+  const tahunSelect = document.getElementById("sp-report-tahun");
+  if (!sponsorshipReportState.tahun && tahunSelect) sponsorshipReportState.tahun = tahunSelect.value;
+  const params = new URLSearchParams({ tahun: sponsorshipReportState.tahun, cat4: sponsorshipReportState.cat4 });
+  apiFetch("/sponsorship/api/report-data?" + params.toString())
+    .then(function (r) { return r.json(); })
+    .then(function (data) { _sponsorshipRenderReportTable(container, data); });
+}
+
+function _sponsorshipRenderReportTable(container, data) {
+  if (!data.sections || data.sections.length === 0) {
+    container.innerHTML = '<div class="budget-card"><p>Belum ada data sponsorship untuk tahun ' +
+      _sponsorshipEsc(data.tahun) + '.</p></div>';
+    return;
+  }
+  let html = '<table class="budget-table sp-report-table">';
+  data.sections.forEach(function (section) {
+    html += '<thead><tr><th>NO</th><th>LEMBAGA / PERORANGAN</th><th>PERIHAL</th>' +
+      _SP_REPORT_PILLAR_LABELS.map(function (l) { return "<th>" + l + "</th>"; }).join("") +
+      '<th>TOTAL</th></tr></thead><tbody>';
+    html += '<tr class="sp-report-section-band"><td colspan="' + (4 + _SP_REPORT_PILLAR_LABELS.length) + '">' +
+      _sponsorshipEsc(section.description.toUpperCase()) + '</td></tr>';
+    section.rows.forEach(function (row) {
+      html += '<tr><td>' + row.no + '</td><td>' + _sponsorshipEsc(row.lembaga_perorangan) +
+        '</td><td>' + _sponsorshipEsc(row.perihal || "") + '</td>' +
+        _SP_REPORT_PILLAR_COLS.map(function (c) {
+          return '<td class="num-right">' + (row[c] ? fmtRupiah(row[c]) : "-") + '</td>';
+        }).join("") +
+        '<td class="num-right">' + fmtRupiah(row.total) + '</td></tr>';
+    });
+    html += '<tr class="sp-report-subtotal-row"><td colspan="3">TOTAL ' +
+      _sponsorshipEsc(section.description.toUpperCase()) + '</td>' +
+      _SP_REPORT_PILLAR_COLS.map(function (c) {
+        return '<td class="num-right">' + fmtRupiah(section.subtotal[c]) + '</td>';
+      }).join("") +
+      '<td class="num-right">' + fmtRupiah(section.subtotal.total) + '</td></tr>';
+    html += '</tbody>';
+  });
+  html += '<tfoot>';
+  html += '<tr class="sp-report-grandtotal-row"><td colspan="3">TOTAL SPONSORSHIP (ACTUAL)</td>' +
+    _SP_REPORT_PILLAR_COLS.map(function (c) {
+      return '<td class="num-right">' + fmtRupiah(data.grand_total[c]) + '</td>';
+    }).join("") +
+    '<td class="num-right">' + fmtRupiah(data.grand_total.total) + '</td></tr>';
+  html += '<tr class="sp-report-pct-row"><td colspan="3">% Allocation</td>' +
+    _SP_REPORT_PILLAR_COLS.map(function (c) { return '<td class="num-right">' + data.pct_allocation[c] + '%</td>'; }).join("") +
+    '<td></td></tr>';
+  html += '</tfoot></table>';
+  container.innerHTML = html;
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  const container = document.getElementById("sp-report-table-container");
+  if (!container) return;  // not on the Report page
+
+  document.querySelectorAll(".sp-report-cat4-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll(".sp-report-cat4-btn").forEach(function (b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+      sponsorshipReportState.cat4 = btn.dataset.cat4;
+      sponsorshipLoadReport();
+    });
+  });
+
+  const tahunSelect = document.getElementById("sp-report-tahun");
+  if (tahunSelect) {
+    sponsorshipReportState.tahun = tahunSelect.value;
+    tahunSelect.addEventListener("change", function () {
+      sponsorshipReportState.tahun = tahunSelect.value;
+      sponsorshipLoadReport();
+    });
+  }
+
+  const refreshBtn = document.getElementById("sp-report-refresh");
+  if (refreshBtn) refreshBtn.addEventListener("click", sponsorshipLoadReport);
+
+  const exportBtn = document.getElementById("sp-report-export");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", function () {
+      const params = new URLSearchParams({ tahun: sponsorshipReportState.tahun, cat4: sponsorshipReportState.cat4 });
+      window.location.href = "/sponsorship/report/export?" + params.toString();
+    });
+  }
+
+  sponsorshipLoadReport();
+});
