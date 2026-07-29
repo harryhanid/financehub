@@ -223,3 +223,19 @@ def test_update_transaksi_ignores_direct_cat2_cat3_without_cat1(app):
     row = get_transaksi(created["id"])
     assert row["cat2"] == "AGRI"  # unchanged — cat2/cat3 cannot be set directly
     assert row["cat3"] == "AGRI"
+
+
+def test_get_transaksi_with_company_id_returns_none_for_wrong_company(app):
+    _seed_one_perusahaan()
+    created = create_transaksi(SMT, _valid_payload())
+    assert get_transaksi(created["id"], company_id=2) is None
+    assert get_transaksi(created["id"], company_id=SMT) is not None
+
+
+def test_update_transaksi_with_company_id_rejects_wrong_company(app):
+    _seed_one_perusahaan()
+    created = create_transaksi(SMT, _valid_payload())
+    result = update_transaksi(created["id"], {"perihal": "hacked"}, company_id=2)
+    assert result["ok"] is False
+    row = get_transaksi(created["id"])
+    assert row["perihal"] != "hacked"

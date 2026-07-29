@@ -126,7 +126,7 @@ def data_page():
 @jwt_html_required
 @smt_company_required
 def data_get(transaksi_id):
-    row = get_transaksi(transaksi_id)
+    row = get_transaksi(transaksi_id, company_id=_cid())
     if not row:
         return jsonify({"ok": False, "pesan": "Transaksi tidak ditemukan."}), 404
     return jsonify({"ok": True, "transaksi": row})
@@ -137,7 +137,7 @@ def data_get(transaksi_id):
 @smt_company_required
 def data_update(transaksi_id):
     payload = request.get_json(force=True)
-    result = update_transaksi(transaksi_id, payload)
+    result = update_transaksi(transaksi_id, payload, company_id=_cid())
     return jsonify(result)
 
 

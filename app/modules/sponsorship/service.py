@@ -115,19 +115,26 @@ def create_transaksi(company_id: int, payload: dict) -> dict:
     return {"ok": True, "pesan": "Transaksi Sponsorship tersimpan.", "id": new_id}
 
 
-def get_transaksi(transaksi_id: int):
+def get_transaksi(transaksi_id: int, company_id: int = None):
     conn = get_conn()
-    row = conn.execute(
-        f"SELECT *, {_pillar_case_sql()} FROM sponsorship_transaksi WHERE id = ?",
-        (transaksi_id,),
-    ).fetchone()
+    query = f"SELECT *, {_pillar_case_sql()} FROM sponsorship_transaksi WHERE id = ?"
+    params = [transaksi_id]
+    if company_id is not None:
+        query += " AND company_id = ?"
+        params.append(company_id)
+    row = conn.execute(query, params).fetchone()
     conn.close()
     return dict(row) if row else None
 
 
-def update_transaksi(transaksi_id: int, payload: dict) -> dict:
+def update_transaksi(transaksi_id: int, payload: dict, company_id: int = None) -> dict:
     conn = get_conn()
-    row = conn.execute("SELECT * FROM sponsorship_transaksi WHERE id = ?", (transaksi_id,)).fetchone()
+    select_query = "SELECT * FROM sponsorship_transaksi WHERE id = ?"
+    select_params = [transaksi_id]
+    if company_id is not None:
+        select_query += " AND company_id = ?"
+        select_params.append(company_id)
+    row = conn.execute(select_query, select_params).fetchone()
     if not row:
         conn.close()
         return {"ok": False, "pesan": "Transaksi tidak ditemukan."}
@@ -186,11 +193,12 @@ def update_transaksi(transaksi_id: int, payload: dict) -> dict:
         conn.close()
         return {"ok": True, "pesan": "Tidak ada perubahan."}
     set_clause = ", ".join(f"{k} = ?" for k in updates)
+    update_query = f"UPDATE sponsorship_transaksi SET {set_clause}, updated_at = ? WHERE id = ?"
     values = list(updates.values()) + [datetime.now().isoformat(timespec="seconds"), transaksi_id]
-    conn.execute(
-        f"UPDATE sponsorship_transaksi SET {set_clause}, updated_at = ? WHERE id = ?",
-        values,
-    )
+    if company_id is not None:
+        update_query += " AND company_id = ?"
+        values.append(company_id)
+    conn.execute(update_query, values)
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": "Transaksi diperbarui."}
