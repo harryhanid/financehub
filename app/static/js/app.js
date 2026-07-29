@@ -240,6 +240,51 @@ function initTitleDropdown() {
   });
 }
 
+function initModuleSwitchDropdown() {
+  var trigger = document.getElementById('fh-mod-trigger');
+  var panel   = document.getElementById('fh-mod-dd');
+  if (!trigger || !panel) return;
+
+  function open() {
+    panel.classList.add('open');
+    trigger.setAttribute('aria-expanded', 'true');
+  }
+  function close() {
+    panel.classList.remove('open');
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+  function toggle(e) {
+    e.stopPropagation();
+    if (panel.classList.contains('open')) close(); else open();
+  }
+
+  trigger.addEventListener('click', toggle);
+  trigger.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); }
+    else if (e.key === 'Escape') { close(); }
+  });
+  panel.querySelectorAll('.fh-mod-dd-item[data-url]').forEach(function(item) {
+    item.addEventListener('click', function() {
+      window.location.href = item.dataset.url;
+    });
+  });
+  document.addEventListener('click', function(e) {
+    if (!trigger.contains(e.target) && !panel.contains(e.target)) close();
+  });
+}
+
+function initHeaderTabFade() {
+  document.querySelectorAll('.navbar-menu').forEach(function(el) {
+    function update() {
+      var atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+      el.classList.toggle('fh-overflow', el.scrollWidth > el.clientWidth + 1 && !atEnd);
+    }
+    update();
+    el.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+  });
+}
+
 /* ── Skeleton loading ──────────────────────────────────── */
 function skeletonRows(cols, count) {
   count = count || 6;
@@ -532,6 +577,8 @@ document.addEventListener('keydown', e => {
 document.addEventListener("DOMContentLoaded", () => {
   initCommandPalette();
   initTitleDropdown();
+  initModuleSwitchDropdown();
+  initHeaderTabFade();
   document.querySelectorAll("[data-tabs]").forEach(initTabs);
   document.querySelectorAll(".modal-overlay").forEach(overlay => {
     overlay.addEventListener("click", e => { if (e.target === overlay) overlay.classList.remove("open"); });

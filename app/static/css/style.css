@@ -154,21 +154,93 @@ button { font-family: inherit; }
 }
 
 /* ── Command Palette Search Button ─────────────────────── */
-.fh-cmd-btn {
+.navbar-right {
   margin-left: auto;
-  display: flex; align-items: center; gap: .4rem;
+  display: flex; align-items: center; gap: .5rem;
+  flex-shrink: 0;
+}
+.fh-cmd-btn {
+  display: flex; align-items: center; justify-content: center;
   background: var(--sl-100);
   border: 1px solid var(--sl-200);
   border-radius: var(--r-md);
   color: var(--sl-500);
-  font-size: .775rem; font-weight: 500;
-  padding: .275rem .625rem;
+  padding: .4rem;
   cursor: pointer;
   font-family: inherit;
   transition: background .12s, border-color .12s, color .12s;
-  white-space: nowrap;
 }
 .fh-cmd-btn:hover { background: var(--sl-200); color: var(--sl-700); border-color: var(--sl-300); }
+
+/* ── Header module-switch dropdown (navbar) ─────────────────────── */
+.fh-mod-switch { position: relative; flex-shrink: 0; }
+.fh-mod-trigger {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: transparent; border: none;
+  font-family: inherit; font-size: .875rem; font-weight: 700;
+  color: var(--sl-900);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  padding: .25rem .375rem;
+  transition: background .12s;
+}
+.fh-mod-trigger:hover { background: var(--bg-muted); }
+.fh-mod-chevron {
+  display: inline-flex;
+  color: var(--text-muted);
+  transition: transform .15s;
+}
+.fh-mod-trigger[aria-expanded="true"] .fh-mod-chevron { transform: rotate(180deg); }
+
+.fh-mod-dd {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: .375rem;
+  min-width: 220px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-lg);
+  padding: .375rem 0;
+  z-index: 200;
+}
+.fh-mod-dd.open { display: block; }
+.fh-mod-dd-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .5rem .75rem;
+  font-size: .85rem; font-weight: 500;
+  color: var(--ink);
+  gap: .5rem;
+  cursor: pointer;
+  transition: background .08s;
+}
+.fh-mod-dd-item:hover { background: var(--accent-surface); color: var(--accent-text); }
+.fh-mod-dd-item.current { cursor: default; font-weight: 700; }
+.fh-mod-dd-item.current:hover { background: transparent; color: var(--ink); }
+.fh-mod-dd-item svg { flex-shrink: 0; }
+
+/* ── Header tab strip: no-wrap + trailing fade when scrollable ──── */
+.navbar-menu { position: relative; }
+.navbar-menu .tabs { flex-wrap: nowrap; margin-bottom: 0; }
+.navbar-menu.fh-overflow::after {
+  content: '';
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 28px;
+  background: linear-gradient(to right, rgba(255,255,255,0), #FFF);
+  pointer-events: none;
+}
+[data-theme="dark"] .navbar-menu.fh-overflow::after {
+  background: linear-gradient(to right, rgba(15,18,32,0), #0F1220);
+}
+
+/* ── Content-area toolbar row (Filter / Full Screen, relocated out  */
+/* of the header — see .fh-page-header below) ─────────────────────── */
+.fh-content-toolbar {
+  display: flex;
+  margin-bottom: 1rem;
+}
 .fh-cmd-btn kbd {
   font-size: .65rem; padding: .1rem .3rem;
   background: var(--sl-200); border: 1px solid var(--sl-300);
@@ -633,23 +705,12 @@ input[readonly], input[disabled] {
 }
 
 /* ── Focus / fullscreen mode ────────────────────────────────────── */
-/* Applied by adding .fh-focus class to <body>. Hides navbar + filter   */
-/* panel only — .page-toolbar (title+tabs) stays visible so users can   */
-/* still switch sub-modules without leaving focus mode.                 */
-body.fh-focus .navbar {
-  height: 0; overflow: hidden; padding: 0; min-height: 0;
-  border-bottom: none;
-  transition: height .22s ease, padding .22s ease;
-}
-body:not(.fh-focus) .navbar {
-  transition: height .22s ease, padding .22s ease;
-}
+/* Applied by adding .fh-focus class to <body>. Hides the filter panel  */
+/* and the navbar's right-hand controls (company/user/theme/logout) —   */
+/* the module dropdown + tabs stay visible so users can keep switching  */
+/* sub-modules without leaving focus mode.                              */
+body.fh-focus .navbar-right { display: none; }
 body.fh-focus .filter-bar.collapsible { display: none !important; }
-/* Navbar collapses to 0 height in focus mode — reclaim the space .main  */
-/* normally reserves for it, and un-pin .fh-page-header's sticky offset  */
-/* (both otherwise still assume a 52px navbar and leave a dead gap).     */
-body.fh-focus .main { margin-top: 0; }
-body.fh-focus .fh-page-header { top: 0; }
 #fh-focus-exit {
   display: none;
   position: fixed; top: .6rem; right: 1rem; z-index: 9999;

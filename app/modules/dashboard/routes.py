@@ -89,4 +89,4 @@ def index():
         conn.close()
 
     return render_template("dashboard/index.html", stats=stats, dash=dash,
-                           active_page="dashboard", **get_ctx())
+                           active_page="dashboard", use_unified_header=True, **get_ctx())

@@ -31,40 +31,60 @@
     </span>
     FLOW
   </a>
-  {% if company_name %}
-  <span class="navbar-sep">/</span>
-  <a class="navbar-company" href="/select-company" title="Ganti perusahaan">{{ company_name }}</a>
-  {% endif %}
   {% if nav_modules %}
-  <div class="navbar-menu">
-    {% for m in nav_modules %}
-    <a class="navbar-menu-item{{ ' active' if m.key == active_page else '' }}" href="{{ m.url }}">{{ m.name }}</a>
-    {% endfor %}
+    {% set show_switcher = use_unified_header and active_page and active_page != 'dashboard' %}
+    {% set current_mod = (nav_modules | selectattr('key', 'equalto', active_page) | first) if show_switcher else none %}
+    {% if current_mod %}
+    <div class="fh-mod-switch">
+      <button type="button" id="fh-mod-trigger" class="fh-mod-trigger" aria-haspopup="listbox" aria-expanded="false">
+        {{ current_mod.name }}
+        <span class="fh-mod-chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+      </button>
+      <div id="fh-mod-dd" class="fh-mod-dd" role="listbox">
+        {% for m in nav_modules %}
+        <div class="fh-mod-dd-item{{ ' current' if m.key == active_page else '' }}" role="option" {% if m.key != active_page %}data-url="{{ m.url }}"{% endif %}>
+          <span>{{ m.name }}</span>
+          {% if m.key == active_page %}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="navbar-menu">
+      {% block module_tabs %}{% endblock %}
+    </div>
+    {% else %}
+    <div class="navbar-menu">
+      {% for m in nav_modules %}
+      <a class="navbar-menu-item{{ ' active' if m.key == active_page else '' }}" href="{{ m.url }}">{{ m.name }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endif %}
+  <div class="navbar-right">
+    {% if company_name %}
+    <button id="fh-cmd-btn" class="fh-cmd-btn" title="Cari modul (Alt+K)" aria-label="Cari modul (Alt+K)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <span class="navbar-sep">/</span>
+    <a class="navbar-company" href="/select-company" title="Ganti perusahaan">{{ company_name }}</a>
+    {% endif %}
+    <span class="navbar-user">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      {{ current_user or 'user' }}
+    </span>
+    <button class="btn-theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" aria-label="Toggle dark mode">
+      <svg class="icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <svg class="icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+    <button class="btn-logout" onclick="doLogout()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Keluar
+    </button>
   </div>
-  {% endif %}
-  {% if company_name %}
-  <button id="fh-cmd-btn" class="fh-cmd-btn" title="Cari modul (Alt+K)">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    Cari modul
-    <kbd>Alt+K</kbd>
-  </button>
-  {% endif %}
-  <span class="navbar-user">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-    {{ current_user or 'user' }}
-  </span>
-  <button class="btn-theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" aria-label="Toggle dark mode">
-    <svg class="icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-    </svg>
-    <svg class="icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-  </button>
-  <button class="btn-logout" onclick="doLogout()">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-    Keluar
-  </button>
 </nav>
 <main class="main">
     {% with messages = get_flashed_messages(with_categories=true) %}
