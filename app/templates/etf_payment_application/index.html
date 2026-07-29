@@ -163,6 +163,17 @@
 </style>
 {% endblock %}
 
+{% block module_tabs %}
+<div class="tabs" style="margin-bottom:0" title="Alt+&#8592; / Alt+&#8594; untuk pindah tab">
+  {% for t, label in [('summary','Open PA'),('advance','Advance'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
+  <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
+     class="tab-btn{% if active_tab == t %} active{% endif %}"
+     style="text-decoration:none"
+  >{{ label }}</a>
+  {% endfor %}
+</div>
+{% endblock %}
+
 {% block content %}
 {# ── Focus mode exit button (fixed, visible only in focus mode) ─────────── #}
 <button id="fh-focus-exit" onclick="exitFocusMode()" title="Keluar Focus Mode (Esc)">
@@ -170,18 +181,9 @@
   Tampilkan Filter
 </button>
 
-{# ── Header: title + tabs + actions in one row ───────────────────────────── #}
+{# ── Header actions: Filter / Full Screen, relocated below the navbar ─────── #}
 <div id="pa-page-header" class="fh-page-header">
-<div class="page-toolbar">
-  <h1 class="page-title" style="margin-bottom:0">Payment Application</h1>
-  <div class="tabs" style="margin-bottom:0" title="Alt+&#8592; / Alt+&#8594; untuk pindah tab">
-    {% for t, label in [('summary','Open PA'),('advance','Advance'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
-    <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
-       class="tab-btn{% if active_tab == t %} active{% endif %}"
-       style="text-decoration:none"
-    >{{ label }}</a>
-    {% endfor %}
-  </div>
+<div class="fh-content-toolbar">
   {% if active_tab != 'input' %}
   <div class="page-toolbar-actions">
     <button id="pa-filter-toggle" class="btn btn-secondary btn-sm btn-filter-toggle" onclick="toggleFilterPanel('pa-filter-panel','pa-filter-toggle')" title="Tampilkan/sembunyikan filter">

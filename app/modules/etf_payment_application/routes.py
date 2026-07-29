@@ -123,6 +123,7 @@ def index():
         cat1=config.CAT1_BGT,
         cat2_sem=config.CAT2_SEM,
         active_page="etf_payment_app",
+        use_unified_header=True,
         jenjang=config.JENJANG,
         program=config.PROGRAM,
         status_siswa=config.STATUS_SISWA,
