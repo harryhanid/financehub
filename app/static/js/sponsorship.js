@@ -99,6 +99,18 @@ function sponsorshipInputSubmit() {
     .finally(function () { hideLoading(); });
 }
 
+function _sponsorshipEnsureSelectHasValue(selectId, value) {
+  const el = document.getElementById(selectId);
+  el.value = value;
+  if (el.value !== value && value) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = value + " (nilai lama, tidak ada di daftar)";
+    el.appendChild(opt);
+    el.value = value;
+  }
+}
+
 function sponsorshipDataEdit(id) {
   showLoading("Memuat transaksi...");
   apiFetch("/sponsorship/data/" + id).then(function (r) { return r.json(); }).then(function (data) {
@@ -106,12 +118,12 @@ function sponsorshipDataEdit(id) {
     const t = data.transaksi;
     document.getElementById("sp-ed-id").value = t.id;
     document.getElementById("sp-ed-cat").value = t.cat;
-    document.getElementById("sp-ed-description").value = t.description;
+    _sponsorshipEnsureSelectHasValue("sp-ed-description", t.description);
     document.getElementById("sp-ed-cat1").value = t.cat1;
     document.getElementById("sp-ed-cat1-search").value = t.cat1;
     document.getElementById("sp-ed-cat2").value = t.cat2;
     document.getElementById("sp-ed-cat3").value = t.cat3;
-    document.getElementById("sp-ed-cat4").value = t.cat4 || "";
+    _sponsorshipEnsureSelectHasValue("sp-ed-cat4", t.cat4 || "");
     document.getElementById("sp-ed-lembaga").value = t.lembaga_perorangan;
     document.getElementById("sp-ed-tanggal-form").value = t.tanggal_form_sponsor;
     document.getElementById("sp-ed-perihal").value = t.perihal || "";

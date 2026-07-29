@@ -180,3 +180,23 @@ def test_data_page_edit_modal_has_full_record_fields(client):
     assert b'id="sp-ed-cat4"' in resp.data
     assert b'id="sp-ed-lembaga"' in resp.data
     assert b'id="sp-ed-tanggal-form"' in resp.data
+
+
+def test_edit_modal_preserves_out_of_whitelist_description_on_unrelated_save(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    created = client.post("/sponsorship/input/create", json={
+        "cat": "Sponsorship", "description": "Sosial",
+        "tanggal_form_sponsor": "2026-01-15", "cat1": "SMART",
+        "lembaga_perorangan": "Yayasan Test", "amount_request": 1000,
+    }).get_json()
+    tid = created["id"]
+    # Simulate a historical row with an out-of-whitelist description (as migration would produce)
+    from database import get_conn
+    conn = get_conn()
+    conn.execute("UPDATE sponsorship_transaksi SET description = ? WHERE id = ?", ("Legacy Category Not In List", tid))
+    conn.commit()
+    conn.close()
+    resp = client.post(f"/sponsorship/data/{tid}/update", json={"description": "Legacy Category Not In List", "perihal": "Edited"})
+    assert resp.get_json()["ok"] is True

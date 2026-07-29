@@ -144,13 +144,15 @@ def update_transaksi(transaksi_id: int, payload: dict, company_id: int = None) -
         conn.close()
         return {"ok": False, "pesan": f"Cat harus salah satu dari: {', '.join(config.SPONSORSHIP_CAT)}."}
 
-    if "description" in payload and payload["description"] not in config.SPONSORSHIP_DESCRIPTION:
-        conn.close()
-        return {"ok": False, "pesan": f"Description harus salah satu dari: {', '.join(config.SPONSORSHIP_DESCRIPTION)}."}
+    if "description" in payload and payload["description"] != row["description"]:
+        if payload["description"] not in config.SPONSORSHIP_DESCRIPTION:
+            conn.close()
+            return {"ok": False, "pesan": f"Description harus salah satu dari: {', '.join(config.SPONSORSHIP_DESCRIPTION)}."}
 
     if "cat4" in payload:
         cat4 = payload["cat4"]
-        if cat4 not in (None, "", *config.SPONSORSHIP_CAT4):
+        existing_cat4 = row["cat4"] or ""
+        if cat4 != existing_cat4 and cat4 not in (None, "", *config.SPONSORSHIP_CAT4):
             conn.close()
             return {"ok": False, "pesan": f"Cat4 harus salah satu dari: {', '.join(config.SPONSORSHIP_CAT4)} atau kosong."}
 
