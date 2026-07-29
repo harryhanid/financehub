@@ -169,3 +169,14 @@ def test_data_page_pagination_preserves_filters(client):
         })
     resp = client.get("/sponsorship/data?cat3=AGRI&page=1")
     assert b"cat3=AGRI" in resp.data
+
+
+def test_data_page_edit_modal_has_full_record_fields(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/sponsorship/data")
+    assert b'id="sp-ed-cat"' in resp.data
+    assert b'id="sp-ed-cat1-search"' in resp.data
+    assert b'id="sp-ed-cat4"' in resp.data
+    assert b'id="sp-ed-lembaga"' in resp.data
+    assert b'id="sp-ed-tanggal-form"' in resp.data

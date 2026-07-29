@@ -2,16 +2,19 @@
 let sponsorshipPerusahaan = [];
 
 function sponsorshipLoadLookups() {
-  const search = document.getElementById("sp-in-cat1-search");
-  if (!search) return;  // not on the Input page
+  const inputSearch = document.getElementById("sp-in-cat1-search");
+  const editSearch = document.getElementById("sp-ed-cat1-search");
+  if (!inputSearch && !editSearch) return;
   apiFetch("/sponsorship/api/lookups").then(function (r) { return r.json(); }).then(function (data) {
     sponsorshipPerusahaan = data.perusahaan || [];
     const datalist = document.getElementById("sp-lembaga-datalist");
-    (data.lembaga || []).forEach(function (name) {
-      const opt = document.createElement("option");
-      opt.value = name;
-      datalist.appendChild(opt);
-    });
+    if (datalist) {
+      (data.lembaga || []).forEach(function (name) {
+        const opt = document.createElement("option");
+        opt.value = name;
+        datalist.appendChild(opt);
+      });
+    }
   });
 }
 
@@ -38,6 +41,31 @@ function _sponsorshipSelectCat1(p) {
   document.getElementById("sp-in-cat2").value = p.cat2;
   document.getElementById("sp-in-cat3").value = p.cat3;
   document.getElementById("sp-in-cat1-results").classList.remove("open");
+}
+
+function _sponsorshipRenderCat1ResultsEdit(matches) {
+  const box = document.getElementById("sp-ed-cat1-results");
+  box.innerHTML = "";
+  if (matches.length === 0) {
+    box.innerHTML = '<div class="sp-autocomplete-empty">Tidak ditemukan</div>';
+  } else {
+    matches.forEach(function (p) {
+      const item = document.createElement("div");
+      item.className = "sp-autocomplete-item";
+      item.textContent = p.cat1 + " (" + p.cat3 + ")";
+      item.onclick = function () { _sponsorshipSelectCat1Edit(p); };
+      box.appendChild(item);
+    });
+  }
+  box.classList.add("open");
+}
+
+function _sponsorshipSelectCat1Edit(p) {
+  document.getElementById("sp-ed-cat1").value = p.cat1;
+  document.getElementById("sp-ed-cat1-search").value = p.cat1;
+  document.getElementById("sp-ed-cat2").value = p.cat2;
+  document.getElementById("sp-ed-cat3").value = p.cat3;
+  document.getElementById("sp-ed-cat1-results").classList.remove("open");
 }
 
 function sponsorshipInputSubmit() {
@@ -77,6 +105,15 @@ function sponsorshipDataEdit(id) {
     if (!data.ok) { showToast(data.pesan, "error"); return; }
     const t = data.transaksi;
     document.getElementById("sp-ed-id").value = t.id;
+    document.getElementById("sp-ed-cat").value = t.cat;
+    document.getElementById("sp-ed-description").value = t.description;
+    document.getElementById("sp-ed-cat1").value = t.cat1;
+    document.getElementById("sp-ed-cat1-search").value = t.cat1;
+    document.getElementById("sp-ed-cat2").value = t.cat2;
+    document.getElementById("sp-ed-cat3").value = t.cat3;
+    document.getElementById("sp-ed-cat4").value = t.cat4 || "";
+    document.getElementById("sp-ed-lembaga").value = t.lembaga_perorangan;
+    document.getElementById("sp-ed-tanggal-form").value = t.tanggal_form_sponsor;
     document.getElementById("sp-ed-perihal").value = t.perihal || "";
     document.getElementById("sp-ed-amount").value = t.amount_request;
     document.getElementById("sp-ed-tanggal-payment").value = t.tanggal_payment || "";
@@ -97,6 +134,12 @@ function sponsorshipDataEdit(id) {
 function sponsorshipDataSave() {
   const id = document.getElementById("sp-ed-id").value;
   const payload = {
+    cat: document.getElementById("sp-ed-cat").value,
+    description: document.getElementById("sp-ed-description").value,
+    cat1: document.getElementById("sp-ed-cat1").value,
+    cat4: document.getElementById("sp-ed-cat4").value,
+    lembaga_perorangan: document.getElementById("sp-ed-lembaga").value,
+    tanggal_form_sponsor: document.getElementById("sp-ed-tanggal-form").value,
     perihal: document.getElementById("sp-ed-perihal").value,
     amount_request: document.getElementById("sp-ed-amount").value,
     tanggal_payment: document.getElementById("sp-ed-tanggal-payment").value,
@@ -132,6 +175,20 @@ document.addEventListener("DOMContentLoaded", function () {
         return p.cat1.toLowerCase().indexOf(q) !== -1;
       });
       _sponsorshipRenderCat1Results(matches);
+    });
+  }
+  const editSearch = document.getElementById("sp-ed-cat1-search");
+  if (editSearch) {
+    editSearch.addEventListener("input", function () {
+      const q = editSearch.value.trim().toLowerCase();
+      document.getElementById("sp-ed-cat1").value = "";
+      document.getElementById("sp-ed-cat2").value = "";
+      document.getElementById("sp-ed-cat3").value = "";
+      if (!q) { document.getElementById("sp-ed-cat1-results").classList.remove("open"); return; }
+      const matches = sponsorshipPerusahaan.filter(function (p) {
+        return p.cat1.toLowerCase().indexOf(q) !== -1;
+      });
+      _sponsorshipRenderCat1ResultsEdit(matches);
     });
   }
 });

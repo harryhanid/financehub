@@ -120,7 +120,7 @@ def data_page():
         rows=rows, page=page, total_pages=total_pages, total_count=total, years=years,
         filters=filters,
         cat_choices=config.SPONSORSHIP_CAT, description_choices=config.SPONSORSHIP_DESCRIPTION,
-        pillar_choices=config.SPONSORSHIP_PILLARS,
+        pillar_choices=config.SPONSORSHIP_PILLARS, cat4_choices=config.SPONSORSHIP_CAT4,
         **_ctx()
     )
 
