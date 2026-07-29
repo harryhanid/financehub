@@ -107,3 +107,48 @@ def test_migrate_converts_reff_dash_to_none_and_passes_through_values(app, fixtu
     # Row with Reff="Shingo Kobayashi" should pass through unchanged
     media_row = next(r for r in rows if r["lembaga_perorangan"] == "Media Partner")
     assert media_row["reff"] == "Shingo Kobayashi"
+
+
+def test_migrate_skips_row_with_non_date_tanggal_form(app, fixture_perusahaan_xlsx, tmp_path):
+    path = tmp_path / "bad_date.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append([
+        "Cat", "Description", "Year", "Tanggal Form Sponsor", "Tanggal Payment",
+        "Cat1", "Lembaga/Perorangan", "Perihal", "Amount Request", "Reff", "Status",
+        "Cat4", "Cat2", "Cat3", "APP", "AGRI", "ENERGY & FINANCE", "PROPERTY",
+        "COA", "CC Total", "CC", "Source",
+    ])
+    ws.append([
+        "Sponsorship", "Sosial", 2026, "15/01/2026 (bad string date)", None,
+        "SMART", "Test Lembaga", "Test", 1000, "-", None,
+        None, "AGRI", "AGRI", 0, 1000, 0, 0,
+        "701078002", "SMT - Corporate Communication", "POSPON", "Sponsor",
+    ])
+    wb.save(path)
+    result = migrate_sponsorship_from_excel(fixture_perusahaan_xlsx, str(path))
+    assert result["transaksi"] == 0
+    assert len(result["skipped"]) == 1
+    assert "not a date" in result["skipped"][0]
+
+
+def test_migrate_catches_integrity_error_and_records_in_skipped(app, fixture_perusahaan_xlsx, tmp_path):
+    path = tmp_path / "null_required.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append([
+        "Cat", "Description", "Year", "Tanggal Form Sponsor", "Tanggal Payment",
+        "Cat1", "Lembaga/Perorangan", "Perihal", "Amount Request", "Reff", "Status",
+        "Cat4", "Cat2", "Cat3", "APP", "AGRI", "ENERGY & FINANCE", "PROPERTY",
+        "COA", "CC Total", "CC", "Source",
+    ])
+    ws.append([
+        "Sponsorship", None, 2026, datetime.datetime(2026, 1, 15), None,
+        "SMART", "Test Lembaga", "Test", 1000, "-", None,
+        None, "AGRI", "AGRI", 0, 1000, 0, 0,
+        "701078002", "SMT - Corporate Communication", "POSPON", "Sponsor",
+    ])
+    wb.save(path)
+    result = migrate_sponsorship_from_excel(fixture_perusahaan_xlsx, str(path))
+    assert result["transaksi"] == 0
+    assert len(result["skipped"]) == 1
