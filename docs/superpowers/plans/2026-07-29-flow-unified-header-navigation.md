@@ -774,7 +774,7 @@ git commit -m "feat: migrate Payment Application to unified header navigation"
 
 Bank's `<h1>Bank Sahabat ETF</h1>` sits inside `.bank-header` alongside the Pemasukan/Pengeluaran/Saldo summary cards — it is content, not a redundant navigation title, so it is **not** removed by this task (unlike the `.fh-page-header` title in Tasks 2-4).
 
-- [ ] **Step 1: Add the `module_tabs` block override**
+- [x] **Step 1: Add the `module_tabs` block override**
 
 In `app/templates/bank/index.html`, insert immediately after `{% block head %}...{% endblock %}` (current lines 4-6), before `{% block content %}`:
 
@@ -787,7 +787,7 @@ In `app/templates/bank/index.html`, insert immediately after `{% block head %}..
 {% endblock %}
 ```
 
-- [ ] **Step 2: Remove the old in-page tab strip**
+- [x] **Step 2: Remove the old in-page tab strip**
 
 Replace (current lines 28-33):
 
@@ -808,16 +808,16 @@ with:
     <div class="tab-content">
 ```
 
-- [ ] **Step 3: Flip the flag**
+- [x] **Step 3: Flip the flag**
 
 In `app/modules/bank/routes.py`, find the `render_template(...)` call (starts at line 54) that passes `active_page="bank"` (line 56) and add `use_unified_header=True` as a sibling kwarg on the same call.
 
-- [ ] **Step 4: Run the existing regression suite**
+- [x] **Step 4: Run the existing regression suite**
 
 Run: `cd app && python -m pytest tests/test_bank_routes.py -v`
 Expected: all tests pass unchanged.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/templates/bank/index.html app/modules/bank/routes.py
