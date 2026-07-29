@@ -143,8 +143,8 @@ def test_migrate_catches_integrity_error_and_records_in_skipped(app, fixture_per
         "COA", "CC Total", "CC", "Source",
     ])
     ws.append([
-        "Sponsorship", None, 2026, datetime.datetime(2026, 1, 15), None,
-        "SMART", "Test Lembaga", "Test", 1000, "-", None,
+        "Sponsorship", "Sosial", 2026, datetime.datetime(2026, 1, 15), None,
+        None, "Test Lembaga", "Test", 1000, "-", None,
         None, "AGRI", "AGRI", 0, 1000, 0, 0,
         "701078002", "SMT - Corporate Communication", "POSPON", "Sponsor",
     ])
@@ -152,3 +152,4 @@ def test_migrate_catches_integrity_error_and_records_in_skipped(app, fixture_per
     result = migrate_sponsorship_from_excel(fixture_perusahaan_xlsx, str(path))
     assert result["transaksi"] == 0
     assert len(result["skipped"]) == 1
+    assert "NOT NULL" in result["skipped"][0] or "constraint" in result["skipped"][0].lower()
