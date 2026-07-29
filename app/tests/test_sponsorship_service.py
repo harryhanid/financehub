@@ -239,3 +239,28 @@ def test_update_transaksi_with_company_id_rejects_wrong_company(app):
     assert result["ok"] is False
     row = get_transaksi(created["id"])
     assert row["perihal"] != "hacked"
+
+
+def test_update_transaksi_allows_unchanged_cat1_not_in_lookup(app):
+    _seed_one_perusahaan()  # only seeds SMART
+    conn_test_id = create_transaksi(SMT, _valid_payload())["id"]
+    # Simulate a migrated row with a cat1 not in the lookup table (bypass validation like migrate.py does)
+    from database import get_conn
+    conn = get_conn()
+    conn.execute("UPDATE sponsorship_transaksi SET cat1 = 'TAPIAN', cat2 = 'AGRI', cat3 = 'AGRI' WHERE id = ?", (conn_test_id,))
+    conn.commit()
+    conn.close()
+    # Now edit an unrelated field, sending the unchanged cat1 (as the real modal does)
+    result = update_transaksi(conn_test_id, {"cat1": "TAPIAN", "perihal": "Fixed typo"})
+    assert result["ok"] is True
+    row = get_transaksi(conn_test_id)
+    assert row["perihal"] == "Fixed typo"
+    assert row["cat1"] == "TAPIAN"
+    assert row["cat2"] == "AGRI"
+
+
+def test_update_transaksi_still_rejects_actual_cat1_change_to_unknown(app):
+    _seed_one_perusahaan()
+    created = create_transaksi(SMT, _valid_payload())
+    result = update_transaksi(created["id"], {"cat1": "Perusahaan Fiktif"})
+    assert result["ok"] is False

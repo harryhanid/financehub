@@ -178,12 +178,15 @@ def update_transaksi(transaksi_id: int, payload: dict, company_id: int = None) -
 
     # If cat1 is being updated, look it up and override cat2/cat3
     if "cat1" in updates:
-        perusahaan = get_perusahaan(updates["cat1"])
-        if not perusahaan:
-            conn.close()
-            return {"ok": False, "pesan": "Cat1 tidak ditemukan di daftar perusahaan. Pilih dari daftar yang tersedia."}
-        updates["cat2"] = perusahaan["cat2"]
-        updates["cat3"] = perusahaan["cat3"]
+        if updates["cat1"] == row["cat1"]:
+            del updates["cat1"]
+        else:
+            perusahaan = get_perusahaan(updates["cat1"])
+            if not perusahaan:
+                conn.close()
+                return {"ok": False, "pesan": "Cat1 tidak ditemukan di daftar perusahaan. Pilih dari daftar yang tersedia."}
+            updates["cat2"] = perusahaan["cat2"]
+            updates["cat3"] = perusahaan["cat3"]
 
     # Coerce amount_request to float
     if "amount_request" in updates:
