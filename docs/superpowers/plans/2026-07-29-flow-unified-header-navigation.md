@@ -44,7 +44,7 @@
 - Produces: CSS classes `.navbar-right`, `.fh-mod-switch`, `.fh-mod-trigger`, `.fh-mod-chevron`, `.fh-mod-dd`, `.fh-mod-dd-item`, `.fh-content-toolbar`, `.navbar-menu.fh-overflow` — reused by every later task.
 - Consumes: existing `nav_modules` (list of `{name, url, key}`) and `active_page` (string), both already injected into every template today.
 
-- [ ] **Step 1: Replace the navbar body in `base.html`**
+- [x] **Step 1: Replace the navbar body in `base.html`**
 
 Replace this block (current lines 18-68, from `<nav class="navbar">` through `</nav>`):
 
@@ -180,7 +180,7 @@ with:
 
 Note: when `use_unified_header` is falsy (every module except Dashboard, until its own migration task lands) or `active_page == 'dashboard'`, this renders byte-for-byte the same flat list as before — no visible change for unmigrated pages.
 
-- [ ] **Step 2: Add navbar-right, module-switch dropdown, and tab-fade CSS**
+- [x] **Step 2: Add navbar-right, module-switch dropdown, and tab-fade CSS**
 
 In `app/static/css/style.css`, replace this rule (current lines 157-171):
 
@@ -294,7 +294,7 @@ with:
 }
 ```
 
-- [ ] **Step 3: Rework Focus Mode CSS so the navbar (module dropdown + tabs) stays visible**
+- [x] **Step 3: Rework Focus Mode CSS so the navbar (module dropdown + tabs) stays visible**
 
 Replace this block (current lines 635-652):
 
@@ -331,7 +331,7 @@ body.fh-focus .navbar-right { display: none; }
 body.fh-focus .filter-bar.collapsible { display: none !important; }
 ```
 
-- [ ] **Step 4: Add the module-switch dropdown JS + tab-fade JS in `app/static/js/app.js`**
+- [x] **Step 4: Add the module-switch dropdown JS + tab-fade JS in `app/static/js/app.js`**
 
 Insert immediately after `initTitleDropdown()`'s closing brace (current line 241, right before the `/* ── Skeleton loading ── */` comment):
 
@@ -382,7 +382,7 @@ function initHeaderTabFade() {
 }
 ```
 
-- [ ] **Step 5: Register the new init functions**
+- [x] **Step 5: Register the new init functions**
 
 In `app/static/js/app.js`, replace (current lines 532-535):
 
@@ -404,7 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-tabs]").forEach(initTabs);
 ```
 
-- [ ] **Step 6: Flip the flag for Dashboard**
+- [x] **Step 6: Flip the flag for Dashboard**
 
 In `app/modules/dashboard/routes.py`, replace (current lines 91-92):
 
@@ -420,19 +420,19 @@ with:
                            active_page="dashboard", use_unified_header=True, **get_ctx())
 ```
 
-- [ ] **Step 7: Run the existing regression suite**
+- [x] **Step 7: Run the existing regression suite**
 
 Run: `cd app && python -m pytest tests/test_dashboard.py -v`
 Expected: all tests pass unchanged (no route/context assertions reference navbar markup).
 
-- [ ] **Step 8: Manual visual check**
+- [x] **Step 8: Manual visual check**
 
 Start the dev server (`preview_start` with the project's Flask launch config), log in, and confirm:
 - `/dashboard` looks identical to before (flat module list, company name/search icon now on the right).
 - Every other module (still unmigrated) also looks identical — `use_unified_header` is unset for them, so they fall through to the old flat-list branch.
 - Toggling dark mode still themes the navbar correctly.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add app/templates/base.html app/static/css/style.css app/static/js/app.js app/modules/dashboard/routes.py
@@ -450,7 +450,7 @@ git commit -m "feat: shared unified-header foundation (base.html, CSS, JS)"
 **Interfaces:**
 - Consumes: `{% block module_tabs %}` from Task 1; `use_unified_header` flag.
 
-- [ ] **Step 1: Add the `module_tabs` block override**
+- [x] **Step 1: Add the `module_tabs` block override**
 
 In `app/templates/beasiswa/index.html`, insert immediately after the existing `{% block head %}...{% endblock %}` (current lines 3-8), before `{% block content %}`:
 
@@ -470,7 +470,7 @@ In `app/templates/beasiswa/index.html`, insert immediately after the existing `{
 {% endblock %}
 ```
 
-- [ ] **Step 2: Remove the old header row, relocate Filter/Full Screen**
+- [x] **Step 2: Remove the old header row, relocate Filter/Full Screen**
 
 Replace this block (current lines 19-45):
 
@@ -526,16 +526,16 @@ with:
 
 (The `<div data-tabs>` wrapper stays open — it still wraps every `.tab-panel` below.)
 
-- [ ] **Step 3: Flip the flag**
+- [x] **Step 3: Flip the flag**
 
 In `app/modules/beasiswa/routes.py`, find the `render_template(...)` call at line 68 that passes `active_page="beasiswa"` (line 81) and add `use_unified_header=True` as a sibling kwarg on the same call.
 
-- [ ] **Step 4: Run the existing regression suite**
+- [x] **Step 4: Run the existing regression suite**
 
 Run: `cd app && python -m pytest tests/test_beasiswa_routes.py -v`
 Expected: all tests pass unchanged.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/templates/beasiswa/index.html app/modules/beasiswa/routes.py
