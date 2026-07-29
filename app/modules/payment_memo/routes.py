@@ -72,6 +72,7 @@ def index():
         cat1_bgt=config.CAT1_BGT,
         cat2_sem=config.CAT2_SEM,
         active_page="payment_memo",
+        use_unified_header=True,
         pam_approved_by_1=config.PAM_APPROVED_BY_1,
         pam_approved_by_2=config.PAM_APPROVED_BY_2,
         siswa_list=get_siswa_list(company_id),
