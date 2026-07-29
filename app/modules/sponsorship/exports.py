@@ -2,7 +2,6 @@
 import io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-import config
 from modules.sponsorship.service import get_sponsorship_report, PILLAR_COLUMNS
 
 _HEADER_FILL = PatternFill("solid", fgColor="1E3A5F")
