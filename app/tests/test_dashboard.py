@@ -6,6 +6,9 @@ def login(client):
 def select_etf(client):
     client.post("/select-company", data={"company_id": "2"})
 
+def select_smt(client):
+    client.post("/select-company", data={"company_id": "1"})
+
 def test_dashboard_redirect_without_login(client):
     resp = client.get("/dashboard")
     assert resp.status_code == 302
@@ -62,6 +65,24 @@ def test_navbar_module_menu_appears_on_other_pages_too(client):
     assert 'class="navbar-menu-item active" href="/bank/"' in html
     assert 'href="/dashboard"' in html
     assert "Beasiswa" in html
+
+
+def test_navbar_hides_sponsorship_for_etf(client):
+    login(client)
+    select_etf(client)
+    resp = client.get("/dashboard")
+    html = resp.data.decode()
+    assert "Beasiswa" in html
+    assert "Sponsorship" not in html
+
+
+def test_navbar_hides_beasiswa_for_smt(client):
+    login(client)
+    select_smt(client)
+    resp = client.get("/dashboard")
+    html = resp.data.decode()
+    assert "Sponsorship" in html
+    assert "Beasiswa" not in html
 
 
 def test_dashboard_page_opts_into_view_transitions(client):

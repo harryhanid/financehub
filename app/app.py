@@ -67,13 +67,23 @@ def create_app(testing=False):
     def inject_nav_modules():
         from modules.dashboard.routes import DASHBOARD_TABS
         from flask_jwt_extended import get_jwt
+        from flask import session
         try:
             get_jwt()
         except Exception:
             return {"nav_modules": []}
+        # Beasiswa is ETF-only, Sponsorship is SMT-only — hide the module that
+        # doesn't apply to the active company instead of showing a dead link.
+        company_code = session.get("company_code")
+        hidden_keys = set()
+        if company_code == "ETF":
+            hidden_keys.add("sponsorship")
+        elif company_code == "SMT":
+            hidden_keys.add("beasiswa")
         nav_modules = [
             {"name": name, "url": url_for(endpoint), "key": key}
             for name, endpoint, key in DASHBOARD_TABS
+            if key not in hidden_keys
         ]
         return {"nav_modules": nav_modules}
 
