@@ -9,8 +9,15 @@ def select_etf(client):
 
 
 def test_vendors_list_requires_login(client):
+    """/vendors is a pure-JSON endpoint (decorated @json_required, not
+    @jwt_html_required) — an unauthenticated request must get a JSON 401,
+    not a 302 redirect to the login page. A redirect here would be silently
+    followed by fetch()/apiFetch(), which would then try to parse the login
+    page's HTML as JSON and fail (see the ipay/next-pam-no incident this
+    was generalized from)."""
     resp = client.get("/payment-memo/vendors")
-    assert resp.status_code == 302
+    assert resp.status_code == 401
+    assert resp.get_json()["ok"] is False
 
 
 def test_vendors_list_returns_rows(client):

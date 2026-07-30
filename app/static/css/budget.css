@@ -345,6 +345,7 @@
     color-adjust: exact !important;
   }
   .budget-toolbar, #setf-year-select-all { display: none !important; }
+  .fh-page-header { position: static !important; }
   .setf-accordion summary { list-style: none; cursor: default; }
   .setf-accordion summary::-webkit-details-marker { display: none; }
 
@@ -395,5 +396,14 @@
   .setf-compact-scroll {
     max-height: none !important;
     overflow: visible !important;
+  }
+  .setf-compact-scroll table th,
+  .setf-compact-scroll table td {
+    font-size: 0.65rem !important;
+    padding: 0.2rem 0.3rem !important;
+  }
+  .setf-compact-scroll table .budget-badge {
+    font-size: 0.6rem !important;
+    padding: 0.1rem 0.3rem !important;
   }
 }

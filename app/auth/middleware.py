@@ -3,6 +3,44 @@ from functools import wraps
 from flask import jsonify, redirect, url_for
 from flask_jwt_extended import verify_jwt_in_request, get_jwt
 
+
+def is_admin(claims) -> bool:
+    """Superuser check.
+
+    The seeded 'admin' account carries role 'releaser' (not a distinct
+    'admin' role — that role isn't in VALID_ROLES and no user has it), so
+    admin authority is recognised by username OR by an explicit 'admin'
+    role should one ever be introduced.
+    """
+    return claims.get("role") == "admin" or claims.get("username") == "admin"
+
+
+def html_admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            verify_jwt_in_request()
+        except Exception:
+            return redirect(url_for("auth.login_page"))
+        if not is_admin(get_jwt()):
+            return redirect(url_for("dashboard.index"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def json_admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            verify_jwt_in_request()
+        except Exception:
+            return jsonify({"ok": False, "pesan": "Token tidak valid atau expired."}), 401
+        if not is_admin(get_jwt()):
+            return jsonify({"ok": False, "pesan": "Akses ditolak. Khusus admin."}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
 def jwt_html_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):

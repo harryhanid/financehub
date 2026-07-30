@@ -3,7 +3,7 @@ import hashlib
 from datetime import datetime, timedelta
 
 import bcrypt
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, jsonify, redirect, render_template, request, url_for
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, get_jwt,
     get_jwt_identity, jwt_required,
@@ -14,6 +14,28 @@ import config
 from database import get_conn
 
 bp = Blueprint("auth", __name__)
+
+
+def _extract_refresh_token() -> str:
+    """Find the raw refresh JWT string wherever the client sent it.
+
+    Login always issues the refresh token via cookie (JWT_TOKEN_LOCATION
+    includes "cookies"), so logout/refresh must check there too — checking
+    only an optional request-body field let a revoked/logged-out refresh
+    cookie keep minting new access tokens for up to JWT_REFRESH_DAYS.
+    """
+    data = request.get_json(silent=True) or {}
+    token = data.get("refresh_token", "")
+    if token:
+        return token
+    cookie_name = current_app.config.get("JWT_REFRESH_COOKIE_NAME", "refresh_token_cookie")
+    token = request.cookies.get(cookie_name, "")
+    if token:
+        return token
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    return ""
 
 
 @bp.route("/login", methods=["GET"])
@@ -76,8 +98,7 @@ def login():
 @bp.route("/logout", methods=["POST"])
 @jwt_required()
 def logout():
-    data          = request.get_json(force=True) or {}
-    refresh_token = data.get("refresh_token", "")
+    refresh_token = _extract_refresh_token()
     if refresh_token:
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         conn = get_conn()
@@ -94,8 +115,7 @@ def logout():
 @bp.route("/refresh", methods=["POST"])
 @jwt_required(refresh=True)
 def refresh():
-    data          = request.get_json(force=True) or {}
-    refresh_token = data.get("refresh_token", "")
+    refresh_token = _extract_refresh_token()
     if refresh_token:
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         conn       = get_conn()
@@ -136,6 +156,10 @@ def change_password():
     row  = conn.execute(
         "SELECT password_hash FROM users WHERE id = ?", (user_id,)
     ).fetchone()
+
+    if row is None:
+        conn.close()
+        return jsonify({"ok": False, "pesan": "Akun tidak ditemukan. Silakan login ulang."}), 401
 
     if not bcrypt.checkpw(old_pw.encode(), row["password_hash"].encode()):
         conn.close()

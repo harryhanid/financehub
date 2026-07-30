@@ -423,6 +423,36 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
         pa_tbl2, _, _, pam_pfx = _tbls(tab)
         nomor_pam = _gen_nomor_pam(company_id, conn, pa_tbl2, pam_pfx)
 
+    # If the amount on this line is changing and it's already been drawn into a
+    # PAM, block the whole edit once that PAM is past 'open' (on_process/complete)
+    # — silently rewriting an amount that's already approved or paid is unsafe.
+    # Correction path in that case is manual, via the Payment Memo module.
+    line_id    = data.get("line_id")
+    new_amount = data.get("jumlah_pembayaran")
+    if line_id and new_amount is not None:
+        old_line = conn.execute(
+            f"SELECT jumlah_pembayaran FROM {lines_tbl} WHERE id=? AND pa_id=?",
+            (line_id, pa_id)
+        ).fetchone()
+        amount_changed = old_line is not None and \
+            float(old_line["jumlah_pembayaran"] or 0) != float(new_amount or 0)
+        if amount_changed:
+            pb_row = conn.execute(
+                "SELECT id, pam FROM payment_beasiswa WHERE etf_pa_line_id=? AND company_id=?",
+                (line_id, company_id)
+            ).fetchone()
+            if pb_row and pb_row["pam"]:
+                pam_row = conn.execute(
+                    "SELECT status FROM pam_records WHERE pam_no=? AND company_id=?",
+                    (pb_row["pam"], company_id)
+                ).fetchone()
+                if pam_row and pam_row["status"] != "open":
+                    conn.close()
+                    return {"ok": False, "pesan":
+                        f"PAM {pb_row['pam']} sudah berstatus '{pam_row['status']}' "
+                        "(sudah diproses/dibayar) — amount tidak bisa diubah dari sini. "
+                        "Koreksi lewat modul Payment Memo."}
+
     conn.execute(
         f"""UPDATE {pa_tbl} SET
              tgl_payment_application = ?,
@@ -455,7 +485,6 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
          new_status,
          _ts(), pa_id, company_id)
     )
-    line_id = data.get("line_id")
     if line_id:
         conn.execute(
             f"""UPDATE {lines_tbl} SET
@@ -472,6 +501,26 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
              data.get("jumlah_pembayaran") or 0,
              line_id, pa_id)
         )
+        # Propagate the amount into an already-drawn (still-open) PAM: update
+        # the linked payment_beasiswa row, then re-sum the PAM's total from
+        # all its payment_beasiswa lines (a PAM can bundle several PA lines).
+        pb_row = conn.execute(
+            "SELECT id, pam FROM payment_beasiswa WHERE etf_pa_line_id=? AND company_id=?",
+            (line_id, company_id)
+        ).fetchone()
+        if pb_row and pb_row["pam"]:
+            conn.execute(
+                "UPDATE payment_beasiswa SET amount=? WHERE id=?",
+                (new_amount or 0, pb_row["id"])
+            )
+            total_row = conn.execute(
+                "SELECT COALESCE(SUM(amount),0) AS total FROM payment_beasiswa WHERE pam=? AND company_id=?",
+                (pb_row["pam"], company_id)
+            ).fetchone()
+            conn.execute(
+                "UPDATE pam_records SET total_amount=?, dpp=? WHERE pam_no=? AND company_id=?",
+                (total_row["total"], total_row["total"], pb_row["pam"], company_id)
+            )
     conn.commit()
     conn.close()
 

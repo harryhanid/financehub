@@ -78,6 +78,7 @@ def _parse_report_params():
 def index():
     years = get_available_years(_cid()) if not _wrong_company() else []
     return render_template("sponsorship/dashboard.html", active_page="sponsorship",
+                            use_unified_header=True,
                             wrong_company=_wrong_company(), years=years,
                             cat_choices=config.SPONSORSHIP_CAT,
                             pillar_choices=config.SPONSORSHIP_PILLARS,
@@ -120,6 +121,7 @@ def export_report_route():
 @jwt_html_required
 def input_page():
     return render_template("sponsorship/input.html", active_page="sponsorship",
+                            use_unified_header=True,
                             wrong_company=_wrong_company(),
                             cat_choices=config.SPONSORSHIP_CAT,
                             description_choices=config.SPONSORSHIP_DESCRIPTION,
@@ -154,7 +156,8 @@ def data_page():
     rows = list_transaksi(_cid(), filters, limit=PER_PAGE, offset=(page - 1) * PER_PAGE) if not _wrong_company() else []
     years = get_available_years(_cid()) if not _wrong_company() else []
     return render_template(
-        "sponsorship/data.html", active_page="sponsorship", wrong_company=_wrong_company(),
+        "sponsorship/data.html", active_page="sponsorship", use_unified_header=True,
+        wrong_company=_wrong_company(),
         rows=rows, page=page, total_pages=total_pages, total_count=total, years=years,
         filters=filters,
         cat_choices=config.SPONSORSHIP_CAT, description_choices=config.SPONSORSHIP_DESCRIPTION,
@@ -187,4 +190,5 @@ def data_update(transaksi_id):
 def report_page():
     years = get_available_years(_cid()) if not _wrong_company() else []
     return render_template("sponsorship/report.html", active_page="sponsorship",
+                            use_unified_header=True,
                             wrong_company=_wrong_company(), years=years, **_ctx())

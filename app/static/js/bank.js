@@ -64,27 +64,34 @@ document.addEventListener("DOMContentLoaded", () => {
       const payload = JSON.stringify({
         tanggal: inpTanggal.value,
         jenis: inpJenis.value,
-        jumlah: parseInt(inpJumlah.value, 10),
+        jumlah: parseFloat(inpJumlah.value),
         keterangan: inpKeterangan.value
       });
 
-      const res = await apiFetch(url, { method: "POST", body: payload });
-      if (res) {
-        const d = await res.json();
-        showToast(d.pesan, d.ok ? "success" : "error");
-        if (d.ok) {
-          closeModal("modal-transaksi");
-          setTimeout(() => window.location.reload(), 1000);
+      showLoading(id ? "Memperbarui transaksi..." : "Menyimpan transaksi...");
+      try {
+        const res = await apiFetch(url, { method: "POST", body: payload });
+        if (res) {
+          const d = await res.json();
+          showToast(d.pesan, d.ok ? "success" : "error");
+          if (d.ok) {
+            closeModal("modal-transaksi");
+            setTimeout(() => window.location.reload(), 1000);
+          }
         }
+      } finally {
+        hideLoading();
       }
     });
   }
 
   document.querySelectorAll(".btn-delete-transaksi").forEach(btn => {
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener("click", async (e) => {
       const tr = e.target.closest("tr");
       const id = tr.dataset.id;
-      confirmModal("Hapus Transaksi", "Yakin ingin menghapus transaksi ini?", async () => {
+      if (!await confirmModal("Yakin ingin menghapus transaksi ini?", { type: "danger", confirmText: "Hapus" })) return;
+      showLoading("Menghapus transaksi...");
+      try {
         const res = await apiFetch(`/bank/transaksi/${id}/delete`, { method: "POST" });
         if (res) {
           const d = await res.json();
@@ -93,7 +100,9 @@ document.addEventListener("DOMContentLoaded", () => {
             setTimeout(() => window.location.reload(), 1000);
           }
         }
-      });
+      } finally {
+        hideLoading();
+      }
     });
   });
 });

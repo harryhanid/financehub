@@ -199,13 +199,18 @@ async function createApp() {
   if (!memo_id || !submitted_at) {
     showToast("Pilih memo dan isi tanggal pengajuan.", "error"); return;
   }
-  const resp = await apiFetch("/payment-application/create", {
-    method: "POST",
-    body: JSON.stringify({ memo_id: parseInt(memo_id), submitted_at, target_payment_date, notes })
-  });
-  const data = await resp.json();
-  showToast(data.pesan, data.ok ? "success" : "error");
-  if (data.ok) { closeModal("modal-buat-app"); setTimeout(() => location.reload(), 800); }
+  showLoading("Membuat Payment Application...");
+  try {
+    const resp = await apiFetch("/payment-application/create", {
+      method: "POST",
+      body: JSON.stringify({ memo_id: parseInt(memo_id), submitted_at, target_payment_date, notes })
+    });
+    const data = await resp.json();
+    showToast(data.pesan, data.ok ? "success" : "error");
+    if (data.ok) { closeModal("modal-buat-app"); setTimeout(() => location.reload(), 800); }
+  } finally {
+    hideLoading();
+  }
 }
 
 function openUpdatePayment(appId, label) {
@@ -219,12 +224,17 @@ async function saveActualPayment() {
   const actual = document.getElementById("actual-pay-date").value;
   if (!actual) { showToast("Tanggal aktual wajib diisi.", "error"); return; }
   if (!await confirmModal(`Simpan tanggal pembayaran aktual ${actual}?`)) return;
-  const resp = await apiFetch(`/payment-application/${_currentAppId}/update-payment`, {
-    method: "POST", body: JSON.stringify({ actual_payment_date: actual })
-  });
-  const data = await resp.json();
-  showToast(data.pesan, data.ok ? "success" : "error");
-  if (data.ok) { closeModal("modal-update-payment"); setTimeout(() => location.reload(), 800); }
+  showLoading("Menyimpan pembayaran...");
+  try {
+    const resp = await apiFetch(`/payment-application/${_currentAppId}/update-payment`, {
+      method: "POST", body: JSON.stringify({ actual_payment_date: actual })
+    });
+    const data = await resp.json();
+    showToast(data.pesan, data.ok ? "success" : "error");
+    if (data.ok) { closeModal("modal-update-payment"); setTimeout(() => location.reload(), 800); }
+  } finally {
+    hideLoading();
+  }
 }
 
 function exportPaExcel() {

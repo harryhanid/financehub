@@ -768,41 +768,7 @@ input[readonly], input[disabled] {
   margin-bottom: 0;
 }
 
-/* ── Focus / fullscreen mode ────────────────────────────────────── */
-/* Applied by adding .fh-focus class to <body>. Hides the filter panel  */
-/* and the navbar's right-hand controls (company/user/theme/logout) —   */
-/* the module dropdown + tabs stay visible so users can keep switching  */
-/* sub-modules without leaving focus mode.                              */
-body.fh-focus .navbar-right { display: none; }
-body.fh-focus .filter-bar.collapsible { display: none !important; }
-#fh-focus-exit {
-  display: none;
-  position: fixed; top: .6rem; right: 1rem; z-index: 9999;
-  align-items: center; gap: .4rem;
-  background: rgba(30,41,59,.82); color: #e2e8f0;
-  border: none; border-radius: 20px;
-  padding: .35rem .85rem; font-size: .75rem; font-weight: 600;
-  cursor: pointer; backdrop-filter: blur(4px);
-  box-shadow: 0 2px 8px rgba(0,0,0,.25);
-}
-#fh-focus-exit:hover { background: rgba(30,41,59,.95); }
-body.fh-focus #fh-focus-exit { display: flex; }
 
-/* ── Filter toggle button + active-filter count badge ───────────── */
-.btn-filter-toggle.active {
-  background: var(--accent-surface);
-  border-color: var(--accent-border);
-  color: var(--accent-text);
-}
-.filter-badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 1.05rem; height: 1.05rem;
-  padding: 0 .3rem; margin-left: .3rem;
-  background: var(--accent); color: #fff;
-  border-radius: 999px;
-  font-size: .65rem; font-weight: 700;
-  line-height: 1;
-}
 
 /* ── Collapsible variant of .filter-bar — hidden until toggled open ── */
 .filter-bar.collapsible { display: none; }

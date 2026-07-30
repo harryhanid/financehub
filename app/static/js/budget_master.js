@@ -9,7 +9,8 @@ function budgetMasterClearForm() {
 }
 
 function budgetMasterEdit(id) {
-  fetch("/budget/master/" + id).then(function (r) { return r.json(); }).then(function (data) {
+  showLoading("Memuat data budget...");
+  apiFetch("/budget/master/" + id).then(function (r) { return r.json(); }).then(function (data) {
     if (!data.ok) { showToast(data.pesan, "error"); return; }
     const b = data.budget;
     document.getElementById("bm-id").value = b.id;
@@ -26,6 +27,8 @@ function budgetMasterEdit(id) {
     openModal("budget-master-modal");
   }).catch(function () {
     showToast("Gagal memuat data budget.", "error");
+  }).finally(function () {
+    hideLoading();
   });
 }
 
@@ -44,25 +47,31 @@ function budgetMasterSave() {
     amount: document.getElementById("bm-amount").value,
   };
   const url = id ? "/budget/master/" + id + "/update" : "/budget/master/create";
-  fetch(url, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+  showLoading(id ? "Memperbarui budget..." : "Menyimpan budget...");
+  apiFetch(url, {
+    method: "POST", body: JSON.stringify(payload),
   }).then(function (r) { return r.json(); }).then(function (data) {
     showToast(data.pesan, data.ok ? "success" : "error");
-    if (data.ok) { closeModal("budget-master-modal"); window.location.reload(); }
+    if (data.ok) { closeModal("budget-master-modal"); setTimeout(function () { window.location.reload(); }, 1000); }
   }).catch(function () {
     showToast("Gagal menyimpan budget.", "error");
+  }).finally(function () {
+    hideLoading();
   });
 }
 
 function budgetMasterDelete(id) {
-  confirmModal("Hapus budget " + id + "?", { type: "danger" }).then(function (confirmed) {
+  confirmModal("Hapus budget " + id + "?", { type: "danger", confirmText: "Hapus" }).then(function (confirmed) {
     if (!confirmed) return;
-    fetch("/budget/master/" + id + "/delete", { method: "POST" })
+    showLoading("Menghapus budget...");
+    apiFetch("/budget/master/" + id + "/delete", { method: "POST" })
       .then(function (r) { return r.json(); }).then(function (data) {
         showToast(data.pesan, data.ok ? "success" : "error");
-        if (data.ok) window.location.reload();
+        if (data.ok) setTimeout(function () { window.location.reload(); }, 1000);
       }).catch(function () {
         showToast("Gagal menghapus budget.", "error");
+      }).finally(function () {
+        hideLoading();
       });
   });
 }

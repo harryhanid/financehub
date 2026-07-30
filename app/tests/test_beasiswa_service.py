@@ -11,6 +11,7 @@ from modules.beasiswa.service import (
     add_klaim_multi, get_klaim_list, delete_klaim_row,
     add_payment_multi, get_budget_list, get_payment_list,
     delete_payment_beasiswa, delete_payment_row, update_payment_row,
+    get_dashboard_monthly,
 )
 
 COMPANY_ID = 2  # ETF
@@ -933,3 +934,38 @@ def test_delete_payment_beasiswa_refuses_already_rejected_row():
     conn.close()
     assert pb is not None, "rejected row must survive the refused delete attempt"
     assert pb["status"] == "rejected"
+
+
+def test_get_dashboard_monthly_does_not_crash_and_applies_program_filter():
+    """Real-world bug (2026-07-23, found via Beasiswa Dashboard "Trend per Bulan"
+    chart rendering empty): get_dashboard_monthly() unconditionally raised
+    UnboundLocalError because program_sql/jenjang_sql/their params were used in
+    the budget_rows query before being computed, AND that same query string
+    wasn't an f-string, so even fixing the ordering wouldn't have applied the
+    filter. Must not crash, and the program filter must actually narrow the
+    budget total (not just silently do nothing)."""
+    _add_siswa_a()  # program="SMART"
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO budget_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar) "
+        "VALUES (?,?,?,?,?,?,?)",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-10", 1_000_000, "AGRI")
+    )
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'complete')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-15", 2_000_000, "AGRI")
+    )
+    conn.commit()
+    conn.close()
+
+    result = get_dashboard_monthly(COMPANY_ID, years=[2026], programs=["SMART"])
+    assert result["chart_year"] == 2026
+    march = next(m for m in result["months"] if m["bulan"] == 3)
+    assert march["budget"] == 1_000_000
+    assert march["realisasi"] == 2_000_000
+
+    filtered_out = get_dashboard_monthly(COMPANY_ID, years=[2026], programs=["OTHER_PROGRAM"])
+    march_filtered = next(m for m in filtered_out["months"] if m["bulan"] == 3)
+    assert march_filtered["budget"] == 0.0, \
+        "program filter must actually exclude non-matching siswa, not silently pass through"

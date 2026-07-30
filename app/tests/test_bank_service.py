@@ -131,6 +131,27 @@ def test_resolve_period_parses_explicit_values():
     assert (bulan, tahun) == (3, 2025)
 
 
+def test_resolve_period_non_numeric_bulan_falls_back_to_today_instead_of_crashing():
+    from datetime import datetime
+    today = datetime(2026, 7, 14)
+    bulan, tahun = resolve_period("abc", None, today=today)
+    assert (bulan, tahun) == (7, 2026)
+
+
+def test_resolve_period_non_numeric_tahun_falls_back_to_today_instead_of_crashing():
+    from datetime import datetime
+    today = datetime(2026, 7, 14)
+    bulan, tahun = resolve_period(None, "not-a-year", today=today)
+    assert (bulan, tahun) == (7, 2026)
+
+
+def test_resolve_period_both_non_numeric_falls_back_to_today():
+    from datetime import datetime
+    today = datetime(2026, 7, 14)
+    bulan, tahun = resolve_period("xx", "yy", today=today)
+    assert (bulan, tahun) == (7, 2026)
+
+
 def test_filter_period_no_filter_returns_all_rows():
     rows = [{"tanggal": "2026-06-01"}, {"tanggal": "2026-07-01"}]
     assert filter_period(rows, None, None) == rows
@@ -259,6 +280,90 @@ def test_sync_pam_to_bank_setf_falls_back_to_pam_date_when_no_tanggal_bayar():
     assert row["tanggal"] == "2026-06-20"
 
 
+def test_sync_pam_to_bank_setf_removes_row_when_reverted_from_complete():
+    """Regression guard: reverting a SETF PAM from complete back to open
+    (or on_process) must remove its synced bank_setf row — otherwise the
+    Bank ledger keeps counting a payment that's no longer actually paid,
+    permanently overstating the saldo."""
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
+           VALUES (2, 'PAM-REVERT-1', '2026-07-01', 'Test', 1200000, 'complete', 'SETF', '2026-07-05', datetime('now'))"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-REVERT-1'").fetchone()["id"]
+    conn.commit()
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+    assert get_bank_setf_rows(2) != []
+
+    conn = get_conn()
+    conn.execute("UPDATE pam_records SET status='open' WHERE id=?", (pam_id,))
+    conn.commit()
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+
+    assert get_bank_setf_rows(2) == []
+
+
+def test_sync_pam_to_bank_setf_updates_existing_row_when_amount_edited():
+    """Regression guard: editing total_amount on an already-synced complete
+    SETF PAM must update the bank_setf row's jumlah, not leave it stale."""
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
+           VALUES (2, 'PAM-EDIT-1', '2026-07-01', 'Original note', 1000000, 'complete', 'SETF', '2026-07-05', datetime('now'))"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-EDIT-1'").fetchone()["id"]
+    conn.commit()
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+
+    conn = get_conn()
+    conn.execute(
+        "UPDATE pam_records SET total_amount=?, keterangan=? WHERE id=?",
+        (1750000, "Revised note", pam_id)
+    )
+    conn.commit()
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+
+    rows = get_bank_setf_rows(2)
+    assert len(rows) == 1
+    assert rows[0]["jumlah"] == 1750000
+    assert rows[0]["keterangan"] == "Revised note"
+
+
+def test_sync_pam_to_bank_setf_recompletes_without_duplicating():
+    """Complete -> revert to open -> complete again must leave exactly one
+    bank_setf row, not accumulate duplicates."""
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
+           VALUES (2, 'PAM-RECOMPLETE-1', '2026-07-01', 'Test', 500000, 'complete', 'SETF', '2026-07-05', datetime('now'))"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-RECOMPLETE-1'").fetchone()["id"]
+    conn.commit()
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+
+    conn = get_conn()
+    conn.execute("UPDATE pam_records SET status='open' WHERE id=?", (pam_id,))
+    conn.commit()
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+
+    conn = get_conn()
+    conn.execute("UPDATE pam_records SET status='complete' WHERE id=?", (pam_id,))
+    conn.commit()
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+
+    assert len(get_bank_setf_rows(2)) == 1
+
+
 from modules.bank.service import add_transaksi, update_transaksi, delete_transaksi
 
 
@@ -318,6 +423,31 @@ def test_delete_transaksi_removes_row():
     result = delete_transaksi(row_id, 2)
     assert result["ok"] is True
     assert get_bank_setf_rows(2) == []
+
+
+def test_update_transaksi_on_already_deleted_row_reports_not_found():
+    """update_transaksi must never report success for a row that's gone —
+    this is a necessary (not sufficient on its own) condition for the
+    check-then-act race fix: the real fix makes UPDATE...WHERE the single
+    source of truth (via rowcount) instead of a separate SELECT, which
+    structurally closes the race window a sequential test can't reproduce."""
+    add_transaksi(2, "2026-07-14", "pemasukan", 1000000, "Original")
+    row_id = get_bank_setf_rows(2)[0]["id"]
+    delete_transaksi(row_id, 2)
+
+    result = update_transaksi(row_id, 2, "2026-07-15", "pengeluaran", 500000, "Ghost update")
+    assert result["ok"] is False
+    assert get_bank_setf_rows(2) == []
+
+
+def test_delete_transaksi_on_already_deleted_row_reports_not_found():
+    add_transaksi(2, "2026-07-14", "pemasukan", 1000000, "Original")
+    row_id = get_bank_setf_rows(2)[0]["id"]
+    first = delete_transaksi(row_id, 2)
+    assert first["ok"] is True
+
+    second = delete_transaksi(row_id, 2)
+    assert second["ok"] is False
 
 
 def test_delete_transaksi_of_pam_sourced_row_does_not_touch_pam_records():

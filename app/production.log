@@ -1,0 +1,11 @@
+WARNING:zeroconf:Error with socket 1140 (('192.168.1.12', 5353))): [WinError 59] An unexpected network error occurred
+Traceback (most recent call last):
+  File "C:\Users\25010160\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\proactor_events.py", line 522, in _loop_writing
+    fut.result()
+    ~~~~~~~~~~^^
+  File "C:\Users\25010160\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Users\25010160\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\windows_events.py", line 463, in finish_socket_func
+    return ov.getresult()
+           ~~~~~~~~~~~~^^
+OSError: [WinError 59] An unexpected network error occurred

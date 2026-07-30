@@ -20,9 +20,9 @@
         <td><strong>{{ u.username }}</strong></td>
         <td>
           {% if u.username != 'admin' %}
-          <select class="role-select" data-username="{{ u.username }}"
+          <select class="role-select" data-username="{{ u.username }}" data-role="{{ u.role }}"
             style="padding:.2rem .4rem; font-size:.8rem; border-radius:4px"
-            onchange="changeRole('{{ u.username }}', this.value)">
+            onchange="changeRole(this, '{{ u.username }}', this.value)">
             {% for r in ['requester','verificator','releaser'] %}
             <option value="{{ r }}" {% if u.role == r %}selected{% endif %}>{{ r }}</option>
             {% endfor %}
@@ -93,31 +93,57 @@ async function addUser() {
   const password = document.getElementById("new-password").value;
   const role     = document.getElementById("new-role").value;
   if (!username || !password) { showToast("Username dan password wajib diisi.", "error"); return; }
-  const resp = await apiFetch("/users/add", {
-    method: "POST", body: JSON.stringify({ username, password, role })
-  });
-  const data = await resp.json();
-  showToast(data.pesan, data.ok ? "success" : "error");
-  if (data.ok) { closeModal("modal-add-user"); setTimeout(() => location.reload(), 800); }
+  showLoading("Menambahkan user...");
+  try {
+    const resp = await apiFetch("/users/add", {
+      method: "POST", body: JSON.stringify({ username, password, role })
+    });
+    const data = await resp.json();
+    showToast(data.pesan, data.ok ? "success" : "error");
+    if (data.ok) { closeModal("modal-add-user"); setTimeout(() => location.reload(), 800); }
+  } finally {
+    hideLoading();
+  }
 }
 
 async function toggleUser(username, isActive) {
-  const label = isActive ? "aktifkan" : "nonaktifkan";
-  if (!confirm(`${label} user '${username}'?`)) return;
-  const resp = await apiFetch(`/users/${username}/toggle`, {
-    method: "POST", body: JSON.stringify({ is_active: isActive })
-  });
-  const data = await resp.json();
-  showToast(data.pesan, data.ok ? "success" : "error");
-  if (data.ok) setTimeout(() => location.reload(), 600);
+  const label = isActive ? "mengaktifkan" : "menonaktifkan";
+  if (!await confirmModal(`Yakin ingin ${label} user '${username}'?`, { type: isActive ? "primary" : "danger", confirmText: isActive ? "Aktifkan" : "Nonaktifkan" })) return;
+  showLoading("Menyimpan perubahan...");
+  try {
+    const resp = await apiFetch(`/users/${username}/toggle`, {
+      method: "POST", body: JSON.stringify({ is_active: isActive })
+    });
+    const data = await resp.json();
+    showToast(data.pesan, data.ok ? "success" : "error");
+    if (data.ok) setTimeout(() => location.reload(), 600);
+  } finally {
+    hideLoading();
+  }
 }
 
-async function changeRole(username, role) {
-  const resp = await apiFetch(`/users/${username}/role`, {
-    method: "POST", body: JSON.stringify({ role })
-  });
-  const data = await resp.json();
-  showToast(data.pesan, data.ok ? "success" : "error");
+async function changeRole(selectEl, username, role) {
+  const previousRole = selectEl.dataset.role;
+  selectEl.disabled = true;
+  try {
+    const resp = await apiFetch(`/users/${username}/role`, {
+      method: "POST", body: JSON.stringify({ role })
+    });
+    const data = await resp.json();
+    showToast(data.pesan, data.ok ? "success" : "error");
+    if (data.ok) {
+      // No page reload needed — the <select> already shows the new value.
+      // Track it as the new known-good value so a future failed change can
+      // roll back to it correctly.
+      selectEl.dataset.role = role;
+    } else {
+      // Revert the dropdown — without this it kept showing the unsaved
+      // role after a failed change, silently out of sync with the DB.
+      selectEl.value = previousRole;
+    }
+  } finally {
+    selectEl.disabled = false;
+  }
 }
 </script>
 {% endblock %}

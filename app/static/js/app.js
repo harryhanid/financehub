@@ -455,7 +455,6 @@ function initTabs(container) {
   // selector, since each page has exactly one such button group.
   const tabs = document.querySelectorAll(".tabs .tab-btn");
   const panels = container.querySelectorAll(".tab-panel");
-  const filterBtn = container.querySelector(".btn-filter-toggle");
   tabs.forEach(btn => {
     btn.addEventListener("click", () => {
       tabs.forEach(t => t.classList.remove("active"));
@@ -474,28 +473,13 @@ function initTabs(container) {
       // Filter panel always starts collapsed when switching sub-modules —
       // see docs/superpowers/specs/2026-07-12-financehub-page-toolbar-layout-design.md §2.3
       container.querySelectorAll(".filter-bar.collapsible.open").forEach(p => p.classList.remove("open"));
-      if (filterBtn) {
-        filterBtn.classList.remove("active");
-        updateFilterBadge(filterBtn.id, 0);
-        // Hide the Filter toggle entirely on tabs with no filter panel (e.g. a
-        // single-record detail/report tab) instead of leaving an inert button.
-        const hasFilterPanel = !!(target && target.querySelector(".filter-bar.collapsible"));
-        filterBtn.style.display = hasFilterPanel ? "" : "none";
-      }
       // Newly-active panel's own scroll-height wrapper (if any) was hidden a
       // moment ago and may have a stale computed height — modules that size
       // their table wrap dynamically (e.g. sizeWrap()-style code) already
       // listen for "resize", so re-dispatch it once the new panel is visible.
-      window.dispatchEvent(new Event("resize"));
+      setTimeout(() => window.dispatchEvent(new Event("resize")), 0);
     });
   });
-  if (filterBtn) {
-    container.querySelectorAll(".filter-bar.collapsible").forEach(panel => {
-      const recompute = () => refreshFilterBadge(panel, filterBtn.id);
-      panel.addEventListener("input", recompute);
-      panel.addEventListener("change", recompute);
-    });
-  }
   // Deep-link support: ?tab=<name> selects [data-tab="tab-<name>"] instead
   // of always defaulting to the first tab — used by redirects like
   // /beasiswa/sahabat -> /beasiswa/?tab=sahabat. Falls back to today's
@@ -571,72 +555,14 @@ function animateCounter(el, duration = 700) {
   requestAnimationFrame(step);
 }
 
-function toggleFilterPanel(panelId, btnId) {
-  const panel = document.getElementById(panelId);
-  const btn = document.getElementById(btnId);
-  if (!panel) return;
-  const open = panel.classList.toggle("open");
-  if (btn) btn.classList.toggle("active", open);
-  if (open && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-    const searchInput = panel.querySelector('input[type="text"]');
-    if (searchInput) searchInput.focus();
+function getActiveFilterPanel() {
+  const activeTabPanel = document.querySelector('.tab-panel.active');
+  if (activeTabPanel) {
+    const panel = activeTabPanel.querySelector('.filter-bar.collapsible');
+    if (panel) return panel;
   }
+  return document.querySelector('.filter-bar.collapsible');
 }
-
-// Toggle the .filter-bar.collapsible panel belonging to the currently active
-// .tab-panel inside `container` (a [data-tabs] element) — for modules with one
-// filter row per tab (Beasiswa, Payment Memo) instead of a single shared
-// filter row like ETF PA (which uses toggleFilterPanel(panelId, btnId) directly).
-function toggleActiveTabFilter(container, btnId) {
-  if (!container) return;
-  const activePanel = container.querySelector(".tab-panel.active");
-  const panel = activePanel && activePanel.querySelector(".filter-bar.collapsible");
-  if (!panel) return;
-  if (!panel.id) panel.id = "fh-tab-filter-" + Math.random().toString(36).slice(2, 8);
-  toggleFilterPanel(panel.id, btnId);
-}
-
-// Recomputes a filter-toggle badge from how many inputs/selects inside `panel`
-// currently hold a non-empty value — generic so per-module filter fields don't
-// need to be hardcoded (relies on the existing "empty-string = Semua ..." default
-// option convention already used throughout FinanceHub's filter dropdowns).
-function refreshFilterBadge(panel, btnId) {
-  if (!panel) return;
-  let n = 0;
-  panel.querySelectorAll("input, select").forEach(el => {
-    if (el.type === "checkbox" || el.type === "radio") return;
-    if ((el.value || "").trim() !== "") n++;
-  });
-  updateFilterBadge(btnId, n);
-}
-
-function updateFilterBadge(btnId, count) {
-  const btn = document.getElementById(btnId);
-  if (!btn) return;
-  let badge = btn.querySelector(".filter-badge");
-  if (count > 0) {
-    if (!badge) {
-      badge = document.createElement("span");
-      badge.className = "filter-badge";
-      btn.appendChild(badge);
-    }
-    badge.textContent = count;
-  } else if (badge) {
-    badge.remove();
-  }
-}
-
-function enterFocusMode() {
-  document.body.classList.add('fh-focus');
-  setTimeout(() => window.dispatchEvent(new Event('resize')), 240); // wait for navbar collapse transition
-}
-function exitFocusMode() {
-  document.body.classList.remove('fh-focus');
-  setTimeout(() => window.dispatchEvent(new Event('resize')), 240);
-}
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.body.classList.contains('fh-focus')) exitFocusMode();
-});
 
 // Steps the active .tab-btn within `.tabs` by `delta` positions (wraps around
 // at either end) and clicks the resulting tab. Works for both server-rendered
@@ -645,30 +571,66 @@ document.addEventListener('keydown', e => {
 // listener) since it delegates to whatever the tab element already does.
 function pressTabStep(delta) {
   const tabs = [...document.querySelectorAll('.tabs .tab-btn')];
-  if (!tabs.length) return;
+  if (!tabs.length) return false;
   const activeIdx = tabs.findIndex(t => t.classList.contains('active'));
   const from = activeIdx === -1 ? 0 : activeIdx;
   const next = (from + delta + tabs.length) % tabs.length;
   tabs[next].click();
+  return true;
 }
 
-// Global shortcuts: F toggles the filter panel, Alt+←/→ steps tabs, Alt+↑
-// opens Ganti Perusahaan. Skipped entirely while focus is in a typing field
-// so normal typing (including the letter "f") is never hijacked — see
+// Steps between top-level modules via the navbar's flat module-link list —
+// the fallback for Alt+←/→ on pages with no .tabs .tab-btn to step, e.g.
+// Dashboard (base.html never renders the unified-header module dropdown for
+// active_page == 'dashboard', so it always has this flat .navbar-menu-item
+// list instead). .click() on an <a href> triggers normal navigation, same
+// trick pressTabStep already relies on for ETF PA's anchor-based tabs.
+function pressModuleStep(delta) {
+  const mods = [...document.querySelectorAll('.navbar-menu-item')];
+  if (!mods.length) return;
+  const activeIdx = mods.findIndex(m => m.classList.contains('active'));
+  const from = activeIdx === -1 ? 0 : activeIdx;
+  const next = (from + delta + mods.length) % mods.length;
+  mods[next].click();
+}
+
+// Global shortcuts: F toggles the filter panel, Alt+←/→ steps tabs (or
+// top-level modules on pages with no sub-tabs, e.g. Dashboard), Alt+↑ opens
+// Ganti Perusahaan. Skipped entirely while focus is in a typing field so
+// normal typing (including the letter "f") is never hijacked — see
 // docs/superpowers/specs/2026-07-13-financehub-keyboard-shortcuts-design.md §2.2
 document.addEventListener('keydown', e => {
   const el = document.activeElement;
   const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+  
+  if (e.key === 'Escape') {
+    const panel = getActiveFilterPanel();
+    if (panel && panel.classList.contains('open')) {
+      panel.classList.remove('open');
+      if (typing) el.blur(); // Also blur the search input if focused
+      return;
+    }
+  }
+
   if (typing) return;
+  
   if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
     e.preventDefault();
-    pressTabStep(e.key === 'ArrowRight' ? 1 : -1);
+    const delta = e.key === 'ArrowRight' ? 1 : -1;
+    if (!pressTabStep(delta)) pressModuleStep(delta);
   } else if (e.altKey && e.key === 'ArrowUp') {
     const companyLink = document.querySelector('.navbar-company');
     if (companyLink) { e.preventDefault(); companyLink.click(); }
   } else if (!e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'f') {
     e.preventDefault();
-    document.querySelector('.btn-filter-toggle')?.click();
+    const panel = getActiveFilterPanel();
+    if (panel) {
+      panel.classList.add('open');
+      if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+        const searchInput = panel.querySelector('input[type="text"]');
+        if (searchInput) searchInput.focus();
+      }
+    }
   }
 });
 

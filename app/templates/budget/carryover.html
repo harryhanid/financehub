@@ -34,7 +34,7 @@
         <td>
           {% if log.status == 'Pending' %}
           <button class="budget-btn" onclick="budgetApproveRequest('{{ log.budget_id }}', '{{ log.type }}')">Approve</button>
-          <button class="budget-btn budget-btn-danger" onclick="budgetRejectRequest('{{ log.budget_id }}')">Reject</button>
+          <button class="budget-btn budget-btn-danger" onclick="budgetRejectRequest('{{ log.budget_id }}', '{{ log.type }}')">Reject</button>
           {% endif %}
         </td>
       </tr>

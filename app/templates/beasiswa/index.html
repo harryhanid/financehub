@@ -23,27 +23,7 @@
 {% if wrong_company %}
   {% include "beasiswa/_notice.html" %}
 {% else %}
-{# ── Focus mode exit button (fixed, visible only in focus mode) ─────────── #}
-<button id="fh-focus-exit" onclick="exitFocusMode()" title="Keluar Focus Mode (Esc)">
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
-  Tampilkan Filter
-</button>
 
-<div data-tabs>
-<div class="fh-content-toolbar">
-  <div class="page-toolbar-actions">
-    <button id="bsw-filter-toggle" class="btn btn-secondary btn-sm btn-filter-toggle"
-            onclick="toggleActiveTabFilter(this.closest('[data-tabs]'), 'bsw-filter-toggle')" title="Tampilkan/sembunyikan filter">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-      Filter
-      <kbd class="fh-kbd">F</kbd>
-    </button>
-    <button id="bsw-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-      Full Screen
-    </button>
-  </div>
-</div>
 
   <!-- TAB DASHBOARD -->
   <div class="tab-panel" id="tab-dashboard">

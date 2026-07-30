@@ -13,14 +13,14 @@ function budgetRealisasiEdit(btn) {
   // fields like description can't break out of the inline handler.
   const row = btn.closest("tr");
   document.getElementById("br-trx-id").value = row.dataset.trxId || "";
-  document.getElementById("br-budget-id").value = "";
+  document.getElementById("br-budget-id").value = row.dataset.budgetId || "";
   document.getElementById("br-description").value = row.dataset.description || "";
   document.getElementById("br-amount").value = row.dataset.amount || "";
   document.getElementById("br-tanggal").value = row.dataset.tanggal || "";
   openModal("budget-realisasi-modal");
 }
 
-function budgetRealisasiSave() {
+async function budgetRealisasiSave() {
   const trxId = document.getElementById("br-trx-id").value;
   const payload = {
     budget_id: document.getElementById("br-budget-id").value,
@@ -29,27 +29,35 @@ function budgetRealisasiSave() {
     amount: document.getElementById("br-amount").value,
   };
   const url = trxId ? "/budget/realisasi/" + trxId + "/update" : "/budget/realisasi/create";
-  fetch(url, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-  }).then(function (r) { return r.json(); }).then(function (data) {
+  showLoading(trxId ? "Memperbarui realisasi..." : "Menyimpan realisasi...");
+  try {
+    const resp = await apiFetch(url, { method: "POST", body: JSON.stringify(payload) });
+    const data = await resp.json();
     showToast(data.pesan, data.ok ? "success" : "error");
-    if (data.ok) { closeModal("budget-realisasi-modal"); window.location.reload(); }
-  }).catch(function () {
+    if (data.ok) {
+      closeModal("budget-realisasi-modal");
+      setTimeout(() => window.location.reload(), 1000);
+    }
+  } catch (e) {
     showToast("Gagal menyimpan realisasi.", "error");
-  });
+  } finally {
+    hideLoading();
+  }
 }
 
-function budgetRealisasiDelete(trxId) {
-  confirmModal("Hapus transaksi " + trxId + "?", { type: "danger" }).then(function (confirmed) {
-    if (!confirmed) return;
-    fetch("/budget/realisasi/" + trxId + "/delete", { method: "POST" })
-      .then(function (r) { return r.json(); }).then(function (data) {
-        showToast(data.pesan, data.ok ? "success" : "error");
-        if (data.ok) window.location.reload();
-      }).catch(function () {
-        showToast("Gagal menghapus realisasi.", "error");
-      });
-  });
+async function budgetRealisasiDelete(trxId) {
+  if (!await confirmModal("Hapus transaksi " + trxId + "?", { type: "danger", confirmText: "Hapus" })) return;
+  showLoading("Menghapus realisasi...");
+  try {
+    const resp = await apiFetch("/budget/realisasi/" + trxId + "/delete", { method: "POST" });
+    const data = await resp.json();
+    showToast(data.pesan, data.ok ? "success" : "error");
+    if (data.ok) setTimeout(() => window.location.reload(), 1000);
+  } catch (e) {
+    showToast("Gagal menghapus realisasi.", "error");
+  } finally {
+    hideLoading();
+  }
 }
 
 document.addEventListener("DOMContentLoaded", budgetRealisasiClearForm);

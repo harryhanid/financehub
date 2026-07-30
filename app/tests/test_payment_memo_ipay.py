@@ -46,10 +46,13 @@ def test_get_next_pam_no_app_uses_app_prefix():
     assert "APP" in result, f"Got: {result}"
 
 
-def test_get_next_pam_no_sml_uses_sml_prefix():
+def test_get_next_pam_no_sml_tab_uses_land_prefix():
+    """The 'sml' tab key is a legacy name — the correct pillar name is LAND
+    (see config._IPAY_PAM_PREFIX), so the generated PAM number must carry
+    the LAND prefix, not the old SML label."""
     result = get_next_pam_no(company_id=1, company_code="ETF",
                              tab="sml", date_str="2026-06-08")
-    assert "SML" in result, f"Got: {result}"
+    assert "LAND" in result, f"Got: {result}"
 
 
 from modules.payment_memo.service import save_pa_payment

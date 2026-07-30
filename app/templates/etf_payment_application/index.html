@@ -175,31 +175,7 @@
 {% endblock %}
 
 {% block content %}
-{# ── Focus mode exit button (fixed, visible only in focus mode) ─────────── #}
-<button id="fh-focus-exit" onclick="exitFocusMode()" title="Keluar Focus Mode (Esc)">
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
-  Tampilkan Filter
-</button>
 
-{# ── Header actions: Filter / Full Screen, relocated below the navbar ─────── #}
-<div id="pa-page-header" class="fh-page-header">
-<div class="fh-content-toolbar">
-  {% if active_tab != 'input' %}
-  <div class="page-toolbar-actions">
-    <button id="pa-filter-toggle" class="btn btn-secondary btn-sm btn-filter-toggle" onclick="toggleFilterPanel('pa-filter-panel','pa-filter-toggle')" title="Tampilkan/sembunyikan filter">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-      Filter
-      <kbd class="fh-kbd">F</kbd>
-    </button>
-    {% if active_tab not in ('summary', 'advance') %}
-    <button id="pa-focus-btn" class="btn btn-secondary btn-sm" onclick="enterFocusMode()" title="Sembunyikan filter & navbar">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-      Full Screen
-    </button>
-    {% endif %}
-  </div>
-  {% endif %}
-</div>
 
 {# ── Filter + bulk bar: only on data tabs ────────────────────────────────── #}
 {% if active_tab not in ('input', 'summary', 'advance') %}
@@ -262,16 +238,7 @@
   <button class="btn btn-success btn-sm" onclick="exportETFExcel()">&#8595; Export Excel</button>
   <span id="f-count" style="font-size:11px;color:var(--text-muted)">{{ start_row }}-{{ end_row }} dari {{ total_rows }} baris</span>
 </div>
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const activeFilterCount = [
-    {{ f_nama | tojson }}, {{ f_jenjang | tojson }}, {{ f_program | tojson }},
-    {{ f_angkatan | tojson }}, {{ f_jenis | tojson }}, {{ f_pam | tojson }},
-    {{ f_bulan_pa | tojson }}, {{ f_tahun_pa | tojson }}
-  ].filter(Boolean).length;
-  updateFilterBadge("pa-filter-toggle", activeFilterCount);
-});
-</script>
+
 
 {# ── Bulk action toolbar ──────────────────────────────────────────────────── #}
 <div id="bulk-bar" style="display:none; align-items:center; gap:.75rem; margin-bottom:.5rem; padding:.5rem .75rem; background:var(--accent-surface); border:1px solid var(--accent-border); border-radius:6px; font-size:.82rem; flex-wrap:wrap">
@@ -486,7 +453,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>{{ r.tanggal_bayar or '--' }}</td>
         <td style="min-width:260px; white-space:pre-wrap; word-break:break-word; line-height:1.4">{{ r.keterangan or '--' }}</td>
         <td>
-          <span class="badge {% if r.status == 'complete' %}badge-green{% elif r.status == 'on_process' %}badge-yellow{% elif r.status == 'open' %}badge-blue{% elif r.status == 'rejected' %}badge-red{% else %}badge-gray{% endif %}">
+          <span class="badge {% if r.status == 'complete' %}badge-green{% elif r.status == 'on_process' or r.status == 'partial' %}badge-yellow{% elif r.status == 'open' %}badge-blue{% elif r.status == 'rejected' %}badge-red{% else %}badge-gray{% endif %}">
             {{ r.status | replace('_', ' ') | title }}
           </span>
         </td>
@@ -630,9 +597,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const _STATUS_STYLE = {
     open:       'background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd',
     on_process: 'background:#fef3c7;color:#92400e;border:1px solid #fbbf24',
+    partial:    'background:#fef9c3;color:#854d0e;border:1px solid #eab308',
     complete:   'background:#d1fae5;color:#065f46;border:1px solid #6ee7b7',
   };
-  const _STATUS_LABEL = { open:'Open', on_process:'On Process', complete:'Complete' };
+  const _STATUS_LABEL = { open:'Open', on_process:'On Process', partial:'Partial', complete:'Complete' };
   const _BADGE_BASE = 'border-radius:.25rem;padding:.1rem .4rem;font-size:.7rem;font-weight:700;white-space:nowrap;display:inline-block';
 
   function _pillarBadge(p) {
@@ -1287,12 +1255,17 @@ async function doBulkUpdate(field, value) {
   const ids = selectedPaIds();
   if (!ids.length) { showToast("Pilih baris terlebih dahulu.", "error"); return; }
   if (!await confirmModal(`Update ${ids.length} baris terpilih?`, { confirmText: "Update" })) return;
-  const resp = await apiFetch(`/etf-payment-application/bulk-update?tab=${ACTIVE_TAB}`, {
-    method: "POST", body: JSON.stringify({ pa_ids: ids, field, value })
-  });
-  const data = await resp.json();
-  showToast(data.pesan, data.ok ? "success" : "error");
-  if (data.ok) _updateRowCells(ids, field, value);
+  showLoading("Memperbarui data...");
+  try {
+    const resp = await apiFetch(`/etf-payment-application/bulk-update?tab=${ACTIVE_TAB}`, {
+      method: "POST", body: JSON.stringify({ pa_ids: ids, field, value })
+    });
+    const data = await resp.json();
+    showToast(data.pesan, data.ok ? "success" : "error");
+    if (data.ok) _updateRowCells(ids, field, value);
+  } finally {
+    hideLoading();
+  }
 }
 
 async function bulkFillDate() {
@@ -1438,13 +1411,29 @@ async function etfpaSimpanSiswa() {
     const el = document.getElementById(`etfpa-esiswa-ipk-pen${i}`);
     payload[`ipk_pen${i}`] = el ? (parseFloat(el.value) || 0) : 0;
   }
-  const res = await apiFetch(`/beasiswa/siswa/${_etfpaEditCode}/update`, { method: 'POST', body: JSON.stringify(payload) });
-  if (!res) return;
-  const data = await res.json();
-  showToast(data.pesan, data.ok ? 'success' : 'error');
-  if (data.ok) {
-    closeModal('modal-etfpa-edit-siswa');
-    if (_etfpaEditCb) _etfpaEditCb();
+  showLoading("Menyimpan data siswa...");
+  try {
+    const res = await apiFetch(`/beasiswa/siswa/${_etfpaEditCode}/update`, { method: 'POST', body: JSON.stringify(payload) });
+    if (!res) return;
+    const data = await res.json();
+    showToast(data.pesan, data.ok ? 'success' : 'error');
+    if (data.ok) {
+      closeModal('modal-etfpa-edit-siswa');
+      // Guaranteed baseline refresh — do not rely solely on the optional
+      // onSaved callback, so the IPK strip / siswa display never goes stale
+      // even if a future caller forgets to pass one.
+      try {
+        const rRes = await apiFetch(`/beasiswa/siswa/${_etfpaEditCode}`);
+        const rData = await rRes.json();
+        if (rData.ok) _etfpaUpdateCreateIpk(rData.data);
+        else showToast('Gagal memuat ulang IPK siswa — cek manual sebelum simpan.', 'error');
+      } catch (e) {
+        showToast('Gagal memuat ulang IPK siswa — cek manual sebelum simpan.', 'error');
+      }
+      if (_etfpaEditCb) _etfpaEditCb();
+    }
+  } finally {
+    hideLoading();
   }
 }
 function addPayLine() {
@@ -1477,21 +1466,26 @@ async function submitPA() {
     });
   }
   const selectedRoute = document.querySelector('input[name="pa-route"]:checked')?.value || 'gl';
-  const resp = await apiFetch(`/etf-payment-application/create?tab=${selectedTab}`, {
-    method: 'POST',
-    body: JSON.stringify({
-      tgl_payment_application: tglApp,
-      tgl_surat_pengajuan:     document.getElementById('pa-tgl-surat').value,
-      keterangan:              document.getElementById('pa-keterangan').value,
-      doc_received_by_educ:    document.getElementById('pa-doc-recv').value,
-      received_pa_from_educ:   document.getElementById('pa-recv-pa').value,
-      route:                   selectedRoute,
-      lines,
-    })
-  });
-  const data = await resp.json();
-  showToast(data.pesan, data.ok ? 'success' : 'error');
-  if (data.ok) { setTimeout(() => { window.location.href = `?tab=${selectedTab}`; }, 800); }
+  showLoading("Menyimpan Payment Application...");
+  try {
+    const resp = await apiFetch(`/etf-payment-application/create?tab=${selectedTab}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        tgl_payment_application: tglApp,
+        tgl_surat_pengajuan:     document.getElementById('pa-tgl-surat').value,
+        keterangan:              document.getElementById('pa-keterangan').value,
+        doc_received_by_educ:    document.getElementById('pa-doc-recv').value,
+        received_pa_from_educ:   document.getElementById('pa-recv-pa').value,
+        route:                   selectedRoute,
+        lines,
+      })
+    });
+    const data = await resp.json();
+    showToast(data.pesan, data.ok ? 'success' : 'error');
+    if (data.ok) { setTimeout(() => { window.location.href = `?tab=${selectedTab}`; }, 800); }
+  } finally {
+    hideLoading();
+  }
 }
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
@@ -1500,12 +1494,17 @@ async function deletePa(paId, paNumber) {
     `Hapus PA "<strong>${paNumber}</strong>" beserta seluruh baris siswanya secara permanen?`,
     { type: 'danger', confirmText: 'Hapus' }
   )) return;
-  const res = await apiFetch(`/etf-payment-application/${paId}/delete?tab=${ACTIVE_TAB}`, { method: 'POST' });
-  if (!res) return;
-  const data = await res.json();
-  showToast(data.pesan, data.ok ? 'success' : 'error');
-  if (data.ok) {
-    document.querySelectorAll(`#pa-table tbody tr[data-pa-id="${paId}"]`).forEach(r => r.remove());
+  showLoading("Menghapus PA...");
+  try {
+    const res = await apiFetch(`/etf-payment-application/${paId}/delete?tab=${ACTIVE_TAB}`, { method: 'POST' });
+    if (!res) return;
+    const data = await res.json();
+    showToast(data.pesan, data.ok ? 'success' : 'error');
+    if (data.ok) {
+      document.querySelectorAll(`#pa-table tbody tr[data-pa-id="${paId}"]`).forEach(r => r.remove());
+    }
+  } finally {
+    hideLoading();
   }
 }
 
@@ -1568,10 +1567,15 @@ async function saveEdit() {
     ipk_sem_sebelumnya:      parseFloat(document.getElementById("edit-ipk").value) || 0,
     jumlah_pembayaran:       parseFloat(document.getElementById("edit-jumlah").value) || 0,
   };
-  const resp = await apiFetch(`/etf-payment-application/${paId}/update?tab=${ACTIVE_TAB}`, { method: "POST", body: JSON.stringify(payload) });
-  const data = await resp.json();
-  showToast(data.pesan, data.ok ? "success" : "error");
-  if (data.ok) { closeModal("modal-edit-pa"); setTimeout(() => location.reload(), 800); }
+  showLoading("Menyimpan perubahan...");
+  try {
+    const resp = await apiFetch(`/etf-payment-application/${paId}/update?tab=${ACTIVE_TAB}`, { method: "POST", body: JSON.stringify(payload) });
+    const data = await resp.json();
+    showToast(data.pesan, data.ok ? "success" : "error");
+    if (data.ok) { closeModal("modal-edit-pa"); setTimeout(() => location.reload(), 800); }
+  } finally {
+    hideLoading();
+  }
 }
 
 function exportETFExcel() {

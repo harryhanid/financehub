@@ -1,6 +1,6 @@
-<div class="budget-toolbar">
-  <a class="budget-btn{{ ' active' if active_tab == 'dashboard' else '' }}" href="{{ url_for('sponsorship.index') }}">Dashboard</a>
-  <a class="budget-btn{{ ' active' if active_tab == 'input' else '' }}" href="{{ url_for('sponsorship.input_page') }}">Input</a>
-  <a class="budget-btn{{ ' active' if active_tab == 'data' else '' }}" href="{{ url_for('sponsorship.data_page') }}">Data</a>
-  <a class="budget-btn{{ ' active' if active_tab == 'report' else '' }}" href="{{ url_for('sponsorship.report_page') }}">Report</a>
+<div class="tabs" style="margin-bottom:0">
+  <a class="tab-btn{{ ' active' if active_tab == 'dashboard' else '' }}" href="{{ url_for('sponsorship.index') }}">Dashboard</a>
+  <a class="tab-btn{{ ' active' if active_tab == 'input' else '' }}" href="{{ url_for('sponsorship.input_page') }}">Input</a>
+  <a class="tab-btn{{ ' active' if active_tab == 'data' else '' }}" href="{{ url_for('sponsorship.data_page') }}">Data</a>
+  <a class="tab-btn{{ ' active' if active_tab == 'report' else '' }}" href="{{ url_for('sponsorship.report_page') }}">Report</a>
 </div>

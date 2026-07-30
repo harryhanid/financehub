@@ -97,6 +97,20 @@ def test_index_filter_all_shows_full_history(client):
     assert b"PAM-AUG" in resp.data
 
 
+def test_index_non_numeric_bulan_does_not_crash(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/bank/?bulan=abc")
+    assert resp.status_code == 200
+
+
+def test_index_non_numeric_tahun_does_not_crash(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/bank/?tahun=xyz")
+    assert resp.status_code == 200
+
+
 def test_index_defaults_to_current_month_and_year(client):
     login(client)
     _select_etf(client)

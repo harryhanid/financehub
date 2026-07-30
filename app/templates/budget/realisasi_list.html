@@ -15,7 +15,7 @@
     </thead>
     <tbody>
       {% for r in realisasi %}
-      <tr data-trx-id="{{ r.trx_id }}" data-description="{{ r.description }}" data-amount="{{ r.amount }}" data-tanggal="{{ r.tanggal_realisasi }}">
+      <tr data-trx-id="{{ r.trx_id }}" data-budget-id="{{ r.budget_id }}" data-description="{{ r.description }}" data-amount="{{ r.amount }}" data-tanggal="{{ r.tanggal_realisasi }}">
         <td>{{ r.trx_id }}</td>
         <td>{{ r.budget_id }}</td>
         <td>{{ r.tanggal_realisasi }}</td>

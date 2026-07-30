@@ -24,7 +24,7 @@ from modules.payment_memo.service import (
     get_next_pam_no, save_pa_payment, check_pam_no_exists,
     get_pam_by_pillar, upsert_pam_lines, bulk_update_pam_lines_dates,
     get_siswa_medical, save_klaim_payment, save_others_payment,
-    bulk_complete_pams,
+    bulk_complete_pams, mark_beasiswa_lines_complete,
     get_pam_beasiswa_lines,
     get_advance_payments, realize_advance_payment,
 )
@@ -92,14 +92,14 @@ def index():
 
 
 @bp.route("/drafts")
-@jwt_html_required
+@json_required
 def list_drafts():
     rows = get_draft_payments(session.get("company_id"))
     return jsonify({"ok": True, "rows": rows})
 
 
 @bp.route("/create", methods=["POST"])
-@jwt_html_required
+@json_required
 def create():
     data         = request.get_json(force=True)
     company_id   = session.get("company_id")
@@ -121,7 +121,7 @@ def create():
 
 
 @bp.route("/<int:memo_id>")
-@jwt_html_required
+@json_required
 def memo_detail_api(memo_id):
     memo = get_memo_detail(memo_id, session.get("company_id"))
     if not memo:
@@ -130,7 +130,7 @@ def memo_detail_api(memo_id):
 
 
 @bp.route("/<int:memo_id>/status", methods=["POST"])
-@jwt_html_required
+@json_required
 def update_status(memo_id):
     data       = request.get_json(force=True)
     new_status = data.get("status", "")
@@ -160,14 +160,14 @@ def export_pdf(memo_id):
 
 
 @bp.route("/coa")
-@jwt_html_required
+@json_required
 def list_coa():
     # COA is a global lookup — same chart of accounts across all companies
     return jsonify({"ok": True, "coa": get_coa_list()})
 
 
 @bp.route("/pam")
-@jwt_html_required
+@json_required
 def list_pam():
     company_id = session.get("company_id")
     if not company_id:
@@ -183,7 +183,7 @@ def list_pam():
 
 
 @bp.route("/pam/<int:pam_id>/status", methods=["POST"])
-@jwt_html_required
+@json_required
 def update_pam_status_route(pam_id):
     data       = request.get_json(force=True) or {}
     new_status = (data.get("status") or "").strip()
@@ -194,7 +194,7 @@ def update_pam_status_route(pam_id):
 
 
 @bp.route("/pam/<int:pam_id>/detail")
-@jwt_html_required
+@json_required
 def get_pam_detail_route(pam_id):
     company_id = session.get("company_id", 0)
     detail = get_pam_detail(pam_id, company_id)
@@ -207,7 +207,7 @@ def get_pam_detail_route(pam_id):
 
 
 @bp.route("/pam/<int:pam_id>/beasiswa-lines")
-@jwt_html_required
+@json_required
 def get_pam_beasiswa_lines_route(pam_id):
     company_id = session.get("company_id")
     if not company_id:
@@ -219,14 +219,14 @@ def get_pam_beasiswa_lines_route(pam_id):
     return jsonify({"ok": True, "rows": rows, "total": total})
 
 @bp.route("/pam/<int:pam_id>/transaction-lines")
-@jwt_html_required
+@json_required
 def get_pam_transaction_lines_route_api(pam_id):
     rows = get_pam_transaction_lines(pam_id)
     return jsonify({"ok": True, "rows": rows})
 
 
 @bp.route("/pam/<int:pam_id>/edit", methods=["POST"])
-@jwt_html_required
+@json_required
 def update_pam_record_route(pam_id):
     data     = request.get_json(force=True) or {}
     pam_data = data.get("pam", {})
@@ -236,7 +236,7 @@ def update_pam_record_route(pam_id):
 
 
 @bp.route("/drafts/<int:payment_id>")
-@jwt_html_required
+@json_required
 def get_draft_detail_route(payment_id):
     detail = get_draft_payment_detail(payment_id, session.get("company_id", 0))
     if not detail:
@@ -245,7 +245,7 @@ def get_draft_detail_route(payment_id):
 
 
 @bp.route("/drafts/<int:payment_id>/edit", methods=["POST"])
-@jwt_html_required
+@json_required
 def update_draft_route(payment_id):
     data     = request.get_json(force=True) or {}
     pb_data  = data.get("payment", {})
@@ -257,14 +257,14 @@ def update_draft_route(payment_id):
 
 
 @bp.route("/drafts/<int:payment_id>/delete", methods=["POST"])
-@jwt_html_required
+@json_required
 def delete_draft_route(payment_id):
     result = delete_payment_beasiswa(payment_id, session.get("company_id", 0))
     return jsonify(result)
 
 
 @bp.route("/pam/remove-student", methods=["POST"])
-@jwt_html_required
+@json_required
 def pam_remove_student_route():
     data = request.get_json() or {}
     payment_beasiswa_id = data.get("payment_beasiswa_id")
@@ -275,7 +275,7 @@ def pam_remove_student_route():
 
 
 @bp.route("/pam/reject-student", methods=["POST"])
-@jwt_html_required
+@json_required
 def pam_reject_student_route():
     data = request.get_json() or {}
     payment_beasiswa_id = data.get("payment_beasiswa_id")
@@ -327,7 +327,7 @@ def export_pam_excel_route(pam_id):
 
 
 @bp.route("/days-of-pam/bulk-update", methods=["POST"])
-@jwt_html_required
+@json_required
 def days_of_pam_bulk_update():
     company_id = session.get("company_id")
     if not company_id:
@@ -342,14 +342,14 @@ def days_of_pam_bulk_update():
 
 
 @bp.route("/pam/<int:pam_id>/cancel", methods=["POST"])
-@jwt_html_required
+@json_required
 def cancel_pam_route(pam_id):
     result = cancel_pam_record(pam_id, session.get("company_id", 0))
     return jsonify(result)
 
 
 @bp.route("/pam/<int:pam_id>/reject", methods=["POST"])
-@jwt_html_required
+@json_required
 def reject_pam_route(pam_id):
     data = request.get_json() or {}
     reason = data.get("reason") or None
@@ -358,7 +358,7 @@ def reject_pam_route(pam_id):
 
 
 @bp.route("/pam/<int:pam_id>/gl-account", methods=["POST"])
-@jwt_html_required
+@json_required
 def update_gl_account(pam_id):
     data       = request.get_json(force=True) or {}
     gl_account = (data.get("gl_account") or "").strip()
@@ -369,7 +369,7 @@ def update_gl_account(pam_id):
 
 
 @bp.route("/pam/<int:pam_id>/export/pdf-custom", methods=["POST"])
-@jwt_html_required
+@json_required
 def export_pam_pdf_custom_route(pam_id):
     data       = request.get_json(force=True) or {}
     company_id = session.get("company_id", 0)
@@ -390,7 +390,7 @@ def export_pam_pdf_custom_route(pam_id):
 
 
 @bp.route("/pam/<int:pam_id>/export/excel-custom", methods=["POST"])
-@jwt_html_required
+@json_required
 def export_pam_excel_custom_route(pam_id):
     data       = request.get_json(force=True) or {}
     company_id = session.get("company_id", 0)
@@ -483,7 +483,7 @@ def export_sml_route():
 
 
 @bp.route("/<int:memo_id>/tanggal-bayar", methods=["POST"])
-@jwt_html_required
+@json_required
 def memo_tanggal_bayar(memo_id):
     company_id = session.get("company_id")
     data = request.get_json(force=True) or {}
@@ -495,7 +495,7 @@ def memo_tanggal_bayar(memo_id):
 
 
 @bp.route("/fiori")
-@jwt_html_required
+@json_required
 def fiori_list():
     search = request.args.get("search", "").strip()
     bulan  = request.args.get("bulan",  "").strip()
@@ -505,7 +505,7 @@ def fiori_list():
 
 
 @bp.route("/fiori/bulk-update", methods=["POST"])
-@jwt_html_required
+@json_required
 def fiori_bulk_update():
     data  = request.get_json(force=True) or {}
     ids   = data.get("ids", [])
@@ -515,20 +515,20 @@ def fiori_bulk_update():
 
 
 @bp.route("/fiori/<int:record_id>/status", methods=["POST"])
-@jwt_html_required
+@json_required
 def fiori_status(record_id):
     data = request.get_json(force=True) or {}
     return jsonify(update_fiori_status(record_id, data.get("status", "")))
 
 
 @bp.route("/fiori/<int:record_id>/cancel", methods=["POST"])
-@jwt_html_required
+@json_required
 def fiori_cancel(record_id):
     return jsonify(cancel_fiori_record(record_id))
 
 
 @bp.route("/sml")
-@jwt_html_required
+@json_required
 def sml_list_route():
     search = request.args.get("search", "").strip()
     bulan  = request.args.get("bulan",  "").strip()
@@ -538,21 +538,21 @@ def sml_list_route():
 
 
 @bp.route("/sml/bulk-update", methods=["POST"])
-@jwt_html_required
+@json_required
 def sml_bulk_update():
     data  = request.get_json(force=True) or {}
     return jsonify(bulk_update_sml_dates(data.get("ids", []), data.get("dates", {})))
 
 
 @bp.route("/sml/<int:record_id>/status", methods=["POST"])
-@jwt_html_required
+@json_required
 def sml_status(record_id):
     data = request.get_json(force=True) or {}
     return jsonify(update_sml_status(record_id, data.get("status", "")))
 
 
 @bp.route("/sml/<int:record_id>/cancel", methods=["POST"])
-@jwt_html_required
+@json_required
 def sml_cancel(record_id):
     return jsonify(cancel_sml_record(record_id))
 
@@ -560,7 +560,7 @@ def sml_cancel(record_id):
 # ── PAM by-pillar endpoints (standardized) ──────────────────────────────────
 
 @bp.route("/by-pillar/<pillar>")
-@jwt_html_required
+@json_required
 def pam_by_pillar(pillar):
     """Return pam_records + lines for the given pillar (AGRI/APP/LAND/SETF)."""
     company_id = session.get("company_id")
@@ -576,7 +576,7 @@ def pam_by_pillar(pillar):
 
 
 @bp.route("/pam/<int:pam_id>/lines", methods=["PATCH"])
-@jwt_html_required
+@json_required
 def update_pam_lines(pam_id):
     """Upsert lines row (U-AC columns) for a single PAM record."""
     company_id = session.get("company_id")
@@ -592,7 +592,7 @@ def update_pam_lines(pam_id):
 
 
 @bp.route("/pam-lines/bulk-update", methods=["POST"])
-@jwt_html_required
+@json_required
 def pam_lines_bulk_update():
     """Bulk-set one date field in {pillar}_pam_lines for selected pam_records ids."""
     company_id = session.get("company_id")
@@ -610,7 +610,7 @@ def pam_lines_bulk_update():
 
 
 @bp.route("/fiori/<int:record_id>/detail")
-@jwt_html_required
+@json_required
 def fiori_detail(record_id):
     data = get_fiori_detail(record_id)
     if not data:
@@ -619,7 +619,7 @@ def fiori_detail(record_id):
 
 
 @bp.route("/fiori/<int:record_id>/edit", methods=["POST"])
-@jwt_html_required
+@json_required
 def fiori_edit(record_id):
     data = request.get_json(force=True) or {}
     return jsonify(update_fiori_record(record_id, data))
@@ -628,7 +628,7 @@ def fiori_edit(record_id):
 # ── AGRI ETF-PA → PAM workflow endpoints ────────────────────────────────────
 
 @bp.route("/agri-pa-open")
-@jwt_html_required
+@json_required
 def agri_pa_open():
     """Return etf_pa with status='open' untuk dipilih di Input AGRI."""
     company_id = session.get("company_id")
@@ -636,7 +636,7 @@ def agri_pa_open():
 
 
 @bp.route("/create-agri-pam", methods=["POST"])
-@jwt_html_required
+@json_required
 def create_agri_pam():
     """Buat PAM dari etf_pa yang dipilih → on_process + nomor_pam."""
     company_id   = session.get("company_id")
@@ -649,7 +649,7 @@ def create_agri_pam():
 
 
 @bp.route("/pam/<int:pam_id>/set-paid-agri", methods=["POST"])
-@jwt_html_required
+@json_required
 def set_paid_agri(pam_id):
     """Set tanggal_bayar di PAM AGRI → cascade complete ke etf_pa."""
     company_id   = session.get("company_id")
@@ -659,7 +659,7 @@ def set_paid_agri(pam_id):
 
 
 @bp.route("/pam/check")
-@jwt_html_required
+@json_required
 def check_pam_no_route():
     pam_no = (request.args.get("pam_no") or "").strip()
     if not pam_no:
@@ -682,7 +682,7 @@ def ipay_next_pam_no():
 
 
 @bp.route("/ipay/save-pa", methods=["POST"])
-@jwt_html_required
+@json_required
 def ipay_save_pa():
     data         = request.get_json(force=True) or {}
     company_id   = session.get("company_id", 0)
@@ -692,7 +692,7 @@ def ipay_save_pa():
 
 
 @bp.route("/advance/list")
-@jwt_html_required
+@json_required
 def advance_list():
     company_id = session.get("company_id")
     if not company_id:
@@ -706,7 +706,7 @@ def advance_list():
 
 
 @bp.route("/advance/<int:payment_id>/realize", methods=["POST"])
-@jwt_html_required
+@json_required
 def advance_realize(payment_id):
     company_id      = session.get("company_id", 0)
     data            = request.get_json(force=True) or {}
@@ -717,7 +717,7 @@ def advance_realize(payment_id):
 
 
 @bp.route("/ipay/siswa-medical")
-@jwt_html_required
+@json_required
 def ipay_siswa_medical():
     company_id = session.get("company_id", 0)
     search     = request.args.get("search", "")
@@ -726,7 +726,7 @@ def ipay_siswa_medical():
 
 
 @bp.route("/ipay/save-klaim", methods=["POST"])
-@jwt_html_required
+@json_required
 def ipay_save_klaim():
     data         = request.get_json(force=True) or {}
     company_id   = session.get("company_id", 0)
@@ -736,7 +736,7 @@ def ipay_save_klaim():
 
 
 @bp.route("/ipay/save-others", methods=["POST"])
-@jwt_html_required
+@json_required
 def ipay_save_others():
     data         = request.get_json(force=True) or {}
     company_id   = session.get("company_id", 0)
@@ -746,7 +746,7 @@ def ipay_save_others():
 
 
 @bp.route("/ipay/save-smt-lines", methods=["POST"])
-@jwt_html_required
+@json_required
 def ipay_save_smt_lines():
     data         = request.get_json(force=True) or {}
     company_id   = session.get("company_id", 0)
@@ -755,7 +755,7 @@ def ipay_save_smt_lines():
     return jsonify(result)
 
 @bp.route("/open-pam/mark-complete", methods=["POST"])
-@jwt_html_required
+@json_required
 def open_pam_mark_complete():
     company_id = session.get("company_id")
     data = request.get_json(force=True) or {}
@@ -768,22 +768,36 @@ def open_pam_mark_complete():
     return jsonify(bulk_complete_pams(company_id, pams, tanggal_bayar))
 
 
+@bp.route("/open-pam/mark-lines-complete", methods=["POST"])
+@json_required
+def open_pam_mark_lines_complete():
+    company_id = session.get("company_id")
+    data = request.get_json(force=True) or {}
+    payment_ids = data.get("payment_ids", [])
+    tanggal_bayar = data.get("tanggal_bayar", "")
+
+    if not payment_ids or not tanggal_bayar:
+        return jsonify({"ok": False, "pesan": "Pilih baris dan isi Tanggal Paid."})
+
+    return jsonify(mark_beasiswa_lines_complete(payment_ids, tanggal_bayar, company_id))
+
+
 @bp.route("/vendors")
-@jwt_html_required
+@json_required
 def vendors_list():
     search = request.args.get("search", "").strip()
     return jsonify({"ok": True, "rows": list_vendors(search)})
 
 
 @bp.route("/vendors/add", methods=["POST"])
-@jwt_html_required
+@json_required
 def vendors_add():
     data = request.get_json(force=True) or {}
     return jsonify(add_vendor(data.get("name", ""), data.get("pillar", ""), data.get("cost_center", "")))
 
 
 @bp.route("/vendors/<int:vendor_id>/edit", methods=["POST"])
-@jwt_html_required
+@json_required
 def vendors_edit(vendor_id):
     data = request.get_json(force=True) or {}
     return jsonify(update_vendor(vendor_id, data.get("name", ""), data.get("pillar", ""), data.get("cost_center", "")))

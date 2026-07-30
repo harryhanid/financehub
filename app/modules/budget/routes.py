@@ -229,6 +229,19 @@ def carryover_reject(budget_id):
     return jsonify(result)
 
 
+@bp.route("/additional/<budget_id>/reject", methods=["POST"])
+@role_required("releaser")
+def additional_reject(budget_id):
+    # reject_request() is type-agnostic (a budget_id can only have one
+    # Pending request at a time, enforced in request_carryover/
+    # request_additional_budget), so it's safe to reuse for both types —
+    # this route just closes the missing endpoint the frontend needs to
+    # reject an "Additional" request without hitting the wrong resource.
+    payload = request.get_json(force=True)
+    result = reject_request(budget_id, _current_username(), payload.get("reason", ""))
+    return jsonify(result)
+
+
 @bp.route("/export/<report_type>")
 @jwt_html_required
 def export_route(report_type):

@@ -1135,6 +1135,8 @@ def get_rekap(company_id: int, program: str = "", pillar: str = "",
     return result
 
 
+# --- Dashboard Functions ---
+
 def _year_filter_sql(years, column):
     if not years:
         return "", []

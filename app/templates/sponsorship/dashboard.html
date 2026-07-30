@@ -5,11 +5,13 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 {% endblock %}
+{% block module_tabs %}
+{% set active_tab = "dashboard" %}
+{% include "sponsorship/_toolbar.html" with context %}
+{% endblock %}
 {% block content %}
 <div class="budget-page">
   <h1>Sponsorship — Dashboard</h1>
-  {% set active_tab = "dashboard" %}
-  {% include "sponsorship/_toolbar.html" with context %}
   {% if wrong_company %}
     {% include "sponsorship/_notice.html" %}
   {% else %}

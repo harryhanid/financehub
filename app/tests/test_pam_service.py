@@ -935,6 +935,39 @@ def test_save_pa_payment_no_pa_line_id_defaults_to_gl():
     assert pam["pillar"] == "AGRI"
 
 
+def test_update_pam_and_application_rejects_comma_joined_pam_no():
+    """A pam_no containing ',' or ';' must be rejected — a joined value like
+    "PA1,PA2" would get written verbatim to pam_records.pam_no and cascaded
+    into payment_beasiswa.pam, permanently breaking the exact-match lookup
+    that Mark Complete (bulk_complete_pams) relies on."""
+    from modules.payment_memo.service import update_pam_and_application
+    conn = get_conn()
+    pam_no = create_pam_record(conn, COMPANY_ID, COMPANY_CODE, {
+        "pam_date": "2026-07-08", "gl_account": "70110230", "pt": "PT. ABC",
+        "requestors_name": "Jany Turkanda", "keterangan": "comma-test",
+        "total_amount": 1_000_000, "pillar": "APP",
+    })
+    conn.commit()
+    pam_id = conn.execute(
+        "SELECT id FROM pam_records WHERE company_id=? AND pam_no=?",
+        (COMPANY_ID, pam_no)
+    ).fetchone()["id"]
+    conn.close()
+
+    result = update_pam_and_application(
+        pam_id, {"pam_no": "PA341000000787330,PA341000000787650"}, {}, COMPANY_ID
+    )
+    assert result["ok"] is False
+    assert "satu nomor" in result["pesan"]
+
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT pam_no FROM pam_records WHERE id=?", (pam_id,)
+    ).fetchone()
+    conn.close()
+    assert row["pam_no"] == pam_no   # unchanged — rejected before UPDATE
+
+
 # ── Vendors ─────────────────────────────────────────────────────────────
 
 def test_list_vendors_returns_seeded_rows():
