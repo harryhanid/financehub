@@ -338,12 +338,9 @@ def get_sponsorship_report(company_id: int, tahun: str, cat4_mode: str) -> dict:
         group = by_description.get(description)
         if not group:
             continue
-        group.sort(key=lambda r: r["amount_request"], reverse=True)
 
-        section_rows = []
-        subtotal = {col: 0.0 for col in pillar_cols}
-        subtotal["total"] = 0.0
-        for i, r in enumerate(group, start=1):
+        agg = {}
+        for r in group:
             if cat4_mode == "bib_include" and r["cat1"] == "BORNEO INDOBARA":
                 amt = r["amount_request"]
                 r["agri_amount"] = amt * 0.51
@@ -351,16 +348,31 @@ def get_sponsorship_report(company_id: int, tahun: str, cat4_mode: str) -> dict:
                 r["app_amount"] = 0.0
                 r["property_amount"] = 0.0
 
-            row_out = {
-                "no": i,
-                "lembaga_perorangan": r["lembaga_perorangan"],
-                "perihal": r["perihal"],
-                "total": r["amount_request"],
-            }
+            key = (r["lembaga_perorangan"] or "", r["perihal"] or "")
+            if key not in agg:
+                agg[key] = {
+                    "lembaga_perorangan": r["lembaga_perorangan"],
+                    "perihal": r["perihal"],
+                    "total": r["amount_request"],
+                }
+                for col in pillar_cols:
+                    agg[key][col] = r[col]
+            else:
+                agg[key]["total"] += r["amount_request"]
+                for col in pillar_cols:
+                    agg[key][col] += r[col]
+
+        aggregated_rows = list(agg.values())
+        aggregated_rows.sort(key=lambda r: r["total"], reverse=True)
+
+        section_rows = []
+        subtotal = {col: 0.0 for col in pillar_cols}
+        subtotal["total"] = 0.0
+        for i, row_out in enumerate(aggregated_rows, start=1):
+            row_out["no"] = i
             for col in pillar_cols:
-                row_out[col] = r[col]
-                subtotal[col] += r[col]
-            subtotal["total"] += r["amount_request"]
+                subtotal[col] += row_out[col]
+            subtotal["total"] += row_out["total"]
             section_rows.append(row_out)
 
         sections.append({
