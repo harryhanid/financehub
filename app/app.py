@@ -65,7 +65,10 @@ def create_app(testing=False):
 
     @app.context_processor
     def inject_nav_modules():
-        from modules.dashboard.routes import DASHBOARD_TABS
+        from modules.dashboard.routes import (
+            DASHBOARD_TABS, MODULE_SUBTABS,
+            PAYMENT_MEMO_SUBTABS_SMT, PAYMENT_MEMO_SUBTABS_DEFAULT,
+        )
         from flask_jwt_extended import get_jwt
         from flask import session
         try:
@@ -80,8 +83,14 @@ def create_app(testing=False):
             hidden_keys.add("sponsorship")
         elif company_code == "SMT":
             hidden_keys.add("beasiswa")
+
+        def _subtabs_for(key):
+            if key == "payment_memo":
+                return PAYMENT_MEMO_SUBTABS_SMT if company_code == "SMT" else PAYMENT_MEMO_SUBTABS_DEFAULT
+            return MODULE_SUBTABS.get(key, [])
+
         nav_modules = [
-            {"name": name, "url": url_for(endpoint), "key": key}
+            {"name": name, "url": url_for(endpoint), "key": key, "subtabs": _subtabs_for(key)}
             for name, endpoint, key in DASHBOARD_TABS
             if key not in hidden_keys
         ]

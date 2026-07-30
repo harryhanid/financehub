@@ -19,6 +19,67 @@ DASHBOARD_TABS = [
     ("Users",                 "users.index",                   "users"),
 ]
 
+# Sub-tab previews for the Alt+Down module-switcher carousel. Mirrors each
+# module's own {% block module_tabs %} header markup exactly — entries use
+# "tab" for the existing ?tab= deep-link (initTabs() in app.js), or "url"
+# for modules whose "tabs" are actually separate routes (Budget, Sponsorship).
+MODULE_SUBTABS = {
+    "dashboard": [],
+    "beasiswa": [
+        {"label": "Dashboard",     "tab": "dashboard"},
+        {"label": "Data Siswa",    "tab": "siswa"},
+        {"label": "Data Budget",   "tab": "budget"},
+        {"label": "Data Payment",  "tab": "payment"},
+        {"label": "Report Siswa",  "tab": "laporan"},
+        {"label": "Rekam Medis",   "tab": "rekam"},
+        {"label": "Sahabat ETF",   "tab": "sahabat"},
+    ],
+    "etf_payment_app": [
+        {"label": "Open PA", "tab": "summary"},
+        {"label": "Advance", "tab": "advance"},
+        {"label": "Input",   "tab": "input"},
+        {"label": "AGRI",    "tab": "agri"},
+        {"label": "APP",     "tab": "app"},
+        {"label": "LAND",    "tab": "sml"},
+        {"label": "SETF",    "tab": "setf"},
+    ],
+    "budget": [
+        {"label": "Kelola Budget",         "url": "/budget/master"},
+        {"label": "Kelola Realisasi",      "url": "/budget/realisasi"},
+        {"label": "Carryover / Tambahan",  "url": "/budget/carryover"},
+    ],
+    "bank": [
+        {"label": "Mutasi & Saldo", "tab": "mutasi"},
+        {"label": "Open",           "tab": "open"},
+    ],
+    "sponsorship": [
+        {"label": "Dashboard", "url": "/sponsorship/"},
+        {"label": "Input",     "url": "/sponsorship/input"},
+        {"label": "Data",      "url": "/sponsorship/data"},
+        {"label": "Report",    "url": "/sponsorship/report"},
+    ],
+    "users": [],
+}
+
+PAYMENT_MEMO_SUBTABS_SMT = [
+    {"label": "Open PAM",   "tab": "draft-pay"},
+    {"label": "Input",      "tab": "input-payment"},
+    {"label": "PAM List",   "tab": "smt"},
+    {"label": "Advance",    "tab": "advance"},
+    {"label": "Print Memo", "tab": "draft-memo"},
+]
+PAYMENT_MEMO_SUBTABS_DEFAULT = [
+    {"label": "Open PAM",   "tab": "draft-pay"},
+    {"label": "Input",      "tab": "input-payment"},
+    {"label": "AGRI",       "tab": "pam"},
+    {"label": "APP",        "tab": "fiori"},
+    {"label": "LAND",       "tab": "sml"},
+    {"label": "SETF",       "tab": "setf"},
+    {"label": "Advance",    "tab": "pa-advance"},
+    {"label": "Vendors",    "tab": "vendors"},
+    {"label": "Print Memo", "tab": "draft-memo"},
+]
+
 
 def get_ctx():
     try:

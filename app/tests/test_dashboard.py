@@ -1,3 +1,4 @@
+import json
 # tests/test_dashboard.py
 
 def login(client):
@@ -92,3 +93,43 @@ def test_dashboard_page_opts_into_view_transitions(client):
     html = resp.data.decode()
     assert "@view-transition" in html
     assert "view-transition-name: flow-wordmark" in html
+
+
+def _nav_modules(html):
+    marker = '<script type="application/json" id="fh-nav-modules-data">'
+    start = html.index(marker) + len(marker)
+    end = html.index("</script>", start)
+    return json.loads(html[start:end])
+
+
+def test_nav_modules_subtabs_for_etf(client):
+    login(client)
+    select_etf(client)
+    resp = client.get("/dashboard")
+    by_key = {m["key"]: m for m in _nav_modules(resp.data.decode())}
+    assert "sponsorship" not in by_key
+    assert [t["tab"] for t in by_key["beasiswa"]["subtabs"]] == [
+        "dashboard", "siswa", "budget", "payment", "laporan", "rekam", "sahabat"
+    ]
+    assert [t["tab"] for t in by_key["payment_memo"]["subtabs"]] == [
+        "draft-pay", "input-payment", "pam", "fiori", "sml", "setf", "pa-advance", "vendors", "draft-memo"
+    ]
+    assert by_key["dashboard"]["subtabs"] == []
+    assert by_key["users"]["subtabs"] == []
+
+
+def test_nav_modules_subtabs_for_smt(client):
+    login(client)
+    select_smt(client)
+    resp = client.get("/dashboard")
+    by_key = {m["key"]: m for m in _nav_modules(resp.data.decode())}
+    assert "beasiswa" not in by_key
+    assert [t["tab"] for t in by_key["payment_memo"]["subtabs"]] == [
+        "draft-pay", "input-payment", "smt", "advance", "draft-memo"
+    ]
+    assert [t["url"] for t in by_key["sponsorship"]["subtabs"]] == [
+        "/sponsorship/", "/sponsorship/input", "/sponsorship/data", "/sponsorship/report"
+    ]
+    assert [t["url"] for t in by_key["budget"]["subtabs"]] == [
+        "/budget/master", "/budget/realisasi", "/budget/carryover"
+    ]

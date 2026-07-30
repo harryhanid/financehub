@@ -108,6 +108,7 @@ function toggleTheme() {
   window.dispatchEvent(new Event('fh-theme-changed'));
 }
 </script>
+<script type="application/json" id="fh-nav-modules-data">{{ nav_modules | tojson }}</script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <div id="modal-confirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-confirm-title" style="z-index:500">
   <div class="modal" style="max-width:380px">
