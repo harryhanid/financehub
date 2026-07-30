@@ -213,6 +213,9 @@ def _apply_filters(query: str, params: list, company_id: int, filters: dict):
     query += " AND company_id = ?"
     params.append(company_id)
     filters = filters or {}
+    if filters.get("cat1"):
+        query += " AND cat1 = ?"
+        params.append(filters["cat1"])
     if filters.get("cat"):
         query += " AND cat = ?"
         params.append(filters["cat"])
@@ -310,6 +313,9 @@ def get_sponsorship_report(company_id: int, tahun: str, cat4_mode: str) -> dict:
         filters["cat4"] = "Include"
     elif cat4_mode == "exclude":
         filters["cat4"] = "Exclude"
+    elif cat4_mode == "bib_include":
+        filters["cat4"] = "Include"
+        filters["cat1"] = "BORNEO INDOBARA"
     # cat4_mode == "all": no cat4 filter, includes NULL/blank cat4 rows
 
     rows = list_transaksi(company_id, filters)
@@ -339,6 +345,13 @@ def get_sponsorship_report(company_id: int, tahun: str, cat4_mode: str) -> dict:
         subtotal = {col: 0.0 for col in pillar_cols}
         subtotal["total"] = 0.0
         for i, r in enumerate(group, start=1):
+            if cat4_mode == "bib_include":
+                amt = r["amount_request"]
+                r["agri_amount"] = amt * 0.51
+                r["energy_finance_amount"] = amt * 0.49
+                r["app_amount"] = 0.0
+                r["property_amount"] = 0.0
+
             row_out = {
                 "no": i,
                 "lembaga_perorangan": r["lembaga_perorangan"],

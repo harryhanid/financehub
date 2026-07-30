@@ -68,7 +68,7 @@ def _parse_report_params():
         years = get_available_years(_cid())
         tahun = years[0] if years else str(datetime.now().year)
     cat4 = (request.args.get("cat4") or "all").lower()
-    if cat4 not in ("include", "exclude", "all"):
+    if cat4 not in ("include", "exclude", "all", "bib_include"):
         cat4 = "all"
     return tahun, cat4
 
