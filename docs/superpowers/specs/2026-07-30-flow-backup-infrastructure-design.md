@@ -39,7 +39,7 @@ Replace the existing narrow job with a general-purpose backup system that:
 | Module | Sub-module(s) | Company |
 |---|---|---|
 | Bank | Mutasi & Saldo | To confirm during planning: ETF-only (SETF pillar account) or also SMT |
-| Payment Approval Memo | Per-company tab set (SMT: PAM List, Advance · ETF: AGRI, APP, LAND/SML, SETF) — exact tab-to-export-function mapping to confirm during planning | SMT & ETF (different tabs per company) |
+| Payment Approval Memo | Per-company tab set (confirmed distinct tabs for SMT vs ETF exist; only "SMT: PAM List, Advance" and "ETF: AGRI, APP" verified directly so far — full tab list and each tab's export function to confirm during planning) | SMT & ETF (different tabs per company) |
 | Payment Application | AGRI/APP/LAND/SETF via `etf_payment_application.service.export_pa_excel`; the separate `/payment-application` blueprint's relevance to confirm during planning (per [FLOW Unified Header Navigation design](2026-07-29-flow-unified-header-navigation-design.md), it looked unwired) | ETF (SMT applicability to confirm) |
 | Sponsorship | Report | SMT only |
 | Beasiswa | Sahabat ETF only | ETF only |
