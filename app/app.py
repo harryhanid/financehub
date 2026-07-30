@@ -109,13 +109,13 @@ def create_app(testing=False):
         if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
             try:
                 from apscheduler.schedulers.background import BackgroundScheduler
-                from tasks.excel_backup import run_excel_backups
+                from tasks.flow_backup import run_flow_backups
                 
                 scheduler = BackgroundScheduler()
                 
                 def scheduled_backup_job():
                     with app.app_context():
-                        run_excel_backups()
+                        run_flow_backups()
                         
                 # Run at 17:00 on Mon-Fri
                 scheduler.add_job(func=scheduled_backup_job, trigger="cron", day_of_week="mon-fri", hour=17, minute=0)

@@ -4,8 +4,8 @@ import config
 from database import get_conn
 
 PILLAR_COLUMNS = {
-    "AGRI": "agri_amount",
     "APP": "app_amount",
+    "AGRI": "agri_amount",
     "ENERGY & FINANCE": "energy_finance_amount",
     "PROPERTY": "property_amount",
 }

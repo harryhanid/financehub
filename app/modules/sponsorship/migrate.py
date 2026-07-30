@@ -13,6 +13,17 @@ from database import get_conn
 from modules.sponsorship.service import seed_perusahaan
 
 VALID_CAT = ("Sponsorship", "CSR Gedung")
+_VALID_CAT_CI = {c.strip().lower(): c for c in VALID_CAT}
+
+
+def _normalize_cat(value):
+    """Case/whitespace-insensitive match against VALID_CAT, returning the
+    canonical casing (e.g. 'sponsorship' -> 'Sponsorship') so downstream
+    code never has to deal with inconsistent casing from source data entry
+    typos. Returns None if it doesn't match either valid value at all."""
+    if not isinstance(value, str):
+        return None
+    return _VALID_CAT_CI.get(value.strip().lower())
 
 
 def _cell_date(value):
@@ -43,9 +54,9 @@ def migrate_sponsorship_from_excel(perusahaan_xlsx_path: str, transaksi_xlsx_pat
     skipped = []
     try:
         for row in transaksi_ws.iter_rows(min_row=2, values_only=True):
-            cat = row[idx["Cat"]]
-            if cat not in VALID_CAT:
-                skipped.append(f"row with invalid Cat: {cat!r}")
+            cat = _normalize_cat(row[idx["Cat"]])
+            if cat is None:
+                skipped.append(f"row with invalid Cat: {row[idx['Cat']]!r}")
                 continue
 
             tanggal_form = row[idx["Tanggal Form Sponsor"]]

@@ -1,5 +1,6 @@
 import os
 import datetime
+import pytest
 import config
 import tasks.flow_backup as flow_backup
 from tasks.flow_backup import _cleanup_old_files
@@ -108,4 +109,17 @@ def test_run_flow_backups_runs_both_excel_and_sqlite(tmp_path, monkeypatch):
     today_str = datetime.datetime.now().strftime("%Y-%m-%d")
     assert (tmp_path / "Dsqlite Backup" / f"finance_hub_{today_str}.db").exists()
     assert (tmp_path / "Eka Tjipta Foundation" / "Bank" / "Mutasi & Saldo" / f"{today_str}.xlsx").exists()
+
+
+def test_app_module_no_longer_imports_the_old_excel_backup_task():
+    import app as app_module
+    source = open(app_module.__file__).read()
+    assert "tasks.excel_backup" not in source
+    assert "run_flow_backups" in source
+
+
+def test_old_excel_backup_module_is_removed():
+    import importlib
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("tasks.excel_backup")
 

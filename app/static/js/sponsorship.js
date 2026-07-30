@@ -271,8 +271,8 @@ function _sponsorshipEsc(s) {
   return d.innerHTML;
 }
 
-const _SP_REPORT_PILLAR_COLS = ["agri_amount", "app_amount", "energy_finance_amount", "property_amount"];
-const _SP_REPORT_PILLAR_LABELS = ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY"];
+const _SP_REPORT_PILLAR_COLS = ["app_amount", "agri_amount", "energy_finance_amount", "property_amount"];
+const _SP_REPORT_PILLAR_LABELS = ["APP", "AGRI", "ENERGY & FINANCE", "PROPERTY"];
 
 let sponsorshipReportState = { cat4: "include", tahun: "" };
 

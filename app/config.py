@@ -55,7 +55,7 @@ SPONSORSHIP_DESCRIPTION = [
 
 SPONSORSHIP_CAT4 = ["Include", "Exclude"]
 
-SPONSORSHIP_PILLARS = ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY"]
+SPONSORSHIP_PILLARS = ["APP", "AGRI", "ENERGY & FINANCE", "PROPERTY"]
 
 CAT1_BGT = ["By Pendidikan", "By Tunjangan", "By Penelitian", "By Medical"]
 
