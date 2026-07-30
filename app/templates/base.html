@@ -168,16 +168,19 @@ function confirmModal(message, opts) {
   });
 }
 </script>
-<!-- ── Command Palette Overlay ─────────────────────────── -->
+<!-- ── Module-Switcher Carousel Overlay (Alt+↓) ──────────── -->
 <div id="fh-cmd-ov">
-  <div class="fh-cmd-modal">
-    <div class="fh-cmd-header">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input id="fh-cmd-input" type="text" placeholder="Cari modul..." autocomplete="off" spellcheck="false">
-      <kbd>Esc</kbd>
-    </div>
-    <div id="fh-cmd-results"></div>
+  <div class="fh-cmd-search">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="fh-cmd-input" type="text" placeholder="Cari modul..." autocomplete="off" spellcheck="false">
   </div>
+  <div class="fh-cmd-carousel">
+    <button type="button" id="fh-cmd-prev" class="fh-cmd-arrow" aria-label="Modul sebelumnya">&#8249;</button>
+    <div id="fh-cmd-track" class="fh-cmd-track"></div>
+    <button type="button" id="fh-cmd-next" class="fh-cmd-arrow" aria-label="Modul berikutnya">&#8250;</button>
+  </div>
+  <div id="fh-cmd-dots" class="fh-cmd-dots"></div>
+  <div class="fh-cmd-hint"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> pindah &middot; geser &middot; <kbd>Enter</kbd> buka &middot; <kbd>Esc</kbd> tutup</div>
 </div>
 {% block scripts %}{% endblock %}
 </body>

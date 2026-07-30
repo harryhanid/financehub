@@ -14,6 +14,29 @@ const FH_MODULES = [
 ];
 const FH_RECENT_KEY = 'fh_recent_modules';
 
+// Company-filtered module list + sub-tab previews for the Alt+Down carousel,
+// rendered server-side by inject_nav_modules() in app.py — see base.html's
+// #fh-nav-modules-data script tag. Read once at load; server always injects
+// this tag (nav_modules is always in template context, empty list when
+// logged out), so this never needs to re-fetch.
+const FH_NAV_MODULES = (function() {
+  var el = document.getElementById('fh-nav-modules-data');
+  if (!el) return [];
+  try { return JSON.parse(el.textContent); } catch (e) { return []; }
+})();
+
+// One small flow-line-style icon per real module, keyed by nav_modules' `key`.
+const FH_MODULE_ICONS = {
+  dashboard: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  beasiswa: '<path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="M6 10.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-5.5"/>',
+  payment_memo: '<path d="M6 2h9l4 4v16H6Z"/><path d="M15 2v4h4"/><path d="M9 13l2 2 4-4"/>',
+  etf_payment_app: '<path d="M6 2h8l5 5v15H6Z"/><path d="M14 2v5h5"/><path d="M12 12v6M9 15l3-3 3 3"/>',
+  budget: '<path d="M12 12V4a8 8 0 0 1 8 8h-8Z"/><circle cx="12" cy="12" r="8"/>',
+  bank: '<path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9"/><path d="M3 21h18"/>',
+  sponsorship: '<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M3 12h18"/><path d="M12 8v13"/><path d="M12 8c-1.5-4-6-4-6-1s3 1 6 1Zm0 0c1.5-4 6-4 6-1s-3 1-6 1Z"/>',
+  users: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+};
+
 function _fhGetRecent() {
   try { return JSON.parse(localStorage.getItem(FH_RECENT_KEY) || '[]'); } catch (e) { return []; }
 }
@@ -31,118 +54,183 @@ function getCurrentModule() {
 }
 
 function initCommandPalette() {
-  /* Record current page in recently-visited */
+  /* Record current page in recently-visited (kept for possible future use —
+     the carousel itself has no "recently visited" section, see spec). */
   var currentMod = getCurrentModule();
   if (currentMod) _fhRecordVisit(currentMod.url);
 
-  var ov      = document.getElementById('fh-cmd-ov');
-  var input   = document.getElementById('fh-cmd-input');
-  var results = document.getElementById('fh-cmd-results');
-  var btn     = document.getElementById('fh-cmd-btn');
-  if (!ov || !input || !results) return;
+  var ov       = document.getElementById('fh-cmd-ov');
+  var input    = document.getElementById('fh-cmd-input');
+  var track    = document.getElementById('fh-cmd-track');
+  var dotsEl   = document.getElementById('fh-cmd-dots');
+  var prevBtn  = document.getElementById('fh-cmd-prev');
+  var nextBtn  = document.getElementById('fh-cmd-next');
+  var btn      = document.getElementById('fh-cmd-btn');
+  if (!ov || !input || !track || !dotsEl) return;
 
-  var activeIdx = 0;
+  var allModules       = _carouselModules();
+  var filtered         = allModules;
+  var activeIdx        = 0;
+  var openCurrentMod   = null;   // the module the user was in when they opened the overlay
+  var openCurrentTab   = null;   // its ?tab= value at open time, if any
+  var dragStartX       = null;
+
+  function _carouselModules() {
+    var comingSoon = FH_MODULES.filter(function(m) { return !m.active; }).map(function(m) {
+      return { name: m.name, url: null, key: null, subtabs: [], active: false };
+    });
+    var real = FH_NAV_MODULES.map(function(m) {
+      return { name: m.name, url: m.url, key: m.key, subtabs: m.subtabs || [], active: true };
+    });
+    return real.concat(comingSoon);
+  }
+
+  function _currentNavModule() {
+    return FH_NAV_MODULES.find(function(m) {
+      return window.location.pathname.replace(/\/$/, '') === m.url.replace(/\/$/, '');
+    });
+  }
 
   function open() {
-    ov.classList.add('open');
+    filtered = allModules;
+    openCurrentMod = _currentNavModule();
+    openCurrentTab = new URLSearchParams(window.location.search).get('tab');
+    activeIdx = 0;
+    if (openCurrentMod) {
+      var found = filtered.findIndex(function(m) { return m.key === openCurrentMod.key; });
+      if (found !== -1) activeIdx = found;
+    }
     input.value = '';
-    render('');
+    ov.classList.add('open');
+    render();
     input.focus();
   }
   function close() {
     ov.classList.remove('open');
   }
 
-  function render(query) {
-    results.innerHTML = '';
-    query = query.trim().toLowerCase();
-    var allItems = [];
+  function step(delta) {
+    if (!filtered.length) return;
+    activeIdx = (activeIdx + delta + filtered.length) % filtered.length;
+    render();
+  }
 
-    if (!query) {
-      var recentUrls  = _fhGetRecent().slice(0, 3);
-      var recentMods  = recentUrls.map(function(u) {
-        return FH_MODULES.find(function(m) { return m.url === u; });
-      }).filter(Boolean);
+  function _openModule(mod) {
+    if (!mod || !mod.active || !mod.url) return;
+    _fhRecordVisit(mod.url);
+    close();
+    window.location.href = mod.url;
+  }
 
-      if (recentMods.length) {
-        results.appendChild(_section('TERAKHIR DIKUNJUNGI'));
-        recentMods.forEach(function(m) {
-          var el = _item(m);
-          results.appendChild(el);
-          if (m.active) allItems.push(el);
-        });
-      }
-      results.appendChild(_section('SEMUA MODUL'));
-      var active   = FH_MODULES.filter(function(m) { return m.active; });
-      var inactive = FH_MODULES.filter(function(m) { return !m.active; });
-      active.forEach(function(m) {
-        var el = _item(m);
-        results.appendChild(el);
-        allItems.push(el);
-      });
-      if (inactive.length) {
-        var sep = document.createElement('div');
-        sep.className = 'fh-cmd-sep';
-        results.appendChild(sep);
-        inactive.forEach(function(m) { results.appendChild(_item(m)); });
-      }
-    } else {
-      var matched = FH_MODULES.filter(function(m) {
-        return m.name.toLowerCase().indexOf(query) !== -1;
-      });
-      if (!matched.length) {
-        var empty = document.createElement('div');
-        empty.className = 'fh-cmd-empty';
-        empty.textContent = 'Tidak ada modul ditemukan.';
-        results.appendChild(empty);
-      } else {
-        results.appendChild(_section('HASIL PENCARIAN'));
-        matched.forEach(function(m) {
-          var el = _item(m);
-          results.appendChild(el);
-          if (m.active) allItems.push(el);
-        });
-      }
+  function _openSubtab(mod, t) {
+    var dest = t.url || (mod.url + (mod.url.indexOf('?') === -1 ? '?' : '&') + 'tab=' + t.tab);
+    _fhRecordVisit(mod.url);
+    close();
+    window.location.href = dest;
+  }
+
+  function _isActiveTab(mod, t) {
+    if (!openCurrentMod || mod.key !== openCurrentMod.key) return false;
+    if (t.url) return window.location.pathname.replace(/\/$/, '') === t.url.replace(/\/$/, '');
+    var defaultTab = mod.subtabs.length ? mod.subtabs[0].tab : null;
+    return t.tab === (openCurrentTab || defaultTab);
+  }
+
+  function _card(mod, isMain) {
+    var outer = document.createElement('div');
+    outer.className = isMain ? 'fh-cmd-card-main' : 'fh-cmd-card-side';
+
+    var bezel = document.createElement('div');
+    bezel.className = 'fh-cmd-card-outer';
+    var inner = document.createElement('div');
+    inner.className = 'fh-cmd-card-inner';
+
+    if (mod.key) {
+      var icon = document.createElement('div');
+      icon.className = 'fh-cmd-icon';
+      icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (FH_MODULE_ICONS[mod.key] || '') + '</svg>';
+      inner.appendChild(icon);
     }
-    setActive(0, allItems);
-  }
 
-  function _section(label) {
-    var el = document.createElement('div');
-    el.className = 'fh-cmd-section';
-    el.textContent = label;
-    return el;
-  }
+    var name = document.createElement('div');
+    name.className = 'fh-cmd-card-name';
+    name.textContent = mod.name;
+    inner.appendChild(name);
 
-  function _item(mod) {
-    var el = document.createElement('div');
-    el.className = 'fh-cmd-item' + (mod.active ? '' : ' disabled');
-    el.innerHTML = '<span>' + mod.name + '</span>' +
-      (!mod.active ? '<span class="fh-cmd-badge">Coming Soon</span>' : '');
+    if (!mod.active) {
+      var badge = document.createElement('div');
+      badge.className = 'fh-cmd-badge';
+      badge.textContent = 'Coming Soon';
+      inner.appendChild(badge);
+    } else if (isMain && mod.subtabs.length) {
+      var line = document.createElement('div');
+      line.className = 'fh-cmd-tabline';
+      inner.appendChild(line);
+      mod.subtabs.forEach(function(t) {
+        var row = document.createElement('div');
+        row.className = 'fh-cmd-tab' + (_isActiveTab(mod, t) ? ' active' : '');
+        row.textContent = t.label;
+        row.addEventListener('click', function(e) {
+          e.stopPropagation();
+          _openSubtab(mod, t);
+        });
+        inner.appendChild(row);
+      });
+    }
+
     if (mod.active && mod.url) {
-      el.addEventListener('click', function() {
-        _fhRecordVisit(mod.url);
-        close();
-        window.location.href = mod.url;
+      outer.style.cursor = 'pointer';
+      outer.addEventListener('click', function() {
+        if (isMain) { _openModule(mod); }
+        else { activeIdx = filtered.indexOf(mod); render(); }
       });
     }
-    return el;
+
+    bezel.appendChild(inner);
+    outer.appendChild(bezel);
+    return outer;
   }
 
-  function getActiveEls() {
-    return Array.from(results.querySelectorAll('.fh-cmd-item:not(.disabled)'));
+  function render() {
+    track.innerHTML = '';
+    dotsEl.innerHTML = '';
+    if (!filtered.length) {
+      var empty = document.createElement('div');
+      empty.className = 'fh-cmd-empty';
+      empty.textContent = 'Tidak ada modul ditemukan.';
+      track.appendChild(empty);
+      return;
+    }
+    activeIdx = Math.max(0, Math.min(activeIdx, filtered.length - 1));
+    for (var i = -1; i <= 1; i++) {
+      var idx = activeIdx + i;
+      if (idx < 0 || idx >= filtered.length) continue;
+      track.appendChild(_card(filtered[idx], i === 0));
+    }
+    filtered.forEach(function(m, i) {
+      var dot = document.createElement('span');
+      if (i === activeIdx) dot.className = 'on';
+      dotsEl.appendChild(dot);
+    });
   }
 
-  function setActive(idx, items) {
-    items = items || getActiveEls();
-    if (!items.length) return;
-    activeIdx = Math.max(0, Math.min(idx, items.length - 1));
-    items.forEach(function(el, i) { el.classList.toggle('active', i === activeIdx); });
-    var active = items[activeIdx];
-    if (active) active.scrollIntoView({ block: 'nearest' });
-  }
+  input.addEventListener('input', function() {
+    var q = input.value.trim().toLowerCase();
+    filtered = q ? allModules.filter(function(m) { return m.name.toLowerCase().indexOf(q) !== -1; }) : allModules;
+    activeIdx = 0;
+    render();
+  });
 
-  input.addEventListener('input', function() { render(input.value); });
+  if (prevBtn) prevBtn.addEventListener('click', function() { step(-1); });
+  if (nextBtn) nextBtn.addEventListener('click', function() { step(1); });
+
+  track.addEventListener('pointerdown', function(e) { dragStartX = e.clientX; });
+  track.addEventListener('pointerup', function(e) {
+    if (dragStartX === null) return;
+    var dx = e.clientX - dragStartX;
+    dragStartX = null;
+    if (dx > 40) step(-1); else if (dx < -40) step(1);
+  });
 
   document.addEventListener('keydown', function(e) {
     if (e.altKey && !e.ctrlKey && !e.metaKey && e.key === 'ArrowDown') {
@@ -151,13 +239,12 @@ function initCommandPalette() {
       return;
     }
     if (!ov.classList.contains('open')) return;
-    if (e.key === 'Escape')    { e.preventDefault(); close(); }
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(activeIdx + 1); }
-    if (e.key === 'ArrowUp')   { e.preventDefault(); setActive(activeIdx - 1); }
+    if (e.key === 'Escape')     { e.preventDefault(); close(); }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); step(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
     if (e.key === 'Enter') {
       e.preventDefault();
-      var items = getActiveEls();
-      if (items[activeIdx]) items[activeIdx].click();
+      _openModule(filtered[activeIdx]);
     }
   });
 
