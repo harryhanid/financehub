@@ -315,7 +315,6 @@ def get_sponsorship_report(company_id: int, tahun: str, cat4_mode: str) -> dict:
         filters["cat4"] = "Exclude"
     elif cat4_mode == "bib_include":
         filters["cat4"] = "Include"
-        filters["cat1"] = "BORNEO INDOBARA"
     # cat4_mode == "all": no cat4 filter, includes NULL/blank cat4 rows
 
     rows = list_transaksi(company_id, filters)
@@ -345,7 +344,7 @@ def get_sponsorship_report(company_id: int, tahun: str, cat4_mode: str) -> dict:
         subtotal = {col: 0.0 for col in pillar_cols}
         subtotal["total"] = 0.0
         for i, r in enumerate(group, start=1):
-            if cat4_mode == "bib_include":
+            if cat4_mode == "bib_include" and r["cat1"] == "BORNEO INDOBARA":
                 amt = r["amount_request"]
                 r["agri_amount"] = amt * 0.51
                 r["energy_finance_amount"] = amt * 0.49
