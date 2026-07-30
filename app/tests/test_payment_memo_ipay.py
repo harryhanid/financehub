@@ -104,3 +104,19 @@ def test_get_pam_list_source_filter(tmp_path, monkeypatch):
     assert len(all_rows) == 2
     assert len(agri_rows) == 1 and agri_rows[0]["pam_no"] == "PAM-001-ETF-06-2026"
     assert len(app_rows)  == 1 and app_rows[0]["pam_no"]  == "PAM-001-APP-06-2026"
+
+
+def test_ipay_next_pam_no_returns_json_401_when_not_logged_in(client):
+    """Regression test: this route used to be decorated with
+    @jwt_html_required, which redirects to the login *page* (HTML, 200
+    after fetch() follows it) on an expired/missing token instead of
+    returning a JSON 401. apiFetch()'s refresh-and-retry logic only
+    triggers on a real 401, so the caller (ipayFetchNextPamNo() in
+    payment_memo/index.html) got the login page's HTML back and failed to
+    JSON.parse() it — showing "ERR: Invalid JSON response" in the No. PAM
+    field instead of the next PAM number. Now decorated with @json_required."""
+    resp = client.get("/payment-memo/ipay/next-pam-no?tab=agri&date=2026-07-30")
+    assert resp.status_code == 401
+    data = resp.get_json()
+    assert data is not None, "expected a JSON body, got: " + resp.get_data(as_text=True)[:200]
+    assert data["ok"] is False

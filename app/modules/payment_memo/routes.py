@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, send_file
 from flask_jwt_extended import get_jwt
-from auth.middleware import jwt_html_required
+from auth.middleware import jwt_html_required, json_required
 from modules.beasiswa.service import get_siswa_list, get_vendors
 from modules.payment_memo.service import (
     get_draft_payments, create_memo, get_memo_list, get_memo_detail,
@@ -668,7 +668,7 @@ def check_pam_no_route():
 
 
 @bp.route("/ipay/next-pam-no")
-@jwt_html_required
+@json_required
 def ipay_next_pam_no():
     tab      = request.args.get("tab", "agri").lower()
     date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
