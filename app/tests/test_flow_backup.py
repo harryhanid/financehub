@@ -1,5 +1,7 @@
 import os
 import datetime
+import config
+import tasks.flow_backup as flow_backup
 from tasks.flow_backup import _cleanup_old_files
 
 
@@ -41,3 +43,36 @@ def test_cleanup_handles_prefix_and_suffix_for_sqlite_naming(tmp_path):
 
     assert recent_path.exists()
     assert not old_path.exists()
+
+
+def test_run_excel_backups_writes_files_for_every_registry_entry(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BACKUP_ROOT", str(tmp_path))
+    flow_backup.run_excel_backups()
+
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    for entry in flow_backup.BACKUP_REGISTRY:
+        company_name = next(c["name"] for c in config.COMPANIES if c["code"] == entry["company"])
+        expected = tmp_path / company_name / entry["module"] / entry["submodule"] / f"{today_str}.xlsx"
+        assert expected.exists(), f"missing backup for {entry['company']}/{entry['module']}/{entry['submodule']}"
+        assert expected.stat().st_size > 0
+
+
+def test_one_failing_entry_does_not_block_the_rest(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BACKUP_ROOT", str(tmp_path))
+
+    def _broken(company_id):
+        raise RuntimeError("simulated export failure")
+
+    fake_registry = [
+        {"company": "ETF", "module": "Broken", "submodule": "Sub", "export_fn": _broken},
+        {"company": "ETF", "module": "Working", "submodule": "Sub", "export_fn": lambda cid: b"ok"},
+    ]
+    monkeypatch.setattr(flow_backup, "BACKUP_REGISTRY", fake_registry)
+    flow_backup.run_excel_backups()
+
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    working_file = tmp_path / "Eka Tjipta Foundation" / "Working" / "Sub" / f"{today_str}.xlsx"
+    broken_dir = tmp_path / "Eka Tjipta Foundation" / "Broken" / "Sub"
+    assert working_file.exists()
+    assert working_file.read_bytes() == b"ok"
+    assert not broken_dir.exists() or not any(broken_dir.iterdir())
