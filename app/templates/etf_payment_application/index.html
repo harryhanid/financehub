@@ -176,6 +176,7 @@
 
 {% block content %}
 
+<div id="pa-page-header" class="fh-page-header">
 
 {# ── Filter + bulk bar: only on data tabs ────────────────────────────────── #}
 {% if active_tab not in ('input', 'summary', 'advance') %}
@@ -238,7 +239,7 @@
   <button class="btn btn-success btn-sm" onclick="exportETFExcel()">&#8595; Export Excel</button>
   <span id="f-count" style="font-size:11px;color:var(--text-muted)">{{ start_row }}-{{ end_row }} dari {{ total_rows }} baris</span>
 </div>
-
+</div>
 
 {# ── Bulk action toolbar ──────────────────────────────────────────────────── #}
 <div id="bulk-bar" style="display:none; align-items:center; gap:.75rem; margin-bottom:.5rem; padding:.5rem .75rem; background:var(--accent-surface); border:1px solid var(--accent-border); border-radius:6px; font-size:.82rem; flex-wrap:wrap">
