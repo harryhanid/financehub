@@ -76,3 +76,36 @@ def test_one_failing_entry_does_not_block_the_rest(tmp_path, monkeypatch):
     assert working_file.exists()
     assert working_file.read_bytes() == b"ok"
     assert not broken_dir.exists() or not any(broken_dir.iterdir())
+
+
+def test_run_sqlite_backup_copies_db_to_dsqlite_backup_folder(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BACKUP_ROOT", str(tmp_path))
+    flow_backup.run_sqlite_backup()
+
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    expected = tmp_path / "Dsqlite Backup" / f"finance_hub_{today_str}.db"
+    assert expected.exists()
+    assert expected.read_bytes() == open(config.DB_PATH, "rb").read()
+
+
+def test_run_sqlite_backup_prunes_files_older_than_ten_days(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BACKUP_ROOT", str(tmp_path))
+    backup_dir = tmp_path / "Dsqlite Backup"
+    backup_dir.mkdir(parents=True)
+    old_date = datetime.datetime.now() - datetime.timedelta(days=11)
+    old_file = backup_dir / f"finance_hub_{old_date.strftime('%Y-%m-%d')}.db"
+    old_file.write_text("stale backup")
+
+    flow_backup.run_sqlite_backup()
+
+    assert not old_file.exists()
+
+
+def test_run_flow_backups_runs_both_excel_and_sqlite(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BACKUP_ROOT", str(tmp_path))
+    flow_backup.run_flow_backups()
+
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    assert (tmp_path / "Dsqlite Backup" / f"finance_hub_{today_str}.db").exists()
+    assert (tmp_path / "Eka Tjipta Foundation" / "Bank" / "Mutasi & Saldo" / f"{today_str}.xlsx").exists()
+

@@ -123,3 +123,24 @@ def run_excel_backups() -> None:
         except Exception as e:
             print(f"[FLOW Backup] ERROR {label}: {e}")
             traceback.print_exc()
+
+
+def run_sqlite_backup() -> None:
+    try:
+        target_dir = os.path.join(config.BACKUP_ROOT, "Dsqlite Backup")
+        os.makedirs(target_dir, exist_ok=True)
+
+        today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        dest = os.path.join(target_dir, f"finance_hub_{today_str}.db")
+        shutil.copy2(config.DB_PATH, dest)
+
+        print(f"[FLOW Backup] SQLite backup OK: {dest}")
+        _cleanup_old_files(target_dir, keep_days=10, prefix="finance_hub_", suffix=".db")
+    except Exception as e:
+        print(f"[FLOW Backup] SQLite backup ERROR: {e}")
+        traceback.print_exc()
+
+
+def run_flow_backups() -> None:
+    run_excel_backups()
+    run_sqlite_backup()
