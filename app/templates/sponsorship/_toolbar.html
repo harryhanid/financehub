@@ -2,5 +2,6 @@
   <a class="tab-btn{{ ' active' if active_tab == 'dashboard' else '' }}" href="{{ url_for('sponsorship.index') }}">Dashboard</a>
   <a class="tab-btn{{ ' active' if active_tab == 'input' else '' }}" href="{{ url_for('sponsorship.input_page') }}">Input</a>
   <a class="tab-btn{{ ' active' if active_tab == 'data' else '' }}" href="{{ url_for('sponsorship.data_page') }}">Data</a>
+  <a class="tab-btn{{ ' active' if active_tab == 'outstanding' else '' }}" href="{{ url_for('sponsorship.outstanding_page') }}">Outstanding</a>
   <a class="tab-btn{{ ' active' if active_tab == 'report' else '' }}" href="{{ url_for('sponsorship.report_page') }}">Report</a>
 </div>

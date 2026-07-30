@@ -166,6 +166,33 @@ def data_page():
     )
 
 
+@bp.route("/outstanding")
+@jwt_html_required
+@smt_company_required
+def outstanding_page():
+    filters = _parse_filters()
+    
+    # We will pass filters directly to get_sponsorship_outstanding
+    if not _wrong_company():
+        from .service import get_sponsorship_outstanding
+        sections, grand_total = get_sponsorship_outstanding(_cid(), filters)
+        years = get_available_years(_cid())
+    else:
+        sections = []
+        grand_total = 0.0
+        years = []
+
+    return render_template(
+        "sponsorship/outstanding.html", active_page="sponsorship", use_unified_header=True,
+        wrong_company=_wrong_company(),
+        sections=sections, grand_total=grand_total, years=years,
+        filters=filters,
+        cat_choices=config.SPONSORSHIP_CAT, description_choices=config.SPONSORSHIP_DESCRIPTION,
+        pillar_choices=config.SPONSORSHIP_PILLARS, cat4_choices=config.SPONSORSHIP_CAT4,
+        **_ctx()
+    )
+
+
 @bp.route("/data/<int:transaksi_id>")
 @jwt_html_required
 @smt_company_required

@@ -231,9 +231,12 @@ def _apply_filters(query: str, params: list, company_id: int, filters: dict):
     if filters.get("status"):
         query += " AND status = ?"
         params.append(filters["status"])
+    if filters.get("outstanding"):
+        query += " AND (tanggal_payment IS NULL OR tanggal_payment = '')"
     if filters.get("tahun"):
-        query += " AND strftime('%Y', tanggal_form_sponsor) = ?"
-        params.append(str(filters["tahun"]))
+        # For year filter, we check if either tanggal_form_sponsor or tanggal_payment falls in that year
+        query += " AND (strftime('%Y', tanggal_form_sponsor) = ? OR strftime('%Y', tanggal_payment) = ?)"
+        params.extend([str(filters["tahun"]), str(filters["tahun"])])
     return query, params
 
 
@@ -267,7 +270,9 @@ def get_available_years(company_id: int) -> list:
         (company_id,),
     ).fetchall()
     conn.close()
-    return [r["yy"] for r in rows if r["yy"]]
+    years = {r["yy"] for r in rows if r["yy"]}
+    # Add missing years (e.g. from current date if empty)
+    return sorted(list(years), reverse=True)
 
 
 def get_dashboard_data(company_id: int, filters: dict = None) -> dict:
@@ -399,3 +404,66 @@ def get_sponsorship_report(company_id: int, tahun: str, cat4_mode: str) -> dict:
         "grand_total": grand_total,
         "pct_allocation": pct_allocation,
     }
+
+
+def get_sponsorship_outstanding(company_id: int, filters: dict = None) -> tuple:
+    """
+    Returns (sections, grand_total).
+    sections is a list of dicts: {"cat2_label": "Charging to ...", "rows": [...], "subtotal": ...}
+    Rows are those where tanggal_payment is null or empty.
+    """
+    filters = dict(filters or {})
+    filters["outstanding"] = True
+    
+    rows = list_transaksi(company_id, filters)
+    
+    by_cat2 = {}
+    for r in rows:
+        cat2 = r.get("cat2") or "(blank)"
+        if cat2 not in by_cat2:
+            by_cat2[cat2] = []
+        by_cat2[cat2].append(r)
+        
+    sections = []
+    grand_total = 0.0
+    
+    for cat2, group in by_cat2.items():
+        section_rows = []
+        subtotal = 0.0
+        
+        group.sort(key=lambda x: x["tanggal_form_sponsor"] or "")
+        
+        for i, r in enumerate(group, start=1):
+            tgl_approval = ""
+            if r["tanggal_form_sponsor"]:
+                try:
+                    dt = datetime.strptime(r["tanggal_form_sponsor"], "%Y-%m-%d")
+                    months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+                    tgl_approval = f"{months[dt.month - 1]} {dt.year}"
+                except ValueError:
+                    tgl_approval = r["tanggal_form_sponsor"]
+                    
+            amt = r["amount_request"] or 0.0
+            subtotal += amt
+            grand_total += amt
+            
+            section_rows.append({
+                "no": i,
+                "tanggal_approval": tgl_approval,
+                "reff": r["reff"] or "(blank)",
+                "lembaga_perorangan": r["lembaga_perorangan"] or "",
+                "perihal": r["perihal"] or "",
+                "amount": amt,
+                "status": r["status"] or ""
+            })
+            
+        cat2_label = cat2 if str(cat2).lower().startswith("charging") else f"Charging to {cat2}"
+        sections.append({
+            "cat2_label": cat2_label,
+            "subtotal": subtotal,
+            "rows": section_rows
+        })
+        
+    sections.sort(key=lambda s: s["subtotal"], reverse=True)
+    
+    return sections, grand_total

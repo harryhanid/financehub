@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Sponsorship Outstanding{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+<style>
+.outstanding-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: var(--bg-card);
+}
+.outstanding-table th, .outstanding-table td {
+  border: 1px solid var(--border-color);
+  padding: 0.5rem;
+}
+.outstanding-table th {
+  background: #0f4c5c;
+  color: #fff;
+  text-align: left;
+}
+.outstanding-grand-total {
+  background: #256d7b;
+  color: #fff;
+  font-weight: bold;
+}
+.outstanding-cat2-header {
+  background: #5b929e;
+  color: #fff;
+  font-weight: bold;
+}
+.num-right { text-align: right; }
+</style>
+{% endblock %}
+{% block module_tabs %}
+{% set active_tab = "outstanding" %}
+{% include "sponsorship/_toolbar.html" with context %}
+{% endblock %}
+{% block content %}
+<div class="budget-page">
+  {% if wrong_company %}
+    {% include "sponsorship/_notice.html" %}
+  {% else %}
+  <form class="budget-toolbar" method="get" id="sp-data-filter-form">
+    <select name="cat" onchange="this.form.submit()">
+      <option value="">Semua Cat</option>
+      {% for c in cat_choices %}<option value="{{ c }}" {% if filters.cat == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <select name="cat3" onchange="this.form.submit()">
+      <option value="">Semua Pillar</option>
+      {% for p in pillar_choices %}<option value="{{ p }}" {% if filters.cat3 == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+    </select>
+    <select name="description" onchange="this.form.submit()">
+      <option value="">Semua Description</option>
+      {% for d in description_choices %}<option value="{{ d }}" {% if filters.description == d %}selected{% endif %}>{{ d }}</option>{% endfor %}
+    </select>
+    <select name="tahun" onchange="this.form.submit()">
+      <option value="">Semua Tahun</option>
+      {% for y in years %}<option value="{{ y }}" {% if filters.tahun == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+    </select>
+    <input type="text" name="status" placeholder="Filter Status..." value="{{ filters.status or '' }}">
+    <button type="submit" class="budget-btn">Terapkan Filter</button>
+  </form>
+
+  <div style="overflow-x: auto;">
+    <table class="outstanding-table">
+      <thead>
+        <tr>
+          <th>NO</th>
+          <th>Tanggal Approval</th>
+          <th>Reff</th>
+          <th>LEMBAGA/ PERORANGAN</th>
+          <th>PERIHAL</th>
+          <th class="num-right">Amount in Rp</th>
+          <th>Status Sponsor</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="outstanding-grand-total">
+          <td colspan="5">Total Outstanding Sponsorship</td>
+          <td class="num-right">{{ "{:,.0f}".format(grand_total).replace(',', '.') }}</td>
+          <td></td>
+        </tr>
+        {% for sec in sections %}
+        <tr class="outstanding-cat2-header">
+          <td colspan="5">{{ sec.cat2_label }}</td>
+          <td class="num-right">{{ "{:,.0f}".format(sec.subtotal).replace(',', '.') }}</td>
+          <td></td>
+        </tr>
+        {% for r in sec.rows %}
+        <tr>
+          <td>{{ r.no }}</td>
+          <td>{{ r.tanggal_approval }}</td>
+          <td>{{ r.reff }}</td>
+          <td>{{ r.lembaga_perorangan }}</td>
+          <td>{{ r.perihal }}</td>
+          <td class="num-right">{{ "{:,.0f}".format(r.amount).replace(',', '.') }}</td>
+          <td>{{ r.status }}</td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
