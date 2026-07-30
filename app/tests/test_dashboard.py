@@ -63,9 +63,9 @@ def test_navbar_module_menu_appears_on_other_pages_too(client):
     select_etf(client)
     resp = client.get("/bank/")
     html = resp.data.decode()
-    assert 'class="navbar-menu-item active" href="/bank/"' in html
-    assert 'href="/dashboard"' in html
-    assert "Beasiswa" in html
+    assert 'class="fh-mod-trigger"' in html
+    assert 'data-url="/dashboard"' in html
+    assert '<span>Beasiswa</span>' in html
 
 
 def test_navbar_hides_sponsorship_for_etf(client):
