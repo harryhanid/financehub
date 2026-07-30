@@ -55,18 +55,26 @@ def _wrong_company():
 
 def _parse_filters():
     filters = {}
-    for key in ("cat", "cat3", "description", "status", "tahun"):
+    for key in ("cat", "cat3", "description", "status"):
         val = request.args.get(key)
         if val:
             filters[key] = val
+    
+    tahun_vals = request.args.getlist("tahun")
+    if tahun_vals:
+        tahun_vals = [y for y in tahun_vals if y.strip()]
+        if tahun_vals:
+            filters["tahun"] = tahun_vals
+            
     return filters
 
 
 def _parse_report_params():
-    tahun = request.args.get("tahun") or ""
+    tahun_vals = request.args.getlist("tahun")
+    tahun = [y for y in tahun_vals if y.strip()]
     if not tahun:
         years = get_available_years(_cid())
-        tahun = years[0] if years else str(datetime.now().year)
+        tahun = [years[0]] if years else [str(datetime.now().year)]
     cat4 = (request.args.get("cat4") or "all").lower()
     if cat4 not in ("include", "exclude", "all", "bib_include"):
         cat4 = "all"

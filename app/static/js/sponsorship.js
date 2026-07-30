@@ -276,19 +276,33 @@ const _SP_REPORT_PILLAR_LABELS = ["APP", "AGRI", "ENERGY & FINANCE", "PROPERTY"]
 
 let sponsorshipReportState = { cat4: "include", tahun: "" };
 
-function sponsorshipLoadReport() {
-  const container = document.getElementById("sp-report-table-container");
-  if (!container) return;  // not on the Report page
-  const tahunSelect = document.getElementById("sp-report-tahun");
-  if (!sponsorshipReportState.tahun && tahunSelect) sponsorshipReportState.tahun = tahunSelect.value;
-  const params = new URLSearchParams({ tahun: sponsorshipReportState.tahun, cat4: sponsorshipReportState.cat4 });
-  apiFetch("/sponsorship/api/report-data?" + params.toString())
-    .then(function (r) { return r.json(); })
-    .then(function (data) { _sponsorshipRenderReportTable(container, data); })
-    .catch(function () {
-      container.innerHTML = '<div class="budget-card"><p>Gagal memuat data report.</p></div>';
-    });
-}
+  function _getReportTahun() {
+    const cbs = document.querySelectorAll("#sp-report-tahun input[name='tahun']:checked");
+    return Array.from(cbs).map(cb => cb.value);
+  }
+
+  function sponsorshipLoadReport() {
+    const container = document.getElementById("sp-report-table-container");
+    if (!container) return;  // not on the Report page
+    
+    const tahuns = _getReportTahun();
+    if ((!sponsorshipReportState.tahun || sponsorshipReportState.tahun.length === 0) && tahuns.length > 0) {
+      sponsorshipReportState.tahun = tahuns;
+    }
+    
+    const params = new URLSearchParams();
+    params.append("cat4", sponsorshipReportState.cat4);
+    const selectedTahun = sponsorshipReportState.tahun || [];
+    const tahunArr = Array.isArray(selectedTahun) ? selectedTahun : [selectedTahun];
+    tahunArr.forEach(t => params.append("tahun", t));
+
+    apiFetch("/sponsorship/api/report-data?" + params.toString())
+      .then(function (r) { return r.json(); })
+      .then(function (data) { _sponsorshipRenderReportTable(container, data); })
+      .catch(function () {
+        container.innerHTML = '<div class="budget-card"><p>Gagal memuat data report.</p></div>';
+      });
+  }
 
 function _sponsorshipRenderReportTable(container, data) {
   if (!data.sections || data.sections.length === 0) {
@@ -345,25 +359,26 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  const tahunSelect = document.getElementById("sp-report-tahun");
-  if (tahunSelect) {
-    sponsorshipReportState.tahun = tahunSelect.value;
-    tahunSelect.addEventListener("change", function () {
-      sponsorshipReportState.tahun = tahunSelect.value;
-      sponsorshipLoadReport();
-    });
-  }
+    const refreshBtn = document.getElementById("sp-report-refresh");
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", function() {
+        sponsorshipReportState.tahun = _getReportTahun();
+        sponsorshipLoadReport();
+      });
+    }
 
-  const refreshBtn = document.getElementById("sp-report-refresh");
-  if (refreshBtn) refreshBtn.addEventListener("click", sponsorshipLoadReport);
-
-  const exportBtn = document.getElementById("sp-report-export");
-  if (exportBtn) {
-    exportBtn.addEventListener("click", function () {
-      const params = new URLSearchParams({ tahun: sponsorshipReportState.tahun, cat4: sponsorshipReportState.cat4 });
-      window.location.href = "/sponsorship/report/export?" + params.toString();
-    });
-  }
+    const exportBtn = document.getElementById("sp-report-export");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", function () {
+        sponsorshipReportState.tahun = _getReportTahun();
+        const params = new URLSearchParams();
+        params.append("cat4", sponsorshipReportState.cat4);
+        const selectedTahun = sponsorshipReportState.tahun || [];
+        const tahunArr = Array.isArray(selectedTahun) ? selectedTahun : [selectedTahun];
+        tahunArr.forEach(t => params.append("tahun", t));
+        window.location.href = "/sponsorship/report/export?" + params.toString();
+      });
+    }
 
   sponsorshipLoadReport();
 });

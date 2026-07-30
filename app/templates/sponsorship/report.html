@@ -18,9 +18,16 @@
     <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="bib_include">BIB Include</button>
     <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="exclude">Exclude</button>
     <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="all">All</button>
-    <select id="sp-report-tahun">
-      {% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
-    </select>
+    <div class="budget-dropdown-check" id="sp-report-tahun-container">
+      <button type="button" class="budget-dropdown-btn" onclick="this.nextElementSibling.classList.toggle('show')">
+        Tahun <span style="font-size: 0.7em;">▼</span>
+      </button>
+      <div class="budget-dropdown-content" id="sp-report-tahun">
+        {% for y in years %}
+        <label><input type="checkbox" name="tahun" value="{{ y }}" {% if loop.first %}checked{% endif %}> {{ y }}</label>
+        {% endfor %}
+      </div>
+    </div>
     <button type="button" class="budget-btn" id="sp-report-refresh">Refresh</button>
     <button type="button" class="budget-btn" id="sp-report-export">Export Excel</button>
   </div>

@@ -234,9 +234,15 @@ def _apply_filters(query: str, params: list, company_id: int, filters: dict):
     if filters.get("outstanding"):
         query += " AND (tanggal_payment IS NULL OR tanggal_payment = '')"
     if filters.get("tahun"):
-        # For year filter, we check if either tanggal_form_sponsor or tanggal_payment falls in that year
-        query += " AND (strftime('%Y', tanggal_form_sponsor) = ? OR strftime('%Y', tanggal_payment) = ?)"
-        params.extend([str(filters["tahun"]), str(filters["tahun"])])
+        years = filters["tahun"]
+        if isinstance(years, list) and years:
+            placeholders = ",".join(["?"] * len(years))
+            query += f" AND (strftime('%Y', tanggal_form_sponsor) IN ({placeholders}) OR strftime('%Y', tanggal_payment) IN ({placeholders}))"
+            params.extend(years)
+            params.extend(years)
+        else:
+            query += " AND (strftime('%Y', tanggal_form_sponsor) = ? OR strftime('%Y', tanggal_payment) = ?)"
+            params.extend([str(years), str(years)])
     return query, params
 
 
@@ -307,9 +313,9 @@ def get_dashboard_data(company_id: int, filters: dict = None) -> dict:
     }
 
 
-def get_sponsorship_report(company_id: int, tahun: str, cat4_mode: str) -> dict:
+def get_sponsorship_report(company_id: int, tahun: list, cat4_mode: str) -> dict:
     """Rekap sponsorship per description-section, dipivot per pillar (cat3),
-    difilter cat4_mode ('include' | 'exclude' | 'all'). Section tanpa transaksi
+    difilter cat4_mode ('include' | 'exclude' | 'all' | 'bib_include'). Section tanpa transaksi
     untuk tahun+cat4_mode ini disembunyikan; section yang ada urut sesuai
     config.SPONSORSHIP_DESCRIPTION. Baris dalam tiap section urut TOTAL desc.
     """
@@ -398,7 +404,7 @@ def get_sponsorship_report(company_id: int, tahun: str, cat4_mode: str) -> dict:
         pct_allocation[col] = round(grand_total[col] / grand_total["total"] * 100) if grand_total["total"] else 0
 
     return {
-        "tahun": str(tahun),
+        "tahun": ",".join(tahun) if isinstance(tahun, list) else str(tahun),
         "cat4_mode": cat4_mode,
         "sections": sections,
         "grand_total": grand_total,

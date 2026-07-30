@@ -26,10 +26,16 @@
       <option value="">Semua Description</option>
       {% for d in description_choices %}<option value="{{ d }}" {% if filters.description == d %}selected{% endif %}>{{ d }}</option>{% endfor %}
     </select>
-    <select name="tahun" onchange="this.form.submit()">
-      <option value="">Semua Tahun</option>
-      {% for y in years %}<option value="{{ y }}" {% if filters.tahun == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
-    </select>
+    <div class="budget-dropdown-check">
+      <button type="button" class="budget-dropdown-btn" onclick="this.nextElementSibling.classList.toggle('show')">
+        Tahun <span style="font-size: 0.7em;">▼</span>
+      </button>
+      <div class="budget-dropdown-content">
+        {% for y in years %}
+        <label><input type="checkbox" name="tahun" value="{{ y }}" {% if filters.tahun and y in filters.tahun %}checked{% endif %}> {{ y }}</label>
+        {% endfor %}
+      </div>
+    </div>
     <input type="text" name="status" placeholder="Filter Status..." value="{{ filters.status or '' }}">
     <button type="submit" class="budget-btn">Terapkan Filter</button>
   </form>

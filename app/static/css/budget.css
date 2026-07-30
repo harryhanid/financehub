@@ -410,3 +410,54 @@
     padding: 0.1rem 0.3rem !important;
   }
 }
+
+/* Custom Dropdown Checkbox */
+.budget-dropdown-check {
+  position: relative;
+  display: inline-block;
+  min-width: 120px;
+  flex: 1;
+}
+.budget-dropdown-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.budget-dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: var(--bg-card);
+  min-width: 100%;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 10;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+.budget-dropdown-content.show {
+  display: block;
+}
+.budget-dropdown-content label {
+  color: var(--text-primary);
+  padding: 8px 12px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.budget-dropdown-content label:hover {
+  background-color: var(--border-hover);
+}
