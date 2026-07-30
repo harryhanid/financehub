@@ -145,7 +145,7 @@ function initCommandPalette() {
   input.addEventListener('input', function() { render(input.value); });
 
   document.addEventListener('keydown', function(e) {
-    if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'k') {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && e.key === 'ArrowDown') {
       e.preventDefault();
       ov.classList.contains('open') ? close() : open();
       return;
