@@ -189,6 +189,9 @@
   border-radius: 8px;
   padding: 0.4rem 0.7rem;
   font-size: 0.85rem;
+  width: auto;
+  flex: 1;
+  min-width: 120px;
 }
 .budget-toolbar select:focus, .budget-toolbar input:focus {
   outline: none;

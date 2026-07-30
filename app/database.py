@@ -537,7 +537,7 @@ CREATE TABLE IF NOT EXISTS sponsorship_transaksi (
     description           TEXT NOT NULL,
     tanggal_form_sponsor  TEXT NOT NULL,
     tanggal_payment       TEXT,
-    cat1                  TEXT NOT NULL,
+    cat1                  TEXT,
     cat2                  TEXT NOT NULL,
     cat3                  TEXT NOT NULL,
     lembaga_perorangan    TEXT NOT NULL,
