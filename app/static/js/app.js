@@ -676,6 +676,22 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Payment Application's tabs are real <a href="?tab=..."> navigations, not
+// initTabs()'s client-side <button data-tab> panels — so its tab-switch
+// never runs through initTabs()'s force-close-and-persist loop (it has no
+// [data-tabs] container at all). Without this, switching PA tabs looks
+// identical to a same-tab reload from the browser's perspective, so
+// restoreFilterOpenState() would reopen a filter left open on a different
+// PA tab. Clear the persisted state on click, before the navigation away —
+// visually closing it client-side is moot since the page is unloading.
+document.addEventListener('click', e => {
+  const tabLink = e.target.closest('.tabs .tab-btn');
+  if (tabLink && tabLink.tagName === 'A') {
+    const panel = getActiveFilterPanel();
+    if (panel) persistFilterClosed(panel);
+  }
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   initCommandPalette();
   initTitleDropdown();
