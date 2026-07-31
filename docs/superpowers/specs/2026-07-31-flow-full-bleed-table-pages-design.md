@@ -27,7 +27,7 @@ unchanged.
 ## Scope — which tabs/pages qualify
 
 **Full-bleed:**
-- Beasiswa: Data Siswa, Data Budget, Data Payment, Sahabat ETF
+- Beasiswa: Data Siswa, Data Budget, Data Payment, Rekam Medis, Sahabat ETF
 - Payment Memo: every data tab (Open PAM, PAM List/AGRI/APP/LAND/SETF/Advance/Vendors, and the Print Memo view)
 - Payment Application: Open PA/Summary, Advance, AGRI, APP, LAND, SETF
 - Sponsorship: Data, Outstanding, Report
