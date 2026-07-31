@@ -483,16 +483,21 @@ function initTabs(container) {
       setTimeout(() => window.dispatchEvent(new Event("resize")), 0);
     });
   });
-  // Deep-link support: ?tab=<name> selects [data-tab="tab-<name>"] instead
-  // of always defaulting to the first tab — used by redirects like
-  // /beasiswa/sahabat -> /beasiswa/?tab=sahabat. Falls back to today's
-  // default behavior when absent or no match is found. Queried globally,
-  // not container-scoped — same reason as `tabs` above: the buttons live
-  // in the navbar's module_tabs block now, outside `container`, so a
-  // container-scoped lookup here always misses and silently falls back to
-  // tabs[0], bouncing every reload on a non-first tab back to the first.
+  // Deep-link support: ?tab=<name> selects the button whose data-tab is
+  // "tab-<name>" instead of always defaulting to the first tab — used by
+  // redirects like /beasiswa/sahabat -> /beasiswa/?tab=sahabat. Falls back
+  // to today's default behavior when absent or no match is found. Matched
+  // against `tabs` (already queried globally above — the buttons live in
+  // the navbar's module_tabs block now, outside `container`) via a plain
+  // dataset comparison rather than building a `document.querySelector`
+  // selector string from the URL param: interpolating an unsanitized query
+  // value into a CSS selector is both a click-injection risk (a crafted
+  // ?tab= value can widen the match to an arbitrary element, which the
+  // next line then calls .click() on) and a crash risk (an unterminated
+  // attribute value throws a SyntaxError, aborting the rest of this
+  // DOMContentLoaded handler — no tab ever activates, page renders blank).
   const requestedTab = new URLSearchParams(window.location.search).get("tab");
-  const requested = requestedTab && document.querySelector(`[data-tab="tab-${requestedTab}"]`);
+  const requested = requestedTab && [...tabs].find(t => t.dataset.tab === `tab-${requestedTab}`);
   if (requested) {
     requested.click();
   } else if (tabs.length > 0) {
