@@ -13,7 +13,7 @@
   {% if wrong_company %}
     {% include "sponsorship/_notice.html" %}
   {% else %}
-  <div class="budget-toolbar">
+  <div class="budget-toolbar filter-bar collapsible" id="sp-report-filter">
     <button type="button" class="budget-btn active sp-report-cat4-btn" data-cat4="include">Include</button>
     <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="bib_include">BIB Include</button>
     <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="exclude">Exclude</button>

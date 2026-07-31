@@ -13,7 +13,7 @@
   {% if wrong_company %}
     {% include "sponsorship/_notice.html" %}
   {% else %}
-  <form class="budget-toolbar" method="get" id="sp-data-filter-form">
+  <form class="budget-toolbar filter-bar collapsible" method="get" id="sp-data-filter-form">
     <select name="cat" onchange="this.form.submit()">
       <option value="">Semua Cat</option>
       {% for c in cat_choices %}<option value="{{ c }}" {% if filters.cat == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
