@@ -486,9 +486,13 @@ function initTabs(container) {
   // Deep-link support: ?tab=<name> selects [data-tab="tab-<name>"] instead
   // of always defaulting to the first tab — used by redirects like
   // /beasiswa/sahabat -> /beasiswa/?tab=sahabat. Falls back to today's
-  // default behavior when absent or no match is found.
+  // default behavior when absent or no match is found. Queried globally,
+  // not container-scoped — same reason as `tabs` above: the buttons live
+  // in the navbar's module_tabs block now, outside `container`, so a
+  // container-scoped lookup here always misses and silently falls back to
+  // tabs[0], bouncing every reload on a non-first tab back to the first.
   const requestedTab = new URLSearchParams(window.location.search).get("tab");
-  const requested = requestedTab && container.querySelector(`[data-tab="tab-${requestedTab}"]`);
+  const requested = requestedTab && document.querySelector(`[data-tab="tab-${requestedTab}"]`);
   if (requested) {
     requested.click();
   } else if (tabs.length > 0) {
