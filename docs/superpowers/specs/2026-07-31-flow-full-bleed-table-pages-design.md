@@ -28,7 +28,7 @@ unchanged.
 
 **Full-bleed:**
 - Beasiswa: Data Siswa, Data Budget, Data Payment, Rekam Medis, Sahabat ETF
-- Payment Memo: every data tab (Open PAM, PAM List/AGRI/APP/LAND/SETF/Advance/Vendors, and the Print Memo view)
+- Payment Memo: Open PAM, PAM List/AGRI/APP/LAND/SETF/Advance/Vendors
 - Payment Application: Open PA/Summary, Advance, AGRI, APP, LAND, SETF
 - Sponsorship: Data, Outstanding, Report
 - Bank: Mutasi & Saldo, Open
@@ -36,8 +36,8 @@ unchanged.
 - Users (single page)
 
 **Not full-bleed (unchanged):**
-- Beasiswa: Dashboard (charts/KPI cards)
-- Payment Memo: Input
+- Beasiswa: Dashboard (charts/KPI cards), Report Siswa (search + student detail card, not a data table)
+- Payment Memo: Input, Print Memo (search + document preview, not a data table)
 - Payment Application: Input
 - Sponsorship: Dashboard, Input
 - Budget: Dashboard (charts)
