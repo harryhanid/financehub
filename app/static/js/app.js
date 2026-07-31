@@ -472,7 +472,10 @@ function initTabs(container) {
       history.replaceState(null, "", url);
       // Filter panel always starts collapsed when switching sub-modules —
       // see docs/superpowers/specs/2026-07-12-financehub-page-toolbar-layout-design.md §2.3
-      container.querySelectorAll(".filter-bar.collapsible.open").forEach(p => p.classList.remove("open"));
+      container.querySelectorAll(".filter-bar.collapsible.open").forEach(p => {
+        p.classList.remove("open");
+        persistFilterClosed(p);
+      });
       // Newly-active panel's own scroll-height wrapper (if any) was hidden a
       // moment ago and may have a stale computed height — modules that size
       // their table wrap dynamically (e.g. sizeWrap()-style code) already
@@ -564,6 +567,34 @@ function getActiveFilterPanel() {
   return document.querySelector('.filter-bar.collapsible');
 }
 
+// sessionStorage-backed persistence for filter panel open/closed state.
+// Keyed by the panel's own stable, hand-written id (bsw-filter-siswa,
+// pam-filter-pam, pa-filter-panel, etc — no page-identity prefix needed:
+// panel ids don't collide across modules, and a stale entry from a panel
+// that doesn't exist on the current page is simply never read, since
+// restoreFilterOpenState() only ever looks up getActiveFilterPanel()'s
+// result). Scoped to sessionStorage (not localStorage) since this is
+// transient UI state that should not resurrect in a fresh session days
+// later — see docs/superpowers/specs/2026-07-31-flow-filter-panel-persist-across-reload-design.md
+function _filterOpenKey(panel) {
+  return 'fh-filter-open:' + panel.id;
+}
+function persistFilterOpen(panel) {
+  if (panel && panel.id) sessionStorage.setItem(_filterOpenKey(panel), '1');
+}
+function persistFilterClosed(panel) {
+  if (panel && panel.id) sessionStorage.removeItem(_filterOpenKey(panel));
+}
+// Called after initTabs() (and its internal auto-activation click, which
+// force-closes filter panels as a side effect on every load) has already
+// run — restoring before that point would be immediately undone.
+function restoreFilterOpenState() {
+  const panel = getActiveFilterPanel();
+  if (panel && panel.id && sessionStorage.getItem(_filterOpenKey(panel)) === '1') {
+    panel.classList.add('open');
+  }
+}
+
 // Steps the active .tab-btn within `.tabs` by `delta` positions (wraps around
 // at either end) and clicks the resulting tab. Works for both server-rendered
 // <a href> tabs (ETF PA — .click() navigates) and client-side <button
@@ -607,6 +638,7 @@ document.addEventListener('keydown', e => {
     const panel = getActiveFilterPanel();
     if (panel && panel.classList.contains('open')) {
       panel.classList.remove('open');
+      persistFilterClosed(panel);
       if (typing) el.blur(); // Also blur the search input if focused
       return;
     }
@@ -626,6 +658,7 @@ document.addEventListener('keydown', e => {
     const panel = getActiveFilterPanel();
     if (panel) {
       panel.classList.add('open');
+      persistFilterOpen(panel);
       if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
         const searchInput = panel.querySelector('input[type="text"]');
         if (searchInput) searchInput.focus();
@@ -640,6 +673,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initModuleSwitchDropdown();
   initHeaderTabFade();
   document.querySelectorAll("[data-tabs]").forEach(initTabs);
+  restoreFilterOpenState();
   document.querySelectorAll(".modal-overlay").forEach(overlay => {
     overlay.addEventListener("click", e => { if (e.target === overlay) overlay.classList.remove("open"); });
   });
