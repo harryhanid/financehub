@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set full_bleed = active_tab != 'input' %}
 {% block title %}Payment Application{% endblock %}
 
 {% block head %}
@@ -270,12 +271,14 @@
 
 {# ── Table (data tabs) ─── OR ── Input panel ─────────────────────────────── #}
 {% if active_tab == 'input' %}
-<div style="max-width:740px; margin:1.5rem auto; padding:1.25rem; background:var(--card,#fff); border:1px solid var(--border); border-radius:10px; box-shadow:var(--sh-xs,0 1px 3px rgba(0,0,0,.08))">
-  <h2 style="font-size:1rem; font-weight:700; margin-bottom:1rem">Buat Payment Application Baru</h2>
+<div class="card" style="max-width:1100px; margin:1.5rem auto">
+  <h2 class="card-title">Buat Payment Application Baru</h2>
 
+  <div class="pa-input-columns">
+  <div>
   {# ── Jenis PA ── #}
-  <div style="margin-bottom:1rem; padding:.65rem .85rem; background:var(--accent-surface); border:1px solid var(--accent-border); border-radius:6px">
-    <div style="font-size:.8rem; font-weight:700; color:var(--accent-text); margin-bottom:.45rem">Pilih Jenis PA *</div>
+  <div class="form-section tint-jenis">
+    <div class="form-section-title">Pilih Jenis PA *</div>
     <div style="display:flex; gap:1.25rem; flex-wrap:wrap">
       {% for t, lbl in [('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
       <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
@@ -287,8 +290,8 @@
   </div>
 
   {# ── Route ── #}
-  <div style="margin-bottom:1rem; padding:.65rem .85rem; background:var(--bg-muted); border:1px solid var(--border); border-radius:6px">
-    <div style="font-size:.8rem; font-weight:700; margin-bottom:.45rem">Route *</div>
+  <div class="form-section tint-route">
+    <div class="form-section-title">Route *</div>
     <div style="display:flex; gap:1.25rem; flex-wrap:wrap">
       <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
         <input type="radio" name="pa-route" value="gl" checked style="width:15px;height:15px;accent-color:#1d4ed8">
@@ -302,7 +305,8 @@
   </div>
 
   {# ── Siswa + IPK ── #}
-  <div style="margin-bottom:.75rem;padding:.6rem .75rem;background:var(--bg-muted);border:1px solid var(--border);border-radius:6px">
+  <div class="form-section tint-siswa" style="margin-bottom:.75rem">
+    <div class="form-section-title">Data Siswa</div>
     <div style="display:grid;grid-template-columns:1fr 160px;gap:.5rem;align-items:end">
       <div class="form-group" style="margin:0;position:relative">
         <label style="font-weight:600">Nama Siswa *</label>
@@ -324,26 +328,37 @@
       <button type="button" id="pa-siswa-edit-btn" class="btn btn-sm" style="padding:1px 8px;font-size:.68rem;line-height:1.5">✏ Update Siswa</button>
     </div>
   </div>
-
-  {# ── Tanggal-tanggal ── #}
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.5rem;margin-bottom:.5rem">
-    <div class="form-group" style="margin:0"><label>Tgl PA *</label><input type="date" id="pa-tgl-app"></div>
-    <div class="form-group" style="margin:0"><label>Tgl Surat Pengajuan</label><input type="date" id="pa-tgl-surat"></div>
-    <div class="form-group" style="margin:0"><label>Doc Recv Educ</label><input type="date" id="pa-doc-recv"></div>
-    <div class="form-group" style="margin:0"><label>Recv PA Educ</label><input type="date" id="pa-recv-pa"></div>
   </div>
 
-  <div class="form-group" style="margin-bottom:.75rem">
-    <label>Keterangan</label>
-    <textarea id="pa-keterangan" rows="3" placeholder="Opsional (Shift+Enter untuk baris baru)" style="resize:vertical"></textarea>
+  <div>
+  {# ── Tanggal-tanggal ── #}
+  <div class="form-section tint-tgl">
+    <div class="form-section-title">Tanggal</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
+      <div class="form-group" style="margin:0"><label>Tgl PA *</label><input type="date" id="pa-tgl-app"></div>
+      <div class="form-group" style="margin:0"><label>Tgl Surat Pengajuan</label><input type="date" id="pa-tgl-surat"></div>
+      <div class="form-group" style="margin:0"><label>Doc Recv Educ</label><input type="date" id="pa-doc-recv"></div>
+      <div class="form-group" style="margin:0"><label>Recv PA Educ</label><input type="date" id="pa-recv-pa"></div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Keterangan</div>
+    <div class="form-group" style="margin:0">
+      <textarea id="pa-keterangan" rows="3" placeholder="Opsional (Shift+Enter untuk baris baru)" style="resize:vertical"></textarea>
+    </div>
+  </div>
+  </div>
   </div>
 
   {# ── Baris pembayaran ── #}
-  <div style="display:flex;justify-content:space-between;align-items:center;margin:.25rem 0 .4rem">
-    <strong style="font-size:.875rem">Daftar Pembayaran</strong>
-    <button class="btn btn-secondary btn-sm" onclick="addPayLine()">+ Tambah Baris</button>
+  <div class="form-section tint-pay">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+      <div class="form-section-title" style="margin-bottom:0">Daftar Pembayaran</div>
+      <button class="btn btn-secondary btn-sm" onclick="addPayLine()">+ Tambah Baris</button>
+    </div>
+    <div id="pa-paylines-container"></div>
   </div>
-  <div id="pa-paylines-container"></div>
 
   <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1rem">
     <button class="btn btn-primary" onclick="submitPA()">Simpan PA</button>
@@ -387,8 +402,8 @@
         <th class="col-siswa">Program</th>
         <th class="col-siswa">Fakultas</th>
         <th class="col-siswa">Program Studi</th>
-        <th data-sort="13">Tgl PA</th>
-        <th>Tgl Surat</th>
+        <th data-sort="13" style="white-space: nowrap; min-width: 110px;">Tgl PA</th>
+        <th style="white-space: nowrap; min-width: 110px;">Tgl Surat</th>
         <th>Jenis Bayar</th>
         <th>Semester</th>
         <th>Tahun Ajaran</th>
@@ -442,7 +457,7 @@
         <td>{{ r.semester or '--' }}</td>
         <td>{{ r.tahun_ajaran or '--' }}</td>
         <td>{{ r.ipk_sem_sebelumnya if r.ipk_sem_sebelumnya else '--' }}</td>
-        <td class="num-right">Rp {{ "{:,.0f}".format(r.jumlah_pembayaran or 0) }}</td>
+        <td class="num-right">{{ (r.jumlah_pembayaran or 0) | rupiah }}</td>
         <td>{{ r.doc_received_by_educ or '--' }}</td>
         <td>{{ r.received_pa_from_educ or '--' }}</td>
         <td>{{ r.checked_by_fincon or '--' }}</td>
@@ -478,10 +493,10 @@
   </table>
 </div>
 {% macro pa_page_url(p) -%}
-?tab={{ active_tab }}{% if active_sf %}&sf={{ active_sf }}{% endif %}{% if f_nama %}&nama={{ f_nama | urlencode }}{% endif %}{% if f_jenjang %}&jenjang={{ f_jenjang | urlencode }}{% endif %}{% if f_program %}&program={{ f_program | urlencode }}{% endif %}{% if f_angkatan %}&angkatan={{ f_angkatan | urlencode }}{% endif %}{% if f_jenis %}&jenis={{ f_jenis | urlencode }}{% endif %}{% if f_pam %}&pam={{ f_pam | urlencode }}{% endif %}{% if f_bulan_pa %}&bulan_pa={{ f_bulan_pa }}{% endif %}{% if f_tahun_pa %}&tahun_pa={{ f_tahun_pa }}{% endif %}&page={{ p }}
+?tab={{ active_tab }}{% if active_sf %}&sf={{ active_sf }}{% endif %}{% if f_nama %}&nama={{ f_nama | urlencode }}{% endif %}{% if f_jenjang %}&jenjang={{ f_jenjang | urlencode }}{% endif %}{% if f_program %}&program={{ f_program | urlencode }}{% endif %}{% if f_angkatan %}&angkatan={{ f_angkatan | urlencode }}{% endif %}{% if f_jenis %}&jenis={{ f_jenis | urlencode }}{% endif %}{% if f_pam %}&pam={{ f_pam | urlencode }}{% endif %}{% if f_bulan_pa %}&bulan_pa={{ f_bulan_pa }}{% endif %}{% if f_tahun_pa %}&tahun_pa={{ f_tahun_pa }}{% endif %}&page_size={{ page_size }}&page={{ p }}
 {%- endmacro %}
 {% if total_pages > 1 %}
-<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 2px;font-size:.8rem">
+<div class="floating-pagination">
   <span style="color:var(--text-muted)">Menampilkan {{ start_row }}-{{ end_row }} dari {{ total_rows }} baris (halaman {{ page }}/{{ total_pages }})</span>
   <div style="display:flex;gap:6px">
     {% if page > 1 %}
@@ -550,7 +565,7 @@
 
 <div style="margin-top:.25rem">
   <div id="summary-loading" style="text-align:center; padding:2rem; color:var(--text-muted)">Memuat data summary...</div>
-  <div id="summary-wrap" style="display:none; overflow-x:auto; max-height:calc(100vh - 230px); overflow-y:auto">
+  <div id="summary-wrap" style="display:none; overflow-x:auto; max-height:calc(100vh - 120px); height:calc(100vh - 120px); overflow-y:auto">
     <table id="summary-table" style="width:100%; border-collapse:collapse; font-size:.8rem">
       <thead>
         <tr style="background:var(--bg-muted); position:sticky; top:0; z-index:2">
@@ -572,7 +587,7 @@
     </table>
   </div>
   <div id="summary-count" style="margin-top:.4rem; font-size:.75rem; color:var(--text-muted)"></div>
-  <div id="summary-pagination" style="display:none;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 2px;font-size:.8rem">
+  <div id="summary-pagination" class="floating-pagination" style="display:none;">
     <span id="summary-page-info" style="color:var(--text-muted)"></span>
     <div style="display:flex;gap:6px">
       <button type="button" class="btn btn-secondary btn-sm" id="summary-page-prev" onclick="_summaryPageStep(-1)">&#8592; Prev</button>
@@ -761,7 +776,7 @@
 
 <div style="margin-top:.25rem">
   <div id="advance-loading" style="text-align:center; padding:2rem; color:var(--text-muted)">Memuat data Advance...</div>
-  <div id="advance-wrap" style="display:none; overflow-x:auto; max-height:calc(100vh - 230px); overflow-y:auto">
+  <div id="advance-wrap" style="display:none; overflow-x:auto; max-height:calc(100vh - 120px); height:calc(100vh - 120px); overflow-y:auto">
     <table id="advance-table" style="width:100%; border-collapse:collapse; font-size:.8rem">
       <thead>
         <tr style="background:var(--bg-muted); position:sticky; top:0; z-index:2">
@@ -920,7 +935,7 @@
 
 {# ── Template baris pembayaran (payline) ─────────────────────────────────── #}
 <template id="payline-template">
-  <div class="payline-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.5rem;align-items:end;margin-bottom:.35rem;padding:.4rem .5rem;background:var(--bg-muted);border:1px solid var(--border);border-radius:5px">
+  <div class="payline-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:.5rem;align-items:end;padding:.4rem .5rem;margin-bottom:.35rem">
     <div class="form-group" style="margin:0"><label style="font-size:.75rem">Jenis Bayar</label>
       <select class="pl-jenis-bayar">
         <option value="">-- Pilih --</option>
@@ -1018,8 +1033,51 @@
 
 {% block scripts %}
 <script>
+// ─── Date inputs: click/Tab-in opens the native picker, manual typing off ────
+// All <input type="date"> on this page (Input-PA form, Edit modal, bulk-date
+// bar) should only be settable via the browser's date picker — clicking
+// anywhere in the box (not just the calendar icon) opens it immediately, and
+// keyboard entry is blocked (Tab/Shift+Tab excepted) so users can't type a
+// date by hand. showPicker() is feature-detected once so browsers that don't
+// support it (very old only, as of 2026) fall back to normal manual typing
+// instead of the field becoming unusable.
+(function() {
+  var supportsShowPicker = typeof HTMLInputElement.prototype.showPicker === 'function';
+
+  document.addEventListener('click', function (e) {
+    if (supportsShowPicker && e.target.matches('input[type="date"]')) {
+      e.target.showPicker();
+    }
+  });
+  document.addEventListener('focus', function (e) {
+    if (supportsShowPicker && e.target.matches('input[type="date"]')) {
+      e.target.showPicker();
+    }
+  }, true); // capture phase — 'focus' doesn't bubble
+  document.addEventListener('keydown', function (e) {
+    if (supportsShowPicker && e.target.matches('input[type="date"]') && e.key !== 'Tab') {
+      e.preventDefault();
+    }
+  });
+})();
+
 const TODAY   = new Date().toISOString().slice(0,10);
 const ACTIVE_TAB = "{{ active_tab }}";
+const PA_RENDERED_PAGE_SIZE = {{ page_size }};
+const PA_TOTAL_ROWS = {{ total_rows }};
+
+if (PA_TOTAL_ROWS > 0) {
+  window.addEventListener('load', () => {
+    initServerPagedDynamicSize({
+      cacheName: 'pa',
+      paramName: 'page_size',
+      scrollContainer: '#pa-scroll-wrap',
+      rowSelector: '#pa-table tbody tr',
+      defaultSize: 50,
+      renderedPageSize: PA_RENDERED_PAGE_SIZE,
+    });
+  });
+}
 
 // ─── Size pa-scroll-wrap to fill the entire remaining viewport ───────────────
 // pa-scroll-wrap has overflow:auto — both X and Y scroll happen inside it.
@@ -1032,7 +1090,7 @@ const ACTIVE_TAB = "{{ active_tab }}";
     const wrap = document.getElementById('pa-scroll-wrap');
     if (!wrap) return;
     requestAnimationFrame(() => {
-      const mainPadBottom = 28; // .main { padding: 1.75rem } → 1.75×16 = 28px
+      const mainPadBottom = 0; // .main { padding: 1.75rem } → 1.75×16 = 28px
       wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top - mainPadBottom) + 'px';
     });
   }
@@ -1105,19 +1163,96 @@ window.addEventListener("DOMContentLoaded", () => {
   if (paylinesCont) {
     const tglInp = document.getElementById('pa-tgl-app');
     if (tglInp) tglInp.value = new Date().toISOString().slice(0, 10);
+    const searchInp = document.getElementById('pa-siswa-search');
+    if (searchInp) {
+      document.addEventListener('keydown', function(e) {
+        // Only trigger 'f' if we're not already typing in an input/textarea
+        if (e.key.toLowerCase() === 'f' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+          e.preventDefault();
+          searchInp.focus();
+        }
+        if (e.key === 'Escape' && document.activeElement === searchInp) {
+          searchInp.blur();
+        }
+      });
+    }
     addPayLine();
   }
 });
 
+// ─── Persistent PA selection (sessionStorage, per tab) ─────────────────────
+// PA's filters navigate via a full page reload (see navigateWithFilters()),
+// which wipes DOM checkbox state. This persists the selection across those
+// reloads so bulk-marking survives multiple searches. Scoped per tab.
+// See docs/superpowers/specs/2026-08-03-flow-pa-persistent-bulk-selection-design.md
+function _paSelectionKey(tab) {
+  return 'fh-pa-selected:' + tab;
+}
+function getSelectedPa(tab) {
+  try {
+    const raw = sessionStorage.getItem(_paSelectionKey(tab));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) { return []; }
+}
+function setSelectedPa(tab, list) {
+  try { sessionStorage.setItem(_paSelectionKey(tab), JSON.stringify(list)); } catch (e) {}
+}
+function addSelectedPa(tab, id, nama) {
+  const list = getSelectedPa(tab);
+  if (!list.some(e => e.id === id)) {
+    list.push({ id, nama });
+    setSelectedPa(tab, list);
+  }
+}
+function removeSelectedPa(tab, id) {
+  setSelectedPa(tab, getSelectedPa(tab).filter(e => e.id !== id));
+}
+function clearSelectedPa(tab) {
+  try { sessionStorage.removeItem(_paSelectionKey(tab)); } catch (e) {}
+}
+
+// Restores checked state on any currently-rendered row whose id is in the
+// persisted selection, then syncs the "select all" header checkbox and bulk
+// bar. Called once after the table has rendered (see DOMContentLoaded below).
+function restorePaSelection() {
+  const selected = getSelectedPa(ACTIVE_TAB);
+  if (!selected.length) return;
+  const ids = new Set(selected.map(e => e.id));
+  document.querySelectorAll("#pa-table tbody tr[data-pa-id]").forEach(tr => {
+    const id = parseInt(tr.dataset.paId);
+    const cb = tr.querySelector(".row-chk");
+    if (cb && ids.has(id)) {
+      cb.checked = true;
+      tr.classList.add("row-sel");
+    }
+  });
+  const all = document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none']) .row-chk");
+  const checked = [...all].filter(c => c.checked);
+  const chkAll = document.getElementById("chk-all");
+  if (chkAll) chkAll.checked = checked.length === all.length && all.length > 0;
+  updateBulkBar();
+}
+
 // ─── Checkbox & selection ─────────────────────────────────────────────────────
 function toggleAll(chk) {
   document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none']) .row-chk")
-    .forEach(c => { c.checked = chk.checked; c.closest("tr").classList.toggle("row-sel", chk.checked); });
+    .forEach(c => {
+      c.checked = chk.checked;
+      const tr = c.closest("tr");
+      tr.classList.toggle("row-sel", chk.checked);
+      const id = parseInt(c.value);
+      if (chk.checked) addSelectedPa(ACTIVE_TAB, id, tr.dataset.nama || '');
+      else removeSelectedPa(ACTIVE_TAB, id);
+    });
   updateBulkBar();
 }
 function onRowCheck() {
   const tr = event.target.closest("tr");
   tr.classList.toggle("row-sel", event.target.checked);
+  const id = parseInt(event.target.value);
+  if (event.target.checked) addSelectedPa(ACTIVE_TAB, id, tr.dataset.nama || '');
+  else removeSelectedPa(ACTIVE_TAB, id);
   const all  = document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none']) .row-chk");
   const checked = [...all].filter(c => c.checked);
   document.getElementById("chk-all").checked = checked.length === all.length && all.length > 0;
@@ -1126,10 +1261,11 @@ function onRowCheck() {
 function clearSelection() {
   document.querySelectorAll(".row-chk").forEach(c => { c.checked = false; c.closest("tr").classList.remove("row-sel"); });
   document.getElementById("chk-all").checked = false;
+  clearSelectedPa(ACTIVE_TAB);
   updateBulkBar();
 }
 function updateBulkBar() {
-  const sel = document.querySelectorAll(".row-chk:checked");
+  const sel = getSelectedPa(ACTIVE_TAB);
   const bar = document.getElementById("bulk-bar");
   bar.style.display = sel.length ? "flex" : "none";
   document.getElementById("bulk-count").textContent = `${sel.length} baris dipilih`;
@@ -1139,15 +1275,14 @@ function updateBulkBar() {
 function renderPaChips() {
   const container = document.getElementById("pa-chips-row");
   if (!container) return;
-  const checked = [...document.querySelectorAll(".row-chk:checked")];
-  if (!checked.length) { container.style.display = "none"; return; }
+  const selected = getSelectedPa(ACTIVE_TAB);
+  if (!selected.length) { container.style.display = "none"; return; }
   const LIMIT  = 5;
-  const hidden = checked.length > LIMIT + 1 ? checked.slice(LIMIT) : [];
-  const shown  = hidden.length ? checked.slice(0, LIMIT) : checked;
-  function chipHtml(cb) {
-    const id   = cb.value;
-    const nama = cb.closest("tr")?.dataset.nama || id;
-    return `<span style="background:var(--accent);color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${nama}<span onclick="removePaChip('${id}')" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+  const hidden = selected.length > LIMIT + 1 ? selected.slice(LIMIT) : [];
+  const shown  = hidden.length ? selected.slice(0, LIMIT) : selected;
+  function chipHtml(entry) {
+    const nama = entry.nama || entry.id;
+    return `<span style="background:var(--accent);color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${nama}<span onclick="removePaChip(${entry.id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
   }
   let html = `<span style="font-size:10px;color:var(--accent-text);font-weight:700;white-space:nowrap;margin-right:2px">● Tandai:</span>`;
   html += shown.map(chipHtml).join('');
@@ -1165,21 +1300,22 @@ function expandPaChips() {
   if (!h || !b) return;
   const expanded = h.style.display !== "none";
   h.style.display = expanded ? "none" : "contents";
-  b.textContent   = expanded ? `+${document.querySelectorAll(".row-chk:checked").length - 5} lagi ▾` : "▲ sembunyikan";
+  b.textContent   = expanded ? `+${getSelectedPa(ACTIVE_TAB).length - 5} lagi ▾` : "▲ sembunyikan";
 }
 
 function removePaChip(paId) {
   const cb = document.querySelector(`.row-chk[value="${paId}"]`);
   if (cb) { cb.checked = false; cb.closest("tr")?.classList.remove("row-sel"); }
+  removeSelectedPa(ACTIVE_TAB, paId);
   const all     = document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none']) .row-chk");
   const checked = [...all].filter(c => c.checked);
   document.getElementById("chk-all").checked = checked.length === all.length && all.length > 0;
   updateBulkBar();
 }
 function selectedPaIds() {
-  const raw = [...document.querySelectorAll(".row-chk:checked")].map(c => parseInt(c.value));
-  return [...new Set(raw)];
+  return getSelectedPa(ACTIVE_TAB).map(e => e.id);
 }
+document.addEventListener('DOMContentLoaded', restorePaSelection);
 function visiblePaIds() {
   return [...document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none'])")].map(tr => parseInt(tr.dataset.paId));
 }
@@ -1329,13 +1465,60 @@ function _etfpaUpdateCreateIpk(s) {
 // ─── Create modal: siswa search ───────────────────────────────────────────────
 function setupCreateSiswaSearch() {
   const searchInp = document.getElementById('pa-siswa-search');
+    if (searchInp) {
+      document.addEventListener('keydown', function(e) {
+        // Only trigger 'f' if we're not already typing in an input/textarea
+        if (e.key.toLowerCase() === 'f' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+          e.preventDefault();
+          searchInp.focus();
+        }
+        if (e.key === 'Escape' && document.activeElement === searchInp) {
+          searchInp.blur();
+        }
+      });
+    }
   const idInp     = document.getElementById('pa-siswa-id');
   const codeInp   = document.getElementById('pa-siswa-code');
   const infoDiv   = document.getElementById('pa-siswa-info');
   const sugg      = document.getElementById('pa-siswa-sugg');
   if (!searchInp) return;
   let debounce;
+  let activeIdx = -1;
+
+  searchInp.addEventListener('keydown', (e) => {
+    if (sugg.style.display === 'none') return;
+    const items = sugg.querySelectorAll('div');
+    if (!items.length) return;
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIdx = (activeIdx + 1) % items.length;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = (activeIdx - 1 + items.length) % items.length;
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIdx > -1 && items[activeIdx]) {
+        items[activeIdx].onmousedown();
+      }
+      return;
+    } else {
+      return;
+    }
+    
+    items.forEach((item, idx) => {
+      if (idx === activeIdx) {
+        item.style.backgroundColor = 'var(--accent, #5B8CFF)';
+        item.style.color = '#fff';
+      } else {
+        item.style.backgroundColor = '';
+        item.style.color = '';
+      }
+    });
+  });
+
   searchInp.addEventListener('input', () => {
+    activeIdx = -1;
     clearTimeout(debounce);
     const q = searchInp.value.trim();
     if (q.length < 2) { sugg.style.display = 'none'; return; }

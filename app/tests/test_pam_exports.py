@@ -269,3 +269,33 @@ def test_export_pam_excel_detail_sheet_headers():
     assert "KETERANGAN" in all_vals
     assert "SISA SALDO" in all_vals
     assert PAM_NO in all_vals
+
+def test_export_pam_excel_custom_rangkuman_shows_namarek_not_nama():
+    import openpyxl, io as _io
+    from modules.payment_memo.exports import export_pam_excel_custom
+    
+    _CUSTOM_DATA = {
+        "pam_no": "PAM-01",
+        "pam_date": "2026-08-01",
+        "company_name": "Test Company",
+        "requestor": "Admin",
+        "description": "Test PAM",
+        "prepared_by": "Staff",
+        "checked_by": "SPV",
+        "approved_by": "Manager",
+        "total_amount": 2000000,
+        "is_smt": False,
+        "smt_lines": []
+    }
+    
+    payments = [
+        {"siswa_code": "S002", "nama": "Budi Siswa", "bank": "BCA",
+         "norek": "9876543210", "namarek": "Ibu Budi Rekening",
+         "cat1": "General", "cat2": "Sem 1", "amount": 2000000},
+    ]
+    result = export_pam_excel_custom(_CUSTOM_DATA, payments)
+    wb = openpyxl.load_workbook(_io.BytesIO(result))
+    ws = wb["Rangkuman PAM"]
+    values = [ws.cell(r, 4).value for r in range(1, 20)]
+    assert "Ibu Budi Rekening" in values
+    assert "Budi Siswa" not in values

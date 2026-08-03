@@ -1,5 +1,8 @@
 # tests/test_pam_service.py
 import os, sys, pytest, calendar
+from datetime import date
+from unittest.mock import patch, MagicMock
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
 config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_finance_hub.db")
@@ -9,7 +12,7 @@ from modules.payment_memo.service import (
     generate_pam_number, create_pam_record,
     get_pam_list, get_coa_list, update_pam_gl_account,
     update_pam_status, update_pam_record, get_pam_payments,
-    list_vendors, add_vendor, update_vendor,
+    list_vendors, add_vendor, update_vendor, _workday
 )
 
 COMPANY_ID   = 2   # ETF
@@ -77,7 +80,7 @@ def test_create_pam_record_inserts_row():
     assert row["requestors_name"] == "Jany Turkanda"
     assert row["keterangan"]      == "Harry, Joni"
     assert row["total_amount"]    == 7500000.0
-    assert row["due_date"]        == "2026-06-30"
+    assert row["due_date"]        == "2026-06-11"
     assert row["status"]          == "open"
 
 
@@ -1034,3 +1037,14 @@ def test_update_vendor_same_name_noop_allowed():
     rows = list_vendors(search="PT Update Self")
     assert rows[0]["pillar"] == "LAND"
     assert rows[0]["cost_center"] == "changed-cc"
+
+def test_workday_skips_weekend_and_2026_holiday():
+    # 2026-05-31 is a Sunday; 2026-06-01 is a holiday (Hari Lahir Pancasila
+    # observed) - both must be skipped when counting 8 workdays forward.
+    result = _workday('2026-05-31', 8)
+    assert result.strftime('%Y-%m-%d') == '2026-06-11'
+
+def test_workday_plain_weekday_span_no_holiday():
+    # 2026-07-06 is a Monday with no holiday in the next 8 workdays.
+    result = _workday('2026-07-06', 8)
+    assert result.strftime('%Y-%m-%d') == '2026-07-16'

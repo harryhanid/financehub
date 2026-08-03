@@ -1,12 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Sponsorship Data{% endblock %}
+{% set full_bleed = true %}
+{% block title %}Sponsorship Data
+{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+
 {% endblock %}
 {% block module_tabs %}
 {% set active_tab = "data" %}
 {% include "sponsorship/_toolbar.html" with context %}
+
 {% endblock %}
 {% block content %}
 <div class="budget-page">
@@ -17,6 +21,18 @@
     <select name="cat" onchange="this.form.submit()">
       <option value="">Semua Cat</option>
       {% for c in cat_choices %}<option value="{{ c }}" {% if filters.cat == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <select name="cat1" onchange="this.form.submit()">
+      <option value="">Semua Kategori 1</option>
+      {% for c in cat1_choices %}<option value="{{ c }}" {% if filters.cat1 == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <select name="cat2" onchange="this.form.submit()">
+      <option value="">Semua Kategori 2</option>
+      {% for c in cat2_choices %}<option value="{{ c }}" {% if filters.cat2 == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <select name="cat4" onchange="this.form.submit()">
+      <option value="">Semua Include/Exclude</option>
+      {% for c in cat4_choices %}<option value="{{ c }}" {% if filters.cat4 == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
     </select>
     <select name="cat3" onchange="this.form.submit()">
       <option value="">Semua Pillar</option>
@@ -38,14 +54,16 @@
     </div>
     <input type="text" name="status" placeholder="Filter Status..." value="{{ filters.status or '' }}">
     <button type="submit" class="budget-btn">Terapkan Filter</button>
+    <button type="button" class="budget-btn" style="background-color:#10b981;margin-left:auto" onclick="exportDataExcel()">Export to Excel</button>
   </form>
   <datalist id="sp-lembaga-datalist"></datalist>
+  <div class="budget-table-container" id="sp-table-wrap">
   <table class="budget-table">
     <thead>
       <tr>
         <th>ID</th><th>Cat</th><th>Description</th><th>Tgl Form</th><th>Tgl Payment</th>
         <th>Cat1</th><th>Cat2</th><th>Cat3</th><th>Lembaga/Perorangan</th><th>Perihal</th>
-        <th>Amount Request</th><th>AGRI</th><th>APP</th><th>ENERGY & FINANCE</th><th>PROPERTY</th>
+        <th>Amount Request</th><th>APP</th><th>ENERGY</th><th>PROPERTY</th><th>AGRI</th>
         <th>Reff</th><th>Status</th><th>Cat4</th><th>COA</th><th>CC Total</th><th>CC</th><th>Source</th><th></th>
       </tr>
     </thead>
@@ -57,8 +75,8 @@
         <td>{{ r.cat1 }}</td><td>{{ r.cat2 }}</td><td>{{ r.cat3 }}</td>
         <td>{{ r.lembaga_perorangan }}</td><td>{{ r.perihal or '' }}</td>
         <td>{{ r.amount_request }}</td>
-        <td>{{ r.agri_amount }}</td><td>{{ r.app_amount }}</td>
-        <td>{{ r.energy_finance_amount }}</td><td>{{ r.property_amount }}</td>
+        <td>{{ r.app_amount }}</td><td>{{ r.energy_finance_amount }}</td>
+        <td>{{ r.property_amount }}</td><td>{{ r.agri_amount }}</td>
         <td>{{ r.reff or '' }}</td><td>{{ r.status or '' }}</td><td>{{ r.cat4 or '' }}</td>
         <td>{{ r.coa }}</td><td>{{ r.cc_total }}</td><td>{{ r.cc }}</td><td>{{ r.source }}</td>
         <td><button class="budget-btn" onclick="sponsorshipDataEdit({{ r.id }})">Edit</button></td>
@@ -67,13 +85,22 @@
     </tbody>
   </table>
   {% if total_pages and total_pages > 1 %}
-  <div class="budget-pagination">
+  <div class="floating-pagination">
     <span class="budget-pagination-info">Halaman {{ page }} dari {{ total_pages }} ({{ total_count }} data)</span>
     <div class="budget-pagination-nav">
-      <a class="budget-btn {% if page <= 1 %}disabled{% endif %}"
-         href="?page={{ page - 1 }}{% if filters.cat %}&cat={{ filters.cat|urlencode }}{% endif %}{% if filters.cat3 %}&cat3={{ filters.cat3|urlencode }}{% endif %}{% if filters.description %}&description={{ filters.description|urlencode }}{% endif %}{% if filters.tahun %}&tahun={{ filters.tahun|urlencode }}{% endif %}{% if filters.status %}&status={{ filters.status|urlencode }}{% endif %}">‹ Prev</a>
-      <a class="budget-btn {% if page >= total_pages %}disabled{% endif %}"
-         href="?page={{ page + 1 }}{% if filters.cat %}&cat={{ filters.cat|urlencode }}{% endif %}{% if filters.cat3 %}&cat3={{ filters.cat3|urlencode }}{% endif %}{% if filters.description %}&description={{ filters.description|urlencode }}{% endif %}{% if filters.tahun %}&tahun={{ filters.tahun|urlencode }}{% endif %}{% if filters.status %}&status={{ filters.status|urlencode }}{% endif %}">Next ›</a>
+      {% set query_str = [] %}
+{% for k, v in filters.items() %}
+  {% if v is iterable and v is not string %}
+    {% for item in v %}
+      {% set _ = query_str.append(k ~ '=' ~ item|urlencode) %}
+    {% endfor %}
+  {% else %}
+    {% set _ = query_str.append(k ~ '=' ~ v|urlencode) %}
+  {% endif %}
+{% endfor %}
+{% set filter_qs = ('&' ~ query_str|join('&')) if query_str else '' %}
+      <a class="budget-btn {% if page <= 1 %}disabled{% endif %}" href="?page={{ page - 1 }}&page_size={{ page_size }}{{ filter_qs }}">‹ Prev</a>
+      <a class="budget-btn {% if page >= total_pages %}disabled{% endif %}" href="?page={{ page + 1 }}&page_size={{ page_size }}{{ filter_qs }}">Next ›</a>
     </div>
   </div>
   {% endif %}
@@ -82,37 +109,91 @@
     <div class="modal">
       <div class="modal-header"><span class="modal-title">Edit Transaksi Sponsorship</span></div>
       <div class="modal-body">
-        <form id="sp-edit-form">
+        <form id="sp-edit-form" class="sp-form-card">
           <input type="hidden" id="sp-ed-id">
-          <label>Cat
-            <select id="sp-ed-cat">{% for c in cat_choices %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
-          </label>
-          <label>Description
-            <select id="sp-ed-description">{% for d in description_choices %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
-          </label>
-          <label>Cat1 (Perusahaan)
-            <input type="text" id="sp-ed-cat1-search" placeholder="Cari perusahaan...">
-            <input type="hidden" id="sp-ed-cat1">
-            <div id="sp-ed-cat1-results" class="sp-autocomplete-results"></div>
-          </label>
-          <label>Cat2 <input type="text" id="sp-ed-cat2" readonly></label>
-          <label>Cat3 (Pillar) <input type="text" id="sp-ed-cat3" readonly></label>
-          <label>Cat4
-            <select id="sp-ed-cat4"><option value="">(blank)</option>{% for c in cat4_choices %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
-          </label>
-          <label>Lembaga/Perorangan
-            <input type="text" id="sp-ed-lembaga" list="sp-lembaga-datalist" autocomplete="off">
-          </label>
-          <label>Tanggal Form Sponsor <input type="date" id="sp-ed-tanggal-form"></label>
-          <label>Perihal <input type="text" id="sp-ed-perihal"></label>
-          <label>Amount Request <input type="number" id="sp-ed-amount" min="0"></label>
-          <label>Tanggal Payment <input type="date" id="sp-ed-tanggal-payment"></label>
-          <label>Reff <input type="text" id="sp-ed-reff"></label>
-          <label>Status <input type="text" id="sp-ed-status"></label>
-          <label>COA <input type="text" id="sp-ed-coa"></label>
-          <label>CC Total <input type="text" id="sp-ed-cc-total"></label>
-          <label>CC <input type="text" id="sp-ed-cc"></label>
-          <label>Source <input type="text" id="sp-ed-source"></label>
+          <div class="sp-form-section-title">Kategori Transaksi</div>
+          <div class="sp-form-grid">
+            <div class="sp-form-field">
+              <label>Cat</label>
+              <select id="sp-ed-cat">{% for c in cat_choices %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
+            </div>
+            <div class="sp-form-field">
+              <label>Description</label>
+              <select id="sp-ed-description">{% for d in description_choices %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+            </div>
+            <div class="sp-form-field sp-form-span2">
+              <label>Cat1 (Perusahaan)</label>
+              <input type="text" id="sp-ed-cat1-search" placeholder="Cari perusahaan...">
+              <input type="hidden" id="sp-ed-cat1">
+              <div id="sp-ed-cat1-results" class="sp-autocomplete-results"></div>
+            </div>
+            <div class="sp-form-field">
+              <label>Cat2</label>
+              <input type="text" id="sp-ed-cat2" readonly>
+            </div>
+            <div class="sp-form-field">
+              <label>Cat3 (Pillar)</label>
+              <input type="text" id="sp-ed-cat3" readonly>
+            </div>
+            <div class="sp-form-field sp-form-span2">
+              <label>Cat4</label>
+              <select id="sp-ed-cat4"><option value="">(blank)</option>{% for c in cat4_choices %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
+            </div>
+          </div>
+
+          <div class="sp-form-section-title sp-form-section-title-divider">Detail &amp; Tanggal</div>
+          <div class="sp-form-grid">
+            <div class="sp-form-field sp-form-span2">
+              <label>Lembaga/Perorangan</label>
+              <input type="text" id="sp-ed-lembaga" list="sp-lembaga-datalist" autocomplete="off">
+            </div>
+            <div class="sp-form-field">
+              <label>Tanggal Form Sponsor</label>
+              <input type="date" id="sp-ed-tanggal-form">
+            </div>
+            <div class="sp-form-field">
+              <label>Tanggal Payment</label>
+              <input type="date" id="sp-ed-tanggal-payment">
+            </div>
+            <div class="sp-form-field sp-form-span2">
+              <label>Perihal</label>
+              <input type="text" id="sp-ed-perihal">
+            </div>
+            <div class="sp-form-field">
+              <label>Amount Request</label>
+              <input type="number" id="sp-ed-amount" min="0">
+            </div>
+            <div class="sp-form-field">
+              <label>Reff</label>
+              <input type="text" id="sp-ed-reff">
+            </div>
+            <div class="sp-form-field sp-form-span2">
+              <label>Status</label>
+              <input type="text" id="sp-ed-status">
+            </div>
+          </div>
+
+          <details class="sp-form-advanced">
+            <summary>Lanjutan (COA, CC Total, CC, Source)</summary>
+            <div class="sp-form-grid">
+              <div class="sp-form-field sp-form-span2">
+                <label>COA</label>
+                <input type="text" id="sp-ed-coa">
+              </div>
+              <div class="sp-form-field sp-form-span2">
+                <label>CC Total</label>
+                <input type="text" id="sp-ed-cc-total">
+              </div>
+              <div class="sp-form-field sp-form-span2">
+                <label>CC</label>
+                <input type="text" id="sp-ed-cc">
+              </div>
+              <div class="sp-form-field sp-form-span2">
+                <label>Source</label>
+                <input type="text" id="sp-ed-source">
+              </div>
+            </div>
+          </details>
         </form>
       </div>
       <div class="modal-footer" style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem">
@@ -123,7 +204,54 @@
   </div>
   {% endif %}
 </div>
+
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/sponsorship.js') }}"></script>
+<script>
+if ({{ total_count }} > 0) {
+  window.addEventListener('load', () => {
+    initServerPagedDynamicSize({
+      cacheName: 'sponsorship-data',
+      paramName: 'page_size',
+      scrollContainer: '.budget-table-container, .budget-page',
+      rowSelector: '.budget-table tbody tr',
+      defaultSize: 100,
+      renderedPageSize: {{ page_size }},
+    });
+  });
+}
+</script>
+
+
+<script>
+function exportDataExcel() {
+  const form = document.getElementById("sp-data-filter-form");
+  const params = new URLSearchParams(new FormData(form));
+  window.location.href = "/sponsorship/data/export?" + params.toString();
+}
+</script>
+
+<script>
+// ─── Size sp-table-wrap to fill the entire remaining viewport ────────────
+// Same technique as #pa-scroll-wrap in etf_payment_application/index.html —
+// measure the wrapper's actual position instead of guessing a fixed height,
+// so it can't go stale when the layout around it changes.
+(function() {
+  function sizeWrap() {
+    const wrap = document.getElementById('sp-table-wrap');
+    if (!wrap) return;
+    requestAnimationFrame(() => {
+      wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top) + 'px';
+    });
+  }
+  window.addEventListener('load', sizeWrap);
+  window.addEventListener('resize', sizeWrap);
+  document.addEventListener('DOMContentLoaded', sizeWrap);
+  document.addEventListener('DOMContentLoaded', () => {
+    const filterForm = document.getElementById('sp-data-filter-form');
+    if (filterForm && window.ResizeObserver) new ResizeObserver(sizeWrap).observe(filterForm);
+  });
+})();
+</script>
 {% endblock %}

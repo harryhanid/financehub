@@ -26,7 +26,7 @@ from modules.payment_memo.service import (
     get_siswa_medical, save_klaim_payment, save_others_payment,
     bulk_complete_pams, mark_beasiswa_lines_complete,
     get_pam_beasiswa_lines,
-    get_advance_payments, realize_advance_payment,
+    get_advance_payments, realize_advance_payment, _workday,
 )
 from modules.payment_memo.service import list_vendors, add_vendor, update_vendor
 from modules.payment_memo.exports import (
@@ -164,6 +164,19 @@ def export_pdf(memo_id):
 def list_coa():
     # COA is a global lookup — same chart of accounts across all companies
     return jsonify({"ok": True, "coa": get_coa_list()})
+
+
+@bp.route("/api/due-date")
+@json_required
+def get_due_date():
+    tanggal = request.args.get("tanggal", "")
+    if not tanggal:
+        return jsonify({"ok": False, "pesan": "Parameter tanggal wajib diisi."}), 400
+    try:
+        due_date = _workday(tanggal, 8).strftime("%Y-%m-%d")
+    except Exception:
+        return jsonify({"ok": False, "pesan": "Format tanggal tidak valid."}), 400
+    return jsonify({"ok": True, "due_date": due_date})
 
 
 @bp.route("/pam")

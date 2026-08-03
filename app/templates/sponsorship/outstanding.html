@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Sponsorship Outstanding{% endblock %}
+{% set full_bleed = true %}
+{% block title %}Sponsorship Outstanding
+{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
@@ -18,6 +20,9 @@
   background: #0f4c5c;
   color: #fff;
   text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 .outstanding-grand-total {
   background: #256d7b;
@@ -31,10 +36,12 @@
 }
 .num-right { text-align: right; }
 </style>
+
 {% endblock %}
 {% block module_tabs %}
 {% set active_tab = "outstanding" %}
 {% include "sponsorship/_toolbar.html" with context %}
+
 {% endblock %}
 {% block content %}
 <div class="budget-page">
@@ -66,9 +73,10 @@
     </div>
     <input type="text" name="status" placeholder="Filter Status..." value="{{ filters.status or '' }}">
     <button type="submit" class="budget-btn">Terapkan Filter</button>
+    <button type="button" class="budget-btn" style="background-color:#10b981;margin-left:auto" onclick="exportOutstandingExcel()">Export to Excel</button>
   </form>
 
-  <div style="overflow-x: auto;">
+  <div class="budget-table-container" id="sp-table-wrap">
     <table class="outstanding-table">
       <thead>
         <tr>
@@ -84,13 +92,13 @@
       <tbody>
         <tr class="outstanding-grand-total">
           <td colspan="5">Total Outstanding Sponsorship</td>
-          <td class="num-right">{{ "{:,.0f}".format(grand_total).replace(',', '.') }}</td>
+          <td class="num-right">{{ grand_total | rupiah(false) }}</td>
           <td></td>
         </tr>
         {% for sec in sections %}
         <tr class="outstanding-cat2-header">
           <td colspan="5">{{ sec.cat2_label }}</td>
-          <td class="num-right">{{ "{:,.0f}".format(sec.subtotal).replace(',', '.') }}</td>
+          <td class="num-right">{{ sec.subtotal | rupiah(false) }}</td>
           <td></td>
         </tr>
         {% for r in sec.rows %}
@@ -100,7 +108,7 @@
           <td>{{ r.reff }}</td>
           <td>{{ r.lembaga_perorangan }}</td>
           <td>{{ r.perihal }}</td>
-          <td class="num-right">{{ "{:,.0f}".format(r.amount).replace(',', '.') }}</td>
+          <td class="num-right">{{ r.amount | rupiah(false) }}</td>
           <td>{{ r.status }}</td>
         </tr>
         {% endfor %}
@@ -110,4 +118,36 @@
   </div>
   {% endif %}
 </div>
+
 {% endblock %}
+
+<script>
+function exportOutstandingExcel() {
+  const form = document.getElementById("sp-data-filter-form");
+  const params = new URLSearchParams(new FormData(form));
+  window.location.href = "/sponsorship/outstanding/export?" + params.toString();
+}
+</script>
+
+<script>
+// ─── Size sp-table-wrap to fill the entire remaining viewport ────────────
+// Same technique as the Data tab (data.html) and #pa-scroll-wrap in
+// etf_payment_application/index.html. Outstanding has no pagination bar,
+// so this is the only thing needed to remove the gap at the bottom.
+(function() {
+  function sizeWrap() {
+    const wrap = document.getElementById('sp-table-wrap');
+    if (!wrap) return;
+    requestAnimationFrame(() => {
+      wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top) + 'px';
+    });
+  }
+  window.addEventListener('load', sizeWrap);
+  window.addEventListener('resize', sizeWrap);
+  document.addEventListener('DOMContentLoaded', sizeWrap);
+  document.addEventListener('DOMContentLoaded', () => {
+    const filterForm = document.getElementById('sp-data-filter-form');
+    if (filterForm && window.ResizeObserver) new ResizeObserver(sizeWrap).observe(filterForm);
+  });
+})();
+</script>

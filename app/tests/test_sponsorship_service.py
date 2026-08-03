@@ -185,6 +185,28 @@ def test_list_transaksi_filter_by_cat3(app):
     assert len(rows) == 1
     assert rows[0]["cat1"] == "PT KUNCIRANMAS SEJATI"
 
+def test_list_transaksi_filter_by_cat3_list(app):
+    _seed_one_perusahaan()
+    seed_perusahaan([("PT KUNCIRANMAS SEJATI", "Property", "PROPERTY")])
+    create_transaksi(SMT, _valid_payload())  # cat1=SMART -> AGRI
+    create_transaksi(SMT, _valid_payload(cat1="PT KUNCIRANMAS SEJATI"))
+    rows = list_transaksi(SMT, filters={"cat3": ["PROPERTY", "AGRI"]})
+    assert len(rows) == 2
+    rows_single = list_transaksi(SMT, filters={"cat3": ["PROPERTY"]})
+    assert len(rows_single) == 1
+    assert rows_single[0]["cat1"] == "PT KUNCIRANMAS SEJATI"
+
+
+def test_list_transaksi_filter_by_cat_list(app):
+    _seed_one_perusahaan()
+    create_transaksi(SMT, _valid_payload(cat="Sponsorship"))
+    create_transaksi(SMT, _valid_payload(cat="CSR Gedung"))
+    rows = list_transaksi(SMT, filters={"cat": ["Sponsorship", "CSR Gedung"]})
+    assert len(rows) == 2
+    rows_single = list_transaksi(SMT, filters={"cat": ["CSR Gedung"]})
+    assert len(rows_single) == 1
+    assert rows_single[0]["cat"] == "CSR Gedung"
+
 
 def test_list_transaksi_filter_by_status(app):
     _seed_one_perusahaan()

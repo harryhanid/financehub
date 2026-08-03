@@ -5,6 +5,7 @@ import uuid
 import calendar
 from datetime import datetime, date
 from database import get_conn
+from format_utils import format_rupiah
 
 VALID_COMPANIES = ("PO", "TF")
 
@@ -277,13 +278,7 @@ def delete_realisasi(trx_id: str) -> dict:
 
 
 def format_currency(num) -> str:
-    if num is None:
-        return "Rp 0"
-    try:
-        n = round(float(num))
-    except (TypeError, ValueError):
-        return "Rp 0"
-    return "Rp " + f"{n:,}".replace(",", ".")
+    return format_rupiah(num)
 
 
 def _date_in_period(d: str, period_mode: str, period_month: int, period_year) -> bool:

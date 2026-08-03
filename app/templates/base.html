@@ -14,7 +14,7 @@
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   {% block head %}{% endblock %}
 </head>
-<body data-module="{{ active_page or '' }}">
+<body data-module="{{ active_page or '' }}"{% if full_bleed %} class="fh-full-bleed"{% endif %}>
 <nav class="navbar">
   <a class="navbar-brand" href="/">
     <span class="navbar-brand-icon">

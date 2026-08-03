@@ -1,0 +1,243 @@
+/* static/css/sponsorship_dashboard.css — Sponsorship Dashboard tab, page-specific.
+   Mirrors beasiswa_dashboard.css's structure/tokens (kept self-contained, not
+   shared/@import'd, following the same page-specific-file decision) — see
+   docs/superpowers/specs/2026-07-31-financehub-sponsorship-dashboard-redesign-design.md */
+
+/* ── Layout containers ─────────────────────────────────────────────────── */
+.sp-dash-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sp-dash-scorecards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sp-dash-grafik-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.sp-dash-grafik-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+.sp-dash-grafik-grid .sp-dash-chart-card {
+  min-width: 0;
+}
+.sp-dash-grafik-grid canvas {
+  max-width: 100%;
+}
+.sp-dash-grafik-grid .sp-dash-chart-card.span-2 {
+  grid-column: 1 / -1;
+}
+@media (max-width: 700px) {
+  .sp-dash-grafik-grid {
+    grid-template-columns: 1fr;
+  }
+  .sp-dash-grafik-grid .sp-dash-chart-card.span-2 {
+    grid-column: auto;
+  }
+}
+
+/* ── Filter bar — unified dropdown chips ─────────────────────────────────── */
+.sp-dash-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.sp-dash-filter-chip {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.45rem 0.7rem;
+  font-size: 0.78rem;
+  min-width: 150px;
+  cursor: pointer;
+}
+.sp-dash-filter-chip .lbl {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+.sp-dash-filter-chip .val {
+  color: var(--text);
+  font-weight: 600;
+}
+.sp-dash-filter-chip .caret {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  float: right;
+}
+
+.sp-dash-filter-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 4px 14px rgba(0,0,0,.12);
+  padding: 0.6rem;
+  min-width: 200px;
+  cursor: default;
+}
+.sp-dash-filter-chip.open .sp-dash-filter-panel {
+  display: block;
+}
+.sp-dash-filter-panel .panel-head {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.sp-dash-filter-panel .panel-head button {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+.sp-dash-filter-panel .panel-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.sp-dash-filter-panel .panel-opts label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Cat4 stays a plain select (single mode toggle, not a combinable filter) —
+   just enough sizing/label styling to sit visually level with the chips. */
+.sp-dash-cat4-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.sp-dash-cat4-wrap .lbl {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* ── Section panels — wrap each Grafik card group ────────────────────────── */
+.sp-dash-section-panel {
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 0.8rem;
+}
+.sp-dash-section-title {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+  margin-bottom: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.sp-dash-section-title::before {
+  content: '';
+  width: 3px;
+  height: 11px;
+  background: var(--primary);
+  border-radius: 2px;
+}
+
+/* ── Summary stat cards — base + tint modifiers ──────────────────────────── */
+.sp-dash-stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 1rem 1.1rem;
+}
+.sp-dash-stat-card .label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sp-dash-stat-card .value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 0.25rem;
+}
+.sp-dash-stat-card .sub {
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+/* Pillar tint modifiers — derived from the existing per-pillar accent hues
+   already used for chart colors in sponsorship.js (fca5a5/86efac/c4b5fd/fdba74). */
+.sp-dash-stat-card.tint-app      { background: #fef2f2; border-color: #fca5a5; }
+.sp-dash-stat-card.tint-app      .value, .sp-dash-stat-card.tint-app .sub      { color: #dc2626; }
+.sp-dash-stat-card.tint-energy   { background: #f0fdf4; border-color: #86efac; }
+.sp-dash-stat-card.tint-energy   .value, .sp-dash-stat-card.tint-energy .sub   { color: #16a34a; }
+.sp-dash-stat-card.tint-property { background: #f5f3ff; border-color: #c4b5fd; }
+.sp-dash-stat-card.tint-property .value, .sp-dash-stat-card.tint-property .sub { color: #7c3aed; }
+.sp-dash-stat-card.tint-agri     { background: #fff7ed; border-color: #fdba74; }
+.sp-dash-stat-card.tint-agri     .value, .sp-dash-stat-card.tint-agri .sub     { color: #ea580c; }
+
+/* ── Chart/table cards — neutral, uniform ────────────────────────────────── */
+.sp-dash-chart-card {
+  background: var(--card);
+  border-radius: var(--r-md);
+  padding: 1rem;
+  border-top: 3px solid var(--border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+}
+.sp-dash-chart-card canvas {
+  max-height: 260px;
+}
+.sp-dash-chart-card.compact h3 {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.sp-dash-chart-card.compact table th,
+.sp-dash-chart-card.compact table td {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+}
+.sp-dash-chart-card.compact table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+}
+
+/* ── YoY growth cell colors ───────────────────────────────────────────────── */
+.sp-dash-growth-positive { color: var(--positive); font-weight: 600; }
+.sp-dash-growth-negative { color: var(--negative); font-weight: 600; }

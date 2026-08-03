@@ -63,6 +63,9 @@ def create_app(testing=False):
     from modules.coming_soon.routes import coming_soon_bp
     app.register_blueprint(coming_soon_bp)
 
+    from format_utils import format_rupiah
+    app.jinja_env.filters["rupiah"] = lambda v, with_prefix=True: format_rupiah(v, "Rp " if with_prefix else "")
+
     @app.context_processor
     def inject_nav_modules():
         from modules.dashboard.routes import (

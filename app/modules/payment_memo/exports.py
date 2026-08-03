@@ -1,7 +1,7 @@
 """PAM export helpers — PDF (ReportLab) and Excel (openpyxl)."""
 import io
 import config
-from datetime import datetime, date, timedelta
+from datetime import datetime
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
@@ -14,38 +14,11 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
+from format_utils import format_rupiah
 from modules.payment_memo.service import (
     get_pam_detail, get_pam_payments, get_pam_payments_detail, 
-    get_pam_transaction_lines
+    get_pam_transaction_lines, _workday
 )
-
-_HOLIDAYS_2026 = {
-    date(2026, 1,  1), date(2026, 1, 16), date(2026, 2, 17),
-    date(2026, 3, 19), date(2026, 3, 21), date(2026, 3, 22),
-    date(2026, 4,  3), date(2026, 4,  5),
-    date(2026, 5,  1), date(2026, 5, 14), date(2026, 5, 27), date(2026, 5, 31),
-    date(2026, 6,  1), date(2026, 6, 16),
-    date(2026, 8, 17), date(2026, 8, 25),
-    date(2026, 12, 25),
-}
-
-
-def _workday(start, n: int = 8):
-    """WORKDAY(start, n) — skip weekends and HOLIDAYS_2026."""
-    if isinstance(start, datetime):
-        d = start.date()
-    elif isinstance(start, date):
-        d = start
-    else:
-        try:
-            d = datetime.strptime(str(start)[:10], "%Y-%m-%d").date()
-        except Exception:
-            return start
-    while n > 0:
-        d += timedelta(days=1)
-        if d.weekday() < 5 and d not in _HOLIDAYS_2026:
-            n -= 1
-    return datetime(d.year, d.month, d.day)
 
 
 def _calc_approved_by_2(total_amount) -> str:
@@ -74,13 +47,6 @@ def _fmt_date(s: str) -> str:
         return dt.strftime("%d %B %Y").lstrip("0")
     except Exception:
         return s or ""
-
-
-def _fmt_rp(v) -> str:
-    try:
-        return f"Rp {float(v):,.0f}"
-    except Exception:
-        return str(v)
 
 
 def _style(name, **kw):
@@ -122,7 +88,7 @@ def _terlampir():
 def _build_pam_table(pam: dict, approved_by_1: str, approved_by_2: str) -> Table:
     pam_date    = _fmt_date(pam.get("pam_date", ""))
     due_date    = _fmt_date(_workday(pam.get("pam_date", "")))
-    invoice_amt = _fmt_rp(pam.get("total_amount", 0))
+    invoice_amt = format_rupiah(pam.get("total_amount", 0))
 
     data = [
         [_p("PAM No.", _S_LABEL), _p(pam.get("pam_no", ""), _S_VAL_HI),
@@ -223,7 +189,7 @@ def _build_signature_table(requestors_name: str,
 def _build_pam_table_custom(data: dict) -> Table:
     pam_date    = _fmt_date(data.get("pam_date", ""))
     due_date    = _fmt_date(_workday(data.get("pam_date", "")))
-    invoice_amt = _fmt_rp(data.get("total_amount", 0))
+    invoice_amt = format_rupiah(data.get("total_amount", 0))
 
     def _cb(val):
         return "☑" if val else "☐"
@@ -333,7 +299,7 @@ def _build_lampiran_pdf_table_smt(lines):
         start_r = r_idx
         for j, l in enumerate(grp["lines"]):
             amt = float(l.get("total_amount") or 0)
-            fmt_amt = f"Rp {amt:,.0f}".replace(",", ".")
+            fmt_amt = format_rupiah(amt)
             if j == 0:
                 rows.append([
                     Paragraph(str(i), ParagraphStyle("n", alignment=TA_CENTER, fontSize=8)),
@@ -362,7 +328,7 @@ def _build_lampiran_pdf_table_smt(lines):
             spans.append(("SPAN", (5, start_r), (5, end_r)))
         total += grp["tot"]
         
-    fmt_tot = f"Rp {total:,.0f}".replace(",", ".")
+    fmt_tot = format_rupiah(total)
     rows.append([
         "", "", "", "", "",
         Paragraph("Total", ParagraphStyle("tot", fontName="Helvetica-Bold", fontSize=8, alignment=TA_CENTER)),
@@ -423,18 +389,18 @@ def _build_detail_pdf_table(detail: list) -> Table:
                 _p((siswa.get("nama") or siswa.get("siswa_code") or "") if first else "", _s7),
                 _p((siswa.get("jenjang") or "") if first else "", _s7c),
                 _p(pr.get("keterangan") or "", _s7),
-                _p(f"{pr['pendidikan']:,.0f}" if pr.get("pendidikan") else "", _s7r),
-                _p(f"{pr['tunjangan']:,.0f}"  if pr.get("tunjangan")  else "", _s7r),
-                _p(f"{pr['penelitian']:,.0f}" if pr.get("penelitian") else "", _s7r),
-                _p(f"{siswa['total_pembayaran']:,.0f}" if first else "", _s7r),
+                _p(format_rupiah(pr['pendidikan'], prefix="") if pr.get("pendidikan") else "", _s7r),
+                _p(format_rupiah(pr['tunjangan'], prefix="") if pr.get("tunjangan")  else "", _s7r),
+                _p(format_rupiah(pr['penelitian'], prefix="") if pr.get("penelitian") else "", _s7r),
+                _p(format_rupiah(siswa['total_pembayaran'], prefix="") if first else "", _s7r),
                 _p((siswa.get("norek") or "") if first else "", _s7),
-                _p(f"{siswa['sisa_pendidikan']:,.0f}" if first else "", _s7r),
-                _p(f"{siswa['sisa_tunjangan']:,.0f}"  if first else "", _s7r),
-                _p(f"{siswa['sisa_penelitian']:,.0f}" if first else "", _s7r),
+                _p(format_rupiah(siswa['sisa_pendidikan'], prefix="") if first else "", _s7r),
+                _p(format_rupiah(siswa['sisa_tunjangan'], prefix="") if first else "", _s7r),
+                _p(format_rupiah(siswa['sisa_penelitian'], prefix="") if first else "", _s7r),
             ])
 
     rows.append([_p("", _s7)] * 7 + [
-        _p(f"{grand_total:,.0f}",
+        _p(format_rupiah(grand_total, prefix=""),
            _style("gtv7", fontName="Helvetica-Bold", fontSize=7, alignment=2,
                   textColor=colors.HexColor("#1e293b"))),
     ] + [_p("", _s7)] * 4)
@@ -546,13 +512,13 @@ def export_pam_pdf_custom(data: dict, payments: list) -> bytes:
                 _p(pb["namarek"], _S_TD),
                 _p(pb["bank"], _S_TD),
                 _p(pb["norek"], _S_TD),
-                _p(f"{pb['amount']:,.0f}", _S_TD_R),
+                _p(format_rupiah(pb['amount'], prefix=""), _S_TD_R),
             ])
             total += pb["amount"]
         rows.append([
             _p("", _S_TD), _p("", _S_TD), _p("", _S_TD),
             _p("TOTAL", _style("tot", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
-            _p(f"{total:,.0f}", _style("totv", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
+            _p(format_rupiah(total, prefix=""), _style("totv", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
         ])
         col_w = [0.6*cm, 5.0*cm, 2.8*cm, 4.6*cm, 4.0*cm]
         att_tbl = Table(rows, colWidths=col_w, repeatRows=1)
@@ -677,13 +643,13 @@ def export_pam_pdf(pam_id: int, company_id: int,
             _p(pb["namarek"], _S_TD),
             _p(pb["bank"], _S_TD),
             _p(pb["norek"], _S_TD),
-            _p(f"{pb['amount']:,.0f}", _S_TD_R),
+            _p(format_rupiah(pb['amount'], prefix=""), _S_TD_R),
         ])
         total += pb["amount"]
     rows.append([
         _p("", _S_TD), _p("", _S_TD), _p("", _S_TD),
         _p("TOTAL", _style("tot", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
-        _p(f"{total:,.0f}", _style("totv", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
+        _p(format_rupiah(total, prefix=""), _style("totv", fontName="Helvetica-Bold", fontSize=8, alignment=2)),
     ])
 
     if getattr(elems[-1], "__class__", None).__name__ != "Table":
@@ -1849,7 +1815,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
     _cur2 += 2
     _tot1 = 0.0
     for _i2, _pb2 in enumerate(_sec1, 1):
-        _write_data2(_cur2, _i2, _pb2["nama"], _pb2["bank"], _pb2["norek"],
+        _write_data2(_cur2, _i2, _pb2["namarek"], _pb2["bank"], _pb2["norek"],
                      _pb2["amount"], sz=12)
         _tot1 += _pb2["amount"]
         _cur2 += 1
@@ -1867,7 +1833,7 @@ def export_pam_excel_custom(data: dict, payments: list) -> bytes:
         _cur2 += 2
         _tot2 = 0.0
         for _i2, _pb2 in enumerate(_sec2, 1):
-            _write_data2(_cur2, _i2, _pb2["nama"], _pb2["bank"], _pb2["norek"],
+            _write_data2(_cur2, _i2, _pb2["namarek"], _pb2["bank"], _pb2["norek"],
                          _pb2["amount"], sz=10)
             _tot2 += _pb2["amount"]
             _cur2 += 1

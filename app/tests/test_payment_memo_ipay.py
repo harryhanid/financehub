@@ -4,6 +4,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from modules.etf_payment_application.service import VALID_TABS, _TAB_CFG, _tbls
 
 
+def login(client, username="admin", password="Admin@123"):
+    return client.post("/auth/login", json={"username": username, "password": password})
+
+def _select_etf(client):
+    client.post("/select-company", data={"company_id": "2"})
+
+
 def test_setf_in_valid_tabs():
     assert "setf" in VALID_TABS
 
@@ -123,3 +130,19 @@ def test_ipay_next_pam_no_returns_json_401_when_not_logged_in(client):
     data = resp.get_json()
     assert data is not None, "expected a JSON body, got: " + resp.get_data(as_text=True)[:200]
     assert data["ok"] is False
+
+def test_due_date_api_returns_workday_plus_8(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get('/payment-memo/api/due-date?tanggal=2026-07-06')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['ok'] is True
+    assert data['due_date'] == '2026-07-16'
+
+
+def test_due_date_api_rejects_missing_tanggal(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get('/payment-memo/api/due-date')
+    assert resp.status_code == 400

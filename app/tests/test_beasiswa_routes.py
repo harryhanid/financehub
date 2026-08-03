@@ -9,6 +9,48 @@ def _select_smt(client):
 def _select_etf(client):
     client.post("/select-company", data={"company_id": "2"})
 
+def _seed_siswa_with_long_fields(company_id: int = 2, code: str = "1250099") -> None:
+    """Seed one siswa with deliberately long text fields plus one budget row
+    with a long category name, so the Laporan Siswa PDF's Data Siswa, IPK, and
+    Rekapitulasi per Kategori tables all have long text to wrap."""
+    from database import get_conn
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO siswa
+           (company_id, code, nama, jenjang, angkatan, program,
+            fakultas, universitas, bank, norek, namarek, referensi,
+            catatan, ipk_sem1, status)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (company_id, code, "Siswa Uji Panjang", "S1", 2025, "SMART",
+         "Fakultas Teknik Informatika dan Ilmu Komputer Terapan",
+         "Universitas Pembangunan Nasional Veteran Jakarta Kampus Utama",
+         "Bank Sinarmas", "1234567890",
+         "Siswa Uji Panjang Dengan Nama Rekening Yang Sangat Panjang Sekali",
+         "Ref-001",
+         "Catatan ini ditulis sangat panjang untuk memastikan tabel Data Siswa "
+         "benar-benar mem-wrap teks dan tidak menembus kolom di sebelahnya "
+         "seperti yang dilaporkan pengguna.",
+         3.75, "Aktif")
+    )
+    conn.execute(
+        """INSERT INTO budget_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar)
+           VALUES (?,?,?,?,?,?,?)""",
+        (company_id, code,
+         "Kategori Budget Dengan Nama Yang Sangat Panjang Sekali Untuk Uji Wrap",
+         "By Pendaftaran", "2026-01-01", 5000000, "AGRI")
+    )
+    conn.commit()
+    conn.close()
+
+def test_laporan_export_pdf_with_long_text_fields_renders_ok(client):
+    _seed_siswa_with_long_fields()
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/laporan/siswa/1250099/export/pdf")
+    assert resp.status_code == 200
+    assert resp.data[:4] == b"%PDF"
+
 
 def test_index_renders_for_etf(client):
     login(client)
@@ -113,3 +155,50 @@ def test_vendor_list_api_not_gated_by_company(client):
     _select_smt(client)
     resp = client.get("/beasiswa/vendors")
     assert resp.status_code == 200
+
+
+def test_budget_export_pdf_returns_pdf(client):
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/budget/export/pdf")
+    assert resp.status_code == 200
+    assert resp.data[:4] == b"%PDF"
+
+
+def test_payment_export_pdf_returns_pdf(client):
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/payment/export/pdf")
+    assert resp.status_code == 200
+    assert resp.data[:4] == b"%PDF"
+
+
+def test_rekap_export_pdf_returns_pdf(client):
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/rekap/export/pdf")
+    assert resp.status_code == 200
+    assert resp.data[:4] == b"%PDF"
+
+
+def test_budget_siswa_export_pdf_does_not_crash(client):
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/budget/siswa/NOTFOUND/export/pdf")
+    assert resp.status_code in (200, 404)
+    if resp.status_code == 200:
+        assert resp.data[:4] == b"%PDF"
+
+
+def test_laporan_export_pdf_does_not_crash(client):
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/laporan/siswa/NOTFOUND/export/pdf")
+    assert resp.status_code in (200, 404)
+    if resp.status_code == 200:
+        assert resp.data[:4] == b"%PDF"

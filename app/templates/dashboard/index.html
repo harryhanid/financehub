@@ -24,13 +24,13 @@
 <div class="kpi-grid">
   <div class="stat-card primary">
     <div class="stat-label">Total Budget</div>
-    <div class="stat-value currency" data-count="{{ stats.total_budget }}" data-prefix="Rp ">Rp {{ "{:,.0f}".format(stats.total_budget) }}</div>
+    <div class="stat-value currency" data-count="{{ stats.total_budget }}" data-prefix="Rp ">{{ stats.total_budget | rupiah }}</div>
     <div class="stat-sub">tahun berjalan</div>
     <div class="stat-bar"></div>
   </div>
   <div class="stat-card primary">
     <div class="stat-label">Total Payment</div>
-    <div class="stat-value currency" data-count="{{ stats.total_payment }}" data-prefix="Rp ">Rp {{ "{:,.0f}".format(stats.total_payment) }}</div>
+    <div class="stat-value currency" data-count="{{ stats.total_payment }}" data-prefix="Rp ">{{ stats.total_payment | rupiah }}</div>
     <div class="stat-sub">sudah tersalurkan</div>
     <div class="stat-bar"></div>
   </div>
@@ -60,7 +60,7 @@
   </div>
   <div class="stat-card positive">
     <div class="stat-label">Total Dibayar Bulan Ini</div>
-    <div class="stat-value currency" data-count="{{ dash.paid_this_month }}" data-prefix="Rp ">Rp {{ "{:,.0f}".format(dash.paid_this_month) }}</div>
+    <div class="stat-value currency" data-count="{{ dash.paid_this_month }}" data-prefix="Rp ">{{ dash.paid_this_month | rupiah }}</div>
     <div class="stat-sub">PAM complete bulan berjalan</div>
     <div class="stat-bar"></div>
   </div>
@@ -100,7 +100,7 @@
           <td style="padding:7px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ it.nama_student }}">{{ it.nama_student }}</td>
           <td style="padding:7px 10px">{{ it.stage }}</td>
           <td style="padding:7px 10px;text-align:right;font-weight:700">{{ it.days }}</td>
-          <td style="padding:7px 10px;text-align:right">{{ "{:,.0f}".format(it.total) }}</td>
+          <td style="padding:7px 10px;text-align:right">{{ it.total | rupiah(false) }}</td>
           <td style="padding:7px 10px;white-space:nowrap">{{ 'On Process' if it.status == 'on_process' else 'Open' }}</td>
         </tr>
         {% else %}
@@ -141,7 +141,7 @@
           <td style="padding:7px 10px;text-align:center;white-space:nowrap">{{ it.vendor_done }}/{{ it.vendor_total }} selesai</td>
           <td style="padding:7px 10px">{{ it.stage }}{% if it.vendor %} — {{ it.vendor }}{% endif %}</td>
           <td style="padding:7px 10px;text-align:right;font-weight:700">{{ it.days }}</td>
-          <td style="padding:7px 10px;text-align:right">{{ "{:,.0f}".format(it.total_amount) }}</td>
+          <td style="padding:7px 10px;text-align:right">{{ it.total_amount | rupiah(false) }}</td>
           <td style="padding:7px 10px;white-space:nowrap">{{ it.due_date or '-' }}</td>
         </tr>
         {% else %}

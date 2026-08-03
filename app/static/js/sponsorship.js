@@ -207,18 +207,28 @@ document.addEventListener("DOMContentLoaded", function () {
 
 let sponsorshipCharts = {};
 
-function _sponsorshipFormatRupiah(n) {
-  return "Rp " + Number(n || 0).toLocaleString("id-ID");
+function _sponsorshipFormatJutaan(n) {
+  const jt = Math.round((n || 0) / 1000000);
+  return "Rp " + jt.toLocaleString("id-ID");
 }
 
-function _sponsorshipRenderSummary(summary) {
+function _sponsorshipThemeColor(varName, fallback) {
+  const page = document.querySelector(".budget-page");
+  const val = page ? getComputedStyle(page).getPropertyValue(varName).trim() : "";
+  return val || fallback;
+}
+
+function _sponsorshipRenderSummary(summary, topLembaga) {
   const el = document.getElementById("sp-summary");
+  const top5Sum = (topLembaga || []).reduce(function (s, r) { return s + r.amount; }, 0);
+  const concentrationPct = summary.total_amount > 0 ? (top5Sum / summary.total_amount * 100) : 0;
   const cards = [
-    ["Total Amount", _sponsorshipFormatRupiah(summary.total_amount)],
+    ["Total Amount", _sponsorshipFormatJutaan(summary.total_amount)],
     ["Jumlah Transaksi", summary.total_count],
+    ["Konsentrasi Top 5", concentrationPct.toFixed(1) + "%"],
   ];
   el.innerHTML = cards.map(function (c) {
-    return '<div class="budget-stat-card"><div class="label">' + c[0] +
+    return '<div class="sp-dash-stat-card"><div class="label">' + c[0] +
       '</div><div class="value">' + c[1] + "</div></div>";
   }).join("");
 }
@@ -230,34 +240,318 @@ function _sponsorshipRenderBarChart(canvasId, labels, values) {
   sponsorshipCharts[canvasId] = new Chart(ctx, {
     type: "bar",
     data: { labels: labels, datasets: [{ label: "Amount", data: values, backgroundColor: "#2D6ADF" }] },
-    options: { responsive: true, plugins: { legend: { display: false } } },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          anchor: "end",
+          align: "top",
+          color: _sponsorshipThemeColor("--text", "#334155"),
+          font: { size: 10, weight: "600" },
+          formatter: v => _sponsorshipFormatJutaan(v),
+        },
+      },
+    },
   });
+}
+
+function _sponsorshipRenderDoughnutChart(canvasId, labels, values, colors) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (sponsorshipCharts[canvasId]) sponsorshipCharts[canvasId].destroy();
+  sponsorshipCharts[canvasId] = new Chart(ctx, {
+    type: "doughnut",
+    data: { labels: labels, datasets: [{ data: values, backgroundColor: colors }] },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "right", labels: { color: _sponsorshipThemeColor("--text", "#334155") } },
+        datalabels: {
+          anchor: "center",
+          align: "center",
+          color: "#fff",
+          font: { size: 11, weight: "600" },
+          formatter: (value, ctx) => {
+            const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+            return total > 0 ? (value / total * 100).toFixed(1) + "%" : "";
+          },
+        },
+      }
+    }
+  });
+}
+
+function _sponsorshipCollectFilters() {
+  const tahun = Array.from(document.querySelectorAll(".sp-dash-tahun-cb:checked")).map(function (cb) { return cb.value; });
+  const cat = Array.from(document.querySelectorAll(".sp-dash-cat-cb:checked")).map(function (cb) { return cb.value; });
+  const cat3 = Array.from(document.querySelectorAll(".sp-dash-pillar-cb:checked")).map(function (cb) { return cb.value; });
+  const cat4Select = document.querySelector('.sp-dash-filter[data-param="cat4"]');
+  return { tahun: tahun, cat: cat, cat3: cat3, cat4: cat4Select ? cat4Select.value : "" };
+}
+
+function _sponsorshipBuildParams(filters) {
+  const params = new URLSearchParams();
+  filters.tahun.forEach(function (v) { params.append("tahun", v); });
+  filters.cat.forEach(function (v) { params.append("cat", v); });
+  filters.cat3.forEach(function (v) { params.append("cat3", v); });
+  if (filters.cat4) params.set("cat4", filters.cat4);
+  return params;
+}
+
+function _sponsorshipUpdateChipSummary(chip) {
+  const boxes = chip.querySelectorAll(".panel-opts input[type=checkbox]");
+  const total = boxes.length;
+  const checked = chip.querySelectorAll(".panel-opts input[type=checkbox]:checked").length;
+  const valEl = chip.querySelector(".val");
+  if (checked === total) {
+    valEl.textContent = "Semua";
+  } else if (checked === 0) {
+    valEl.textContent = "Tidak ada";
+  } else {
+    valEl.textContent = checked + " dipilih";
+  }
+}
+
+function _sponsorshipInitFilterChips() {
+  document.querySelectorAll(".sp-dash-filter-chip").forEach(function (chip) {
+    chip.querySelectorAll(".panel-opts input[type=checkbox]").forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        _sponsorshipUpdateChipSummary(chip);
+        sponsorshipLoadDashboard();
+      });
+    });
+    const allBtn = chip.querySelector('[data-act="all"]');
+    if (allBtn) {
+      allBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        chip.querySelectorAll(".panel-opts input[type=checkbox]").forEach(function (cb) { cb.checked = true; });
+        _sponsorshipUpdateChipSummary(chip);
+        sponsorshipLoadDashboard();
+      });
+    }
+    const noneBtn = chip.querySelector('[data-act="none"]');
+    if (noneBtn) {
+      noneBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        chip.querySelectorAll(".panel-opts input[type=checkbox]").forEach(function (cb) { cb.checked = false; });
+        _sponsorshipUpdateChipSummary(chip);
+        sponsorshipLoadDashboard();
+      });
+    }
+    chip.addEventListener("click", function (e) {
+      if (e.target.closest(".sp-dash-filter-panel")) return;
+      document.querySelectorAll(".sp-dash-filter-chip.open").forEach(function (c) {
+        if (c !== chip) c.classList.remove("open");
+      });
+      chip.classList.toggle("open");
+    });
+    _sponsorshipUpdateChipSummary(chip);
+  });
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".sp-dash-filter-chip")) {
+      document.querySelectorAll(".sp-dash-filter-chip.open").forEach(function (c) { c.classList.remove("open"); });
+    }
+  });
+}
+
+function _sponsorshipRenderYoyGrowth(yoyRows) {
+  const tbody = document.querySelector("#sp-table-yoy tbody");
+  if (!tbody) return;
+  if (!yoyRows.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Belum ada data.</td></tr>';
+    return;
+  }
+  let html = "";
+  yoyRows.forEach(function (r) {
+    let growthCell = "–";
+    if (r.growth_pct !== null) {
+      const cls = r.growth_pct >= 0 ? "sp-dash-growth-positive" : "sp-dash-growth-negative";
+      const sign = r.growth_pct >= 0 ? "+" : "";
+      growthCell = '<span class="' + cls + '">' + sign + r.growth_pct.toFixed(1) + "%</span>";
+    }
+    html += "<tr><td>" + r.year + '</td><td class="num-right">' + _sponsorshipFormatJutaan(r.amount) +
+      '</td><td class="num-right">' + growthCell + "</td></tr>";
+  });
+  tbody.innerHTML = html;
 }
 
 function sponsorshipLoadDashboard() {
   const summaryEl = document.getElementById("sp-summary");
-  if (!summaryEl) return;  // not on the Dashboard page
-  const params = new URLSearchParams();
-  document.querySelectorAll(".sp-dash-filter").forEach(function (el) {
-    if (el.value) params.set(el.dataset.param, el.value);
-  });
+  if (!summaryEl) return;
+  const filters = _sponsorshipCollectFilters();
+  const params = _sponsorshipBuildParams(filters);
   apiFetch("/sponsorship/api/dashboard-data?" + params.toString())
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      _sponsorshipRenderSummary(data.summary);
-      _sponsorshipRenderBarChart("sp-chart-monthly",
-        data.monthlyChart.map(function (r) { return r.month; }),
-        data.monthlyChart.map(function (r) { return r.amount; }));
-      _sponsorshipRenderBarChart("sp-chart-pillar",
-        data.pillarChart.map(function (r) { return r.pillar; }),
-        data.pillarChart.map(function (r) { return r.amount; }));
-      _sponsorshipRenderBarChart("sp-chart-description",
-        data.descriptionChart.map(function (r) { return r.description; }),
-        data.descriptionChart.map(function (r) { return r.amount; }));
+      _sponsorshipRenderSummary(data.summary, data.topLembaga);
+      _sponsorshipRenderBarChart("sp-chart-monthly", data.monthlyChart.map(x=>x.month), data.monthlyChart.map(x=>x.amount));
+      _sponsorshipRenderBarChart("sp-chart-description", data.descriptionChart.map(x=>x.description), data.descriptionChart.map(x=>x.amount));
+      _sponsorshipRenderYoyGrowth(data.yoyGrowth);
+
+      // Render Pillar Scorecards
+      const spScorecards = document.getElementById("sp-scorecards");
+      if (spScorecards && data.pillarSummaryTable) {
+        let scHtml = "";
+        const pTint = {
+          "APP": "tint-app",
+          "ENERGY & FINANCE": "tint-energy",
+          "PROPERTY": "tint-property",
+          "AGRI": "tint-agri"
+        };
+        const pLabels = {
+          "APP": "APP",
+          "ENERGY & FINANCE": "ENERGY",
+          "PROPERTY": "PROPERTY",
+          "AGRI": "AGRI"
+        };
+        const renderOrder = ["APP", "ENERGY & FINANCE", "PROPERTY", "AGRI"];
+
+        renderOrder.forEach(pil => {
+          const row = data.pillarSummaryTable.find(r => r.pillar === pil);
+          if (row) {
+            scHtml += `
+            <div class="sp-dash-stat-card ${pTint[pil]}">
+              <div class="label">${pLabels[pil]}</div>
+              <div class="value">${row.pct.toFixed(2)}%</div>
+              <div class="sub">${_sponsorshipFormatJutaan(row.amount)}</div>
+            </div>`;
+          }
+        });
+        spScorecards.innerHTML = scHtml;
+      }
+
+      // Render Top 5 Lembaga
+      if (document.getElementById("sp-table-lembaga") && data.topLembaga) {
+        let tpHtml = "";
+        data.topLembaga.forEach(r => {
+          tpHtml += `<tr>
+            <td>${_sponsorshipEsc(r.lembaga)}</td>
+            <td class="num-right">${_sponsorshipFormatJutaan(r.amount)}</td>
+          </tr>`;
+        });
+        document.querySelector("#sp-table-lembaga tbody").innerHTML = tpHtml;
+      }
+
+      // Render Status Chart
+      if (data.statusChart) {
+        _sponsorshipRenderDoughnutChart(
+          "sp-chart-status",
+          data.statusChart.map(x => x.status),
+          data.statusChart.map(x => x.amount),
+          ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#64748b"]
+        );
+      }
+
+      // Render Cat Mix Chart
+      if (data.catMix) {
+        _sponsorshipRenderDoughnutChart(
+          "sp-chart-catmix",
+          data.catMix.map(x => x.cat),
+          data.catMix.map(x => x.amount),
+          ["#2D6ADF", "#f59e0b"]
+        );
+      }
+
+      // Render Cat4 Mix Chart
+      if (data.cat4Mix) {
+        _sponsorshipRenderDoughnutChart(
+          "sp-chart-cat4mix",
+          data.cat4Mix.map(x => x.cat4),
+          data.cat4Mix.map(x => x.amount),
+          ["#10b981", "#ef4444"]
+        );
+      }
+
+      // Render Desc vs Pillar
+      let dpHtml = "";
+      data.descPillarTable.forEach(r => {
+        dpHtml += `<tr>
+          <td>${r.description}</td>
+          <td class="num-right" style="font-weight:600">${_sponsorshipFormatJutaan(r.total)}</td>
+          <td class="num-right">${_sponsorshipFormatJutaan(r["APP"])}</td>
+          <td class="num-right">${_sponsorshipFormatJutaan(r["ENERGY & FINANCE"])}</td>
+          <td class="num-right">${_sponsorshipFormatJutaan(r["PROPERTY"])}</td>
+          <td class="num-right">${_sponsorshipFormatJutaan(r["AGRI"])}</td>
+        </tr>`;
+      });
+      document.querySelector("#sp-table-desc-pillar tbody").innerHTML = dpHtml;
+
+      // Render Desc vs Year
+      let dyThead = `<tr><th>Description</th><th class="num-right">Grand Total</th>`;
+      data.sortedYears.forEach(y => {
+        dyThead += `<th class="num-right">${y}</th>`;
+      });
+      dyThead += `</tr>`;
+      document.getElementById("sp-thead-desc-year").innerHTML = dyThead;
+
+      let dyHtml = "";
+      data.descYearTable.forEach(r => {
+        dyHtml += `<tr>
+          <td>${r.description}</td>
+          <td class="num-right" style="font-weight:600">${_sponsorshipFormatJutaan(r.total)}</td>`;
+        data.sortedYears.forEach(y => {
+          dyHtml += `<td class="num-right">${_sponsorshipFormatJutaan(r[y])}</td>`;
+        });
+        dyHtml += `</tr>`;
+      });
+      document.querySelector("#sp-table-desc-year tbody").innerHTML = dyHtml;
+
+      // Render grouped bar chart Year vs Pillar
+      const ctxYP = document.getElementById("sp-chart-year-pillar");
+      if (ctxYP) {
+        if (sponsorshipCharts["sp-chart-year-pillar"]) sponsorshipCharts["sp-chart-year-pillar"].destroy();
+        const pilColors = {
+          "APP": "#fca5a5",
+          "ENERGY & FINANCE": "#86efac",
+          "PROPERTY": "#c4b5fd",
+          "AGRI": "#fdba74"
+        };
+        const datasets = ["APP", "ENERGY & FINANCE", "PROPERTY", "AGRI"].map(pil => {
+          return {
+            label: pil,
+            data: data.sortedYears.map(y => data.yearPillarChart[y] ? data.yearPillarChart[y][pil] : 0),
+            backgroundColor: pilColors[pil] || "#ccc"
+          };
+        });
+
+        sponsorshipCharts["sp-chart-year-pillar"] = new Chart(ctxYP, {
+          type: "bar",
+          data: { labels: data.sortedYears, datasets: datasets },
+          plugins: [ChartDataLabels],
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "top", labels: { color: _sponsorshipThemeColor("--text", "#334155") } },
+              datalabels: {
+                anchor: "end",
+                align: "top",
+                color: _sponsorshipThemeColor("--text", "#334155"),
+                font: { size: 9, weight: "600" },
+                formatter: v => v > 0 ? _sponsorshipFormatJutaan(v) : "",
+              },
+            },
+            scales: {
+              x: { ticks: { color: _sponsorshipThemeColor("--text-muted", "#64748b") } },
+              y: { ticks: { color: _sponsorshipThemeColor("--text-muted", "#64748b"), callback: v => (v/1000000).toFixed(0) + "M" } }
+            }
+          }
+        });
+      }
+
+    })
+    .catch(function () {
+      if(window.showToast) showToast("Gagal memuat data dashboard.", "error");
     });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  _sponsorshipInitFilterChips();
   sponsorshipLoadDashboard();
   document.querySelectorAll(".sp-dash-filter").forEach(function (el) {
     el.addEventListener("change", sponsorshipLoadDashboard);
@@ -271,8 +565,8 @@ function _sponsorshipEsc(s) {
   return d.innerHTML;
 }
 
-const _SP_REPORT_PILLAR_COLS = ["app_amount", "agri_amount", "energy_finance_amount", "property_amount"];
-const _SP_REPORT_PILLAR_LABELS = ["APP", "AGRI", "ENERGY & FINANCE", "PROPERTY"];
+const _SP_REPORT_PILLAR_COLS = ["app_amount", "energy_finance_amount", "property_amount", "agri_amount"];
+const _SP_REPORT_PILLAR_LABELS = ["APP", "ENERGY", "PROPERTY", "AGRI"];
 
 let sponsorshipReportState = { cat4: "include", tahun: "" };
 

@@ -45,6 +45,23 @@ def test_api_dashboard_data_rejects_non_smt(client):
     resp = client.get("/sponsorship/api/dashboard-data")
     assert resp.status_code == 403
 
+def test_api_dashboard_data_accepts_multi_value_cat_and_pillar(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    client.post("/sponsorship/input/create", json={
+        "cat": "Sponsorship", "description": "Sosial",
+        "tanggal_form_sponsor": "2026-01-15", "cat1": "SMART",
+        "lembaga_perorangan": "Yayasan Test", "amount_request": 1000,
+    })
+    resp = client.get("/sponsorship/api/dashboard-data", query_string=[
+        ("cat", "Sponsorship"), ("cat", "CSR Gedung"),
+        ("cat3", "AGRI"), ("cat3", "APP"),
+    ])
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["summary"]["total_count"] == 1
+
 
 def test_input_page_renders_for_smt(client):
     login(client)
@@ -300,3 +317,17 @@ def test_report_page_tahun_dropdown_has_options_for_seeded_years(client):
     assert b'id="sp-report-table-container"' in resp.data
     assert b'id="sp-report-tahun"' in resp.data
     assert b'id="sp-report-export"' in resp.data
+
+def test_data_page_has_full_height_table_wrap_id(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/sponsorship/data")
+    assert resp.status_code == 200
+    assert b'id="sp-table-wrap"' in resp.data
+
+def test_outstanding_page_has_full_height_table_wrap_id(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/sponsorship/outstanding")
+    assert resp.status_code == 200
+    assert b'id="sp-table-wrap"' in resp.data

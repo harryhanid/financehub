@@ -3,7 +3,9 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship_dashboard.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 {% endblock %}
 {% block module_tabs %}
 {% set active_tab = "dashboard" %}
@@ -14,25 +16,172 @@
   {% if wrong_company %}
     {% include "sponsorship/_notice.html" %}
   {% else %}
-  <div class="budget-toolbar">
-    <select class="sp-dash-filter" data-param="tahun"><option value="">Semua Tahun</option>
-      {% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
-    </select>
-    <select class="sp-dash-filter" data-param="cat">
-      <option value="">Semua Cat</option>
-      {% for c in cat_choices %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
-    </select>
-    <select class="sp-dash-filter" data-param="cat3">
-      <option value="">Semua Pillar</option>
-      {% for p in pillar_choices %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-    </select>
-  </div>
-  <div class="budget-summary-grid" id="sp-summary"></div>
-  <div class="budget-chart-grid">
-    <div class="budget-chart-card"><h3>Trend Bulanan</h3><canvas id="sp-chart-monthly"></canvas></div>
-    <div class="budget-chart-card"><h3>Per Pillar</h3><canvas id="sp-chart-pillar"></canvas></div>
-    <div class="budget-chart-card"><h3>Per Kategori</h3><canvas id="sp-chart-description"></canvas></div>
-  </div>
+
+  <details class="setf-accordion" open>
+    <summary>Ringkasan</summary>
+    <div class="setf-accordion-body">
+      <p style="color:var(--text-muted);font-size:.8rem;margin-bottom:1rem">
+        Semua nilai pada dashboard ini ditampilkan dalam jutaan rupiah (Jt).
+      </p>
+      <div class="sp-dash-filterbar">
+        <div class="sp-dash-filter-chip">
+          <span class="lbl">Tahun</span>
+          <span class="val">Semua</span>
+          <span class="caret">▾</span>
+          <div class="sp-dash-filter-panel">
+            <div class="panel-head">
+              <button type="button" data-act="all">Semua</button>
+              <button type="button" data-act="none">Kosongkan</button>
+            </div>
+            <div class="panel-opts">
+              {% for y in years %}
+              <label><input type="checkbox" class="sp-dash-tahun-cb" value="{{ y }}" checked> {{ y }}</label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-dash-filter-chip">
+          <span class="lbl">Cat</span>
+          <span class="val">Semua</span>
+          <span class="caret">▾</span>
+          <div class="sp-dash-filter-panel">
+            <div class="panel-head">
+              <button type="button" data-act="all">Semua</button>
+              <button type="button" data-act="none">Kosongkan</button>
+            </div>
+            <div class="panel-opts">
+              {% for c in cat_choices %}
+              <label><input type="checkbox" class="sp-dash-cat-cb" value="{{ c }}" checked> {{ c }}</label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-dash-filter-chip">
+          <span class="lbl">Pillar</span>
+          <span class="val">Semua</span>
+          <span class="caret">▾</span>
+          <div class="sp-dash-filter-panel">
+            <div class="panel-head">
+              <button type="button" data-act="all">Semua</button>
+              <button type="button" data-act="none">Kosongkan</button>
+            </div>
+            <div class="panel-opts">
+              {% for p in pillar_choices %}
+              <label><input type="checkbox" class="sp-dash-pillar-cb" value="{{ p }}" checked> {{ p }}</label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-dash-cat4-wrap">
+          <span class="lbl">Mode</span>
+          <select class="sp-dash-filter" data-param="cat4">
+            <option value="include">Include</option>
+            <option value="exclude">Exclude</option>
+            <option value="bib_include">BIB Include</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sp-dash-summary-grid" id="sp-summary"></div>
+      <div class="sp-dash-scorecards-grid" id="sp-scorecards"></div>
+    </div>
+  </details>
+
+  <details class="setf-accordion" open>
+    <summary>Grafik</summary>
+    <div class="setf-accordion-body">
+      <div class="sp-dash-grafik-wrap">
+
+        <div class="sp-dash-section-panel">
+          <div class="sp-dash-section-title">Trend</div>
+          <div class="sp-dash-grafik-grid">
+            <div class="sp-dash-chart-card"><h3>Trend Bulanan</h3><canvas id="sp-chart-monthly"></canvas></div>
+            <div class="sp-dash-chart-card compact">
+              <h3>YoY Growth</h3>
+              <div class="setf-compact-scroll">
+                <table id="sp-table-yoy">
+                  <thead><tr><th>Tahun</th><th class="num-right">Total</th><th class="num-right">Growth</th></tr></thead>
+                  <tbody><tr><td colspan="3" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="sp-dash-chart-card span-2">
+              <h3>CSR & Sponsorship Overview</h3>
+              <canvas id="sp-chart-year-pillar" style="max-height:400px;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-dash-section-panel">
+          <div class="sp-dash-section-title">Breakdown</div>
+          <div class="sp-dash-grafik-grid">
+            <div class="sp-dash-chart-card compact">
+              <h3>Status Sponsorship</h3>
+              <div style="height:260px; display:flex; align-items:center; justify-content:center;">
+                <canvas id="sp-chart-status"></canvas>
+              </div>
+            </div>
+            <div class="sp-dash-chart-card compact">
+              <h3>Cat Mix</h3>
+              <div style="height:260px; display:flex; align-items:center; justify-content:center;">
+                <canvas id="sp-chart-catmix"></canvas>
+              </div>
+            </div>
+            <div class="sp-dash-chart-card compact">
+              <h3>Cat4 Mix</h3>
+              <div style="height:260px; display:flex; align-items:center; justify-content:center;">
+                <canvas id="sp-chart-cat4mix"></canvas>
+              </div>
+            </div>
+            <div class="sp-dash-chart-card"><h3>Per Kategori</h3><canvas id="sp-chart-description"></canvas></div>
+            <div class="sp-dash-chart-card compact">
+              <h3>Top 5 Penerima</h3>
+              <div class="setf-compact-scroll">
+                <table id="sp-table-lembaga">
+                  <thead><tr><th>Lembaga</th><th class="num-right">TOTAL</th></tr></thead>
+                  <tbody><tr><td colspan="2">Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="sp-dash-chart-card compact span-2">
+              <h3>Description vs Pillar</h3>
+              <div class="setf-compact-scroll">
+                <table id="sp-table-desc-pillar">
+                  <thead>
+                    <tr><th>Description</th><th class="num-right">TOTAL</th><th class="num-right">APP</th><th class="num-right">ENERGY & FINANCE</th><th class="num-right">PROPERTY</th><th class="num-right">AGRI</th></tr>
+                  </thead>
+                  <tbody><tr><td colspan="6">Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-dash-section-panel">
+          <div class="sp-dash-section-title">Detail Transaksi</div>
+          <div class="sp-dash-grafik-grid">
+            <div class="sp-dash-chart-card compact span-2">
+              <h3>Description vs Year</h3>
+              <div class="setf-compact-scroll">
+                <table id="sp-table-desc-year">
+                  <thead id="sp-thead-desc-year">
+                    <tr><th>Row Labels</th></tr>
+                  </thead>
+                  <tbody><tr><td>Loading...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </details>
+
   {% endif %}
 </div>
 {% endblock %}

@@ -13,8 +13,7 @@ function setfColorForCategory(name) {
 }
 
 function setfFmtJutaan(amount) {
-  const jt = (amount || 0) / 1000000;
-  return jt.toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return fmtJutaan(amount);
 }
 
 function setfSisaCell(amount) {

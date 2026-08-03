@@ -285,6 +285,21 @@
       setTimeout(function () { btn.form.requestSubmit(btn); }, 180);
     });
   });
+  // Keyboard navigation
+  var panels = document.querySelectorAll('.company-panel');
+  var activeIndex = -1;
+  document.addEventListener('keydown', function(e) {
+    if (panels.length === 0) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % panels.length;
+      panels[activeIndex].focus();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + panels.length) % panels.length;
+      panels[activeIndex].focus();
+    }
+  });
 })();
 </script>
 </body>

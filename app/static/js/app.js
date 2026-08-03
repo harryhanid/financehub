@@ -76,13 +76,10 @@ function initCommandPalette() {
   var dragStartX       = null;
 
   function _carouselModules() {
-    var comingSoon = FH_MODULES.filter(function(m) { return !m.active; }).map(function(m) {
-      return { name: m.name, url: null, key: null, subtabs: [], active: false };
-    });
     var real = FH_NAV_MODULES.map(function(m) {
       return { name: m.name, url: m.url, key: m.key, subtabs: m.subtabs || [], active: true };
     });
-    return real.concat(comingSoon);
+    return real;
   }
 
   function _currentNavModule() {
@@ -461,7 +458,15 @@ function initTabs(container) {
       panels.forEach(p => p.classList.remove("active"));
       btn.classList.add("active");
       const target = container.querySelector(`#${btn.dataset.tab}`);
-      if (target) target.classList.add("active");
+      if (target) {
+        target.classList.add("active");
+        // Full-bleed pages (spec: 2026-07-31-flow-full-bleed-table-pages) —
+        // toggled per-tab since Beasiswa/Payment Memo mix full-bleed data
+        // tabs with non-full-bleed dashboard/form tabs in one page. This
+        // same click handler also fires on initTabs()'s own auto-activation
+        // at page load, so the correct state is set immediately on load too.
+        document.body.classList.toggle("fh-full-bleed", target.dataset.fullBleed === "true");
+      }
       // Sync the active tab into the URL (no reload) so a save action that
       // triggers location.reload()/window.location.reload() while on a
       // non-first tab lands back on the same tab instead of silently
@@ -508,6 +513,12 @@ function initTabs(container) {
 function fmtRupiah(n) {
   return new Intl.NumberFormat("id-ID").format(n || 0);
 }
+
+function fmtJutaan(amount) {
+  const jt = (amount || 0) / 1000000;
+  return jt.toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
 
 function showToast(msg, type = "success") {
   let toast = document.getElementById("fh-toast");
@@ -603,6 +614,70 @@ function restoreFilterOpenState() {
     panel.classList.add('open');
   }
 }
+
+// Dynamic pagination page-size: computes how many rows fit the space below
+// a paginated table so screen height isn't wasted on a half-empty last page.
+// See docs/superpowers/specs/2026-07-31-flow-dynamic-pagination-page-size-design.md
+function computeDynamicPageSize(opts) {
+  const container = typeof opts.scrollContainer === 'string'
+    ? document.querySelector(opts.scrollContainer) : opts.scrollContainer;
+  const row = typeof opts.rowSelector === 'string'
+    ? document.querySelector(opts.rowSelector) : opts.rowSelector;
+  if (!container || !row) return opts.defaultSize;
+  const rowHeight = row.getBoundingClientRect().height;
+  if (!rowHeight) return opts.defaultSize;
+  const available = container.getBoundingClientRect().height;
+  const raw = Math.floor(available / rowHeight);
+  return Math.max(opts.defaultSize, Math.min(raw, opts.defaultSize * 4));
+}
+
+function _pageSizeCacheKey(name) {
+  return 'fh-pagesize:' + name;
+}
+function getCachedPageSize(name, viewportHeight) {
+  try {
+    const raw = localStorage.getItem(_pageSizeCacheKey(name));
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (!cached || Math.abs(cached.viewportHeight - viewportHeight) > 20) return null;
+    return cached.pageSize;
+  } catch (e) { return null; }
+}
+function setCachedPageSize(name, pageSize, viewportHeight) {
+  try {
+    localStorage.setItem(_pageSizeCacheKey(name), JSON.stringify({ pageSize, viewportHeight }));
+  } catch (e) {}
+}
+
+// Shared "calibrate once, then cache" flow for server-paginated tables
+// (Payment Application, Sponsorship Data tab). Called after the table has
+// rendered `renderedPageSize` rows. Navigates (full page reload) at most
+// once: either applying a cached size that doesn't match what was rendered,
+// or applying a freshly-measured size that differs from what was rendered.
+// No-op if the current render already matches the right size.
+function initServerPagedDynamicSize(opts) {
+  const viewportHeight = window.innerHeight;
+  const url = new URL(window.location);
+  const cached = getCachedPageSize(opts.cacheName, viewportHeight);
+  if (cached && cached !== opts.renderedPageSize) {
+    url.searchParams.set(opts.paramName, cached);
+    window.location.href = url.toString();
+    return;
+  }
+  requestAnimationFrame(() => {
+    const computed = computeDynamicPageSize({
+      scrollContainer: opts.scrollContainer,
+      rowSelector: opts.rowSelector,
+      defaultSize: opts.defaultSize,
+    });
+    setCachedPageSize(opts.cacheName, computed, viewportHeight);
+    if (computed !== opts.renderedPageSize) {
+      url.searchParams.set(opts.paramName, computed);
+      window.location.href = url.toString();
+    }
+  });
+}
+
 
 // Steps the active .tab-btn within `.tabs` by `delta` positions (wraps around
 // at either end) and clicks the resulting tab. Works for both server-rendered

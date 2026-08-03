@@ -93,7 +93,7 @@
         <td class="f2">{{ a.submitted_at or '--' }}</td>
         <td>{{ a.target_payment_date or '--' }}</td>
         <td>{{ a.actual_payment_date or '--' }}</td>
-        <td class="num-right">Rp {{ "{:,.0f}".format(a.total_amount) }}</td>
+        <td class="num-right">{{ a.total_amount | rupiah }}</td>
         <td style="text-align:center">
           {% if a.tat_days is not none %}
           <span class="badge {% if a.tat_days <= 5 %}badge-green{% elif a.tat_days <= 8 %}badge-yellow{% else %}badge-red{% endif %}">
@@ -143,7 +143,7 @@
       <label>Pilih Memo (status: on_process)</label>
       <select id="app-memo-id">
         {% for m in approved_memos %}
-        <option value="{{ m.id }}">{{ m.memo_number }} -- Rp {{ "{:,.0f}".format(m.total_amount) }}</option>
+        <option value="{{ m.id }}">{{ m.memo_number }} -- {{ m.total_amount | rupiah }}</option>
         {% endfor %}
       </select>
     </div>

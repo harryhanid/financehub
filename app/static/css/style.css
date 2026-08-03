@@ -26,6 +26,8 @@
   --positive:         #059669; --positive-surface: #ECFDF5; --positive-border: #A7F3D0;
   --negative:         #DC2626; --negative-surface: #FEF2F2; --negative-border: #FECACA;
   --caution:          #D97706; --caution-surface:  #FFFBEB; --caution-border:  #FDE68A;
+  --violet:           #7C3AED; --violet-surface:   #F5F3FF; --violet-border:   #DDD6FE;
+  --tangerine:        #EA580C; --tangerine-surface: #FFF7ED; --tangerine-border: #FED7AA;
 
   /* Aliases */
   --bg: var(--sl-50); --card: #FFF; --border: var(--sl-200);
@@ -506,6 +508,21 @@ th[data-sort-dir="desc"]::after { content: ' ▼'; opacity: 1; color: var(--acce
   min-height: calc(100dvh - var(--navbar-h));
 }
 
+/* ── Full-bleed table pages ──────────────────────────────────────── */
+/* Set on <body> for pages/tabs whose main content is a data table —   */
+/* see docs/superpowers/specs/2026-07-31-flow-full-bleed-table-pages-  */
+/* design.md. Zeroes .main's padding and the sticky header's residual  */
+/* bottom gap so the table fills the viewport like a spreadsheet.      */
+body.fh-full-bleed .main { padding: 0; }
+body.fh-full-bleed .fh-page-header { padding-bottom: 0; }
+/* Two table-wrap widths hardcode calc(100vw - 3.5rem) — 3.5rem being  */
+/* .main's old side padding (1.75rem × 2) — as a workaround to escape  */
+/* .main's constrained width. With .main's padding now zero on these   */
+/* pages, that stale calc leaves an unwanted 56px gap; use the full    */
+/* container width instead. */
+body.fh-full-bleed #pa-scroll-wrap,
+body.fh-full-bleed .pillar-table-wrap { width: 100% !important; }
+
 /* ── Page Header ─────────────────────────────────────── */
 .page-header {
   display: flex; justify-content: space-between; align-items: flex-start;
@@ -579,6 +596,47 @@ th[data-sort-dir="desc"]::after { content: ' ▼'; opacity: 1; color: var(--acce
   margin-bottom: .875rem;
   letter-spacing: -.01em;
   color: var(--sl-800);
+}
+
+.form-section {
+  margin-bottom: 1rem;
+  padding: .65rem .85rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+}
+
+.form-section-title {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: .5rem;
+}
+.form-section.tint-jenis { background: var(--accent-surface); border-color: var(--accent-border); }
+.form-section.tint-jenis .form-section-title { color: var(--accent-text); }
+.form-section.tint-route { background: var(--violet-surface); border-color: var(--violet-border); }
+.form-section.tint-route .form-section-title { color: var(--violet); }
+.form-section.tint-siswa { background: var(--positive-surface); border-color: var(--positive-border); }
+.form-section.tint-siswa .form-section-title { color: var(--positive); }
+.form-section.tint-tgl { background: var(--caution-surface); border-color: var(--caution-border); }
+.form-section.tint-tgl .form-section-title { color: var(--caution); }
+.form-section.tint-pay { background: var(--tangerine-surface); border-color: var(--tangerine-border); }
+.form-section.tint-pay .form-section-title { color: var(--tangerine); }
+
+.pa-input-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 700px) {
+  .pa-input-columns { grid-template-columns: 1fr; }
+}
+
+.payline-row {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
 }
 
 /* ── Buttons ─────────────────────────────────────────── */
@@ -1047,6 +1105,8 @@ input[readonly], input[disabled] {
   --positive:         #34D399; --positive-surface: rgba(52,211,153,0.1); --positive-border: rgba(52,211,153,0.3);
   --negative:         #F87171; --negative-surface: rgba(248,113,113,0.1); --negative-border: rgba(248,113,113,0.3);
   --caution:          #FBBF24; --caution-surface:  rgba(251,191,36,0.1);  --caution-border:  rgba(251,191,36,0.3);
+  --violet:           #A78BFA; --violet-surface:   rgba(167,139,250,0.12); --violet-border:  rgba(167,139,250,0.3);
+  --tangerine:        #FB923C; --tangerine-surface: rgba(251,146,60,0.12); --tangerine-border: rgba(251,146,60,0.3);
   /* Opaque equivalent of --positive-surface pre-blended over --card, for   */
   /* sticky/frozen cells that need full coverage (translucent bg would let  */
   /* horizontally-scrolled content show through). Used for row-hover state.*/
@@ -1654,4 +1714,61 @@ td:has(.empty-state) { padding: 0 !important; }
     background: none;
     color: #000 !important;
   }
+}
+
+
+/* Floating Glassmorphic Pagination */
+.floating-pagination {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 10px 24px;
+  border-radius: 9999px;
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.4) inset;
+  z-index: 100;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.8rem;
+}
+.floating-pagination:hover {
+  box-shadow: 0 15px 50px -10px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.5) inset;
+  transform: translateX(-50%) translateY(-2px);
+}
+[data-theme="dark"] .floating-pagination {
+  background: rgba(30, 33, 43, 0.75);
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
+  color: #e2e8f0;
+}
+[data-theme="dark"] .floating-pagination:hover {
+  box-shadow: 0 15px 50px -10px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1) inset;
+}
+.floating-pagination .btn {
+  border-radius: 9999px;
+  padding: 6px 16px;
+  font-weight: 500;
+  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-main);
+  transition: background 0.2s, color 0.2s;
+  cursor: pointer;
+  text-decoration: none;
+}
+[data-theme="dark"] .floating-pagination .btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.floating-pagination .btn:hover:not([style*="pointer-events:none"]):not(:disabled) {
+  background: var(--primary, #3b82f6);
+  color: #fff;
+}
+.floating-pagination .btn:disabled,
+.floating-pagination .btn[style*="pointer-events:none"] {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

@@ -1,3 +1,4 @@
+from format_utils import format_rupiah
 # modules/beasiswa/routes.py
 from functools import wraps
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, Response
@@ -210,9 +211,9 @@ def budget_siswa_export(code, fmt):
         data = [["No", "Kategori 1", "Kategori 2", "Tanggal", "Pillar", "Amount (Rp)"]]
         for i, r in enumerate(rows, 1):
             data.append([i, r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                         r.get("pillar",""), f"{r.get('amount',0):,.0f}"])
+                         r.get("pillar",""), format_rupiah(r.get('amount',0), prefix="")])
         if rows:
-            data.append(["", "TOTAL", "", "", "", f"{grand:,.0f}"])
+            data.append(["", "TOTAL", "", "", "", format_rupiah(grand, prefix="")])
         tbl = Table(data, colWidths=[1*cm, 3.5*cm, 4*cm, 2.5*cm, 3*cm, 3*cm], repeatRows=1)
         tbl.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1a56db")),
@@ -341,9 +342,9 @@ def budget_export_pdf():
         a = r.get("amount",0); total += a
         data.append([i, r.get("siswa_code",""), r.get("nama",""), r.get("program",""),
                      r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                     r.get("pillar",""), f"{a:,.0f}"])
+                     r.get("pillar",""), format_rupiah(a, prefix="")])
     if rows:
-        data.append(["","","TOTAL","","","","","",f"{total:,.0f}"])
+        data.append(["","","TOTAL","","","","","",format_rupiah(total, prefix="")])
     tbl = Table(data, repeatRows=1)
     tbl.setStyle(TableStyle([
         ("BACKGROUND",(0,0),(-1,0), colors.HexColor("#1a56db")),
@@ -432,10 +433,10 @@ def payment_export_pdf():
         a = r.get("amount",0); total += a
         data.append([i, r.get("siswa_code",""), r.get("nama",""), r.get("program",""),
                      r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                     r.get("pillar",""), f"{a:,.0f}",
+                     r.get("pillar",""), format_rupiah(a, prefix=""),
                      r.get("pam",""), r.get("perusahaan",""), r.get("status","")])
     if rows:
-        data.append(["","","TOTAL","","","","","",f"{total:,.0f}","","",""])
+        data.append(["","","TOTAL","","","","","",format_rupiah(total, prefix=""),"","",""])
     tbl = Table(data, repeatRows=1)
     tbl.setStyle(TableStyle([
         ("BACKGROUND",(0,0),(-1,0), colors.HexColor("#065f46")),
@@ -608,54 +609,155 @@ def laporan_export(code, fmt):
                         headers={"Content-Disposition": f"attachment; filename={fname}"})
 
     if fmt == "pdf":
-        import io
+        import io, os
+        from datetime import date as _date
         from flask import send_file
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
         from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.enums import TA_RIGHT
+
+        # ── FLOW brand palette (exact hex values used elsewhere in the app) ──
+        COBALT      = colors.HexColor("#5B8CFF")
+        INK_DARK    = colors.HexColor("#0F1220")
+        INK         = colors.HexColor("#1e293b")
+        MUTED       = colors.HexColor("#64748b")
+        HAIRLINE    = colors.HexColor("#f1f5f9")
+        COBALT_TINT = colors.HexColor("#eff6ff")
+        GREEN       = colors.HexColor("#047857")
+        GREEN_TINT  = colors.HexColor("#ecfdf5")
+        GREEN_LINE  = colors.HexColor("#10b981")
+        NEGATIVE    = colors.HexColor("#dc2626")
+        FLOW_MARK_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "static", "img", "flow-mark.png")
 
         buf = io.BytesIO()
         doc = SimpleDocTemplate(buf, pagesize=A4,
                                 leftMargin=1.5*cm, rightMargin=1.5*cm,
                                 topMargin=1.5*cm, bottomMargin=1.5*cm)
         styles = getSampleStyleSheet()
-        elems = [Paragraph(f"Laporan Siswa — {s.get('nama','')} ({s.get('code','')})", styles["Title"]),
-                 Paragraph(session.get("company_name", ""), styles["Normal"]),
-                 Spacer(1, 0.4*cm)]
+
+        # Text wrapping style for tables
+        cell_style = styles["Normal"].clone('cell_style')
+        cell_style.fontSize = 8
+        cell_style.leading = 10
+        cell_style.wordWrap = 'CJK'
+
+        label_style = cell_style.clone('label_style')
+        label_style.fontName = 'Helvetica-Bold'
+        label_style.fontSize = 7
+        label_style.textColor = MUTED
+
+        def wrap_row(row, is_header=False, is_footer=False):
+            wrapped = []
+            for item in row:
+                if is_header or is_footer:
+                    wrapped.append(item)
+                else:
+                    wrapped.append(Paragraph(str(item), cell_style) if item else "")
+            return wrapped
+
+        def _lv_row(label1, value1, label2, value2):
+            return [
+                Paragraph(str(label1).upper(), label_style),
+                Paragraph(str(value1), cell_style) if value1 else "",
+                Paragraph(str(label2).upper(), label_style) if label2 else "",
+                Paragraph(str(value2), cell_style) if value2 else "",
+            ]
+
+        section_title_style = styles["Normal"].clone('section_title')
+        section_title_style.fontName = 'Helvetica-Bold'
+        section_title_style.fontSize = 9
+        section_title_style.textColor = INK
+
+        def section_header(text, accent=COBALT):
+            """Small bold uppercase heading with a left accent rule."""
+            tbl = Table([[Paragraph(text.upper(), section_title_style)]])
+            tbl.setStyle(TableStyle([
+                ("LINEBEFORE", (0,0), (0,0), 2.5, accent),
+                ("LEFTPADDING", (0,0), (0,0), 8),
+                ("TOPPADDING", (0,0), (-1,-1), 0),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+            ]))
+            return tbl
+
+        # ── Letterhead ──────────────────────────────────────────────────
+        brand_style = styles["Normal"].clone('brand_style')
+        brand_style.fontName = 'Helvetica-Bold'
+        brand_style.fontSize = 13
+        brand_style.textColor = INK_DARK
+
+        company_style = styles["Normal"].clone('company_style')
+        company_style.fontSize = 8
+        company_style.textColor = MUTED
+        company_style.alignment = TA_RIGHT
+        company_style.leading = 11
+
+        try:
+            mark = Image(FLOW_MARK_PATH, width=18, height=18)
+        except Exception:
+            mark = ""
+
+        header_tbl = Table(
+            [[mark, Paragraph("FLOW", brand_style),
+              Paragraph(f"{session.get('company_name','')}<br/>Dicetak {_date.today().strftime('%d %B %Y')}", company_style)]],
+            colWidths=[1.2*cm, 3*cm, None],
+        )
+        header_tbl.setStyle(TableStyle([
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ("LINEBELOW", (0,0), (-1,-1), 1.4, INK_DARK),
+            ("TOPPADDING", (0,0), (-1,-1), 0),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+            ("LEFTPADDING", (0,0), (0,0), 0),
+        ]))
+
+        title_style = styles["Normal"].clone('report_title')
+        title_style.fontName = 'Helvetica-Bold'
+        title_style.fontSize = 16
+        title_style.textColor = INK_DARK
+        title_style.spaceBefore = 12
+        title_style.spaceAfter = 6
+
+        subtitle_style = styles["Normal"].clone('report_subtitle')
+        subtitle_style.fontSize = 9
+        subtitle_style.textColor = MUTED
+        subtitle_style.spaceAfter = 14
+
+        elems = [
+            header_tbl,
+            Paragraph("Laporan Siswa", title_style),
+            Paragraph(f"{s.get('nama','')} &middot; {s.get('code','')}", subtitle_style),
+        ]
 
         # Student info table (2-column label/value pairs)
-        elems.append(Paragraph("Data Siswa", styles["Heading2"]))
+        elems.append(section_header("Data Siswa"))
         info_rows = [
-            ["Kode Siswa", s.get("code",""),          "Status", s.get("status","")],
-            ["Nama",       s.get("nama",""),           "Program", s.get("program","")],
-            ["Jenjang",    s.get("jenjang",""),        "Angkatan", str(s.get("angkatan",""))],
-            ["Universitas",s.get("universitas",""),    "Fakultas", s.get("fakultas","")],
-            ["Bank",       s.get("bank",""),           "No. Rekening", s.get("norek","")],
-            ["Nama Rek.",  s.get("namarek",""),        "Referensi", s.get("referensi","")],
+            _lv_row("Kode Siswa", s.get("code",""),          "Status", s.get("status","")),
+            _lv_row("Nama",       s.get("nama",""),           "Program", s.get("program","")),
+            _lv_row("Jenjang",    s.get("jenjang",""),        "Angkatan", str(s.get("angkatan",""))),
+            _lv_row("Universitas",s.get("universitas",""),    "Fakultas", s.get("fakultas","")),
+            _lv_row("Bank",       s.get("bank",""),           "No. Rekening", s.get("norek","")),
+            _lv_row("Nama Rek.",  s.get("namarek",""),        "Referensi", s.get("referensi","")),
         ]
         if s.get("catatan"):
-            info_rows.append(["Catatan", s.get("catatan",""), "", ""])
+            info_rows.append(_lv_row("Catatan", s.get("catatan",""), "", ""))
         info_tbl = Table(info_rows, colWidths=[2.5*cm, 5.5*cm, 2.5*cm, 6.5*cm])
         info_tbl.setStyle(TableStyle([
             ("FONTSIZE",   (0,0), (-1,-1), 8),
-            ("FONTNAME",   (0,0), (0,-1), "Helvetica-Bold"),
-            ("FONTNAME",   (2,0), (2,-1), "Helvetica-Bold"),
-            ("BACKGROUND", (0,0), (0,-1), colors.HexColor("#f3f4f6")),
-            ("BACKGROUND", (2,0), (2,-1), colors.HexColor("#f3f4f6")),
-            ("GRID",       (0,0), (-1,-1), 0.5, colors.HexColor("#e5e7eb")),
+            ("LINEBELOW",  (0,0), (-1,-1), 0.5, HAIRLINE),
             ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
             ("TOPPADDING", (0,0), (-1,-1), 4),
             ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+            ("LEFTPADDING", (0,0), (0,-1), 0),
         ]))
-        elems += [info_tbl, Spacer(1, 0.3*cm)]
+        elems += [info_tbl, Spacer(1, 0.5*cm)]
 
         # IPK section
         ipk_sems = [(i, s.get(f"ipk_sem{i}")) for i in range(1,11) if s.get(f"ipk_sem{i}")]
         ipk_pens = [(i, s.get(f"ipk_pen{i}")) for i in range(1,4) if s.get(f"ipk_pen{i}")]
         if ipk_sems or ipk_pens:
-            elems.append(Paragraph("IPK", styles["Heading2"]))
+            elems.append(section_header("IPK"))
             ipk_rows = []
             if ipk_sems:
                 ipk_rows.append(["IPK Semester"] + [f"Sem {i}: {float(v):.2f}" for i, v in ipk_sems])
@@ -665,94 +767,124 @@ def laporan_export(code, fmt):
             for r in ipk_rows:
                 while len(r) < max_cols:
                     r.append("")
+            ipk_rows = [
+                [Paragraph(str(row[0]).upper(), label_style)] +
+                [Paragraph(str(v), cell_style) if v else "" for v in row[1:]]
+                for row in ipk_rows
+            ]
             ipk_tbl = Table(ipk_rows)
             ipk_tbl.setStyle(TableStyle([
                 ("FONTSIZE",   (0,0), (-1,-1), 8),
-                ("FONTNAME",   (0,0), (0,-1), "Helvetica-Bold"),
-                ("BACKGROUND", (0,0), (0,-1), colors.HexColor("#f3f4f6")),
-                ("GRID",       (0,0), (-1,-1), 0.5, colors.HexColor("#e5e7eb")),
+                ("LINEBELOW",  (0,0), (-1,-1), 0.5, HAIRLINE),
                 ("TOPPADDING", (0,0), (-1,-1), 3),
                 ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+                ("LEFTPADDING", (0,0), (0,-1), 0),
             ]))
-            elems += [ipk_tbl, Spacer(1, 0.3*cm)]
+            elems += [ipk_tbl, Spacer(1, 0.5*cm)]
 
         # Summary table
-        elems.append(Paragraph("Rekapitulasi per Kategori", styles["Heading2"]))
+        elems.append(section_header("Rekapitulasi per Kategori"))
         sum_data = [["Kategori", "Budget (Rp)", "Payment (Rp)", "Selisih (Rp)"]]
         for c in data["cat_summary"]:
-            sum_data.append([c["cat1"], f"{c['budget']:,.0f}", f"{c['payment']:,.0f}", f"{c['sisa']:,.0f}"])
-        sum_data.append(["TOTAL", f"{data['total_budget']:,.0f}",
-                         f"{data['total_payment']:,.0f}", f"{data['total_sisa']:,.0f}"])
+            kategori_cell = Paragraph(str(c["cat1"]), cell_style) if c["cat1"] else ""
+            sum_data.append([kategori_cell, format_rupiah(c['budget'], prefix=""), format_rupiah(c['payment'], prefix=""), format_rupiah(c['sisa'], prefix="")])
+        sum_data.append(["TOTAL", format_rupiah(data['total_budget'], prefix=""),
+                         format_rupiah(data['total_payment'], prefix=""), format_rupiah(data['total_sisa'], prefix="")])
         st = Table(sum_data, colWidths=[5*cm, 4*cm, 4*cm, 4*cm])
         neg_rows = [i+1 for i, c in enumerate(data["cat_summary"]) if c["sisa"] < 0]
         ts = TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1a56db")),
+            ("BACKGROUND", (0,0), (-1,0), INK_DARK),
             ("TEXTCOLOR", (0,0), (-1,0), colors.white),
             ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("FONTSIZE", (0,0), (-1,0), 7.5),
             ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
-            ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f3f4f6")),
+            ("BACKGROUND", (0,-1), (-1,-1), COBALT_TINT),
+            ("TEXTCOLOR", (0,-1), (-1,-1), COBALT),
             ("ALIGN", (1,0), (-1,-1), "RIGHT"),
-            ("FONTSIZE", (0,0), (-1,-1), 8),
-            ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#e5e7eb")),
+            ("FONTSIZE", (0,1), (-1,-1), 8),
+            ("LINEBELOW", (0,1), (-1,-2), 0.5, HAIRLINE),
+            ("ROWBACKGROUNDS", (0,1), (-1,-2), [colors.white, HAIRLINE]),
+            ("TOPPADDING", (0,0), (-1,-1), 5),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 5),
         ])
         tb = data["total_sisa"]
         if tb < 0:
-            ts.add("TEXTCOLOR", (3,-1), (3,-1), colors.HexColor("#dc2626"))
+            ts.add("TEXTCOLOR", (3,-1), (3,-1), NEGATIVE)
         for ri in neg_rows:
-            ts.add("TEXTCOLOR", (3,ri), (3,ri), colors.HexColor("#dc2626"))
+            ts.add("TEXTCOLOR", (3,ri), (3,ri), NEGATIVE)
         st.setStyle(ts)
-        elems += [st, Spacer(1, 0.4*cm)]
+        elems += [st, Spacer(1, 0.5*cm)]
 
         # Budget detail
-        elems.append(Paragraph("Detail Budget", styles["Heading2"]))
-        bgt_data = [["Kategori 1", "Kategori 2", "Tanggal", "Pillar", "Amount (Rp)"]]
+        elems.append(section_header("Detail Budget"))
+        bgt_headers = ["Kategori 1", "Kategori 2", "Tanggal", "Pillar", "Amount (Rp)"]
+        bgt_data = [wrap_row(bgt_headers, is_header=True)]
         bgt_total = 0
         for r in data["budget_rows"]:
             a = r.get("amount", 0); bgt_total += a
-            bgt_data.append([r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                             r.get("pillar",""), f"{a:,.0f}"])
+            bgt_data.append(wrap_row([r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
+                             r.get("pillar",""), format_rupiah(a, prefix="")]))
         if data["budget_rows"]:
-            bgt_data.append(["", "TOTAL", "", "", f"{bgt_total:,.0f}"])
+            bgt_data.append(wrap_row(["", "TOTAL", "", "", format_rupiah(bgt_total, prefix="")], is_footer=True))
         bt = Table(bgt_data, colWidths=[3.5*cm, 4*cm, 2.5*cm, 3*cm, 4*cm], repeatRows=1)
         bt.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1a56db")),
-            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("BACKGROUND", (0,0), (-1,0), COBALT_TINT),
+            ("TEXTCOLOR", (0,0), (-1,0), COBALT),
             ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("FONTSIZE", (0,0), (-1,0), 7.5),
+            ("LINEBELOW", (0,0), (-1,0), 1.2, COBALT),
             ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
-            ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f3f4f6")),
+            ("BACKGROUND", (0,-1), (-1,-1), HAIRLINE),
             ("ALIGN", (4,0), (-1,-1), "RIGHT"),
-            ("FONTSIZE", (0,0), (-1,-1), 8),
-            ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#e5e7eb")),
-            ("ROWBACKGROUNDS", (0,1), (-1,-2), [colors.white, colors.HexColor("#f8fafc")]),
+            ("FONTSIZE", (0,1), (-1,-1), 8),
+            ("LINEBELOW", (0,1), (-1,-2), 0.5, HAIRLINE),
+            ("ROWBACKGROUNDS", (0,1), (-1,-2), [colors.white, HAIRLINE]),
+            ("VALIGN", (0,0), (-1,-1), "TOP"),
+            ("TOPPADDING", (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
         ]))
-        elems += [bt, Spacer(1, 0.4*cm)]
+        elems += [bt, Spacer(1, 0.5*cm)]
 
         # Payment detail
-        elems.append(Paragraph("Detail Payment", styles["Heading2"]))
-        pay_data = [["Kategori 1", "Kategori 2", "Tanggal", "PAM", "Perusahaan", "Pillar", "Amount (Rp)", "Status"]]
+        elems.append(section_header("Detail Payment", accent=GREEN))
+        pay_headers = ["Kategori 1", "Kategori 2", "Tanggal", "PAM", "Pillar", "Amount (Rp)", "Status"]
+        pay_data = [wrap_row(pay_headers, is_header=True)]
         pay_total = 0
         for r in data["payment_rows"]:
             a = r.get("amount", 0); pay_total += a
-            pay_data.append([r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                             r.get("pam",""), r.get("perusahaan",""), r.get("pillar",""),
-                             f"{a:,.0f}", r.get("status","")])
+            pay_data.append(wrap_row([r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
+                             r.get("pam",""), r.get("pillar",""),
+                             format_rupiah(a, prefix=""), r.get("status","")]))
         if data["payment_rows"]:
-            pay_data.append(["", "TOTAL", "", "", "", "", f"{pay_total:,.0f}", ""])
-        pt = Table(pay_data, colWidths=[2.5*cm, 2.5*cm, 2.0*cm, 2.0*cm, 2.5*cm, 2.0*cm, 2.5*cm, 1.8*cm], repeatRows=1)
+            pay_data.append(wrap_row(["", "TOTAL", "", "", "", format_rupiah(pay_total, prefix=""), ""], is_footer=True))
+
+        pt = Table(pay_data, colWidths=[2.8*cm, 3.2*cm, 2.0*cm, 3.5*cm, 2.0*cm, 2.5*cm, 1.8*cm], repeatRows=1)
         pt.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#065f46")),
-            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("BACKGROUND", (0,0), (-1,0), GREEN_TINT),
+            ("TEXTCOLOR", (0,0), (-1,0), GREEN),
             ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("FONTSIZE", (0,0), (-1,0), 7.5),
+            ("LINEBELOW", (0,0), (-1,0), 1.2, GREEN_LINE),
             ("FONTNAME", (0,-1), (-1,-1), "Helvetica-Bold"),
-            ("BACKGROUND", (0,-1), (-1,-1), colors.HexColor("#f3f4f6")),
-            ("ALIGN", (6,0), (-1,-1), "RIGHT"),
-            ("FONTSIZE", (0,0), (-1,-1), 8),
-            ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#e5e7eb")),
-            ("ROWBACKGROUNDS", (0,1), (-1,-2), [colors.white, colors.HexColor("#f8fafc")]),
+            ("BACKGROUND", (0,-1), (-1,-1), HAIRLINE),
+            ("ALIGN", (5,0), (-1,-1), "RIGHT"),
+            ("FONTSIZE", (0,1), (-1,-1), 8),
+            ("LINEBELOW", (0,1), (-1,-2), 0.5, HAIRLINE),
+            ("ROWBACKGROUNDS", (0,1), (-1,-2), [colors.white, HAIRLINE]),
+            ("VALIGN", (0,0), (-1,-1), "TOP"),
+            ("TOPPADDING", (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
         ]))
         elems.append(pt)
 
-        doc.build(elems)
+        def _draw_footer(canvas_obj, doc_obj):
+            canvas_obj.saveState()
+            canvas_obj.setFont("Helvetica", 7)
+            canvas_obj.setFillColor(MUTED)
+            canvas_obj.drawRightString(A4[0] - 1.5*cm, 1*cm, f"Halaman {doc_obj.page}")
+            canvas_obj.restoreState()
+
+        doc.build(elems, onFirstPage=_draw_footer, onLaterPages=_draw_footer)
         buf.seek(0)
         return send_file(buf, mimetype="application/pdf",
                          download_name=f"laporan_{code}.pdf", as_attachment=True)
@@ -828,13 +960,13 @@ def rekap_export_pdf():
     ]
     header = [["No","Code","Nama","Jenjang","Program","Status","Budget","Payment","Sisa"]]
     for i, r in enumerate(rows, 1):
-        fmt = lambda n: f"{n:,.0f}"
+        fmt = lambda n: format_rupiah(n, prefix="")
         header.append([i, r["code"], r["nama"], r["jenjang"], r["program"],
                         r["status"], fmt(r["total_budget"]), fmt(r["total_payment"]), fmt(r["sisa"])])
     if rows:
         tb = sum(r["total_budget"] for r in rows)
         tp = sum(r["total_payment"] for r in rows)
-        header.append(["","","TOTAL","","","", f"{tb:,.0f}", f"{tp:,.0f}", f"{tb-tp:,.0f}"])
+        header.append(["","","TOTAL","","","", format_rupiah(tb, prefix=""), format_rupiah(tp, prefix=""), format_rupiah(tb-tp, prefix="")])
 
     tbl = Table(header, repeatRows=1)
     tbl.setStyle(TableStyle([

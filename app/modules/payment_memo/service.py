@@ -2,9 +2,10 @@ import re
 import calendar
 import config
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from database import get_conn
 from modules.bank.service import sync_pam_to_bank_setf
+from format_utils import format_rupiah
 
 
 def _ts():
@@ -243,6 +244,35 @@ def _add_one_month(date_str: str) -> str:
         return datetime(year, month, day).strftime("%Y-%m-%d")
     except ValueError:
         return date_str
+
+
+_HOLIDAYS_2026 = {
+    date(2026, 1,  1), date(2026, 1, 16), date(2026, 2, 17),
+    date(2026, 3, 19), date(2026, 3, 21), date(2026, 3, 22),
+    date(2026, 4,  3), date(2026, 4,  5),
+    date(2026, 5,  1), date(2026, 5, 14), date(2026, 5, 27), date(2026, 5, 31),
+    date(2026, 6,  1), date(2026, 6, 16),
+    date(2026, 8, 17), date(2026, 8, 25),
+    date(2026, 12, 25),
+}
+
+
+def _workday(start, n: int = 8):
+    """WORKDAY(start, n) — skip weekends and _HOLIDAYS_2026."""
+    if isinstance(start, datetime):
+        d = start.date()
+    elif isinstance(start, date):
+        d = start
+    else:
+        try:
+            d = datetime.strptime(str(start)[:10], "%Y-%m-%d").date()
+        except Exception:
+            return start
+    while n > 0:
+        d += timedelta(days=1)
+        if d.weekday() < 5 and d not in _HOLIDAYS_2026:
+            n -= 1
+    return datetime(d.year, d.month, d.day)
 
 
 _PILLAR_LINES_TABLE = {
@@ -623,7 +653,7 @@ def save_klaim_payment(company_id: int, company_code: str, data: dict) -> dict:
                 )
             grand_total += row_total
 
-        due_date = _add_one_month(tanggal)
+        due_date = _workday(tanggal, 8).strftime("%Y-%m-%d")
         conn.execute(
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
@@ -667,7 +697,7 @@ def save_others_payment(company_id: int, company_code: str, data: dict) -> dict:
         return {"ok": False, "pesan": "DPP harus lebih dari 0."}
 
     total    = dpp + ppn + others
-    due_date = _add_one_month(tanggal)
+    due_date = _workday(tanggal, 8).strftime("%Y-%m-%d")
     conn     = get_conn()
     try:
         conn.execute(
@@ -747,7 +777,7 @@ def save_smt_pam_transaction(company_id: int, company_code: str, data: dict) -> 
             line_data.append((row, dpp, ppn, others, dpp + ppn + others))
         grand_total = grand_dpp + grand_ppn + grand_others
 
-        due_date = _add_one_month(tanggal)
+        due_date = _workday(tanggal, 8).strftime("%Y-%m-%d")
         cur = conn.execute(
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
@@ -840,7 +870,7 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
         total       = ins["total"]
 
         # 2. Create pam_records entry FIRST (FK must exist before UPDATE payment_beasiswa)
-        due_date    = _add_one_month(tanggal)
+        due_date    = _workday(tanggal, 8).strftime("%Y-%m-%d")
         cost_center = config.COST_CENTER_MAP.get(perusahaan, "")
         pillar_for_pam = "ADVANCE" if route == "advance" else pillar
         conn.execute(
@@ -921,7 +951,7 @@ def create_pam_record(conn, company_id: int, company_code: str,
     year        = pam_date[:4]
     month       = pam_date[5:7]
     pam_no      = generate_pam_number(company_id, company_code, year, month, conn)
-    due_date    = _add_one_month(pam_date)
+    due_date    = _workday(pam_date, 8).strftime("%Y-%m-%d")
     cost_center = config.COST_CENTER_MAP.get(data.get("pt", ""), "")
     total       = float(data.get("total_amount", 0))
     dpp         = float(data.get("dpp", total))
@@ -2065,10 +2095,10 @@ def export_memo_pdf(memo_id: int, company_id: int, company_name: str) -> bytes:
             item.get("description", ""),
             item.get("vendor", ""),
             item.get("bank_account", ""),
-            f"{item['amount']:,.0f}",
+            format_rupiah(item['amount'], prefix=""),
         ])
         total += item["amount"]
-    rows.append(["", "", "", "TOTAL", f"{total:,.0f}"])
+    rows.append(["", "", "", "TOTAL", format_rupiah(total, prefix="")])
 
     col_widths = [1*cm, 6*cm, 4*cm, 4*cm, 3*cm]
     tbl = Table(rows, colWidths=col_widths, repeatRows=1)
@@ -2437,7 +2467,7 @@ def create_pam_from_etf_pa(company_id: int, company_code: str,
          "", company_code,
          config.PAM_DEFAULT_REQUESTOR if hasattr(config, 'PAM_DEFAULT_REQUESTOR') else "",
          keterangan, float(total),
-         _add_one_month(pam_date), ts)
+         _workday(pam_date, 8).strftime("%Y-%m-%d"), ts)
     )
 
     # Update etf_pa

@@ -73,3 +73,87 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* ── Input / Edit form redesign ──────────────────────────────────────────── */
+.sp-form-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+}
+.sp-form-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+.sp-form-section-title.sp-form-section-title-divider {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+.sp-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+.sp-form-field {
+  margin-bottom: 0.7rem;
+}
+.sp-form-field.sp-form-span2 {
+  grid-column: span 2;
+}
+.sp-form-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+.sp-form-field input,
+.sp-form-field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+.sp-form-field input[readonly] {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+/* Lanjutan (COA/CC Total/CC/Source) disclosure */
+.sp-form-advanced {
+  margin-top: 0.75rem;
+}
+.sp-form-advanced > summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  list-style: none;
+}
+.sp-form-advanced > summary::-webkit-details-marker { display: none; }
+.sp-form-advanced > summary::before {
+  content: "▸ ";
+}
+.sp-form-advanced[open] > summary::before {
+  content: "▾ ";
+}
+.sp-form-advanced .sp-form-grid {
+  grid-template-columns: 1fr;
+  margin-top: 0.6rem;
+}
+
+/* -- Full-height table wrapper � Data/Outstanding tabs --------------------- */
+/* Overrides .budget-table-container's stale max-height (budget.css) with a
+   JS-driven height instead, matching Payment Application's #pa-scroll-wrap
+   technique (etf_payment_application/index.html). An id selector already
+   outranks the class rule, so no !important is needed. */
+#sp-table-wrap { max-height: none; }

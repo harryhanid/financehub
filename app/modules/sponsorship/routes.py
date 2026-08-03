@@ -16,6 +16,18 @@ import config
 bp = Blueprint("sponsorship", __name__, url_prefix="/sponsorship")
 
 PER_PAGE = 100
+PER_PAGE_MAX = PER_PAGE * 4
+
+
+def _resolve_page_size():
+    from flask import request
+    try:
+        requested = int(request.args.get("page_size", PER_PAGE))
+    except ValueError:
+        return PER_PAGE
+    if 1 <= requested <= PER_PAGE_MAX:
+        return requested
+    return PER_PAGE
 
 
 def smt_company_required(f):
@@ -55,17 +67,20 @@ def _wrong_company():
 
 def _parse_filters():
     filters = {}
-    for key in ("cat", "cat3", "description", "status"):
+    for key in ("cat1", "cat2", "cat4", "description", "status"):
         val = request.args.get(key)
         if val:
             filters[key] = val
-    
-    tahun_vals = request.args.getlist("tahun")
+
+    for key in ("cat", "cat3"):
+        vals = [v for v in request.args.getlist(key) if v.strip()]
+        if vals:
+            filters[key] = vals
+
+    tahun_vals = [y for y in request.args.getlist("tahun") if y.strip()]
     if tahun_vals:
-        tahun_vals = [y for y in tahun_vals if y.strip()]
-        if tahun_vals:
-            filters["tahun"] = tahun_vals
-            
+        filters["tahun"] = tahun_vals
+
     return filters
 
 
@@ -97,7 +112,11 @@ def index():
 @jwt_html_required
 @smt_company_required
 def api_dashboard_data():
-    data = get_dashboard_data(_cid(), _parse_filters())
+    filters = _parse_filters()
+    cat4_mode = (request.args.get("cat4") or "all").lower()
+    # Remove raw cat4 from filters to handle it via cat4_mode logic
+    if "cat4" in filters: del filters["cat4"]
+    data = get_dashboard_data(_cid(), filters, cat4_mode)
     return jsonify(data)
 
 
@@ -157,19 +176,25 @@ def input_create():
 @jwt_html_required
 def data_page():
     filters = _parse_filters()
+    from modules.sponsorship.service import list_perusahaan
+    plist = list_perusahaan()
+    cat1_choices = sorted(list(set(p["cat1"] for p in plist if p.get("cat1"))))
+    cat2_choices = sorted(list(set(p["cat2"] for p in plist if p.get("cat2"))))
     total = count_transaksi(_cid(), filters) if not _wrong_company() else 0
+    page_size = _resolve_page_size()
     page = request.args.get("page", 1, type=int) or 1
-    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    total_pages = max(1, (total + page_size - 1) // page_size)
     page = max(1, min(page, total_pages))
-    rows = list_transaksi(_cid(), filters, limit=PER_PAGE, offset=(page - 1) * PER_PAGE) if not _wrong_company() else []
+    rows = list_transaksi(_cid(), filters, limit=page_size, offset=(page - 1) * page_size) if not _wrong_company() else []
     years = get_available_years(_cid()) if not _wrong_company() else []
     return render_template(
         "sponsorship/data.html", active_page="sponsorship", use_unified_header=True,
         wrong_company=_wrong_company(),
-        rows=rows, page=page, total_pages=total_pages, total_count=total, years=years,
+        rows=rows, page=page, page_size=page_size, total_pages=total_pages, total_count=total, years=years,
         filters=filters,
         cat_choices=config.SPONSORSHIP_CAT, description_choices=config.SPONSORSHIP_DESCRIPTION,
         pillar_choices=config.SPONSORSHIP_PILLARS, cat4_choices=config.SPONSORSHIP_CAT4,
+        cat1_choices=cat1_choices, cat2_choices=cat2_choices,
         **_ctx()
     )
 
@@ -227,3 +252,35 @@ def report_page():
     return render_template("sponsorship/report.html", active_page="sponsorship",
                             use_unified_header=True,
                             wrong_company=_wrong_company(), years=years, **_ctx())
+
+@bp.route("/data/export")
+@jwt_html_required
+@smt_company_required
+def export_data_route():
+    from modules.sponsorship.exports import export_data_excel
+    filters = _parse_filters()
+    xls_bytes = export_data_excel(_cid(), filters)
+    import io
+    from flask import send_file
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="Sponsorship_Data.xlsx"
+    )
+
+@bp.route("/outstanding/export")
+@jwt_html_required
+@smt_company_required
+def export_outstanding_route():
+    from modules.sponsorship.exports import export_outstanding_excel
+    filters = _parse_filters()
+    xls_bytes = export_outstanding_excel(_cid(), filters)
+    import io
+    from flask import send_file
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="Sponsorship_Outstanding.xlsx"
+    )

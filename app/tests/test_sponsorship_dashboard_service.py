@@ -72,3 +72,52 @@ def test_dashboard_respects_filters(app):
     create_transaksi(SMT, _payload(tanggal_form_sponsor="2026-06-01", amount_request=2000))
     data = get_dashboard_data(SMT, filters={"tahun": "2026"})
     assert data["summary"]["total_amount"] == 2000
+
+def test_dashboard_cat_mix_splits_sponsorship_and_csr_gedung(app):
+    _seed()
+    create_transaksi(SMT, _payload(cat="Sponsorship", cat1="SMART", amount_request=1000))
+    create_transaksi(SMT, _payload(cat="CSR Gedung", cat1="IKPP", amount_request=2000))
+    data = get_dashboard_data(SMT)
+    mix = {row["cat"]: row["amount"] for row in data["catMix"]}
+    assert mix["Sponsorship"] == 1000
+    assert mix["CSR Gedung"] == 2000
+
+
+def test_dashboard_yoy_growth_computes_percent_change(app):
+    _seed()
+    create_transaksi(SMT, _payload(tanggal_form_sponsor="2024-03-01", amount_request=1000))
+    create_transaksi(SMT, _payload(tanggal_form_sponsor="2025-03-01", amount_request=1500))
+    create_transaksi(SMT, _payload(tanggal_form_sponsor="2026-03-01", amount_request=1200))
+    data = get_dashboard_data(SMT)
+    rows = {row["year"]: row for row in data["yoyGrowth"]}
+    assert rows["2024"]["amount"] == 1000
+    assert rows["2024"]["growth_pct"] is None
+    assert rows["2025"]["amount"] == 1500
+    assert round(rows["2025"]["growth_pct"], 2) == 50.0
+    assert rows["2026"]["amount"] == 1200
+    assert round(rows["2026"]["growth_pct"], 2) == -20.0
+
+
+def test_dashboard_yoy_growth_empty_when_no_data(app):
+    _seed()
+    data = get_dashboard_data(SMT)
+    assert data["yoyGrowth"] == []
+
+
+def test_dashboard_cat4_mix_splits_include_and_exclude(app):
+    _seed()
+    create_transaksi(SMT, _payload(cat1="SMART", cat4="Include", amount_request=1000))
+    create_transaksi(SMT, _payload(cat1="IKPP", cat4="Exclude", amount_request=2000))
+    data = get_dashboard_data(SMT)
+    mix = {row["cat4"]: row["amount"] for row in data["cat4Mix"]}
+    assert mix["Include"] == 1000
+    assert mix["Exclude"] == 2000
+
+
+def test_dashboard_cat4_mix_ignores_blank_cat4(app):
+    _seed()
+    create_transaksi(SMT, _payload(cat1="SMART", amount_request=1000))  # no cat4 set
+    data = get_dashboard_data(SMT)
+    mix = {row["cat4"]: row["amount"] for row in data["cat4Mix"]}
+    assert mix["Include"] == 0
+    assert mix["Exclude"] == 0

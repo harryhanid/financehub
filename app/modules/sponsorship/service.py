@@ -216,12 +216,27 @@ def _apply_filters(query: str, params: list, company_id: int, filters: dict):
     if filters.get("cat1"):
         query += " AND cat1 = ?"
         params.append(filters["cat1"])
+    if filters.get("cat2"):
+        query += " AND cat2 = ?"
+        params.append(filters["cat2"])
     if filters.get("cat"):
-        query += " AND cat = ?"
-        params.append(filters["cat"])
+        cats = filters["cat"]
+        if isinstance(cats, list) and cats:
+            placeholders = ",".join(["?"] * len(cats))
+            query += f" AND cat IN ({placeholders})"
+            params.extend(cats)
+        else:
+            query += " AND cat = ?"
+            params.append(cats)
     if filters.get("cat3"):
-        query += " AND cat3 = ?"
-        params.append(filters["cat3"])
+        pillars = filters["cat3"]
+        if isinstance(pillars, list) and pillars:
+            placeholders = ",".join(["?"] * len(pillars))
+            query += f" AND cat3 IN ({placeholders})"
+            params.extend(pillars)
+        else:
+            query += " AND cat3 = ?"
+            params.append(pillars)
     if filters.get("cat4"):
         query += " AND cat4 = ?"
         params.append(filters["cat4"])
@@ -237,12 +252,11 @@ def _apply_filters(query: str, params: list, company_id: int, filters: dict):
         years = filters["tahun"]
         if isinstance(years, list) and years:
             placeholders = ",".join(["?"] * len(years))
-            query += f" AND (strftime('%Y', tanggal_form_sponsor) IN ({placeholders}) OR strftime('%Y', tanggal_payment) IN ({placeholders}))"
-            params.extend(years)
+            query += f" AND strftime('%Y', tanggal_form_sponsor) IN ({placeholders})"
             params.extend(years)
         else:
-            query += " AND (strftime('%Y', tanggal_form_sponsor) = ? OR strftime('%Y', tanggal_payment) = ?)"
-            params.extend([str(years), str(years)])
+            query += " AND strftime('%Y', tanggal_form_sponsor) = ?"
+            params.extend([str(years)])
     return query, params
 
 
@@ -281,8 +295,33 @@ def get_available_years(company_id: int) -> list:
     return sorted(list(years), reverse=True)
 
 
-def get_dashboard_data(company_id: int, filters: dict = None) -> dict:
-    rows = list_transaksi(company_id, filters)
+def get_dashboard_data(company_id: int, filters: dict = None, cat4_mode: str = "all") -> dict:
+    if filters is None:
+        filters = {}
+        
+    if cat4_mode == "include":
+        filters["cat4"] = "Include"
+    elif cat4_mode == "exclude":
+        filters["cat4"] = "Exclude"
+    elif cat4_mode == "bib_include":
+        filters["cat4"] = "Include"
+        
+    raw_rows = list_transaksi(company_id, filters)
+    
+    rows = []
+    for r in raw_rows:
+        if cat4_mode == "bib_include" and r["cat1"] == "BORNEO INDOBARA":
+            r1 = dict(r)
+            r1["cat3"] = "AGRI"
+            r1["amount_request"] = r["amount_request"] * 0.51
+            rows.append(r1)
+            
+            r2 = dict(r)
+            r2["cat3"] = "ENERGY & FINANCE"
+            r2["amount_request"] = r["amount_request"] * 0.49
+            rows.append(r2)
+        else:
+            rows.append(dict(r))
 
     total_amount = sum(r["amount_request"] for r in rows)
     total_count = len(rows)
@@ -304,12 +343,122 @@ def get_dashboard_data(company_id: int, filters: dict = None) -> dict:
         if r["description"] in desc_totals:
             desc_totals[r["description"]] += r["amount_request"]
     description_chart = [{"description": d, "amount": desc_totals[d]} for d in config.SPONSORSHIP_DESCRIPTION]
+    
+    # New aggregations for the complex dashboard summaries
+    desc_pillar_table = []
+    desc_year_table = []
+    year_pillar_chart = {}
+    
+    years_set = set()
+    for r in rows:
+        y = r["tanggal_form_sponsor"][:4]
+        if y: years_set.add(y)
+    sorted_years = sorted(list(years_set))
+    
+    for d in config.SPONSORSHIP_DESCRIPTION:
+        # Desc vs Pillar
+        dp_row = {"description": d, "total": 0.0}
+        for p in config.SPONSORSHIP_PILLARS: dp_row[p] = 0.0
+        
+        # Desc vs Year
+        dy_row = {"description": d, "total": 0.0}
+        for y in sorted_years: dy_row[y] = 0.0
+        
+        for r in rows:
+            if r["description"] == d:
+                amt = r["amount_request"]
+                
+                # Pillar
+                p = r["cat3"]
+                if p in config.SPONSORSHIP_PILLARS:
+                    dp_row[p] += amt
+                dp_row["total"] += amt
+                
+                # Year
+                y = r["tanggal_form_sponsor"][:4]
+                if y in sorted_years:
+                    dy_row[y] += amt
+                dy_row["total"] += amt
+                
+        desc_pillar_table.append(dp_row)
+        desc_year_table.append(dy_row)
+        
+    for r in rows:
+        y = r["tanggal_form_sponsor"][:4]
+        p = r["cat3"]
+        if y and p in config.SPONSORSHIP_PILLARS:
+            if y not in year_pillar_chart:
+                year_pillar_chart[y] = {pil: 0.0 for pil in config.SPONSORSHIP_PILLARS}
+            year_pillar_chart[y][p] += r["amount_request"]
+
+    # Pillar summary table
+    pillar_summary_table = []
+    for p in ["APP", "ENERGY & FINANCE", "PROPERTY", "AGRI"]:
+        amt = pillar_totals[p]
+        pct = (amt / total_amount * 100) if total_amount > 0 else 0
+        pillar_summary_table.append({"pillar": p, "amount": amt, "pct": pct})
+    pillar_summary_table.append({"pillar": "Grand Total", "amount": total_amount, "pct": 100 if total_amount > 0 else 0})
+
+    # Top 5 Lembaga
+    lembaga_totals = {}
+    for r in rows:
+        l = r["lembaga_perorangan"] or "Unknown"
+        lembaga_totals[l] = lembaga_totals.get(l, 0) + r["amount_request"]
+    top_lembaga = [{"lembaga": k, "amount": v} for k, v in sorted(lembaga_totals.items(), key=lambda item: item[1], reverse=True)[:5]]
+    
+    # Status Chart
+    status_totals = {}
+    for r in rows:
+        s = r["status"] or "Unknown"
+        status_totals[s] = status_totals.get(s, 0) + r["amount_request"]
+    status_chart = [{"status": k, "amount": v} for k, v in status_totals.items()]
+
+    # Cat Mix (Sponsorship vs CSR Gedung)
+    cat_totals = {c: 0.0 for c in config.SPONSORSHIP_CAT}
+    for r in rows:
+        if r["cat"] in cat_totals:
+            cat_totals[r["cat"]] += r["amount_request"]
+    cat_mix = [{"cat": c, "amount": cat_totals[c]} for c in config.SPONSORSHIP_CAT]
+
+    # Cat4 Mix (Include vs Exclude)
+    cat4_totals = {c: 0.0 for c in config.SPONSORSHIP_CAT4}
+    for r in rows:
+        if r["cat4"] in cat4_totals:
+            cat4_totals[r["cat4"]] += r["amount_request"]
+    cat4_mix = [{"cat4": c, "amount": cat4_totals[c]} for c in config.SPONSORSHIP_CAT4]
+
+    # YoY Growth
+    year_totals = {}
+    for r in rows:
+        y = r["tanggal_form_sponsor"][:4]
+        if y:
+            year_totals[y] = year_totals.get(y, 0.0) + r["amount_request"]
+    yoy_growth = []
+    prev_amount = None
+    for y in sorted(year_totals):
+        amount = year_totals[y]
+        if prev_amount is None or prev_amount == 0:
+            growth_pct = None
+        else:
+            growth_pct = (amount - prev_amount) / prev_amount * 100
+        yoy_growth.append({"year": y, "amount": amount, "growth_pct": growth_pct})
+        prev_amount = amount
 
     return {
         "summary": {"total_amount": total_amount, "total_count": total_count},
         "monthlyChart": monthly_chart,
         "pillarChart": pillar_chart,
         "descriptionChart": description_chart,
+        "descPillarTable": desc_pillar_table,
+        "descYearTable": desc_year_table,
+        "yearPillarChart": year_pillar_chart,
+        "pillarSummaryTable": pillar_summary_table,
+        "sortedYears": sorted_years,
+        "topLembaga": top_lembaga,
+        "statusChart": status_chart,
+        "catMix": cat_mix,
+        "cat4Mix": cat4_mix,
+        "yoyGrowth": yoy_growth
     }
 
 

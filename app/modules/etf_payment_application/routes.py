@@ -38,6 +38,18 @@ def _tab(allow_input: bool = False, allow_summary: bool = False, allow_advance: 
 
 
 PA_PAGE_SIZE = 50
+PA_PAGE_SIZE_MAX = PA_PAGE_SIZE * 4
+
+
+def _resolve_page_size():
+    from flask import request
+    try:
+        requested = int(request.args.get("page_size", PA_PAGE_SIZE))
+    except ValueError:
+        return PA_PAGE_SIZE
+    if 1 <= requested <= PA_PAGE_SIZE_MAX:
+        return requested
+    return PA_PAGE_SIZE
 
 
 @bp.route("/")
@@ -51,6 +63,7 @@ def index():
     pa_rows = []
     all_rows = []
     page = 1
+    page_size = PA_PAGE_SIZE
     total_pages = 1
     total_rows = 0
     start_row = 0
@@ -94,12 +107,13 @@ def index():
             page = int(request.args.get("page", 1))
         except ValueError:
             page = 1
-        total_pages = max(1, -(-total_rows // PA_PAGE_SIZE))
+        page_size = _resolve_page_size()
+        total_pages = max(1, -(-total_rows // page_size))
         page = min(max(1, page), total_pages)
-        offset = (page - 1) * PA_PAGE_SIZE
-        pa_rows = filtered_rows[offset:offset + PA_PAGE_SIZE]
+        offset = (page - 1) * page_size
+        pa_rows = filtered_rows[offset:offset + page_size]
         start_row = offset + 1 if total_rows else 0
-        end_row = min(offset + PA_PAGE_SIZE, total_rows)
+        end_row = min(offset + page_size, total_rows)
     return render_template(
         "etf_payment_application/index.html",
         pa_rows=pa_rows,
@@ -107,7 +121,7 @@ def index():
         active_tab=tab,
         active_sf=sf,
         page=page,
-        page_size=PA_PAGE_SIZE,
+        page_size=page_size,
         total_pages=total_pages,
         total_rows=total_rows,
         start_row=start_row,

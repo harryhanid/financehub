@@ -1,95 +1,106 @@
-﻿import re
-
-path = r"C:\Financehub\app\modules\beasiswa\service.py"
+path = r"C:\Financehub\app\modules\sponsorship\service.py"
 with open(path, "r", encoding="utf-8") as f:
     c = f.read()
 
-helpers = """def _pillar_filter_sql(pillars, column):
-    if not pillars:
-        return "", []
-    placeholders = ",".join("?" for _ in pillars)
-    return f" AND {column} IN ({placeholders})", list(pillars)
+import re
 
-def _program_filter_sql(programs, column):
-    if not programs:
-        return "", []
-    placeholders = ",".join("?" for _ in programs)
-    return f" AND {column} IN ({placeholders})", list(programs)
+# We will replace the entire get_dashboard_data function
+pattern = re.compile(r"def get_dashboard_data\(.*?\n(?:    .*\n)*", re.MULTILINE)
 
-def _jenjang_filter_sql(jenjangs, column):
-    if not jenjangs:
-        return "", []
-    placeholders = ",".join("?" for _ in jenjangs)
-    return f" AND {column} IN ({placeholders})", list(jenjangs)"""
+new_func = """def get_dashboard_data(company_id: int, filters: dict = None) -> dict:
+    rows = list_transaksi(company_id, filters)
 
-c = re.sub(r'def _pillar_filter_sql.*?\n\s*return.*?list\(pillars\)', helpers, c, flags=re.DOTALL)
+    total_amount = sum(r["amount_request"] for r in rows)
+    total_count = len(rows)
 
-# get_dashboard_summary
-c = c.replace('def get_dashboard_summary(company_id: int, years: list = None, pillars: list = None) -> list:',
-              'def get_dashboard_summary(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None) -> list:')
-c = c.replace('pillar_sql, pillar_params = _pillar_filter_sql(pillars, "pillar")',
-              'pillar_sql, pillar_params = _pillar_filter_sql(pillars, "pillar")\n    program_sql, program_params = _program_filter_sql(programs, "s.program")\n    jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")')
-c = c.replace('WHERE s.company_id = ?\n        ORDER BY s.nama\n        """,\n        [company_id, *budget_year_params, company_id, *payment_year_params, *pillar_params, company_id],',
-              'WHERE s.company_id = ?{program_sql}{jenjang_sql}\n        ORDER BY s.nama\n        """,\n        [company_id, *budget_year_params, company_id, *payment_year_params, *pillar_params, company_id, *program_params, *jenjang_params],')
+    monthly = {}
+    for r in rows:
+        month = r["tanggal_form_sponsor"][:7]  # 'YYYY-MM'
+        monthly[month] = monthly.get(month, 0) + r["amount_request"]
+    monthly_chart = [{"month": m, "amount": monthly[m]} for m in sorted(monthly)]
 
-# get_dashboard_breakdown
-c = c.replace('def get_dashboard_breakdown(company_id: int, years: list = None, pillars: list = None) -> dict:',
-              'def get_dashboard_breakdown(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None) -> dict:')
-c = c.replace('pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")',
-              'pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")\n    program_sql, program_params = _program_filter_sql(programs, "s.program")\n    jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")')
+    pillar_totals = {p: 0.0 for p in config.SPONSORSHIP_PILLARS}
+    for r in rows:
+        if r["cat3"] in pillar_totals:
+            pillar_totals[r["cat3"]] += r["amount_request"]
+    pillar_chart = [{"pillar": p, "amount": pillar_totals[p]} for p in config.SPONSORSHIP_PILLARS]
 
-# Inject in budget_rows
-c = c.replace('WHERE b.company_id = ?{budget_year_sql}\n        GROUP BY b.cat1\n        """,\n        [company_id, *budget_year_params],',
-              'WHERE b.company_id = ?{budget_year_sql}{program_sql}{jenjang_sql}\n        GROUP BY b.cat1\n        """,\n        [company_id, *budget_year_params, *program_params, *jenjang_params],')
-# Inject in payment_rows
-c = c.replace('WHERE p.company_id = ?{payment_year_sql}{pillar_sql}\n        GROUP BY p.cat1\n        """,\n        [company_id, *payment_year_params, *pillar_params],',
-              'WHERE p.company_id = ?{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}\n        GROUP BY p.cat1\n        """,\n        [company_id, *payment_year_params, *pillar_params, *program_params, *jenjang_params],')
-# Inject in budget_jenjang_rows
-c = c.replace('WHERE b.company_id = ?{budget_year_sql}\n        GROUP BY s.jenjang\n        """,\n        [company_id, *budget_year_params],',
-              'WHERE b.company_id = ?{budget_year_sql}{program_sql}{jenjang_sql}\n        GROUP BY s.jenjang\n        """,\n        [company_id, *budget_year_params, *program_params, *jenjang_params],')
-# Inject in payment_jenjang_rows
-c = c.replace('WHERE p.company_id = ?{payment_year_sql}{pillar_sql}\n        GROUP BY s.jenjang\n        """,\n        [company_id, *payment_year_params, *pillar_params],',
-              'WHERE p.company_id = ?{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}\n        GROUP BY s.jenjang\n        """,\n        [company_id, *payment_year_params, *pillar_params, *program_params, *jenjang_params],')
+    desc_totals = {d: 0.0 for d in config.SPONSORSHIP_DESCRIPTION}
+    for r in rows:
+        if r["description"] in desc_totals:
+            desc_totals[r["description"]] += r["amount_request"]
+    description_chart = [{"description": d, "amount": desc_totals[d]} for d in config.SPONSORSHIP_DESCRIPTION]
+    
+    # New aggregations for the complex dashboard summaries
+    desc_pillar_table = []
+    desc_year_table = []
+    year_pillar_chart = {}
+    
+    years_set = set()
+    for r in rows:
+        y = r["tanggal_form_sponsor"][:4]
+        if y: years_set.add(y)
+    sorted_years = sorted(list(years_set))
+    
+    for d in config.SPONSORSHIP_DESCRIPTION:
+        # Desc vs Pillar
+        dp_row = {"description": d, "total": 0.0}
+        for p in config.SPONSORSHIP_PILLARS: dp_row[p] = 0.0
+        
+        # Desc vs Year
+        dy_row = {"description": d, "total": 0.0}
+        for y in sorted_years: dy_row[y] = 0.0
+        
+        for r in rows:
+            if r["description"] == d:
+                amt = r["amount_request"]
+                
+                # Pillar
+                p = r["cat3"]
+                if p in config.SPONSORSHIP_PILLARS:
+                    dp_row[p] += amt
+                dp_row["total"] += amt
+                
+                # Year
+                y = r["tanggal_form_sponsor"][:4]
+                if y in sorted_years:
+                    dy_row[y] += amt
+                dy_row["total"] += amt
+                
+        desc_pillar_table.append(dp_row)
+        desc_year_table.append(dy_row)
+        
+    for r in rows:
+        y = r["tanggal_form_sponsor"][:4]
+        p = r["cat3"]
+        if y and p in config.SPONSORSHIP_PILLARS:
+            if y not in year_pillar_chart:
+                year_pillar_chart[y] = {pil: 0.0 for pil in config.SPONSORSHIP_PILLARS}
+            year_pillar_chart[y][p] += r["amount_request"]
 
-c = c.replace('for s in get_dashboard_summary(company_id, years, pillars)',
-              'for s in get_dashboard_summary(company_id, years, pillars, programs, jenjangs)')
+    # Pillar summary table
+    pillar_summary_table = []
+    for p in config.SPONSORSHIP_PILLARS:
+        amt = pillar_totals[p]
+        pct = (amt / total_amount * 100) if total_amount > 0 else 0
+        pillar_summary_table.append({"pillar": p, "amount": amt, "pct": pct})
+    pillar_summary_table.append({"pillar": "Grand Total", "amount": total_amount, "pct": 100 if total_amount > 0 else 0})
 
-# get_dashboard_monthly
-c = c.replace('def get_dashboard_monthly(company_id: int, years: list = None, pillars: list = None) -> dict:',
-              'def get_dashboard_monthly(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None) -> dict:')
-c = c.replace('pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")',
-              'pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")\n    program_sql, program_params = _program_filter_sql(programs, "s.program")\n    jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")')
+    return {
+        "summary": {"total_amount": total_amount, "total_count": total_count},
+        "monthlyChart": monthly_chart,
+        "pillarChart": pillar_chart,
+        "descriptionChart": description_chart,
+        "descPillarTable": desc_pillar_table,
+        "descYearTable": desc_year_table,
+        "yearPillarChart": year_pillar_chart,
+        "pillarSummaryTable": pillar_summary_table,
+        "sortedYears": sorted_years
+    }
 
-# Budget
-c = c.replace('WHERE b.company_id = ? AND strftime(\'%Y\', b.tanggal) = ?\n        GROUP BY bulan\n        """,\n        (company_id, str(chart_year)),',
-              'WHERE b.company_id = ? AND strftime(\'%Y\', b.tanggal) = ?{program_sql}{jenjang_sql}\n        GROUP BY bulan\n        """,\n        [company_id, str(chart_year), *program_params, *jenjang_params],')
-# Realisasi
-c = c.replace('AND strftime(\'%Y\', p.tanggal) IN ({year_placeholders}){pillar_sql}\n        GROUP BY tahun, bulan\n        """,\n        [company_id, *[str(y) for y in years_to_fetch], *pillar_params],',
-              'AND strftime(\'%Y\', p.tanggal) IN ({year_placeholders}){pillar_sql}{program_sql}{jenjang_sql}\n        GROUP BY tahun, bulan\n        """,\n        [company_id, *[str(y) for y in years_to_fetch], *pillar_params, *program_params, *jenjang_params],')
+def get_sponsorship_report"""
 
-
-# get_dashboard_latest_payments
-c = c.replace('def get_dashboard_latest_payments(company_id: int, years: list = None, pillars: list = None, limit: int = 20) -> list:',
-              'def get_dashboard_latest_payments(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, limit: int = 20) -> list:')
-c = c.replace('pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")',
-              'pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")\n    program_sql, program_params = _program_filter_sql(programs, "s.program")\n    jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")')
-c = c.replace('WHERE p.company_id = ? AND p.status = \'complete\'{payment_year_sql}{pillar_sql}\n        ORDER BY p.id DESC\n        LIMIT ?\n        """,\n        [company_id, *payment_year_params, *pillar_params, limit],',
-              'WHERE p.company_id = ? AND p.status = \'complete\'{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}\n        ORDER BY p.id DESC\n        LIMIT ?\n        """,\n        [company_id, *payment_year_params, *pillar_params, *program_params, *jenjang_params, limit],')
-
-# get_dashboard_program_summary
-c = c.replace('def get_dashboard_program_summary(company_id: int, years: list = None, pillars: list = None) -> list:',
-              'def get_dashboard_program_summary(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None) -> list:')
-c = c.replace('summary = get_dashboard_summary(company_id, years, pillars)',
-              'summary = get_dashboard_summary(company_id, years, pillars, programs, jenjangs)')
-
-# get_dashboard_pillar_yearly
-c = c.replace('def get_dashboard_pillar_yearly(company_id: int, pillars: list = None) -> list:',
-              'def get_dashboard_pillar_yearly(company_id: int, pillars: list = None, programs: list = None, jenjangs: list = None) -> list:')
-c = c.replace('pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")',
-              'pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")\n    program_sql, program_params = _program_filter_sql(programs, "s.program")\n    jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")')
-c = c.replace('AND p.tanggal IS NOT NULL AND p.tanggal != \'\'{pillar_sql}\n        GROUP BY tahun, p.pillar\n        ORDER BY tahun DESC, p.pillar ASC\n        """,\n        [company_id, *pillar_params],',
-              'AND p.tanggal IS NOT NULL AND p.tanggal != \'\'{pillar_sql}{program_sql}{jenjang_sql}\n        GROUP BY tahun, p.pillar\n        ORDER BY tahun DESC, p.pillar ASC\n        """,\n        [company_id, *pillar_params, *program_params, *jenjang_params],')
-
+c = re.sub(r"def get_dashboard_data\(.*?\n(?:    .*\n)*def get_sponsorship_report", new_func, c, flags=re.MULTILINE)
 
 with open(path, "w", encoding="utf-8") as f:
     f.write(c)
