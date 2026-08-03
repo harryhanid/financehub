@@ -1,4 +1,4 @@
-# FLOW Payment Memo — Persistent Bulk Selection Design (AGRI / APP / LAND)
+# FLOW Payment Memo — Persistent Bulk Selection Design (AGRI / APP)
 
 ## Problem
 
@@ -8,14 +8,14 @@ Investigation showed the four tabs are NOT built on shared code (unlike Payment 
 
 - **AGRI (PAM, tab-pam):** two-level selection — checkboxes mark individual "beasiswa" payment lines (`pbId`) nested under a parent PAM record (`pamId`), tracked in `_pamBeasiswaSelected = { [pamId]: Set<pbId> }`. `loadPAM()` explicitly resets both `_pamBeasiswaSelected = {}` and `_pamBeasiswaCache = {}` on every search — this reproduces the reported bug (confirmed by the user: this is the tab they actually tested).
 - **APP (FIORI, tab-fiori):** flat selection — a `Set` (`_fioriSelected`) plus a `Map` of `{label}` metadata. **Correction after deeper review:** `loadFIORI()` also explicitly calls `_fioriSelected.clear()` / `_fioriSelectionMeta.clear()` on every search (lines 2777-2778) — an initial pass only checked for `_fioriSelected = ...` reassignment and missed this `.clear()` call. APP has the same real data-loss bug as AGRI, just with a flat (not two-level) selection model.
-- **LAND (SML, tab-sml):** same flat `Set`/`Map` shape as APP, but `loadSML()` genuinely never clears `_smlSelected`/`_smlSelectionMeta` — the only `.clear()` calls on these are in the manual "batal" button (`smlClearAllChips()`) and after a successful bulk update (`smlBulkUpdate()`), both intentional. The bulk-bar/chips already read from these persistent structures, not DOM `:checked` state. The only gap: when a previously-selected row reappears in a later search's re-rendered `tbody`, its new checkbox is always rendered unchecked (no `checked` attribute or row-highlight applied at render time), even though the underlying Set/Map still holds the selection correctly.
+- **LAND (SML, tab-sml):** ~~same flat `Set`/`Map` shape as APP, but `loadSML()` genuinely never clears `_smlSelected`/`_smlSelectionMeta`~~ — **correction after re-investigation during plan-writing (2026-08-03):** this description is stale. Since this spec was written, the `payment-memo-expand-lines` branch was merged (commit `521283c`, merge `a845411`), which replaced LAND's flat per-row-checkbox list with the same PAM-master + expandable-beasiswa-detail-lines view AGRI already used. `loadSML()`'s current row template renders no checkbox at all — `smlToggleCb`, `_smlSelected`, `_smlSelectionMeta`, and the `.sml-cb`/`.sml-row` classes referenced by `smlToggleSelectAll`/`smlClearAllChips`/`smlRemoveChip` are all now dead code, orphaned from the old UI and wired to nothing in the live template. There is currently no bulk-select UI on LAND to fix persistence for — it is in the same state as SETF (see below), not a "cosmetic gap" as originally described.
 - **SETF (tab-setf):** has no bulk-select/checkbox UI at all today. Confirmed out of scope per user — building a new feature is a different ask than fixing persistence.
 
 ## Scope (confirmed with user)
 
 - Fix AGRI's real data-loss bug (selection state gets wiped on every search).
 - Fix APP's real data-loss bug (same root cause as AGRI — `loadFIORI()` clears selection on every search — found during a closer re-check after initial approval; folded into the same "real fix" category as AGRI rather than treated as cosmetic).
-- Fix LAND's cosmetic gap (selection already persists correctly; checkboxes just don't visually restore on re-render).
+- LAND: out of scope, same as SETF — the tab was refactored to the expandable-lines view after this spec was originally written, and no bulk-select checkbox UI exists in the live template anymore (see the correction note above). No feature is rebuilt for it by this work.
 - SETF: out of scope, no bulk-select feature exists there and none will be added by this work.
 
 ## Design
@@ -38,15 +38,14 @@ Investigation showed the four tabs are NOT built on shared code (unlike Payment 
 
 **Restore checkbox visual state at render time.** In `loadFIORI()`'s row-rendering template string, check `_fioriSelected.has(r.id)` and, if true, render the checkbox with the `checked` attribute and the same inline highlight style (`background:#eff6ff`) that `fioriToggleCb` applies when a user checks a box interactively — so a row that reappears after a search looks exactly like it would if the user had just clicked it.
 
-### LAND (SML) — restore checkbox visual state at render time only
+### LAND (SML) — no design, out of scope
 
-No change to the underlying `_smlSelected`/`_smlSelectionMeta` — they already persist correctly (never cleared by `loadSML()`) and the bulk-bar/chips already read from them.
-
-Change only the row-rendering template string in `loadSML()`: check `_smlSelected.has(r.id)` and, if true, render the checkbox with `checked` plus the same highlight styling (`background:#eff6ff` and the extra cell styling) that `smlToggleCb` applies interactively.
+Removed from this design (see the correction note under "Problem" above) — the tab has no live bulk-select checkbox UI to fix persistence for. `smlToggleCb`/`_smlSelected`/`_smlSelectionMeta` and the `.sml-cb`/`.sml-row`-dependent functions are dead code; this work does not touch them (removing dead code is a separate, unrelated cleanup, not part of this spec's goal).
 
 ## Out of scope
 
+- LAND: no bulk-select feature exists in the live UI (see correction note above) — nothing to fix, nothing rebuilt.
 - SETF: no bulk-select feature added.
 - Any change to the `bulk-update`/`days-of-pam/bulk-update` API endpoints — both already accept arbitrary id lists; only client-side selection bookkeeping changes.
-- Cross-tab selection sharing (AGRI's selection is independent from APP/LAND's, as it already is today via separate variables) — not requested, not built.
+- Cross-tab selection sharing (AGRI's selection is independent from APP's, as it already is today via separate variables) — not requested, not built.
 - Persisting selection beyond the current page session (Payment Memo never navigates away for search/filter, so there is no reload to survive — an in-memory JS variable, not sessionStorage, is sufficient here, unlike Payment Application which does full page reloads).
