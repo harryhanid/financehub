@@ -108,19 +108,15 @@ did include it).
   a true gradient fill in the PDF without hand-rolling PDF gradient
   drawing code, and it guarantees the mark matches the live app exactly
   since it's rendered from the same source shape once, not reimplemented.
-- **Fonts:** register real Figtree (Regular, Medium/600, Bold/700,
-  ExtraBold/800) and DM Mono (Regular, Medium/500) TTF files via
-  `reportlab.pdfmetrics.registerFont`/`registerFontFamily`, bundled at
-  `app/static/fonts/` (Google Fonts, open license, same families already
-  loaded as webfonts elsewhere in the app — no new font choice, just
-  making the existing brand fonts available to ReportLab). This is a new
-  capability for this codebase — no PDF export currently registers a
-  custom font, all default to ReportLab's built-in Helvetica family.
-  Every `styles["..."]`/`cell_style`/`label_style` font name in
-  `laporan_export()`'s PDF branch changes from Helvetica-family names to
-  the registered Figtree/DM Mono family names; point sizes stay as
-  close to today's as legibility allows (some may need a small bump —
-  Figtree renders slightly smaller than Helvetica at the same point size).
+- **Fonts: Helvetica (ReportLab's built-in family), not Figtree/DM Mono.**
+  Bundling the actual brand TTF files was considered, but the
+  environment this was planned in has no way to fetch or supply them —
+  decided with the user to ship this redesign on ReportLab's default
+  Helvetica family for now (same font family the current PDF already
+  uses) rather than block the whole redesign on font sourcing. Every
+  other brand element (mark, colors, letterhead layout, section
+  treatment) still applies. Swapping in real Figtree/DM Mono later is a
+  drop-in follow-up — see Out of Scope.
 - **Colors:** reuse the exact hex values already established elsewhere in
   the app rather than inventing new ones — cobalt `#5B8CFF`, cyan
   `#22D3EE`, near-black ink `#0F1220` / `#1e293b` (table header fill,
@@ -161,3 +157,7 @@ did include it).
 - A true vector/gradient re-implementation of the FLOW mark inside
   ReportLab — the pre-rendered PNG approach is the final answer, not a
   placeholder for future vector work.
+- Bundling real Figtree/DM Mono TTF files — deferred (see Technical
+  Approach). Registering them later, if the files are supplied, is a
+  drop-in change to the same font-name constants this plan introduces —
+  not a redesign of anything else here.
