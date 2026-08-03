@@ -7,13 +7,15 @@ Following the same fix already shipped for Payment Application, the user asked t
 Investigation showed the four tabs are NOT built on shared code (unlike Payment Application, where one mechanism serves all tabs) — each has its own independent selection implementation, in three different states:
 
 - **AGRI (PAM, tab-pam):** two-level selection — checkboxes mark individual "beasiswa" payment lines (`pbId`) nested under a parent PAM record (`pamId`), tracked in `_pamBeasiswaSelected = { [pamId]: Set<pbId> }`. `loadPAM()` explicitly resets both `_pamBeasiswaSelected = {}` and `_pamBeasiswaCache = {}` on every search — this reproduces the reported bug (confirmed by the user: this is the tab they actually tested).
-- **APP (FIORI, tab-fiori) and LAND (SML, tab-sml):** flat selection — a `Set` (`_fioriSelected`/`_smlSelected`) plus a `Map` of `{label}` metadata, neither of which is ever reset by `loadFIORI()`/`loadSML()`. The bulk-bar and chips (`fioriUpdateBulkBar`/`_fioriAllChipsHtml`, and SML's equivalents) already read from these persistent structures, not from DOM `:checked` state. User confirmed they have not actually tested and lost selection on these two tabs — the report was AGRI-specific, generalized by assumption. The only real gap: when `tbody.innerHTML` is replaced by a new search's results, the newly-created checkboxes for rows matching a still-selected id are always rendered unchecked (no `checked` attribute or row-highlight applied at render time), even though the underlying Set/Map still holds the selection correctly.
+- **APP (FIORI, tab-fiori):** flat selection — a `Set` (`_fioriSelected`) plus a `Map` of `{label}` metadata. **Correction after deeper review:** `loadFIORI()` also explicitly calls `_fioriSelected.clear()` / `_fioriSelectionMeta.clear()` on every search (lines 2777-2778) — an initial pass only checked for `_fioriSelected = ...` reassignment and missed this `.clear()` call. APP has the same real data-loss bug as AGRI, just with a flat (not two-level) selection model.
+- **LAND (SML, tab-sml):** same flat `Set`/`Map` shape as APP, but `loadSML()` genuinely never clears `_smlSelected`/`_smlSelectionMeta` — the only `.clear()` calls on these are in the manual "batal" button (`smlClearAllChips()`) and after a successful bulk update (`smlBulkUpdate()`), both intentional. The bulk-bar/chips already read from these persistent structures, not DOM `:checked` state. The only gap: when a previously-selected row reappears in a later search's re-rendered `tbody`, its new checkbox is always rendered unchecked (no `checked` attribute or row-highlight applied at render time), even though the underlying Set/Map still holds the selection correctly.
 - **SETF (tab-setf):** has no bulk-select/checkbox UI at all today. Confirmed out of scope per user — building a new feature is a different ask than fixing persistence.
 
 ## Scope (confirmed with user)
 
 - Fix AGRI's real data-loss bug (selection state gets wiped on every search).
-- Fix APP/LAND's cosmetic gap (selection already persists correctly; checkboxes just don't visually restore on re-render).
+- Fix APP's real data-loss bug (same root cause as AGRI — `loadFIORI()` clears selection on every search — found during a closer re-check after initial approval; folded into the same "real fix" category as AGRI rather than treated as cosmetic).
+- Fix LAND's cosmetic gap (selection already persists correctly; checkboxes just don't visually restore on re-render).
 - SETF: out of scope, no bulk-select feature exists there and none will be added by this work.
 
 ## Design
@@ -30,11 +32,17 @@ Investigation showed the four tabs are NOT built on shared code (unlike Payment 
 
 **Clear behavior unchanged.** `agriClearAll()` (the "✕ Batal" button) continues to clear everything, now also clearing `_pamBeasiswaSelectionMeta`.
 
-### APP (FIORI) and LAND (SML) — restore checkbox visual state at render time
+### APP (FIORI) — stop wiping selection, restore checkbox visual state
 
-No change to the underlying `_fioriSelected`/`_smlSelected` Sets or their Maps — they already persist correctly and the bulk-bar/chips already read from them.
+**Stop resetting `_fioriSelected`/`_fioriSelectionMeta` in `loadFIORI()`.** Remove the `_fioriSelected.clear()` / `_fioriSelectionMeta.clear()` lines from `loadFIORI()` so the flat Set/Map survive across searches. Since APP's model is already flat (no per-PAM sub-line grouping, no cache-dependent chip names), no equivalent of AGRI's separate selection-meta map is needed — `_fioriSelectionMeta` already stores `{label}` directly at select time, independent of any row cache.
 
-Change only the row-rendering template string in `loadFIORI()`/`loadSML()`: for each row, check `_fioriSelected.has(r.id)` / `_smlSelected.has(r.id)` and, if true, render the checkbox with the `checked` attribute and apply the same inline highlight style (`background:#eff6ff`, plus SML's extra cell styling) that `fioriToggleCb`/`smlToggleCb` apply when a user checks a box interactively — so a row that reappears in a later search looks exactly like it would if the user had just clicked it.
+**Restore checkbox visual state at render time.** In `loadFIORI()`'s row-rendering template string, check `_fioriSelected.has(r.id)` and, if true, render the checkbox with the `checked` attribute and the same inline highlight style (`background:#eff6ff`) that `fioriToggleCb` applies when a user checks a box interactively — so a row that reappears after a search looks exactly like it would if the user had just clicked it.
+
+### LAND (SML) — restore checkbox visual state at render time only
+
+No change to the underlying `_smlSelected`/`_smlSelectionMeta` — they already persist correctly (never cleared by `loadSML()`) and the bulk-bar/chips already read from them.
+
+Change only the row-rendering template string in `loadSML()`: check `_smlSelected.has(r.id)` and, if true, render the checkbox with `checked` plus the same highlight styling (`background:#eff6ff` and the extra cell styling) that `smlToggleCb` applies interactively.
 
 ## Out of scope
 
