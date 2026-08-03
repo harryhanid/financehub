@@ -119,6 +119,8 @@
               <div class="beasiswa-dash-grafik-grid">
                 <div class="beasiswa-dash-chart-card"><h3>Trend per Bulan</h3><canvas id="dash-chart-bulanan"></canvas></div>
                 <div class="beasiswa-dash-chart-card"><h3>Trend per Tahun</h3><canvas id="dash-chart-tahunan"></canvas></div>
+              </div>
+              <div class="beasiswa-dash-grafik-grid">
                 <div class="beasiswa-dash-chart-card compact">
                   <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
                   <div class="setf-compact-scroll">
@@ -135,6 +137,8 @@
               <div class="beasiswa-dash-section-title">Breakdown Realisasi</div>
               <div class="beasiswa-dash-grafik-grid">
                 <div class="beasiswa-dash-chart-card"><h3>Realisasi per Kategori</h3><canvas id="dash-chart-kategori"></canvas></div>
+              </div>
+              <div class="beasiswa-dash-grafik-grid">
                 <div class="beasiswa-dash-chart-card compact">
                   <h3>Realisasi per Kategori (Tabel)</h3>
                   <div class="setf-compact-scroll">
@@ -162,6 +166,17 @@
                     </table>
                   </div>
                 </div>
+                <div class="beasiswa-dash-chart-card compact">
+                  <h3>Rincian Budget vs Realisasi per Program</h3>
+                  <div class="setf-compact-scroll">
+                    <table id="dash-program-table">
+                      <thead>
+                        <tr><th>Program</th><th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th></tr>
+                      </thead>
+                      <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -179,20 +194,10 @@
                           <th>Kategori</th>
                           <th>Kategori 2</th>
                           <th class="num-right">Realisasi</th>
+                          <th>Status</th>
                         </tr>
                       </thead>
-                      <tbody><tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-                    </table>
-                  </div>
-                </div>
-                <div class="beasiswa-dash-chart-card compact">
-                  <h3>Rincian Budget vs Realisasi per Program</h3>
-                  <div class="setf-compact-scroll">
-                    <table id="dash-program-table">
-                      <thead>
-                        <tr><th>Program</th><th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th></tr>
-                      </thead>
-                      <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                      <tbody><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
                     </table>
                   </div>
                 </div>
@@ -205,7 +210,7 @@
   </div>
 
   <!-- TAB DATA BEASISWA (siswa + rekap) -->
-  <div class="tab-panel" id="tab-siswa">
+  <div class="tab-panel" id="tab-siswa" data-full-bleed="true">
     <div id="bsw-filter-siswa" class="filter-bar collapsible">
       <div class="form-group" style="margin:0;flex:1;min-width:180px">
         <label>Cari / Kata Kunci</label>
@@ -275,7 +280,7 @@
   </div>
 
   <!-- TAB BUDGET -->
-  <div class="tab-panel" id="tab-budget">
+  <div class="tab-panel" id="tab-budget" data-full-bleed="true">
     <div id="bgt-summary" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.625rem;margin-bottom:1.25rem">
       <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:.5rem;padding:.75rem">
         <div style="font-size:.72rem;color:#3b82f6;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">By Pendidikan</div>
@@ -432,7 +437,7 @@
   </div>
 
   <!-- TAB PAYMENT -->
-  <div class="tab-panel" id="tab-payment">
+  <div class="tab-panel" id="tab-payment" data-full-bleed="true">
     <div id="pay-summary" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.625rem;margin-bottom:1.25rem">
       <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:.5rem;padding:.75rem">
         <div style="font-size:.72rem;color:#3b82f6;font-weight:600;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.04em">By Pendidikan</div>
@@ -542,7 +547,7 @@
   </div>
 
   <!-- TAB REKAM MEDIS -->
-  <div class="tab-panel" id="tab-rekam">
+  <div class="tab-panel" id="tab-rekam" data-full-bleed="true">
     <div class="card">
       <div class="card-title">Rekam Medis Klaim</div>
       <div id="bsw-filter-rekam" class="filter-bar collapsible">
@@ -601,7 +606,7 @@
     </div>
   </div>
 
-  <div class="tab-panel" id="tab-sahabat">
+  <div class="tab-panel" id="tab-sahabat" data-full-bleed="true">
     {% include "sahabat_etf/_panel.html" %}
   </div>
 

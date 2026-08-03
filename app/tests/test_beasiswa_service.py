@@ -11,7 +11,7 @@ from modules.beasiswa.service import (
     add_klaim_multi, get_klaim_list, delete_klaim_row,
     add_payment_multi, get_budget_list, get_payment_list,
     delete_payment_beasiswa, delete_payment_row, update_payment_row,
-    get_dashboard_monthly,
+    get_dashboard_monthly, get_dashboard_latest_payments,
 )
 
 COMPANY_ID = 2  # ETF
@@ -969,3 +969,34 @@ def test_get_dashboard_monthly_does_not_crash_and_applies_program_filter():
     march_filtered = next(m for m in filtered_out["months"] if m["bulan"] == 3)
     assert march_filtered["budget"] == 0.0, \
         "program filter must actually exclude non-matching siswa, not silently pass through"
+
+def test_get_dashboard_latest_payments_includes_open_status():
+    _add_siswa_a()
+    add_payment_batch(COMPANY_ID, "1250001", "2026-01-15", "AGRI", "PT. SMART Tbk", [
+        {"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000},
+    ])
+    # status default 'open' -- not marked complete
+
+    rows = get_dashboard_latest_payments(COMPANY_ID)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "open"
+    assert rows[0]["amount"] == 2000000
+
+
+def test_get_dashboard_latest_payments_includes_both_open_and_complete():
+    _add_siswa_a()
+    add_payment_batch(COMPANY_ID, "1250001", "2026-01-15", "AGRI", "PT. SMART Tbk", [
+        {"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000},
+    ])
+    add_payment_batch(COMPANY_ID, "1250001", "2026-01-16", "AGRI", "PT. SMART Tbk", [
+        {"cat1": "By Pendidikan", "cat2": "Semester 2", "amount": 3000000},
+    ])
+    conn = get_conn()
+    conn.execute("UPDATE payment_beasiswa SET status='complete' WHERE company_id=? AND amount=?",
+                 (COMPANY_ID, 3000000))
+    conn.commit()
+    conn.close()
+
+    rows = get_dashboard_latest_payments(COMPANY_ID)
+    statuses = sorted(r["status"] for r in rows)
+    assert statuses == ["complete", "open"]

@@ -13,8 +13,7 @@ function dashColorForCategory(name) {
 }
 
 function dashFmtJutaan(amount) {
-  const jt = (amount || 0) / 1000000;
-  return jt.toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return fmtJutaan(amount);
 }
 
 function dashSisaCell(amount) {
@@ -363,10 +362,18 @@ function dashRenderYearlyChart(yearly) {
 }
 
 
+const DASH_PAYMENT_STATUS_BADGE = {
+  open:     '<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Open</span>',
+  complete: '<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Complete</span>',
+};
+function dashPaymentStatusBadge(status) {
+  return DASH_PAYMENT_STATUS_BADGE[status] || status || "";
+}
+
 function dashRenderLatestPaymentsTable(rows) {
   const tbody = document.querySelector("#dash-latest-payments-table tbody");
   if (!rows || !rows.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Belum ada transaksi.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Belum ada transaksi.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(function (r) {
@@ -376,6 +383,7 @@ function dashRenderLatestPaymentsTable(rows) {
       "<td>" + dashCatBadge(r.cat1) + "</td>" +
       "<td>" + (r.cat2 || "") + "</td>" +
       '<td class="num-right">' + dashFmtJutaan(r.amount) + "</td>" +
+      "<td>" + dashPaymentStatusBadge(r.status) + "</td>" +
       "</tr>";
   }).join("");
 }
@@ -404,7 +412,7 @@ function dashApplyFilters() {
 
   dashRenderSummarySkeleton();
   document.querySelector("#dash-kategori-table tbody").innerHTML = skeletonRows(4, 4);
-  document.querySelector("#dash-latest-payments-table tbody").innerHTML = skeletonRows(5, 5);
+  document.querySelector("#dash-latest-payments-table tbody").innerHTML = skeletonRows(5, 6);
   document.querySelector("#dash-pillar-year-table tbody").innerHTML = skeletonRows(4, 2);
   document.querySelector("#dash-program-table tbody").innerHTML = skeletonRows(4, 4);
 

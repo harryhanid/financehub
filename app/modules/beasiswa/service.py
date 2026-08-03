@@ -1394,10 +1394,10 @@ def get_dashboard_latest_payments(company_id: int, years: list = None, pillars: 
 
     rows = conn.execute(
         f"""
-        SELECT p.tanggal, s.nama, p.cat1, p.cat2, p.amount
+        SELECT p.tanggal, s.nama, p.cat1, p.cat2, p.amount, p.status
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
-        WHERE p.company_id = ? AND p.status = 'complete'{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}
+        WHERE p.company_id = ?{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}
         ORDER BY p.tanggal DESC, p.id DESC
         LIMIT ?
         """,
