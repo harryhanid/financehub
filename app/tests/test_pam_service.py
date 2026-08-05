@@ -1087,3 +1087,34 @@ def test_workday_plain_weekday_span_no_holiday():
     # 2026-07-06 is a Monday with no holiday in the next 8 workdays.
     result = _workday('2026-07-06', 8)
     assert result.strftime('%Y-%m-%d') == '2026-07-16'
+
+
+def test_update_pam_and_application_accepts_pt_and_cost_center():
+    from modules.payment_memo.service import update_pam_and_application
+    conn = get_conn()
+    pam_no = create_pam_record(conn, COMPANY_ID, COMPANY_CODE, {
+        "pam_date": "2026-07-08", "pt": "PT. ABC",
+        "requestors_name": "Jany Turkanda", "keterangan": "pt-edit-test",
+        "total_amount": 1_000_000, "pillar": "APP",
+    })
+    conn.commit()
+    pam_id = conn.execute(
+        "SELECT id FROM pam_records WHERE company_id=? AND pam_no=?",
+        (COMPANY_ID, pam_no)
+    ).fetchone()["id"]
+    conn.close()
+
+    result = update_pam_and_application(
+        pam_id,
+        {"pt": "PT. Kresna Duta Agroindo", "cost_center": "1101C1POFF"},
+        {}, COMPANY_ID
+    )
+    assert result["ok"] is True
+
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT pt, cost_center FROM pam_records WHERE id=?", (pam_id,)
+    ).fetchone()
+    conn.close()
+    assert row["pt"] == "PT. Kresna Duta Agroindo"
+    assert row["cost_center"] == "1101C1POFF"

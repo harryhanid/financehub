@@ -1812,7 +1812,7 @@ def update_pam_and_application(pam_id: int, pam_data: dict,
             return {"ok": False, "pesan": f"No. PAM '{new_pam_no}' sudah digunakan oleh PAM lain."}
 
     _PAM_FIELDS = ("keterangan", "requestors_name", "total_amount", "due_date",
-                   "pam_date", "tanggal_bayar")
+                   "pam_date", "tanggal_bayar", "pt", "cost_center")
     f, p = [], []
     if pam_no_changed:
         f.append("pam_no=?"); p.append(new_pam_no)

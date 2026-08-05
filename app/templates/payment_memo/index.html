@@ -1216,6 +1216,16 @@
                style="font-family:monospace;font-weight:600;color:#1e40af">
         <p style="font-size:.7rem;color:#f59e0b;margin:.25rem 0 0">⚠️ Mengubah No. PAM akan mengupdate semua referensi terkait (payment beasiswa, ETF/APP/SML PA).</p>
       </div>
+      <div class="form-group" style="grid-column:1/-1;position:relative">
+        <label>PT / Vendor</label>
+        <input type="text" id="edit-pam-pt-search" placeholder="Cari perusahaan..." autocomplete="off"
+               oninput="editPamPtSearch()"
+               onblur="setTimeout(()=>document.getElementById('edit-pam-pt-sugg').style.display='none',200)">
+        <input type="hidden" id="edit-pam-pt">
+        <input type="hidden" id="edit-pam-cost-center">
+        <div id="edit-pam-pt-sugg" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
+        <p id="edit-pam-cc-display" style="font-size:.7rem;color:var(--text-muted);margin:.25rem 0 0">Cost Center: —</p>
+      </div>
       <div class="form-group" style="grid-column:1/-1">
         <label>Keterangan</label>
         <input type="text" id="edit-pam-keterangan" placeholder="Keterangan PAM">
@@ -3713,6 +3723,10 @@ async function openEditPAM(pamId) {
   document.getElementById('edit-pam-due').value           = r.due_date || '';
   document.getElementById('edit-pam-tanggal-bayar').value = r.tanggal_bayar || '';
   document.getElementById('edit-pam-amount').value        = r.total_amount || 0;
+  document.getElementById('edit-pam-pt-search').value     = r.pt || '';
+  document.getElementById('edit-pam-pt').value             = r.pt || '';
+  document.getElementById('edit-pam-cost-center').value    = r.cost_center || '';
+  document.getElementById('edit-pam-cc-display').textContent = 'Cost Center: ' + (r.cost_center || '—');
   const app = r.payment_application || {};
   document.getElementById('edit-pam-app-notes').value     = app.notes || '';
   openModal('modal-edit-pam');
@@ -3730,6 +3744,8 @@ async function submitEditPAM() {
       due_date:        document.getElementById('edit-pam-due').value,
       total_amount:    parseFloat(document.getElementById('edit-pam-amount').value) || 0,
       tanggal_bayar:   document.getElementById('edit-pam-tanggal-bayar').value || null,
+      pt:              document.getElementById('edit-pam-pt').value.trim() || null,
+      cost_center:     document.getElementById('edit-pam-cost-center').value.trim() || null,
     },
     app: {
       notes: document.getElementById('edit-pam-app-notes').value.trim() || null,
@@ -4339,6 +4355,23 @@ function ipayPerusahaanSearch() {
     // silently overwrite it here breaks Beasiswa PAMs saved as LAND.
     const _ipayTx = document.getElementById("ipay-tx")?.value;
     if (COMPANY_CODE !== "SMT" && _ipayTx !== "beasiswa") document.getElementById("ipay-pillar").value = v.pillar;
+    sugg.style.display = "none";
+  });
+  _vendorPos(inp, sugg); sugg.style.display = "block";
+}
+
+function editPamPtSearch() {
+  const inp  = document.getElementById("edit-pam-pt-search");
+  const sugg = document.getElementById("edit-pam-pt-sugg");
+  const q    = inp.value.toLowerCase().trim();
+  if (!q) { sugg.style.display = "none"; return; }
+  const hits = VENDOR_LIST.filter(v => v.name.toLowerCase().includes(q)).slice(0, 15);
+  if (!hits.length) { sugg.style.display = "none"; return; }
+  _vendorSuggRender(hits, sugg, v => {
+    document.getElementById("edit-pam-pt-search").value = v.name;
+    document.getElementById("edit-pam-pt").value = v.name;
+    document.getElementById("edit-pam-cost-center").value = v.cost_center || "";
+    document.getElementById("edit-pam-cc-display").textContent = "Cost Center: " + (v.cost_center || "—");
     sugg.style.display = "none";
   });
   _vendorPos(inp, sugg); sugg.style.display = "block";

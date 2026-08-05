@@ -146,3 +146,13 @@ def test_due_date_api_rejects_missing_tanggal(client):
     _select_etf(client)
     resp = client.get('/payment-memo/api/due-date')
     assert resp.status_code == 400
+
+
+def test_pam_index_page_has_pt_vendor_edit_field(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/payment-memo/")
+    assert resp.status_code == 200
+    assert b'id="edit-pam-pt-search"' in resp.data
+    assert b"editPamPtSearch" in resp.data
+
