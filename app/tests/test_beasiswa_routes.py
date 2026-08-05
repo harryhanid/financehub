@@ -202,3 +202,11 @@ def test_laporan_export_pdf_does_not_crash(client):
     assert resp.status_code in (200, 404)
     if resp.status_code == 200:
         assert resp.data[:4] == b"%PDF"
+
+
+def test_dashboard_tab_still_has_filter_chips_after_refactor(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/")
+    assert resp.status_code == 200
+    assert resp.data.count(b"beasiswa-dash-filter-chip") >= 4  # Tahun/Pillar/Program/Jenjang

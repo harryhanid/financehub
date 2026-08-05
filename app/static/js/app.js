@@ -767,6 +767,63 @@ document.addEventListener('click', e => {
   }
 });
 
+function updateFilterChipSummary(chip) {
+  const boxes = chip.querySelectorAll(".panel-opts input[type=checkbox]");
+  const total = boxes.length;
+  const checked = chip.querySelectorAll(".panel-opts input[type=checkbox]:checked").length;
+  const valEl = chip.querySelector(".val");
+  if (checked === total) {
+    valEl.textContent = "Semua";
+  } else if (checked === 0) {
+    valEl.textContent = "Tidak ada";
+  } else {
+    valEl.textContent = checked + " dipilih";
+  }
+}
+
+function initFilterChips(root, onChange) {
+  root.querySelectorAll(".beasiswa-dash-filter-chip").forEach(function (chip) {
+    chip.querySelectorAll(".panel-opts input[type=checkbox]").forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        updateFilterChipSummary(chip);
+        onChange();
+      });
+    });
+    const allBtn = chip.querySelector('[data-act="all"]');
+    if (allBtn) {
+      allBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        chip.querySelectorAll(".panel-opts input[type=checkbox]").forEach(function (cb) { cb.checked = true; });
+        updateFilterChipSummary(chip);
+        onChange();
+      });
+    }
+    const noneBtn = chip.querySelector('[data-act="none"]');
+    if (noneBtn) {
+      noneBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        chip.querySelectorAll(".panel-opts input[type=checkbox]").forEach(function (cb) { cb.checked = false; });
+        updateFilterChipSummary(chip);
+        onChange();
+      });
+    }
+    chip.addEventListener("click", function (e) {
+      if (e.target.closest(".beasiswa-dash-filter-panel")) return;
+      document.querySelectorAll(".beasiswa-dash-filter-chip.open").forEach(function (c) {
+        if (c !== chip) c.classList.remove("open");
+      });
+      chip.classList.toggle("open");
+    });
+    updateFilterChipSummary(chip);
+  });
+}
+
+document.addEventListener("click", function (e) {
+  if (!e.target.closest(".beasiswa-dash-filter-chip")) {
+    document.querySelectorAll(".beasiswa-dash-filter-chip.open").forEach(function (c) { c.classList.remove("open"); });
+  }
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   initCommandPalette();
   initTitleDropdown();
