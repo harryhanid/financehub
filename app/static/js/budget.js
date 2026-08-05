@@ -70,6 +70,56 @@ function budgetRenderSummary(summary) {
   }).join("");
 }
 
+function budgetRenderExpiredAnalysis(expiredAnalysis) {
+  const summaryEl = document.getElementById("budget-expired-summary");
+  const cards = [
+    ["Total Expired", expiredAnalysis.totalExpired],
+    ["Total Amount", "Rp " + fmtRupiah(expiredAnalysis.totalAmount)],
+    ["Total Realized", "Rp " + fmtRupiah(expiredAnalysis.totalRealized)],
+    ["\u226430 Hari", expiredAnalysis.ageBuckets.recent],
+    ["31-90 Hari", expiredAnalysis.ageBuckets.midterm],
+    [">90 Hari", expiredAnalysis.ageBuckets.longterm],
+  ];
+  summaryEl.innerHTML = cards.map(function (c) {
+    return '<div class="budget-stat-card"><div class="label">' + c[0] +
+      '</div><div class="value">' + c[1] + "</div></div>";
+  }).join("");
+
+  function renderBreakdownTable(elId, rows, labelKey, labelHeader) {
+    const el = document.getElementById(elId);
+    if (!rows.length) {
+      el.innerHTML = '<tr><td style="text-align:center;color:var(--text-muted)">Tidak ada data expired.</td></tr>';
+      return;
+    }
+    let html = "<thead><tr><th>" + labelHeader + "</th><th>Jumlah</th><th>Amount</th><th>Realized</th></tr></thead><tbody>";
+    rows.forEach(function (r) {
+      html += "<tr><td>" + r[labelKey] + "</td><td>" + r.count + "</td><td>Rp " +
+        fmtRupiah(r.amount) + "</td><td>Rp " + fmtRupiah(r.realized) + "</td></tr>";
+    });
+    html += "</tbody>";
+    el.innerHTML = html;
+  }
+  renderBreakdownTable("budget-expired-dept-table", expiredAnalysis.byDept, "dept", "Department");
+  renderBreakdownTable("budget-expired-company-table", expiredAnalysis.byCompany, "company", "Company");
+}
+
+function budgetRenderCompliance(complianceData) {
+  const el = document.getElementById("budget-compliance-summary");
+  const cards = [
+    ["Compliance Rate", complianceData.complianceRate + "%"],
+    ["Total Requests", complianceData.totalRequests],
+    ["Approved", complianceData.approved],
+    ["Pending", complianceData.pending],
+    ["Rejected", complianceData.rejected],
+    ["Carryover / Additional", complianceData.carryoverCount + " / " + complianceData.additionalCount],
+    ["Additional Disetujui", complianceData.additionalApproved + " (Rp " + fmtRupiah(complianceData.additionalAmountApproved) + ")"],
+  ];
+  el.innerHTML = cards.map(function (c) {
+    return '<div class="budget-stat-card"><div class="label">' + c[0] +
+      '</div><div class="value">' + c[1] + "</div></div>";
+  }).join("");
+}
+
 function budgetRenderNotifications(notifications) {
   const el = document.getElementById("budget-notifications");
   el.innerHTML = "";
@@ -109,6 +159,8 @@ function budgetLoadDashboard() {
     .then(function (r) { return r.json(); })
     .then(function (data) {
       budgetRenderSummary(data.summary);
+      budgetRenderExpiredAnalysis(data.expiredAnalysis);
+      budgetRenderCompliance(data.complianceData);
       budgetRenderNotifications(data.notifications);
       budgetRenderBarChart("chart-monthly", data.monthlyChart.labels, [
         { label: "Budget", data: data.monthlyChart.budget, backgroundColor: "#6366f1" },

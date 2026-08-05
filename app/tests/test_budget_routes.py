@@ -204,3 +204,27 @@ def test_nav_stays_visible_on_budget_pages(client):
         resp = client.get(url)
         assert b'href="/dashboard"' in resp.data, f"nav missing on {url}"
         assert b'href="/users"' in resp.data, f"nav missing on {url}"
+
+
+def test_dashboard_page_has_expired_analysis_section(client):
+    login(client)
+    resp = client.get("/budget/")
+    assert resp.status_code == 200
+    assert b'id="budget-expired-summary"' in resp.data
+
+
+def test_dashboard_page_has_compliance_section(client):
+    login(client)
+    resp = client.get("/budget/")
+    assert resp.status_code == 200
+    assert b'id="budget-compliance-summary"' in resp.data
+
+
+def test_dashboard_api_still_returns_expired_and_compliance_keys(client):
+    login(client)
+    resp = client.get("/budget/api/dashboard-data")
+    data = resp.get_json()
+    assert "expiredAnalysis" in data
+    assert "complianceData" in data
+    assert "ageBuckets" in data["expiredAnalysis"]
+    assert "complianceRate" in data["complianceData"]
