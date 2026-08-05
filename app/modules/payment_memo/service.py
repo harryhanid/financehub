@@ -924,8 +924,12 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
 
 def generate_pam_number(company_id: int, company_code: str, year: str,
                         month: str, conn=None) -> str:
-    like_pat  = f"PAM-%-{company_code}-{month}-{year}"
-    pattern   = re.compile(rf"PAM-(\d+)-{re.escape(company_code)}-{re.escape(month)}-{re.escape(year)}")
+    # Sequence resets only on a year change, not a month change — it must
+    # scan every month within the given year, not just the current one
+    # (previously scoped to {month}-{year}, which reset the count to 1 at
+    # the start of every month instead of only every year).
+    like_pat  = f"PAM-%-{company_code}-%-{year}"
+    pattern   = re.compile(rf"PAM-(\d+)-{re.escape(company_code)}-\d{{2}}-{re.escape(year)}")
     owns_conn = conn is None
     if owns_conn:
         conn = get_conn()

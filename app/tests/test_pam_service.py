@@ -51,6 +51,45 @@ def test_generate_pam_number_increments():
     assert no2 == "PAM-002-ETF-05-2026"
 
 
+def test_generate_pam_number_continues_across_month_same_year():
+    """A new month must continue the running sequence from the prior month,
+    not restart at 1 — only a year change resets it. Reproduces the bug
+    reported 2026-08-03: PAM numbering reset on the July->August boundary."""
+    conn = get_conn()
+    july_no = generate_pam_number(COMPANY_ID, COMPANY_CODE, "2026", "07", conn)
+    conn.execute(
+        """INSERT INTO pam_records (company_id, pam_no, pam_date, gl_account,
+           cost_center, pt, requestors_name, keterangan, total_amount, due_date)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (COMPANY_ID, july_no, "2026-07-31", "70110230", "", "PT. SMART Tbk",
+         "Jany Turkanda", "Harry, Joni", 5000000, "2026-08-15")
+    )
+    conn.commit()
+    assert july_no == "PAM-001-ETF-07-2026"
+
+    august_no = generate_pam_number(COMPANY_ID, COMPANY_CODE, "2026", "08", conn)
+    conn.close()
+    assert august_no == "PAM-002-ETF-08-2026"
+
+
+def test_generate_pam_number_resets_on_year_change():
+    conn = get_conn()
+    dec_no = generate_pam_number(COMPANY_ID, COMPANY_CODE, "2026", "12", conn)
+    conn.execute(
+        """INSERT INTO pam_records (company_id, pam_no, pam_date, gl_account,
+           cost_center, pt, requestors_name, keterangan, total_amount, due_date)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (COMPANY_ID, dec_no, "2026-12-30", "70110230", "", "PT. SMART Tbk",
+         "Jany Turkanda", "Harry, Joni", 5000000, "2027-01-15")
+    )
+    conn.commit()
+    assert dec_no == "PAM-001-ETF-12-2026"
+
+    jan_no = generate_pam_number(COMPANY_ID, COMPANY_CODE, "2027", "01", conn)
+    conn.close()
+    assert jan_no == "PAM-001-ETF-01-2027"
+
+
 def test_get_coa_list_returns_14():
     coa = get_coa_list()
     assert len(coa) == 14
