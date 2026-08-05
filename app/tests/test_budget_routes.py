@@ -206,6 +206,70 @@ def test_nav_stays_visible_on_budget_pages(client):
         assert b'href="/users"' in resp.data, f"nav missing on {url}"
 
 
+def test_all_four_budget_pages_have_unified_tab_bar(client):
+    login(client)
+    for url, label in [
+        ("/budget/", "Dashboard"),
+        ("/budget/master", "Kelola Budget"),
+        ("/budget/realisasi", "Kelola Realisasi"),
+        ("/budget/carryover", "Carryover / Tambahan"),
+    ]:
+        resp = client.get(url)
+        assert resp.status_code == 200, url
+        html = resp.data.decode()
+        assert 'id="fh-mod-trigger"' in html, f"{url}: no module switcher"
+        assert "Kelola Budget" in html
+        assert "Kelola Realisasi" in html
+        assert "Carryover / Tambahan" in html
+
+
+def test_master_list_filters_by_category_and_company(client):
+    login(client)
+    client.post("/budget/master/create", json={
+        "company": "PO", "dept": "Finance", "mm": 1, "yy": 2026,
+        "amount": 1000000, "budget_category": "OPEX",
+    })
+    client.post("/budget/master/create", json={
+        "company": "TF", "dept": "HR", "mm": 1, "yy": 2026,
+        "amount": 2000000, "budget_category": "CAPEX",
+    })
+    resp = client.get("/budget/master?company=PO&category=OPEX")
+    assert resp.status_code == 200
+    html = resp.data.decode()
+    assert "<td>Finance</td>" in html
+    assert "<td>HR</td>" not in html
+
+
+def test_master_list_pagination_links_preserve_filters(client, monkeypatch):
+    import modules.budget.routes as routes
+    monkeypatch.setattr(routes, "PER_PAGE", 1)
+    login(client)
+    client.post("/budget/master/create", json={
+        "company": "PO", "dept": "Finance", "mm": 1, "yy": 2026, "amount": 1000000, "budget_category": "OPEX"
+    })
+    client.post("/budget/master/create", json={
+        "company": "PO", "dept": "HR", "mm": 2, "yy": 2026, "amount": 2000000, "budget_category": "OPEX"
+    })
+    resp = client.get("/budget/master?company=PO&category=OPEX")
+    assert b"company=PO" in resp.data
+    assert b"category=OPEX" in resp.data
+
+
+def test_realisasi_list_filters_by_company(client):
+    login(client)
+    create_resp = client.post("/budget/master/create", json={
+        "company": "PO", "dept": "Finance", "mm": 1, "yy": 2026, "amount": 1000000,
+    })
+    budget_id = create_resp.get_json()["id"]
+    client.post("/budget/realisasi/create", json={
+        "budget_id": budget_id, "tanggal_realisasi": "2026-01-15",
+        "description": "Test PO", "amount": 100000,
+    })
+    resp = client.get("/budget/realisasi?company=TF")
+    assert resp.status_code == 200
+    assert b"Test PO" not in resp.data
+
+
 def test_dashboard_page_has_expired_analysis_section(client):
     login(client)
     resp = client.get("/budget/")

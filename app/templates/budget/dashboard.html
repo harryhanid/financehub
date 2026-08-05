@@ -4,6 +4,9 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 {% endblock %}
+{% block module_tabs %}
+{% include "budget/_tabs.html" with context %}
+{% endblock %}
 {% block content %}
 <div class="budget-page">
   <h1>Budget Dashboard</h1>
@@ -19,9 +22,6 @@
     <select id="bf-category"><option value="ALL">Semua Kategori</option></select>
     <select id="bf-activity"><option value="ALL">Semua Aktivitas</option></select>
     <button class="budget-btn" id="bf-apply">Terapkan Filter</button>
-    <a class="budget-btn" href="/budget/master">Kelola Budget</a>
-    <a class="budget-btn" href="/budget/realisasi">Kelola Realisasi</a>
-    <a class="budget-btn" href="/budget/carryover">Carryover / Tambahan</a>
   </div>
 
   <div class="budget-summary-grid" id="budget-summary"></div>

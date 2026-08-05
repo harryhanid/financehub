@@ -54,14 +54,17 @@ def _ctx():
 @bp.route("/master")
 @jwt_html_required
 def master_list():
-    company = request.args.get("company")
-    filters = {"company": company} if company else None
+    filters = _filters_from_query()
     total = count_budgets(filters)
     page, total_pages = _paginate(total)
     budgets = list_budgets(filters, limit=PER_PAGE, offset=(page - 1) * PER_PAGE)
-    return render_template("budget/master_list.html", budgets=budgets, active_page="budget",
-                            filter_company=company, page=page, total_pages=total_pages,
-                            total_count=total, **_ctx())
+    return render_template(
+        "budget/master_list.html", budgets=budgets, active_page="budget",
+        active_tab="master", use_unified_header=True, filters=filters,
+        years=get_available_years(), categories=get_available_categories(),
+        departments=get_available_departments(), activities=get_available_activities(),
+        page=page, total_pages=total_pages, total_count=total, **_ctx()
+    )
 
 
 @bp.route("/master/<budget_id>")
@@ -99,14 +102,17 @@ def master_delete(budget_id):
 @bp.route("/realisasi")
 @jwt_html_required
 def realisasi_list():
-    company = request.args.get("company")
-    filters = {"company": company} if company else None
+    filters = _filters_from_query()
     total = count_realisasi(filters)
     page, total_pages = _paginate(total)
     realisasi = list_realisasi(filters, limit=PER_PAGE, offset=(page - 1) * PER_PAGE)
-    return render_template("budget/realisasi_list.html", realisasi=realisasi, active_page="budget",
-                            filter_company=company, page=page, total_pages=total_pages,
-                            total_count=total, **_ctx())
+    return render_template(
+        "budget/realisasi_list.html", realisasi=realisasi, active_page="budget",
+        active_tab="realisasi", use_unified_header=True, filters=filters,
+        years=get_available_years(), categories=get_available_categories(),
+        departments=get_available_departments(), activities=get_available_activities(),
+        page=page, total_pages=total_pages, total_count=total, **_ctx()
+    )
 
 
 @bp.route("/realisasi/create", methods=["POST"])
@@ -156,7 +162,8 @@ def _filters_from_query():
 @bp.route("/")
 @jwt_html_required
 def index():
-    return render_template("budget/dashboard.html", active_page="budget", **_ctx())
+    return render_template("budget/dashboard.html", active_page="budget",
+                            active_tab="dashboard", use_unified_header=True, **_ctx())
 
 
 @bp.route("/api/dashboard-data")
@@ -184,6 +191,7 @@ def carryover_page():
     page, total_pages = _paginate(total)
     logs = get_carryover_data(limit=PER_PAGE, offset=(page - 1) * PER_PAGE)
     return render_template("budget/carryover.html", logs=logs, active_page="budget",
+                            active_tab="carryover", use_unified_header=True,
                             page=page, total_pages=total_pages, total_count=total, **_ctx())
 
 
