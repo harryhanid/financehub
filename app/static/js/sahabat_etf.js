@@ -655,19 +655,7 @@ function initSahabatEtf() {
   if (window._sahabatInitialized) return;
   window._sahabatInitialized = true;
 
-  document.querySelectorAll(".setf-year-cb").forEach(function (cb) {
-    cb.addEventListener("change", setfApplyFilters);
-  });
-  document.querySelectorAll(".setf-pillar-cb").forEach(function (cb) {
-    cb.addEventListener("change", setfApplyFilters);
-  });
-  const selectAllBtn = document.getElementById("setf-year-select-all");
-  if (selectAllBtn) {
-    selectAllBtn.addEventListener("click", function () {
-      document.querySelectorAll(".setf-year-cb").forEach(function (cb) { cb.checked = true; });
-      setfApplyFilters();
-    });
-  }
+  initFilterChips(document, setfApplyFilters);
   const reportYearSelect = document.getElementById("setf-report-year");
   if (reportYearSelect) {
     reportYearSelect.addEventListener("change", setfUpdateReportExportLink);

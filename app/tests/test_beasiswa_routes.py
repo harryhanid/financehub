@@ -210,3 +210,17 @@ def test_dashboard_tab_still_has_filter_chips_after_refactor(client):
     resp = client.get("/beasiswa/")
     assert resp.status_code == 200
     assert resp.data.count(b"beasiswa-dash-filter-chip") >= 4  # Tahun/Pillar/Program/Jenjang
+
+
+def test_sahabat_etf_filters_use_chip_pattern(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/")
+    assert resp.status_code == 200
+    html = resp.data.decode()
+    # The Sahabat ETF year/pillar filters should now render as chips...
+    setf_section_start = html.index('id="tab-sahabat"')
+    setf_section = html[setf_section_start:setf_section_start + 4000]
+    assert "beasiswa-dash-filter-chip" in setf_section
+    # ...and the old standalone "Pilih Semua" button should be gone.
+    assert "setf-year-select-all" not in html
