@@ -430,18 +430,25 @@
   flex: 1;
 }
 .budget-dropdown-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  border-radius: 8px;
-  padding: 0.4rem 0.7rem;
-  font-size: 0.85rem;
+  background: #FFF;
+  border: 1px solid var(--sl-300);
+  color: var(--sl-900);
+  border-radius: var(--r-md);
+  padding: .375rem .6875rem;
+  font-size: .8125rem;
   width: 100%;
   text-align: left;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-family: inherit;
+  transition: border-color .12s, box-shadow .12s;
+}
+.budget-dropdown-btn:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.09);
 }
 .budget-dropdown-content {
   display: none;
@@ -449,7 +456,7 @@
   background-color: var(--bg-card);
   min-width: 100%;
   box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-  z-index: 10;
+  z-index: 101;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   max-height: 200px;

@@ -270,6 +270,20 @@ def test_realisasi_list_filters_by_company(client):
     assert b"Test PO" not in resp.data
 
 
+def test_budget_css_dropdown_button_matches_global_input_style(client):
+    login(client)
+    resp = client.get("/static/css/budget.css")
+    assert resp.status_code == 200
+    css = resp.data.decode()
+    assert "z-index: 101;" in css
+    dropdown_btn_start = css.index(".budget-dropdown-btn {")
+    dropdown_btn_block = css[dropdown_btn_start:dropdown_btn_start + 400]
+    assert "var(--sl-300)" in dropdown_btn_block
+    assert "var(--r-md)" in dropdown_btn_block
+    assert "font-size: .8125rem;" in dropdown_btn_block
+    assert "var(--bg-card)" not in dropdown_btn_block
+
+
 def test_dashboard_page_has_expired_analysis_section(client):
     login(client)
     resp = client.get("/budget/")
