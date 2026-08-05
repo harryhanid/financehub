@@ -209,7 +209,7 @@ let sponsorshipCharts = {};
 
 function _sponsorshipFormatJutaan(n) {
   const jt = Math.round((n || 0) / 1000000);
-  return "Rp " + jt.toLocaleString("id-ID");
+  return jt.toLocaleString("id-ID");
 }
 
 function _sponsorshipThemeColor(varName, fallback) {
