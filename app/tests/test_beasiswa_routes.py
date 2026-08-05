@@ -224,3 +224,16 @@ def test_sahabat_etf_filters_use_chip_pattern(client):
     assert "beasiswa-dash-filter-chip" in setf_section
     # ...and the old standalone "Pilih Semua" button should be gone.
     assert "setf-year-select-all" not in html
+
+
+def test_setf_family_table_and_chart_ids_appear_exactly_once(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/")
+    assert resp.status_code == 200
+    html = resp.data.decode()
+    assert html.count('id="setf-family-table"') == 1
+    assert html.count('id="chart-keluarga"') == 1
+    # The other Detail Tabel table must still be present.
+    assert 'id="setf-table"' in html
+
