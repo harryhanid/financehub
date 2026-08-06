@@ -48,4 +48,4 @@ def test_config_sponsorship_constants():
     assert len(config.SPONSORSHIP_DESCRIPTION) == 10
     assert "Akademisi" in config.SPONSORSHIP_DESCRIPTION
     assert config.SPONSORSHIP_CAT4 == ["Include", "Exclude"]
-    assert config.SPONSORSHIP_PILLARS == ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY"]
+    assert config.SPONSORSHIP_PILLARS == ["APP", "AGRI", "ENERGY & FINANCE", "PROPERTY"]
