@@ -4,6 +4,7 @@ from modules.sponsorship.service import (
     list_perusahaan, get_perusahaan, seed_perusahaan, get_lembaga_suggestions,
     create_transaksi, get_transaksi, update_transaksi, list_transaksi,
     count_transaksi, get_available_years,
+    create_perusahaan, update_perusahaan, delete_perusahaan,
 )
 
 SMT = 1
@@ -286,3 +287,71 @@ def test_update_transaksi_still_rejects_actual_cat1_change_to_unknown(app):
     created = create_transaksi(SMT, _valid_payload())
     result = update_transaksi(created["id"], {"cat1": "Perusahaan Fiktif"})
     assert result["ok"] is False
+
+
+def test_create_perusahaan_success(app):
+    result = create_perusahaan("SMART", "AGRI", "AGRI")
+    assert result["ok"] is True
+    assert get_perusahaan("SMART") == {"cat1": "SMART", "cat2": "AGRI", "cat3": "AGRI"}
+
+
+def test_create_perusahaan_rejects_duplicate_cat1(app):
+    create_perusahaan("SMART", "AGRI", "AGRI")
+    result = create_perusahaan("SMART", "AGRI", "APP")
+    assert result["ok"] is False
+    assert "sudah terdaftar" in result["pesan"]
+    assert get_perusahaan("SMART")["cat3"] == "AGRI"
+
+
+def test_create_perusahaan_rejects_invalid_cat3(app):
+    result = create_perusahaan("SMART", "AGRI", "NOT-A-PILLAR")
+    assert result["ok"] is False
+    assert get_perusahaan("SMART") is None
+
+
+def test_create_perusahaan_rejects_blank_fields(app):
+    assert create_perusahaan("", "AGRI", "AGRI")["ok"] is False
+    assert create_perusahaan("SMART", "", "AGRI")["ok"] is False
+    assert create_perusahaan("SMART", "AGRI", "")["ok"] is False
+
+
+def test_update_perusahaan_success(app):
+    create_perusahaan("SMART", "AGRI", "AGRI")
+    result = update_perusahaan("SMART", "Mining", "PROPERTY")
+    assert result["ok"] is True
+    assert get_perusahaan("SMART") == {"cat1": "SMART", "cat2": "Mining", "cat3": "PROPERTY"}
+
+
+def test_update_perusahaan_not_found(app):
+    result = update_perusahaan("NOT-THERE", "AGRI", "AGRI")
+    assert result["ok"] is False
+
+
+def test_update_perusahaan_rejects_invalid_cat3(app):
+    create_perusahaan("SMART", "AGRI", "AGRI")
+    result = update_perusahaan("SMART", "AGRI", "NOT-A-PILLAR")
+    assert result["ok"] is False
+    assert get_perusahaan("SMART")["cat3"] == "AGRI"
+
+
+def test_delete_perusahaan_success(app):
+    create_perusahaan("SMART", "AGRI", "AGRI")
+    result = delete_perusahaan("SMART")
+    assert result["ok"] is True
+    assert get_perusahaan("SMART") is None
+
+
+def test_delete_perusahaan_not_found(app):
+    result = delete_perusahaan("NOT-THERE")
+    assert result["ok"] is False
+
+
+def test_delete_perusahaan_does_not_affect_existing_transaksi_snapshot(app):
+    create_perusahaan("SMART", "AGRI", "AGRI")
+    created = create_transaksi(1, _valid_payload(cat1="SMART"))
+    delete_perusahaan("SMART")
+    row = get_transaksi(created["id"])
+    assert row["cat1"] == "SMART"
+    assert row["cat2"] == "AGRI"
+    assert row["cat3"] == "AGRI"
+

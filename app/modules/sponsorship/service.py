@@ -50,6 +50,55 @@ def seed_perusahaan(rows) -> int:
     return inserted
 
 
+def create_perusahaan(cat1: str, cat2: str, cat3: str) -> dict:
+    cat1 = (cat1 or "").strip()
+    cat2 = (cat2 or "").strip()
+    cat3 = (cat3 or "").strip()
+    if not cat1 or not cat2 or not cat3:
+        return {"ok": False, "pesan": "Cat1, Cat2, dan Cat3 wajib diisi."}
+    if cat3 not in config.SPONSORSHIP_PILLARS:
+        return {"ok": False, "pesan": f"Cat3 harus salah satu dari: {', '.join(config.SPONSORSHIP_PILLARS)}."}
+    if get_perusahaan(cat1):
+        return {"ok": False, "pesan": "Cat1 sudah terdaftar."}
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO sponsorship_perusahaan (cat1, cat2, cat3) VALUES (?, ?, ?)",
+        (cat1, cat2, cat3),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Vendor tersimpan."}
+
+
+def update_perusahaan(cat1: str, cat2: str, cat3: str) -> dict:
+    cat2 = (cat2 or "").strip()
+    cat3 = (cat3 or "").strip()
+    if not cat2 or not cat3:
+        return {"ok": False, "pesan": "Cat2 dan Cat3 wajib diisi."}
+    if cat3 not in config.SPONSORSHIP_PILLARS:
+        return {"ok": False, "pesan": f"Cat3 harus salah satu dari: {', '.join(config.SPONSORSHIP_PILLARS)}."}
+    if not get_perusahaan(cat1):
+        return {"ok": False, "pesan": "Cat1 tidak ditemukan."}
+    conn = get_conn()
+    conn.execute(
+        "UPDATE sponsorship_perusahaan SET cat2 = ?, cat3 = ? WHERE cat1 = ?",
+        (cat2, cat3, cat1),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Vendor diperbarui."}
+
+
+def delete_perusahaan(cat1: str) -> dict:
+    if not get_perusahaan(cat1):
+        return {"ok": False, "pesan": "Cat1 tidak ditemukan."}
+    conn = get_conn()
+    conn.execute("DELETE FROM sponsorship_perusahaan WHERE cat1 = ?", (cat1,))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Vendor dihapus."}
+
+
 def get_lembaga_suggestions(company_id: int) -> list:
     conn = get_conn()
     rows = conn.execute(
@@ -622,3 +671,58 @@ def get_sponsorship_outstanding(company_id: int, filters: dict = None) -> tuple:
     sections.sort(key=lambda s: s["subtotal"], reverse=True)
     
     return sections, grand_total
+
+
+def get_sponsorship_mr(company_id: int, tahun: list) -> list:
+    """Rekap sponsorship jadi format MR (Management Report) — 17 kolom
+    standar untuk upload ke sistem GL, satu baris per transaksi. Difilter
+    HANYA oleh tahun (tidak ada filter cat/pillar/description/status —
+    lihat spec §2/§9). Nomor urut 'New Code' reset ke 1 tiap ganti tahun
+    (CC0) — lihat spec §3. Urutan baris: tanggal_form_sponsor ASC, lalu
+    id ASC (spec §4)."""
+    filters = {"tahun": tahun}
+    rows = list_transaksi(company_id, filters)
+    rows.sort(key=lambda r: (r["tanggal_form_sponsor"] or "", r["id"]))
+
+    seq_by_year = {}
+    mr_rows = []
+    for r in rows:
+        date_str = r["tanggal_form_sponsor"]
+        year_full = date_str[:4]
+        cc0 = date_str[2:4]
+        month = int(date_str[5:7])
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            date_display = date_obj.strftime("%d-%b-%y")
+        except (ValueError, TypeError):
+            date_obj = None
+            date_display = date_str or ""
+
+        parts = [p for p in (r["description"], r["lembaga_perorangan"], r["perihal"]) if p]
+        allocation_memo = " - ".join(parts)
+
+        seq_by_year[cc0] = seq_by_year.get(cc0, 0) + 1
+        seq = seq_by_year[cc0]
+        new_code = f"A{cc0}-{config.SPONSORSHIP_MR_CC1}{config.SPONSORSHIP_MR_BC1}{seq}"
+
+        mr_rows.append({
+            "account_management": config.SPONSORSHIP_MR_ACCOUNT_MANAGEMENT,
+            "id_no": "",
+            "date": date_obj,
+            "date_display": date_display,
+            "allocation_memo": allocation_memo,
+            "budget_activity": "",
+            "cost_center": config.SPONSORSHIP_MR_COST_CENTER,
+            "debit_credit": r["amount_request"],
+            "source": config.SPONSORSHIP_MR_SOURCE,
+            "coa_ho": config.SPONSORSHIP_MR_COA_HO,
+            "cost_center2": config.SPONSORSHIP_MR_COST_CENTER2,
+            "month": month,
+            "cc0": cc0,
+            "cc1": config.SPONSORSHIP_MR_CC1,
+            "bc1": config.SPONSORSHIP_MR_BC1,
+            "new_code": new_code,
+            "memo": f"- Act {year_full} : {allocation_memo} Month : {month}",
+            "bc": config.SPONSORSHIP_MR_BC,
+        })
+    return mr_rows
