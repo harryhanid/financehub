@@ -208,8 +208,7 @@ document.addEventListener("DOMContentLoaded", function () {
 let sponsorshipCharts = {};
 
 function _sponsorshipFormatJutaan(n) {
-  const jt = Math.round((n || 0) / 1000000);
-  return jt.toLocaleString("id-ID");
+  return fmtJutaanBulat(n);
 }
 
 function _sponsorshipThemeColor(varName, fallback) {
@@ -676,3 +675,68 @@ document.addEventListener("DOMContentLoaded", function () {
 
   sponsorshipLoadReport();
 });
+
+function vendorAddOpen() {
+  document.getElementById("sp-vd-modal-title").textContent = "Tambah Vendor";
+  document.getElementById("sp-vd-cat1-orig").value = "";
+  document.getElementById("sp-vd-cat1").value = "";
+  document.getElementById("sp-vd-cat1").readOnly = false;
+  document.getElementById("sp-vd-cat2").value = "";
+  document.getElementById("sp-vd-cat3").value = "";
+  openModal("sp-vendor-modal");
+}
+
+function vendorEdit(cat1, cat2, cat3) {
+  document.getElementById("sp-vd-modal-title").textContent = "Edit Vendor";
+  document.getElementById("sp-vd-cat1-orig").value = cat1;
+  document.getElementById("sp-vd-cat1").value = cat1;
+  document.getElementById("sp-vd-cat1").readOnly = true;
+  document.getElementById("sp-vd-cat2").value = cat2;
+  document.getElementById("sp-vd-cat3").value = cat3;
+  openModal("sp-vendor-modal");
+}
+
+function vendorSave() {
+  const orig = document.getElementById("sp-vd-cat1-orig").value;
+  const payload = {
+    cat1: document.getElementById("sp-vd-cat1").value,
+    cat2: document.getElementById("sp-vd-cat2").value,
+    cat3: document.getElementById("sp-vd-cat3").value,
+  };
+  const url = orig ? "/sponsorship/vendor/" + encodeURIComponent(orig) + "/update" : "/sponsorship/vendor/create";
+  showLoading(orig ? "Memperbarui vendor..." : "Menyimpan vendor...");
+  apiFetch(url, { method: "POST", body: JSON.stringify(payload) })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      showToast(data.pesan, data.ok ? "success" : "error");
+      if (data.ok) { closeModal("sp-vendor-modal"); setTimeout(function () { window.location.reload(); }, 1000); }
+    })
+    .catch(function () { showToast("Gagal menyimpan vendor.", "error"); })
+    .finally(function () { hideLoading(); });
+}
+
+function vendorDelete(cat1) {
+  confirmModal(
+    'Hapus vendor "' + cat1 + '"? Perusahaan ini akan hilang dari pilihan Cat1 di form Input; riwayat transaksi lama tidak berubah.',
+    { type: "danger", confirmText: "Hapus" }
+  ).then(function (confirmed) {
+    if (!confirmed) return;
+    showLoading("Menghapus vendor...");
+    apiFetch("/sponsorship/vendor/" + encodeURIComponent(cat1) + "/delete", { method: "POST" })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        showToast(data.pesan, data.ok ? "success" : "error");
+        if (data.ok) setTimeout(function () { window.location.reload(); }, 1000);
+      })
+      .catch(function () { showToast("Gagal menghapus vendor.", "error"); })
+      .finally(function () { hideLoading(); });
+  });
+}
+
+function vendorFilterTable() {
+  const q = document.getElementById("sp-vd-search").value.trim().toLowerCase();
+  document.querySelectorAll("#sp-vendor-tbody tr").forEach(function (tr) {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? "" : "none";
+  });
+}
+
