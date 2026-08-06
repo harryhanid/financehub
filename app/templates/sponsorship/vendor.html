@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% set full_bleed = true %}
+{% block title %}Sponsorship Vendor
+{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+{% endblock %}
+{% block module_tabs %}
+{% set active_tab = "vendor" %}
+{% include "sponsorship/_toolbar.html" with context %}
+{% endblock %}
+{% block content %}
+<div class="budget-page">
+  {% if wrong_company %}
+    {% include "sponsorship/_notice.html" %}
+  {% else %}
+  <div class="budget-toolbar">
+    <input type="text" id="sp-vd-search" placeholder="Cari Cat1..." oninput="vendorFilterTable()" style="margin-right:auto;min-width:220px">
+    <button class="budget-btn" onclick="vendorAddOpen()">+ Tambah Vendor</button>
+  </div>
+  <div class="budget-table-container" id="sp-table-wrap">
+    <table class="budget-table">
+      <thead>
+        <tr><th>Cat1</th><th>Cat2</th><th>Cat3</th><th></th></tr>
+      </thead>
+      <tbody id="sp-vendor-tbody">
+        {% for p in rows %}
+        <tr>
+          <td>{{ p.cat1 }}</td>
+          <td>{{ p.cat2 }}</td>
+          <td>{{ p.cat3 }}</td>
+          <td>
+            <button class="budget-btn" onclick="vendorEdit({{ p.cat1 | tojson }}, {{ p.cat2 | tojson }}, {{ p.cat3 | tojson }})">Edit</button>
+            <button class="budget-btn budget-btn-danger" onclick="vendorDelete({{ p.cat1 | tojson }})">Hapus</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div id="sp-vendor-modal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-header"><span class="modal-title" id="sp-vd-modal-title">Tambah Vendor</span></div>
+      <div class="modal-body">
+        <form id="sp-vendor-form" class="sp-form-card">
+          <input type="hidden" id="sp-vd-cat1-orig">
+          <div class="sp-form-grid">
+            <div class="sp-form-field sp-form-span2">
+              <label>Cat1 (Perusahaan)</label>
+              <input type="text" id="sp-vd-cat1">
+            </div>
+            <div class="sp-form-field sp-form-span2">
+              <label>Cat2 (Sub-kategori)</label>
+              <input type="text" id="sp-vd-cat2" list="sp-vd-cat2-datalist" autocomplete="off">
+              <datalist id="sp-vd-cat2-datalist">{% for c in cat2_choices %}<option value="{{ c }}">{% endfor %}</datalist>
+            </div>
+            <div class="sp-form-field sp-form-span2">
+              <label>Cat3 (Pillar)</label>
+              <select id="sp-vd-cat3">
+                <option value="">Pilih Pillar...</option>
+                {% for p in pillar_choices %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem">
+        <button class="btn btn-secondary" onclick="closeModal('sp-vendor-modal')">Batal</button>
+        <button class="budget-btn" onclick="vendorSave()">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+<script>
+(function() {
+  function sizeWrap() {
+    const wrap = document.getElementById('sp-table-wrap');
+    if (!wrap) return;
+    requestAnimationFrame(() => {
+      wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top) + 'px';
+    });
+  }
+  window.addEventListener('load', sizeWrap);
+  window.addEventListener('resize', sizeWrap);
+  document.addEventListener('DOMContentLoaded', sizeWrap);
+})();
+</script>
