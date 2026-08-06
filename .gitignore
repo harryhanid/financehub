@@ -12,7 +12,12 @@ venv/
 .pytest_cache/
 
 # Local tool configs
-.claude/
+.vscode/
+
+# Petty Cash & PA proposal deck — generated artifacts and OAuth secrets
+docs/superpowers/plans/assets/2026-08-06-petty-cash-pa-proposal/*.pptx
+docs/superpowers/plans/assets/2026-08-06-petty-cash-pa-proposal/credentials.json
+docs/superpowers/plans/assets/2026-08-06-petty-cash-pa-proposal/token.json
 .superpowers/
 .claude-flow/
 .remember/
