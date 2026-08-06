@@ -8,9 +8,10 @@ from auth.middleware import jwt_html_required
 from modules.sponsorship.service import (
     list_perusahaan, get_lembaga_suggestions, create_transaksi, get_transaksi,
     update_transaksi, list_transaksi, count_transaksi, get_available_years,
-    get_dashboard_data, get_sponsorship_report,
+    get_dashboard_data, get_sponsorship_report, get_sponsorship_mr,
+    create_perusahaan, update_perusahaan, delete_perusahaan,
 )
-from modules.sponsorship.exports import export_report_excel
+from modules.sponsorship.exports import export_report_excel, export_mr_excel
 import config
 
 bp = Blueprint("sponsorship", __name__, url_prefix="/sponsorship")
@@ -96,6 +97,15 @@ def _parse_report_params():
     return tahun, cat4
 
 
+def _parse_mr_params():
+    tahun_vals = request.args.getlist("tahun")
+    tahun = [y for y in tahun_vals if y.strip()]
+    if not tahun:
+        years = get_available_years(_cid())
+        tahun = [years[0]] if years else [str(datetime.now().year)]
+    return tahun
+
+
 @bp.route("/")
 @jwt_html_required
 def index():
@@ -135,7 +145,7 @@ def api_report_data():
 def export_report_route():
     tahun, cat4 = _parse_report_params()
     xls_bytes = export_report_excel(_cid(), tahun, cat4)
-    filename = f"Sponsorship_Report_{cat4}_{tahun}.xlsx"
+    filename = f"Sponsorship_Report_{cat4}_{'-'.join(tahun)}.xlsx"
     return send_file(
         io.BytesIO(xls_bytes),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -245,6 +255,45 @@ def data_update(transaksi_id):
     return jsonify(result)
 
 
+@bp.route("/vendor")
+@jwt_html_required
+def vendor_page():
+    rows = list_perusahaan() if not _wrong_company() else []
+    cat2_choices = sorted(set(r["cat2"] for r in rows if r.get("cat2")))
+    return render_template("sponsorship/vendor.html", active_page="sponsorship",
+                            use_unified_header=True,
+                            wrong_company=_wrong_company(), rows=rows,
+                            cat2_choices=cat2_choices,
+                            pillar_choices=config.SPONSORSHIP_PILLARS,
+                            **_ctx())
+
+
+@bp.route("/vendor/create", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def vendor_create():
+    payload = request.get_json(force=True)
+    result = create_perusahaan(payload.get("cat1"), payload.get("cat2"), payload.get("cat3"))
+    return jsonify(result)
+
+
+@bp.route("/vendor/<cat1>/update", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def vendor_update(cat1):
+    payload = request.get_json(force=True)
+    result = update_perusahaan(cat1, payload.get("cat2"), payload.get("cat3"))
+    return jsonify(result)
+
+
+@bp.route("/vendor/<cat1>/delete", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def vendor_delete(cat1):
+    result = delete_perusahaan(cat1)
+    return jsonify(result)
+
+
 @bp.route("/report")
 @jwt_html_required
 def report_page():
@@ -283,4 +332,33 @@ def export_outstanding_route():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         as_attachment=True,
         download_name="Sponsorship_Outstanding.xlsx"
+    )
+
+
+@bp.route("/mr")
+@jwt_html_required
+def mr_page():
+    tahun = _parse_mr_params() if not _wrong_company() else []
+    years = get_available_years(_cid()) if not _wrong_company() else []
+    rows = get_sponsorship_mr(_cid(), tahun) if not _wrong_company() else []
+    return render_template(
+        "sponsorship/mr.html", active_page="sponsorship", use_unified_header=True,
+        wrong_company=_wrong_company(),
+        rows=rows, years=years, tahun=tahun,
+        **_ctx()
+    )
+
+
+@bp.route("/mr/export")
+@jwt_html_required
+@smt_company_required
+def export_mr_route():
+    tahun = _parse_mr_params()
+    xls_bytes = export_mr_excel(_cid(), tahun)
+    filename = f"Sponsorship_MR_{'-'.join(tahun)}.xlsx"
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
     )

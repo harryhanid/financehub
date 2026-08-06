@@ -313,7 +313,7 @@ def test_report_page_tahun_dropdown_has_options_for_seeded_years(client):
         "lembaga_perorangan": "Yayasan Test", "amount_request": 1000,
     })
     resp = client.get("/sponsorship/report")
-    assert b'<option value="2026">2026</option>' in resp.data
+    assert b'<input type="checkbox" name="tahun" value="2026"' in resp.data
     assert b'id="sp-report-table-container"' in resp.data
     assert b'id="sp-report-tahun"' in resp.data
     assert b'id="sp-report-export"' in resp.data
@@ -331,3 +331,133 @@ def test_outstanding_page_has_full_height_table_wrap_id(client):
     resp = client.get("/sponsorship/outstanding")
     assert resp.status_code == 200
     assert b'id="sp-table-wrap"' in resp.data
+
+
+def test_mr_page_renders_with_data(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    client.post("/sponsorship/input/create", json={
+        "cat": "Sponsorship", "description": "Sosial",
+        "tanggal_form_sponsor": "2026-01-20", "cat1": "SMART",
+        "lembaga_perorangan": "Yayasan Test", "perihal": "Bantuan Banjir",
+        "amount_request": 1000,
+    })
+    resp = client.get("/sponsorship/mr?tahun=2026")
+    assert resp.status_code == 200
+    assert b"Yayasan Test" in resp.data
+    assert b"A26-5-25-1" in resp.data
+
+
+def test_mr_page_shows_wrong_company_notice_for_etf(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/sponsorship/mr")
+    assert resp.status_code == 200
+    assert b"Ganti Company" in resp.data
+
+
+def test_mr_export_downloads_xlsx(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    client.post("/sponsorship/input/create", json={
+        "cat": "Sponsorship", "description": "Sosial",
+        "tanggal_form_sponsor": "2026-01-20", "cat1": "SMART",
+        "lembaga_perorangan": "Yayasan Test", "amount_request": 1000,
+    })
+    resp = client.get("/sponsorship/mr/export?tahun=2026")
+    assert resp.status_code == 200
+    assert resp.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def test_mr_export_rejects_non_smt(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/sponsorship/mr/export")
+    assert resp.status_code == 403
+
+
+def test_mr_tab_in_toolbar(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/sponsorship/report")
+    assert resp.status_code == 200
+    assert b'href="/sponsorship/mr"' in resp.data
+
+
+def test_vendor_page_requires_login(client):
+    resp = client.get("/sponsorship/vendor")
+    assert resp.status_code == 302
+
+
+def test_vendor_page_renders_for_smt(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    resp = client.get("/sponsorship/vendor")
+    assert resp.status_code == 200
+    assert b"SMART" in resp.data
+
+
+def test_vendor_page_shows_wrong_company_notice_for_etf(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/sponsorship/vendor")
+    assert resp.status_code == 200
+    assert b"Ganti Company" in resp.data
+
+
+def test_vendor_create_rejects_non_smt(client):
+    login(client)
+    _select_etf(client)
+    resp = client.post("/sponsorship/vendor/create", json={"cat1": "SMART", "cat2": "AGRI", "cat3": "AGRI"})
+    assert resp.status_code == 403
+
+
+def test_vendor_create_success(client):
+    login(client)
+    _select_smt(client)
+    resp = client.post("/sponsorship/vendor/create", json={"cat1": "SMART", "cat2": "AGRI", "cat3": "AGRI"})
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+def test_vendor_create_rejects_invalid_cat3(client):
+    login(client)
+    _select_smt(client)
+    resp = client.post("/sponsorship/vendor/create", json={"cat1": "SMART", "cat2": "AGRI", "cat3": "NOT-A-PILLAR"})
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is False
+
+
+def test_vendor_update_success(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    resp = client.post("/sponsorship/vendor/SMART/update", json={"cat2": "Mining", "cat3": "PROPERTY"})
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+def test_vendor_update_rejects_non_smt(client):
+    login(client)
+    _select_etf(client)
+    resp = client.post("/sponsorship/vendor/SMART/update", json={"cat2": "Mining", "cat3": "PROPERTY"})
+    assert resp.status_code == 403
+
+
+def test_vendor_delete_success(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    resp = client.post("/sponsorship/vendor/SMART/delete")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+def test_vendor_delete_rejects_non_smt(client):
+    login(client)
+    _select_etf(client)
+    resp = client.post("/sponsorship/vendor/SMART/delete")
+    assert resp.status_code == 403
