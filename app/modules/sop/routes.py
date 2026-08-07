@@ -1,7 +1,10 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, redirect, url_for
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.sop.service import list_documents, get_document, record_upload, count_perlu_verifikasi_in_file
+from modules.sop.renderer import parse_docx
+import os
+import config
 
 bp = Blueprint("sop", __name__, url_prefix="/sop")
 
@@ -30,3 +33,16 @@ def index():
         search=search, modul=modul, status=status,
         **_ctx(),
     )
+
+
+@bp.route("/<int:doc_id>")
+@jwt_html_required
+def read_page(doc_id):
+    document = get_document(doc_id)
+    if document is None:
+        return redirect(url_for("sop.index"))
+    if document["status"] == "belum_dibuat" or not document["file_path"]:
+        return render_template("sop/not_available.html", document=document, **_ctx())
+    full_path = os.path.join(config.SOP_STORAGE_DIR, document["file_path"])
+    parsed = parse_docx(full_path)
+    return render_template("sop/read.html", document=document, parsed=parsed, **_ctx())

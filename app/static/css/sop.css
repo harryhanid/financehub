@@ -34,3 +34,8 @@
 .sop-table-index th, .sop-table-index td {
   text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border-color);
 }
+.sop-read-actions { display: flex; gap: 1rem; align-items: center; margin: 1rem 0; }
+.sop-table-scroll { overflow-x: auto; }
+.sop-table { border-collapse: collapse; width: 100%; }
+.sop-table td, .sop-table th { border: 1px solid var(--border-color); padding: 0.4rem 0.6rem; }
+.sop-placeholder-notice { color: var(--text-secondary); font-style: italic; }

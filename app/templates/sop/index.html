@@ -32,7 +32,7 @@
       {% for doc in documents %}
       <tr>
         <td>{{ doc.modul }}</td>
-        <td>{{ doc.nama }}</td>
+        <td><a href="{{ url_for('sop.read_page', doc_id=doc.id) }}">{{ doc.nama }}</a></td>
         <td>{{ doc.status }}</td>
         <td>{{ doc.perlu_verifikasi_count }}</td>
         <td>{{ doc.uploaded_at or '—' }}</td>

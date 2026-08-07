@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}SOP Belum Tersedia{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sop.css') }}">
+{% endblock %}
+{% block content %}
+<div class="sop-page">
+  <a href="{{ url_for('sop.index') }}">&larr; Kembali ke daftar</a>
+  <h1>{{ document.nama }}</h1>
+  <p class="sop-placeholder-notice">
+    SOP ini belum tersedia. Alasan: {{ document.catatan or 'Tidak ada dokumen sumber.' }}
+  </p>
+</div>
+{% endblock %}
