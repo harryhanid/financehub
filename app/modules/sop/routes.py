@@ -44,5 +44,9 @@ def read_page(doc_id):
     if document["status"] == "belum_dibuat" or not document["file_path"]:
         return render_template("sop/not_available.html", document=document, **_ctx())
     full_path = os.path.join(config.SOP_STORAGE_DIR, document["file_path"])
+    if not os.path.exists(full_path):
+        missing = dict(document)
+        missing["catatan"] = f"File tidak ditemukan di storage: {document['file_path']}"
+        return render_template("sop/not_available.html", document=missing, **_ctx())
     parsed = parse_docx(full_path)
     return render_template("sop/read.html", document=document, parsed=parsed, **_ctx())

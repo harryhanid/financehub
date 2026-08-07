@@ -79,3 +79,12 @@ def test_read_page_redirects_for_unknown_id(client):
     login(client)
     resp = client.get("/sop/999999")
     assert resp.status_code == 302
+
+
+def test_read_page_shows_placeholder_when_file_missing_on_disk(client):
+    login(client)
+    doc_id = create_document(modul="procurement", nama="SOP File Hilang", kode="2",
+                              file_path="procurement/2-tidak-ada.docx")
+    resp = client.get(f"/sop/{doc_id}")
+    assert resp.status_code == 200
+    assert b"File tidak ditemukan di storage" in resp.data
