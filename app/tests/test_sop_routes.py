@@ -113,3 +113,52 @@ def test_download_redirects_when_file_missing_on_disk(client):
                               status="aktif", file_path="procurement/3-tidak-ada.docx")
     resp = client.get(f"/sop/{doc_id}/download")
     assert resp.status_code == 302
+
+
+from io import BytesIO
+
+
+def test_upload_replaces_file_and_records_history(client):
+    login(client)
+    _write_sample_docx("procurement/1-upload-uji.docx")
+    doc_id = create_document(modul="procurement", nama="SOP Upload Uji", kode="1",
+                              file_path="procurement/1-upload-uji.docx")
+
+    new_doc = docx.Document()
+    new_doc.add_heading("SOP Upload Uji", level=0)
+    new_doc.add_heading("1. Tujuan", level=1)
+    new_doc.add_paragraph("⚠ [PERLU VERIFIKASI: nominal baru]")
+    buf = BytesIO()
+    new_doc.save(buf)
+    buf.seek(0)
+
+    resp = client.post(
+        f"/sop/{doc_id}/upload",
+        data={"file": (buf, "1-upload-uji.docx")},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 302
+
+    from modules.sop.service import get_document
+    updated = get_document(doc_id)
+    assert updated["perlu_verifikasi_count"] == 1
+    assert updated["uploaded_by"] == "admin"
+
+    conn_check = client.get(f"/sop/{doc_id}")
+    assert b"nominal baru" in conn_check.data
+
+
+def test_upload_rejects_non_docx_file(client):
+    login(client)
+    _write_sample_docx("procurement/1-reject-uji.docx")
+    doc_id = create_document(modul="procurement", nama="SOP Reject Uji", kode="1",
+                              file_path="procurement/1-reject-uji.docx")
+    resp = client.post(
+        f"/sop/{doc_id}/upload",
+        data={"file": (BytesIO(b"not a docx"), "file.txt")},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 302
+    from modules.sop.service import get_document
+    unchanged = get_document(doc_id)
+    assert unchanged["file_path"] == "procurement/1-reject-uji.docx"

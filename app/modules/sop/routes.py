@@ -62,3 +62,28 @@ def download(doc_id):
     if not os.path.exists(full_path):
         return redirect(url_for("sop.index"))
     return send_file(full_path, as_attachment=True, download_name=os.path.basename(full_path))
+
+
+@bp.route("/<int:doc_id>/upload", methods=["POST"])
+@jwt_html_required
+def upload(doc_id):
+    document = get_document(doc_id)
+    if document is None:
+        return redirect(url_for("sop.index"))
+
+    uploaded_file = request.files.get("file")
+    if not uploaded_file or not uploaded_file.filename.lower().endswith(".docx"):
+        return redirect(url_for("sop.read_page", doc_id=doc_id))
+
+    modul_dir = os.path.join(config.SOP_STORAGE_DIR, document["modul"])
+    os.makedirs(modul_dir, exist_ok=True)
+    filename = os.path.basename(document["file_path"]) if document["file_path"] else uploaded_file.filename
+    dest_path = os.path.join(modul_dir, filename)
+    uploaded_file.save(dest_path)
+
+    rel_path = f"{document['modul']}/{filename}"
+    verif_count = count_perlu_verifikasi_in_file(dest_path)
+    claims = get_jwt()
+    record_upload(doc_id, rel_path, verif_count, claims.get("username", ""))
+
+    return redirect(url_for("sop.read_page", doc_id=doc_id))

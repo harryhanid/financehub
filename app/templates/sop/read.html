@@ -10,6 +10,11 @@
 
   <div class="sop-read-actions">
     <a href="{{ url_for('sop.download', doc_id=document.id) }}">Unduh .docx asli</a>
+    <form method="post" action="{{ url_for('sop.upload', doc_id=document.id) }}"
+          enctype="multipart/form-data" class="sop-upload-form">
+      <input type="file" name="file" accept=".docx" required>
+      <button type="submit">Upload Revisi</button>
+    </form>
   </div>
 
   {% for section in parsed.sections %}
