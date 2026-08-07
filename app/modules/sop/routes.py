@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, send_file
 from flask_jwt_extended import get_jwt
+from werkzeug.utils import secure_filename
 from auth.middleware import jwt_html_required
 from modules.sop.service import list_documents, get_document, record_upload, count_perlu_verifikasi_in_file
 from modules.sop.renderer import parse_docx
@@ -77,8 +78,26 @@ def upload(doc_id):
 
     modul_dir = os.path.join(config.SOP_STORAGE_DIR, document["modul"])
     os.makedirs(modul_dir, exist_ok=True)
-    filename = os.path.basename(document["file_path"]) if document["file_path"] else uploaded_file.filename
+
+    if document["file_path"]:
+        # Existing on-disk filename came from the DB, not from this request — already safe.
+        filename = os.path.basename(document["file_path"])
+    else:
+        # First-time upload: filename is fully attacker-controlled multipart data. Sanitize it.
+        filename = secure_filename(uploaded_file.filename)
+        if not filename:
+            # secure_filename() can return "" for adversarial input (e.g. all-unsafe chars).
+            return redirect(url_for("sop.read_page", doc_id=doc_id))
+
     dest_path = os.path.join(modul_dir, filename)
+
+    # Defense-in-depth: verify dest_path still resolves inside modul_dir, regardless of how
+    # filename was derived above. Guards against future filename-generation changes too.
+    abs_modul_dir = os.path.abspath(modul_dir)
+    abs_dest_path = os.path.abspath(dest_path)
+    if os.path.commonpath([abs_dest_path, abs_modul_dir]) != abs_modul_dir:
+        return redirect(url_for("sop.read_page", doc_id=doc_id))
+
     uploaded_file.save(dest_path)
 
     rel_path = f"{document['modul']}/{filename}"
