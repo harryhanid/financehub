@@ -51,6 +51,9 @@ def create_app(testing=False):
     from modules.sponsorship.routes import bp as sponsorship_bp
     app.register_blueprint(sponsorship_bp)
 
+    from modules.sop.routes import bp as sop_bp
+    app.register_blueprint(sop_bp)
+
     from modules.users.routes import bp as users_bp
     app.register_blueprint(users_bp)
 

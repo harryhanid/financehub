@@ -1,0 +1,36 @@
+/* app/static/css/sop.css — SOP Portal module (glassmorphism, mirrors budget.css scoping pattern) */
+.sop-page {
+  --bg-card: rgba(255, 255, 255, 0.75);
+  --border-color: rgba(99, 102, 241, 0.15);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --accent: #6366f1;
+  --radius-md: 12px;
+  padding: 1.5rem;
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .sop-page {
+  --bg-card: rgba(18, 24, 42, 0.75);
+  --border-color: rgba(99, 102, 241, 0.12);
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+}
+
+.sop-filter-bar { margin-bottom: 1rem; }
+.sop-filter-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.sop-filter-chip {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.sop-filter-chip-active { border-color: var(--accent); color: var(--accent); }
+.sop-table-index { width: 100%; border-collapse: collapse; }
+.sop-table-index th, .sop-table-index td {
+  text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border-color);
+}
