@@ -105,3 +105,11 @@ def test_download_redirects_for_belum_dibuat(client):
     doc_id = create_document(modul="hr-personnel", nama="SOP Tanpa File", status="belum_dibuat")
     resp = client.get(f"/sop/{doc_id}/download")
     assert resp.status_code == 302
+
+
+def test_download_redirects_when_file_missing_on_disk(client):
+    login(client)
+    doc_id = create_document(modul="procurement", nama="SOP Download Hilang", kode="3",
+                              status="aktif", file_path="procurement/3-tidak-ada.docx")
+    resp = client.get(f"/sop/{doc_id}/download")
+    assert resp.status_code == 302

@@ -59,4 +59,6 @@ def download(doc_id):
     if document is None or not document["file_path"]:
         return redirect(url_for("sop.index"))
     full_path = os.path.join(config.SOP_STORAGE_DIR, document["file_path"])
+    if not os.path.exists(full_path):
+        return redirect(url_for("sop.index"))
     return send_file(full_path, as_attachment=True, download_name=os.path.basename(full_path))
