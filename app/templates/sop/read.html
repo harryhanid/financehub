@@ -8,6 +8,10 @@
   <a href="{{ url_for('sop.index') }}">&larr; Kembali ke daftar</a>
   <h1>{{ parsed.title }}</h1>
 
+  <div class="sop-read-actions">
+    <a href="{{ url_for('sop.download', doc_id=document.id) }}">Unduh .docx asli</a>
+  </div>
+
   {% for section in parsed.sections %}
     {% if section.level == 1 %}<h2>{{ section.heading }}</h2>{% else %}<h3>{{ section.heading }}</h3>{% endif %}
     <div class="sop-section-body">{{ section.html | safe }}</div>

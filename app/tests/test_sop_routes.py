@@ -88,3 +88,20 @@ def test_read_page_shows_placeholder_when_file_missing_on_disk(client):
     resp = client.get(f"/sop/{doc_id}")
     assert resp.status_code == 200
     assert b"File tidak ditemukan di storage" in resp.data
+
+
+def test_download_returns_the_uploaded_file(client):
+    login(client)
+    _write_sample_docx("procurement/1-download-uji.docx")
+    doc_id = create_document(modul="procurement", nama="SOP Download Uji", kode="1",
+                              file_path="procurement/1-download-uji.docx")
+    resp = client.get(f"/sop/{doc_id}/download")
+    assert resp.status_code == 200
+    assert resp.headers["Content-Disposition"].startswith("attachment")
+
+
+def test_download_redirects_for_belum_dibuat(client):
+    login(client)
+    doc_id = create_document(modul="hr-personnel", nama="SOP Tanpa File", status="belum_dibuat")
+    resp = client.get(f"/sop/{doc_id}/download")
+    assert resp.status_code == 302

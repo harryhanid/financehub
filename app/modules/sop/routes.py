@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for, send_file
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.sop.service import list_documents, get_document, record_upload, count_perlu_verifikasi_in_file
@@ -50,3 +50,13 @@ def read_page(doc_id):
         return render_template("sop/not_available.html", document=missing, **_ctx())
     parsed = parse_docx(full_path)
     return render_template("sop/read.html", document=document, parsed=parsed, **_ctx())
+
+
+@bp.route("/<int:doc_id>/download")
+@jwt_html_required
+def download(doc_id):
+    document = get_document(doc_id)
+    if document is None or not document["file_path"]:
+        return redirect(url_for("sop.index"))
+    full_path = os.path.join(config.SOP_STORAGE_DIR, document["file_path"])
+    return send_file(full_path, as_attachment=True, download_name=os.path.basename(full_path))
