@@ -40,12 +40,20 @@ def parse_docx(file_path):
     current = None
     revisi_rows = []
     pending_list = None  # (tag, [items_html])
+    preamble_html = ""
+
+    def append_html(fragment):
+        nonlocal preamble_html
+        if current is not None:
+            current["html"] += fragment
+        else:
+            preamble_html += fragment
 
     def flush_list():
         nonlocal pending_list
-        if pending_list and current is not None:
+        if pending_list:
             tag, items = pending_list
-            current["html"] += f"<{tag}>" + "".join(f"<li>{i}</li>" for i in items) + f"</{tag}>"
+            append_html(f"<{tag}>" + "".join(f"<li>{i}</li>" for i in items) + f"</{tag}>")
         pending_list = None
 
     for child in document.element.body:
@@ -82,19 +90,21 @@ def parse_docx(file_path):
                 pending_list[1].append(_paragraph_html(paragraph))
                 continue
             flush_list()
-            if current is not None:
-                current["html"] += f"<p>{_paragraph_html(paragraph)}</p>"
+            append_html(f"<p>{_paragraph_html(paragraph)}</p>")
         elif child.tag == qn("w:tbl"):
             flush_list()
             table = Table(child, document)
             headers = [c.text.strip() for c in table.rows[0].cells] if table.rows else []
-            if headers[:1] == ["Versi"]:
+            if headers == ["Versi", "Tanggal", "Deskripsi Perubahan", "Oleh"]:
                 revisi_rows = [
                     {"versi": r[0], "tanggal": r[1], "deskripsi": r[2], "oleh": r[3]}
                     for r in _table_data_rows(table)
                 ]
-            elif current is not None:
-                current["html"] += _table_html(table)
+            else:
+                append_html(_table_html(table))
     flush_list()
+
+    if preamble_html:
+        sections.insert(0, {"heading": "Pendahuluan", "level": 1, "html": preamble_html})
 
     return {"title": title, "sections": sections, "revisi_rows": revisi_rows}
