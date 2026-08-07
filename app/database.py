@@ -556,6 +556,31 @@ CREATE TABLE IF NOT EXISTS sponsorship_transaksi (
 
 CREATE INDEX IF NOT EXISTS idx_sponsorship_transaksi_company ON sponsorship_transaksi(company_id);
 CREATE INDEX IF NOT EXISTS idx_sponsorship_transaksi_cat3 ON sponsorship_transaksi(cat3);
+
+CREATE TABLE IF NOT EXISTS sop_documents (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    modul                   TEXT NOT NULL,
+    kode                    TEXT,
+    nama                    TEXT NOT NULL,
+    status                  TEXT NOT NULL DEFAULT 'aktif' CHECK (status IN ('aktif', 'belum_dibuat')),
+    perlu_verifikasi_count  INTEGER DEFAULT 0,
+    file_path               TEXT,
+    catatan                 TEXT,
+    uploaded_by             TEXT,
+    uploaded_at             TEXT,
+    created_at              TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sop_upload_history (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    sop_id       INTEGER NOT NULL REFERENCES sop_documents(id),
+    uploaded_by  TEXT NOT NULL,
+    uploaded_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    catatan      TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_sop_documents_modul ON sop_documents(modul);
+CREATE INDEX IF NOT EXISTS idx_sop_upload_history_sop_id ON sop_upload_history(sop_id);
 """
 
 VENDOR_SEED = [
