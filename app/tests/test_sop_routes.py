@@ -228,6 +228,88 @@ def test_upload_first_time_rejects_path_traversal_filename(client):
         assert "/" not in saved_name and "\\" not in saved_name
 
 
+def test_upload_corrupt_docx_does_not_destroy_existing_file(client):
+    # A file that passes the ".docx" extension check but is not a real/parseable docx
+    # (corrupt, truncated, or a renamed non-docx) must never be allowed to overwrite an
+    # already-uploaded real document. See final-review Fix 1.
+    login(client)
+    real_path = _write_sample_docx("procurement/1-corrupt-uji.docx")
+    with open(real_path, "rb") as f:
+        original_bytes = f.read()
+
+    doc_id = create_document(modul="procurement", nama="SOP Corrupt Uji", kode="1",
+                              file_path="procurement/1-corrupt-uji.docx")
+
+    resp = client.post(
+        f"/sop/{doc_id}/upload",
+        data={"file": (BytesIO(b"this is not a real docx file, just garbage bytes"), "fake.docx")},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 302
+
+    with open(real_path, "rb") as f:
+        after_bytes = f.read()
+    assert after_bytes == original_bytes
+
+    from modules.sop.service import get_document
+    unchanged = get_document(doc_id)
+    assert unchanged["file_path"] == "procurement/1-corrupt-uji.docx"
+
+    # No leftover temp files in the module directory.
+    modul_dir = os.path.join(config.SOP_STORAGE_DIR, "procurement")
+    leftovers = [f for f in os.listdir(modul_dir) if f.endswith(".upload_tmp")]
+    assert leftovers == []
+
+    # Read page still works after the failed upload attempt.
+    read_resp = client.get(f"/sop/{doc_id}")
+    assert read_resp.status_code == 200
+
+
+def test_upload_corrupt_docx_to_belum_dibuat_document_does_not_crash_or_leave_partial_file(client):
+    login(client)
+    doc_id = create_document(modul="hr-personnel", nama="SOP Corrupt Baru",
+                              status="belum_dibuat", catatan="Tidak ada sumber")
+
+    resp = client.post(
+        f"/sop/{doc_id}/upload",
+        data={"file": (BytesIO(b"garbage, not a docx"), "fake-baru.docx")},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 302
+
+    from modules.sop.service import get_document
+    unchanged = get_document(doc_id)
+    assert unchanged["status"] == "belum_dibuat"
+    assert unchanged["file_path"] is None
+
+    modul_dir = os.path.join(config.SOP_STORAGE_DIR, "hr-personnel")
+    if os.path.isdir(modul_dir):
+        # No partial/corrupt destination file, and no leftover temp files.
+        assert not os.path.exists(os.path.join(modul_dir, "fake-baru.docx"))
+        leftovers = [f for f in os.listdir(modul_dir) if f.endswith(".upload_tmp")]
+        assert leftovers == []
+
+    read_resp = client.get(f"/sop/{doc_id}")
+    assert read_resp.status_code == 200
+
+
+def test_read_page_shows_placeholder_for_corrupt_file_on_disk(client):
+    # File exists on disk (passes os.path.exists) but is not a valid docx — must not 500.
+    login(client)
+    rel_path = "procurement/1-onvisk-corrupt.docx"
+    full_path = os.path.join(config.SOP_STORAGE_DIR, rel_path)
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+    with open(full_path, "wb") as f:
+        f.write(b"not a valid docx, garbage bytes written directly to disk")
+
+    doc_id = create_document(modul="procurement", nama="SOP Rusak Di Disk", kode="9",
+                              file_path=rel_path)
+
+    resp = client.get(f"/sop/{doc_id}")
+    assert resp.status_code == 200
+    assert b"tidak dapat dibaca" in resp.data or b"kemungkinan rusak" in resp.data
+
+
 def test_upload_revision_keeps_original_filename_ignoring_new_upload_name(client):
     login(client)
     _write_sample_docx("procurement/1-existing.docx")

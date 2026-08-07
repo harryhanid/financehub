@@ -5,6 +5,8 @@ from auth.middleware import jwt_html_required
 from modules.sop.service import list_documents, get_document, record_upload, count_perlu_verifikasi_in_file
 from modules.sop.renderer import parse_docx
 import os
+import tempfile
+import docx
 import config
 
 bp = Blueprint("sop", __name__, url_prefix="/sop")
@@ -19,6 +21,15 @@ MODULES = [
 def _ctx():
     claims = get_jwt()
     return {"current_user": claims.get("username", ""), "current_role": claims.get("role", "")}
+
+
+def _safe_storage_path(rel_path):
+    """Resolve rel_path under SOP_STORAGE_DIR, returning None if it would escape."""
+    full_path = os.path.abspath(os.path.join(config.SOP_STORAGE_DIR, rel_path))
+    storage_root = os.path.abspath(config.SOP_STORAGE_DIR)
+    if os.path.commonpath([full_path, storage_root]) != storage_root:
+        return None
+    return full_path
 
 
 @bp.route("/")
@@ -44,12 +55,17 @@ def read_page(doc_id):
         return redirect(url_for("sop.index"))
     if document["status"] == "belum_dibuat" or not document["file_path"]:
         return render_template("sop/not_available.html", document=document, **_ctx())
-    full_path = os.path.join(config.SOP_STORAGE_DIR, document["file_path"])
-    if not os.path.exists(full_path):
+    full_path = _safe_storage_path(document["file_path"])
+    if full_path is None or not os.path.exists(full_path):
         missing = dict(document)
         missing["catatan"] = f"File tidak ditemukan di storage: {document['file_path']}"
         return render_template("sop/not_available.html", document=missing, **_ctx())
-    parsed = parse_docx(full_path)
+    try:
+        parsed = parse_docx(full_path)
+    except Exception:
+        corrupt = dict(document)
+        corrupt["catatan"] = f"File tidak dapat dibaca (kemungkinan rusak): {document['file_path']}"
+        return render_template("sop/not_available.html", document=corrupt, **_ctx())
     return render_template("sop/read.html", document=document, parsed=parsed, **_ctx())
 
 
@@ -59,8 +75,8 @@ def download(doc_id):
     document = get_document(doc_id)
     if document is None or not document["file_path"]:
         return redirect(url_for("sop.index"))
-    full_path = os.path.join(config.SOP_STORAGE_DIR, document["file_path"])
-    if not os.path.exists(full_path):
+    full_path = _safe_storage_path(document["file_path"])
+    if full_path is None or not os.path.exists(full_path):
         return redirect(url_for("sop.index"))
     return send_file(full_path, as_attachment=True, download_name=os.path.basename(full_path))
 
@@ -98,10 +114,25 @@ def upload(doc_id):
     if os.path.commonpath([abs_dest_path, abs_modul_dir]) != abs_modul_dir:
         return redirect(url_for("sop.read_page", doc_id=doc_id))
 
-    uploaded_file.save(dest_path)
+    # Save to a temp file in the same directory first and validate it's a real, parseable
+    # docx BEFORE touching dest_path. This avoids overwriting a real, already-uploaded
+    # document with a corrupt/unparseable one that would then be unrecoverable.
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".upload_tmp", dir=modul_dir)
+    os.close(tmp_fd)
+    try:
+        uploaded_file.save(tmp_path)
+        try:
+            docx.Document(tmp_path)
+        except Exception:
+            return redirect(url_for("sop.read_page", doc_id=doc_id))
+
+        verif_count = count_perlu_verifikasi_in_file(tmp_path)
+        os.replace(tmp_path, dest_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
     rel_path = f"{document['modul']}/{filename}"
-    verif_count = count_perlu_verifikasi_in_file(dest_path)
     claims = get_jwt()
     record_upload(doc_id, rel_path, verif_count, claims.get("username", ""))
 
