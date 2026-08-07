@@ -16,6 +16,7 @@ DASHBOARD_TABS = [
     ("Budget",                "budget.index",                  "budget"),
     ("Bank",                  "bank.index",                    "bank"),
     ("Sponsorship",           "sponsorship.index",             "sponsorship"),
+    ("SOP Portal",            "sop.index",                     "sop"),
     ("Users",                 "users.index",                   "users"),
 ]
 
@@ -58,6 +59,7 @@ MODULE_SUBTABS = {
         {"label": "Data",      "url": "/sponsorship/data"},
         {"label": "Report",    "url": "/sponsorship/report"},
     ],
+    "sop": [],
     "users": [],
 }
 
