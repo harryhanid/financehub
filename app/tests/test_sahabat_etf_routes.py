@@ -424,3 +424,46 @@ def test_index_contains_report_export_elements(client):
     assert resp.status_code == 200
     for expected in (b"setf-report-year", b"setf-export-report", b"export/report"):
         assert expected in resp.data, f"missing {expected!r} in response"
+
+
+def test_api_report_returns_report_data(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/api/report?year=2026")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["data"]["report_year"] == 2026
+    assert "sections" in data["data"]
+    assert "pillar_breakdown" in data["data"]
+
+
+def test_api_report_requires_year_param(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/api/report")
+    assert resp.status_code == 400
+
+
+def test_api_report_returns_403_for_non_etf_company(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/beasiswa/sahabat/api/report?year=2026")
+    assert resp.status_code == 403
+
+
+def test_api_all_transactions_returns_rows(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/sahabat/api/all_transactions")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert "rows" in data
+
+
+def test_api_all_transactions_returns_403_for_non_etf_company(client):
+    login(client)
+    _select_smt(client)
+    resp = client.get("/beasiswa/sahabat/api/all_transactions")
+    assert resp.status_code == 403

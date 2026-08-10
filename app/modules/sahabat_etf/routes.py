@@ -115,6 +115,24 @@ def api_detail(siswa_code):
     return jsonify({"rows": get_siswa_detail(_cid(), siswa_code)})
 
 
+@bp.route("/api/report")
+@jwt_html_required
+@etf_company_required
+def api_report():
+    year_param = request.args.get("year", "")
+    if not year_param.strip().lstrip("-").isdigit():
+        return jsonify({"ok": False, "pesan": "Parameter year wajib berupa angka."}), 400
+    return jsonify({"ok": True, "data": build_report_data(_cid(), int(year_param))})
+
+
+@bp.route("/api/all_transactions")
+@jwt_html_required
+@etf_company_required
+def api_all_transactions():
+    years, pillars = _parse_filters()
+    return jsonify({"ok": True, "rows": get_all_transactions(_cid(), years, pillars)})
+
+
 @bp.route("/export/summary")
 @jwt_html_required
 @etf_company_required
