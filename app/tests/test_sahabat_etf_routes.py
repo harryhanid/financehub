@@ -467,3 +467,21 @@ def test_api_all_transactions_returns_403_for_non_etf_company(client):
     _select_smt(client)
     resp = client.get("/beasiswa/sahabat/api/all_transactions")
     assert resp.status_code == 403
+
+def test_index_contains_subtab_elements_for_etf_company(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9999000", "nama": "Test", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/budget/tambah", json={"code": "9999000", "tanggal": "2026-01-10",
+        "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}]})
+    resp = client.get("/beasiswa/sahabat/", follow_redirects=True)
+    assert resp.status_code == 200
+    for expected in (b'data-subtab="dashboard"', b'data-subtab="laporan"', b'data-subtab="detail"',
+                      b'id="setf-subtab-dashboard"', b'id="setf-subtab-laporan"', b'id="setf-subtab-detail"',
+                      b'id="setf-laporan-content"', b'id="setf-detail-table"',
+                      ):
+        assert expected in resp.data, f"missing {expected!r} in response"

@@ -542,11 +542,8 @@ function setfBuildQueryString(filters) {
 
 function setfUpdateExportLinks(qs) {
   const summaryLink = document.getElementById("setf-export-summary");
-  const detailLink = document.getElementById("setf-export-detail");
   const baseSummary = summaryLink.href.split("?")[0];
-  const baseDetail = detailLink.href.split("?")[0];
   summaryLink.href = qs ? baseSummary + "?" + qs : baseSummary;
-  detailLink.href = qs ? baseDetail + "?" + qs : baseDetail;
 }
 
 function setfUpdateReportExportLink() {
@@ -648,6 +645,28 @@ function setfApplyFilters() {
   }
 }
 
+function initSetfSubtabs() {
+  const buttons = document.querySelectorAll(".setf-subtab-btn");
+  const panels = document.querySelectorAll(".setf-subtab-panel");
+  buttons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      buttons.forEach(function (b) { b.classList.remove("active"); });
+      panels.forEach(function (p) { p.classList.remove("active"); });
+      btn.classList.add("active");
+      const panel = document.getElementById("setf-subtab-" + btn.dataset.subtab);
+      if (panel) panel.classList.add("active");
+      if (btn.dataset.subtab === "laporan" && !window._setfLaporanLoaded) {
+        window._setfLaporanLoaded = true;
+        setfLoadLaporan();
+      }
+      if (btn.dataset.subtab === "detail" && !window._setfDetailLoaded) {
+        window._setfDetailLoaded = true;
+        setfLoadDetailTransaksi();
+      }
+    });
+  });
+}
+
 function initSahabatEtf() {
   // Hanya inisialisasi satu kali — dipanggil dari onclick tombol tab
   // "Sahabat ETF" di Beasiswa setiap kali tab diklik, tidak hanya sekali
@@ -655,10 +674,19 @@ function initSahabatEtf() {
   if (window._sahabatInitialized) return;
   window._sahabatInitialized = true;
 
-  initFilterChips(document, setfApplyFilters);
+  initSetfSubtabs();
+  // Scoped to each sub-tab's own container — Dashboard and Detail Transaksi
+  // each have their own .beasiswa-dash-filter-chip instances (different
+  // checkbox classes), so a document-wide call would wire both sets to the
+  // same callback.
+  initFilterChips(document.getElementById("setf-subtab-dashboard"), setfApplyFilters);
+  initFilterChips(document.getElementById("setf-subtab-detail"), setfLoadDetailTransaksi);
   const reportYearSelect = document.getElementById("setf-report-year");
   if (reportYearSelect) {
     reportYearSelect.addEventListener("change", setfUpdateReportExportLink);
+    reportYearSelect.addEventListener("change", function () {
+      if (window._setfLaporanLoaded) setfLoadLaporan();
+    });
     setfUpdateReportExportLink();
   }
   setfApplyFilters();
@@ -669,3 +697,157 @@ window.addEventListener("fh-theme-changed", function () {
     setfApplyFilters();
   }
 });
+
+// ─── Laporan tab: on-screen rendering of the Excel report's data ────────────
+function setfLaporanHeaderRow(reportYear) {
+  return '<tr class="setf-laporan-header">' +
+    '<th rowspan="2">Nama</th><th rowspan="2">Pillar</th>' +
+    '<th colspan="4">Tahun ' + reportYear + '</th>' +
+    '<th colspan="4">S/D Tahun ' + reportYear + '</th></tr>' +
+    '<tr class="setf-laporan-header">' +
+    '<th>Plafon</th><th>Klaim</th><th>Dibayar</th><th>Saldo</th>' +
+    '<th>Plafon</th><th>Klaim</th><th>Dibayar</th><th>Saldo</th></tr>';
+}
+
+function setfLaporanMetricsCells(m) {
+  return '<td class="num-right">' + setfFmtJutaan(m.cur.plafon) + '</td>' +
+         '<td class="num-right">' + setfFmtJutaan(m.cur.klaim) + '</td>' +
+         '<td class="num-right">' + setfFmtJutaan(m.cur.dibayar) + '</td>' +
+         '<td class="num-right">' + setfFmtJutaan(m.cur.saldo) + '</td>' +
+         '<td class="num-right">' + setfFmtJutaan(m.cum.plafon) + '</td>' +
+         '<td class="num-right">' + setfFmtJutaan(m.cum.klaim) + '</td>' +
+         '<td class="num-right">' + setfFmtJutaan(m.cum.dibayar) + '</td>' +
+         '<td class="num-right">' + setfFmtJutaan(m.cum.saldo) + '</td>';
+}
+
+function setfLaporanNamaRow(row, cls) {
+  return '<tr class="' + cls + '"><td>' + row.nama + '</td><td>' + row.pillar + '</td>' +
+    setfLaporanMetricsCells(row) + '</tr>';
+}
+
+function setfLaporanLabelRow(label, metrics, cls) {
+  return '<tr class="' + cls + '"><td colspan="2">' + label + '</td>' +
+    setfLaporanMetricsCells(metrics) + '</tr>';
+}
+
+function setfRenderLaporanSection(section, reportYear) {
+  let html = '<h4 class="setf-laporan-section-title">' + section.label + '</h4>';
+  html += '<table class="setf-laporan-table"><thead>' + setfLaporanHeaderRow(reportYear) + '</thead><tbody>';
+  section.groups.forEach(function (group) {
+    html += setfLaporanLabelRow(group.label, group.subtotal, 'setf-laporan-subtotal-row');
+    group.siswa_rows.forEach(function (row) {
+      html += setfLaporanNamaRow(row, 'setf-laporan-siswa-row');
+    });
+  });
+  html += setfLaporanLabelRow('TOTAL ' + section.label, section.total, 'setf-laporan-total-row');
+  html += '</tbody></table>';
+  if (section.recap.length) {
+    html += '<table class="setf-laporan-table setf-laporan-recap">' +
+      '<caption>Rekap ' + section.label + '</caption><thead>' + setfLaporanHeaderRow(reportYear) + '</thead><tbody>';
+    section.recap.forEach(function (row) {
+      html += setfLaporanNamaRow(row, 'setf-laporan-recap-row');
+    });
+    html += '</tbody></table>';
+  }
+  return html;
+}
+
+function setfRenderLaporanPillarBreakdown(pillarBreakdown, grandTotal, reportYear) {
+  let html = '<h4 class="setf-laporan-section-title">Breakdown Pillar</h4>';
+  html += '<table class="setf-laporan-table"><thead>' + setfLaporanHeaderRow(reportYear) + '</thead><tbody>';
+  html += setfLaporanLabelRow('GRAND TOTAL', grandTotal, 'setf-laporan-total-row');
+  pillarBreakdown.forEach(function (p) {
+    html += '<tr class="setf-laporan-subtotal-row"><td colspan="2">' + p.pillar_label + '</td>' +
+      setfLaporanMetricsCells(p) + '</tr>';
+    html += '<tr class="setf-laporan-pct-row"><td colspan="2">% to total</td>' +
+      '<td class="num-right">' + (p.pct_cur.plafon * 100).toFixed(1) + '%</td>' +
+      '<td class="num-right">' + (p.pct_cur.klaim * 100).toFixed(1) + '%</td>' +
+      '<td class="num-right">' + (p.pct_cur.dibayar * 100).toFixed(1) + '%</td>' +
+      '<td class="num-right">' + (p.pct_cur.saldo * 100).toFixed(1) + '%</td>' +
+      '<td class="num-right">' + (p.pct_cum.plafon * 100).toFixed(1) + '%</td>' +
+      '<td class="num-right">' + (p.pct_cum.klaim * 100).toFixed(1) + '%</td>' +
+      '<td class="num-right">' + (p.pct_cum.dibayar * 100).toFixed(1) + '%</td>' +
+      '<td class="num-right">' + (p.pct_cum.saldo * 100).toFixed(1) + '%</td></tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+function setfRenderLaporan(data) {
+  let html = '<h3>REPORT — Tahun ' + data.report_year + '</h3>';
+  data.sections.forEach(function (section) {
+    html += setfRenderLaporanSection(section, data.report_year);
+  });
+  html += '<h4 class="setf-laporan-section-title">Total Pendidikan &amp; Kesehatan</h4>';
+  html += '<table class="setf-laporan-table"><thead>' + setfLaporanHeaderRow(data.report_year) + '</thead><tbody>';
+  html += setfLaporanLabelRow('TOTAL PENDIDIKAN &amp; KESEHATAN', data.combined_total, 'setf-laporan-total-row');
+  data.combined_recap.forEach(function (row) {
+    html += setfLaporanNamaRow(row, 'setf-laporan-recap-row');
+  });
+  html += setfLaporanLabelRow('GRAND TOTAL', data.grand_total, 'setf-laporan-total-row');
+  html += '</tbody></table>';
+  html += setfRenderLaporanPillarBreakdown(data.pillar_breakdown, data.grand_total, data.report_year);
+  document.getElementById('setf-laporan-content').innerHTML = html;
+}
+
+function setfLoadLaporan() {
+  const sel = document.getElementById('setf-report-year');
+  if (!sel) return;
+  document.getElementById('setf-laporan-content').innerHTML =
+    '<p style="color:var(--text-muted);text-align:center;padding:2rem">Memuat laporan...</p>';
+  fetch('/beasiswa/sahabat/api/report?year=' + encodeURIComponent(sel.value))
+    .then(function (r) { return r.json(); })
+    .then(function (resp) {
+      if (!resp.ok) { showToast(resp.pesan || 'Gagal memuat laporan.', 'error'); return; }
+      setfRenderLaporan(resp.data);
+    })
+    .catch(function () { showToast('Gagal memuat laporan.', 'error'); });
+}
+
+// ─── Detail Transaksi tab: full transaction list ────────────────────────────
+function setfGetDetailFilters() {
+  const years = Array.from(document.querySelectorAll(".setf-detail-year-cb:checked")).map(function (cb) { return cb.value; });
+  const pillars = Array.from(document.querySelectorAll(".setf-detail-pillar-cb:checked")).map(function (cb) { return cb.value; });
+  return { years: years, pillars: pillars };
+}
+
+function setfUpdateDetailExportLink(qs) {
+  const link = document.getElementById("setf-export-detail");
+  if (!link) return;
+  const base = link.href.split("?")[0];
+  link.href = qs ? base + "?" + qs : base;
+}
+
+function setfRenderDetailTable(rows) {
+  const tbody = document.querySelector("#setf-detail-table tbody");
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Belum ada transaksi.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function (r) {
+    return "<tr>" +
+      "<td>" + r.sumber + "</td>" +
+      "<td>" + r.siswa_code + "</td>" +
+      "<td>" + r.nama + "</td>" +
+      "<td>" + r.tanggal + "</td>" +
+      "<td>" + r.cat1 + "</td>" +
+      "<td>" + (r.cat2 || "") + "</td>" +
+      '<td class="num-right">' + setfFmtJutaan(r.amount) + "</td>" +
+      "<td>" + (r.status || "") + "</td>" +
+      "</tr>";
+  }).join("");
+}
+
+function setfLoadDetailTransaksi() {
+  const filters = setfGetDetailFilters();
+  const qs = setfBuildQueryString(filters);
+  setfUpdateDetailExportLink(qs);
+  document.querySelector("#setf-detail-table tbody").innerHTML = skeletonRows(6, 8);
+  fetch("/beasiswa/sahabat/api/all_transactions" + (qs ? "?" + qs : ""))
+    .then(function (r) { return r.json(); })
+    .then(function (resp) {
+      if (!resp.ok) { showToast(resp.pesan || "Gagal memuat detail transaksi.", "error"); return; }
+      setfRenderDetailTable(resp.rows);
+    })
+    .catch(function () { showToast("Gagal memuat detail transaksi.", "error"); });
+}

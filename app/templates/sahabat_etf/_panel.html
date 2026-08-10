@@ -14,6 +14,14 @@
     Semua nilai pada dashboard ini ditampilkan dalam jutaan rupiah (Jt).
   </p>
 
+  <div class="setf-subtabs">
+    <button type="button" class="setf-subtab-btn active" data-subtab="dashboard">Dashboard</button>
+    <button type="button" class="setf-subtab-btn" data-subtab="laporan">Laporan</button>
+    <button type="button" class="setf-subtab-btn" data-subtab="detail">Detail Transaksi</button>
+  </div>
+
+  <div class="setf-subtab-panel active" id="setf-subtab-dashboard">
+
   <details class="setf-accordion" open>
     <summary>Ringkasan &amp; Alert</summary>
     <div class="setf-accordion-body">
@@ -51,22 +59,11 @@
             </div>
           </div>
         </div>
-
-        <div class="filter-field">
-          <label>Tahun Report (Export Laporan)</label>
-          <select id="setf-report-year">
-            {% for y in available_years|reverse %}
-            <option value="{{ y }}">{{ y }}</option>
-            {% endfor %}
-          </select>
-        </div>
       </div>
 
       <div class="budget-toolbar">
         <a class="budget-btn" id="setf-export-summary" href="{{ url_for('sahabat_etf.export_summary') }}">Export Ringkasan (CSV)</a>
-        <a class="budget-btn" id="setf-export-detail" href="{{ url_for('sahabat_etf.export_detail') }}">Export Detail Transaksi (CSV)</a>
         <button type="button" class="budget-btn" id="setf-export-pdf" onclick="setfExportPdf()">Export PDF (Print)</button>
-        <a class="budget-btn" id="setf-export-report" href="{{ url_for('sahabat_etf.export_report', year=available_years|first or 2026) }}">Export Laporan (Excel)</a>
       </div>
 
       <div class="budget-summary-grid" id="setf-summary"></div>
@@ -164,5 +161,78 @@
       </div>
     </div>
   </details>
+
+  </div>
+
+  <div class="setf-subtab-panel" id="setf-subtab-laporan">
+    <div class="filter-bar">
+      <div class="filter-field">
+        <label>Tahun Report</label>
+        <select id="setf-report-year">
+          {% for y in available_years|reverse %}
+          <option value="{{ y }}">{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="budget-toolbar">
+      <a class="budget-btn" id="setf-export-report" href="{{ url_for('sahabat_etf.export_report', year=available_years|first or 2026) }}">Export Laporan (Excel)</a>
+    </div>
+    <div id="setf-laporan-content">
+      <p style="color:var(--text-muted);text-align:center;padding:2rem">Memuat laporan...</p>
+    </div>
+  </div>
+
+  <div class="setf-subtab-panel" id="setf-subtab-detail">
+    <div class="filter-bar beasiswa-dash-filterbar">
+      <div class="beasiswa-dash-filter-chip">
+        <span class="lbl">Tahun</span>
+        <span class="val">Semua</span>
+        <span class="caret">▾</span>
+        <div class="beasiswa-dash-filter-panel">
+          <div class="panel-head">
+            <button type="button" data-act="all">Semua</button>
+            <button type="button" data-act="none">Kosongkan</button>
+          </div>
+          <div class="panel-opts" id="setf-detail-filter-tahun">
+            {% for y in available_years %}
+            <label><input type="checkbox" class="setf-detail-year-cb" value="{{ y }}" checked> {{ y }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="beasiswa-dash-filter-chip">
+        <span class="lbl">Pillar</span>
+        <span class="val">Semua</span>
+        <span class="caret">▾</span>
+        <div class="beasiswa-dash-filter-panel">
+          <div class="panel-head">
+            <button type="button" data-act="all">Semua</button>
+            <button type="button" data-act="none">Kosongkan</button>
+          </div>
+          <div class="panel-opts" id="setf-detail-filter-pillar">
+            {% for p in available_pillars %}
+            <label><input type="checkbox" class="setf-detail-pillar-cb" value="{{ p }}" checked> {{ p }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="budget-toolbar">
+      <a class="budget-btn" id="setf-export-detail" href="{{ url_for('sahabat_etf.export_detail') }}">Export Detail Transaksi (CSV)</a>
+    </div>
+
+    <div class="table-wrap">
+      <table id="setf-detail-table">
+        <thead>
+          <tr><th>Sumber</th><th>Kode Siswa</th><th>Nama</th><th>Tanggal</th><th>Kategori 1</th><th>Kategori 2</th><th class="num-right">Amount</th><th>Status</th></tr>
+        </thead>
+        <tbody><tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
   {% endif %}
 </div>
