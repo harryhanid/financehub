@@ -479,3 +479,44 @@
 .budget-dropdown-content label:hover {
   background-color: var(--border-hover);
 }
+
+/* ── Sahabat ETF sub-tabs (Dashboard/Laporan/Detail Transaksi) ──────────────
+   Separate classes from the site-wide .tabs/.tab-btn/.tab-panel (app.js's
+   initTabs(), already active for Beasiswa's own outer tab bar on this same
+   page) — visually identical, but must not share a selector or the two
+   tab-switchers would double-handle clicks. See
+   docs/superpowers/specs/2026-08-03-sahabat-etf-tabs-laporan-detail-transaksi-design.md */
+.setf-subtabs {
+  display: flex; flex-wrap: wrap;
+  gap: .4rem;
+  margin-bottom: 1.25rem;
+}
+.setf-subtab-btn {
+  display: inline-flex; align-items: center;
+  padding: .5rem 1rem;
+  border: none; background: var(--bg-muted);
+  border-radius: 999px;
+  font-size: .8rem; font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.setf-subtab-btn.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(45,106,223,.3);
+}
+.setf-subtab-btn:hover:not(.active) { background: var(--accent-surface); color: var(--accent-text); }
+.setf-subtab-panel { display: none; }
+.setf-subtab-panel.active { display: block; }
+
+/* ── Sahabat ETF Laporan tab — on-screen report table ────────────────────── */
+.setf-laporan-table { width: 100%; border-collapse: collapse; margin-bottom: .75rem; font-size: .8rem; }
+.setf-laporan-table th, .setf-laporan-table td { padding: .35rem .6rem; border-bottom: 1px solid var(--border); }
+.setf-laporan-section-title { margin: 1rem 0 .5rem; font-size: .9rem; font-weight: 700; color: var(--text); }
+.setf-laporan-subtotal-row { font-weight: 600; background: var(--bg-muted); }
+.setf-laporan-total-row { font-weight: 700; background: var(--accent-surface); }
+.setf-laporan-recap-row { font-style: italic; color: var(--text-muted); }
+.setf-laporan-pct-row { font-size: .72rem; color: var(--text-muted); }

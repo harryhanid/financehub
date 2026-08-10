@@ -18,7 +18,7 @@ def test_index_requires_login(client):
 def test_index_renders_after_login_and_etf_company(client):
     login(client)
     _select_etf(client)
-    resp = client.get("/beasiswa/sahabat/")
+    resp = client.get("/beasiswa/sahabat/", follow_redirects=True)
     assert resp.status_code == 200
     assert b"Sahabat ETF" in resp.data
     assert b"Ganti Company" not in resp.data
@@ -27,7 +27,7 @@ def test_index_renders_after_login_and_etf_company(client):
 def test_index_shows_wrong_company_notice_for_smt(client):
     login(client)
     _select_smt(client)
-    resp = client.get("/beasiswa/sahabat/")
+    resp = client.get("/beasiswa/sahabat/", follow_redirects=True)
     assert resp.status_code == 200
     assert b"Ganti Company" in resp.data
 
@@ -108,7 +108,7 @@ def test_export_detail_returns_csv(client):
 def test_index_contains_dashboard_elements_for_etf_company(client):
     login(client)
     _select_etf(client)
-    resp = client.get("/beasiswa/sahabat/")
+    resp = client.get("/beasiswa/sahabat/", follow_redirects=True)
     assert resp.status_code == 200
     for expected in (b"setf-summary", b"chart-bulanan", b"chart-kategori",
                       b"setf-table", b"setf-alert-card", b"export/summary", b"export/detail",
@@ -119,7 +119,7 @@ def test_index_contains_dashboard_elements_for_etf_company(client):
 def test_index_sahabat_etf_detail_tabel_open_by_default(client):
     login(client)
     _select_etf(client)
-    resp = client.get("/beasiswa/sahabat/")
+    resp = client.get("/beasiswa/sahabat/", follow_redirects=True)
     assert b'<details class="setf-accordion" id="setf-detail-tabel" open>' in resp.data
 
 
@@ -134,7 +134,7 @@ def test_index_shows_year_filter_checkbox_when_data_exists(client):
     client.post("/beasiswa/budget/tambah", json={"code": "9992020", "tanggal": "2026-01-10",
         "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}]})
 
-    resp = client.get("/beasiswa/sahabat/")
+    resp = client.get("/beasiswa/sahabat/", follow_redirects=True)
     assert b'class="setf-year-cb"' in resp.data
     assert b"2026" in resp.data
 
@@ -151,7 +151,7 @@ def test_index_shows_pillar_filter_checkboxes_when_data_exists(client):
         "pillar": "SETF", "perusahaan": "ETF",
         "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 500000}]})
 
-    resp = client.get("/beasiswa/sahabat/")
+    resp = client.get("/beasiswa/sahabat/", follow_redirects=True)
     assert b'class="setf-pillar-cb"' in resp.data
     assert b"SETF" in resp.data
 
@@ -420,7 +420,7 @@ def test_export_report_returns_403_for_non_etf_company(client):
 def test_index_contains_report_export_elements(client):
     login(client)
     _select_etf(client)
-    resp = client.get("/beasiswa/sahabat/")
+    resp = client.get("/beasiswa/sahabat/", follow_redirects=True)
     assert resp.status_code == 200
     for expected in (b"setf-report-year", b"setf-export-report", b"export/report"):
         assert expected in resp.data, f"missing {expected!r} in response"
