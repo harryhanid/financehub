@@ -762,9 +762,9 @@ function setfRenderLaporanPillarBreakdown(pillarBreakdown, grandTotal, reportYea
   html += '<table class="setf-laporan-table"><thead>' + setfLaporanHeaderRow(reportYear) + '</thead><tbody>';
   html += setfLaporanLabelRow('GRAND TOTAL', grandTotal, 'setf-laporan-total-row');
   pillarBreakdown.forEach(function (p) {
-    html += '<tr class="setf-laporan-subtotal-row"><td colspan="2">' + p.pillar_label + '</td>' +
+    html += '<tr class="setf-laporan-subtotal-row"><td colspan="3">' + p.pillar_label + '</td>' +
       setfLaporanMetricsCells(p) + '</tr>';
-    html += '<tr class="setf-laporan-pct-row"><td colspan="2">% to total</td>' +
+    html += '<tr class="setf-laporan-pct-row"><td colspan="3">% to total</td>' +
       '<td class="num-right">' + (p.pct_cur.plafon * 100).toFixed(1) + '%</td>' +
       '<td class="num-right">' + (p.pct_cur.klaim * 100).toFixed(1) + '%</td>' +
       '<td class="num-right">' + (p.pct_cur.dibayar * 100).toFixed(1) + '%</td>' +
