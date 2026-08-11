@@ -701,7 +701,7 @@ window.addEventListener("fh-theme-changed", function () {
 // ─── Laporan tab: on-screen rendering of the Excel report's data ────────────
 function setfLaporanHeaderRow(reportYear) {
   return '<tr class="setf-laporan-header">' +
-    '<th rowspan="2">Nama</th><th rowspan="2">Pillar</th>' +
+    '<th rowspan="2">Nama</th><th rowspan="2">Periode</th><th rowspan="2">Pillar</th>' +
     '<th colspan="4">Tahun ' + reportYear + '</th>' +
     '<th colspan="4">S/D Tahun ' + reportYear + '</th></tr>' +
     '<tr class="setf-laporan-header">' +
@@ -720,13 +720,18 @@ function setfLaporanMetricsCells(m) {
          '<td class="num-right">' + setfFmtJutaan(m.cum.saldo) + '</td>';
 }
 
+function setfLaporanPeriodeText(row) {
+  if (!row.periode_start || !row.periode_end) return '';
+  return row.periode_start + ' - ' + row.periode_end;
+}
+
 function setfLaporanNamaRow(row, cls) {
-  return '<tr class="' + cls + '"><td>' + row.nama + '</td><td>' + row.pillar + '</td>' +
+  return '<tr class="' + cls + '"><td>' + row.nama + '</td><td>' + setfLaporanPeriodeText(row) + '</td><td>' + row.pillar + '</td>' +
     setfLaporanMetricsCells(row) + '</tr>';
 }
 
 function setfLaporanLabelRow(label, metrics, cls) {
-  return '<tr class="' + cls + '"><td colspan="2">' + label + '</td>' +
+  return '<tr class="' + cls + '"><td colspan="3">' + label + '</td>' +
     setfLaporanMetricsCells(metrics) + '</tr>';
 }
 
