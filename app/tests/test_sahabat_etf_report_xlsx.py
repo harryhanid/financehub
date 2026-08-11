@@ -155,6 +155,7 @@ def test_build_report_workbook_writes_periode_for_siswa_row():
                 values.setdefault(cell.row, {})[cell.column_letter] = cell.value
     richard_row = next(r for r, v in values.items() if v.get("B") == "Richard Widjaja")
     assert values[richard_row]["C"] == 2026
+    assert values[richard_row]["D"] == "-"
     assert values[richard_row]["E"] == 2032
 
 
