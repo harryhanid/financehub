@@ -174,6 +174,9 @@ def _write_section(ws, row, section):
             _apply_row_grid(ws, row, columns=_LABEL_COLUMNS)
             _apply_row_grid(ws, row, columns=["O"])
             _set(ws, f"B{row}", siswa_row["nama"], font=_FONT_NORMAL, align=_ALIGN_LEFT)
+            if siswa_row.get("periode_start") and siswa_row.get("periode_end"):
+                _set(ws, f"C{row}", siswa_row["periode_start"], font=_FONT_NORMAL, align=_ALIGN_CENTER)
+                _set(ws, f"E{row}", siswa_row["periode_end"], font=_FONT_NORMAL, align=_ALIGN_CENTER)
             _set(ws, f"F{row}", siswa_row["pillar"], font=_FONT_PILLAR, align=_ALIGN_CENTER)
             _write_metrics_row(ws, row, siswa_row, font=_FONT_NORMAL, fill=_FILL_LIGHT_BLUE)
             row += 1
