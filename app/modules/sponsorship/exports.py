@@ -279,3 +279,54 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+_MR_HEADERS = [
+    "Account Management", "ID#", "Date", "Allocation Memo", "Budget Activity",
+    "COST CENTER", "DEBIT - CREDIT", "Source", "COA HO", "COST CENTER2",
+    "Month", "CC0", "CC1", "BC1", "New Code", "Memo", "BC",
+]
+_MR_ROW_KEYS = [
+    "account_management", "id_no", "date", "allocation_memo", "budget_activity",
+    "cost_center", "debit_credit", "source", "coa_ho", "cost_center2",
+    "month", "cc0", "cc1", "bc1", "new_code", "memo", "bc",
+]
+_MR_RED_FILL = PatternFill("solid", fgColor="C00000")
+_MR_DATE_FMT = "dd-mmm-yy"
+_MR_NUM_FMT = '#,##0;-#,##0;"-"'
+_MR_COL_WIDTHS = [16, 8, 12, 55, 14, 12, 16, 10, 12, 14, 8, 6, 6, 8, 14, 60, 22]
+
+
+def export_mr_excel(company_id: int, tahun: list) -> bytes:
+    from modules.sponsorship.service import get_sponsorship_mr
+    rows = get_sponsorship_mr(company_id, tahun)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "MR"
+
+    ws.append(_MR_HEADERS)
+    for col in range(1, len(_MR_HEADERS) + 1):
+        cell = ws.cell(row=1, column=col)
+        cell.font = ARIAL_11_WHITE_BOLD
+        cell.alignment = ALIGN_CENTER
+        cell.fill = _MR_RED_FILL if 9 <= col <= 14 else DARK_BLUE_FILL
+
+    for r in rows:
+        ws.append([r[key] for key in _MR_ROW_KEYS])
+        row_idx = ws.max_row
+        for col, key in enumerate(_MR_ROW_KEYS, start=1):
+            cell = ws.cell(row=row_idx, column=col)
+            cell.font = ARIAL_11
+            if key == "date":
+                cell.number_format = _MR_DATE_FMT
+            elif key in ("account_management", "coa_ho", "debit_credit"):
+                cell.number_format = _MR_NUM_FMT
+                cell.alignment = ALIGN_RIGHT
+
+    for i, w in enumerate(_MR_COL_WIDTHS, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()

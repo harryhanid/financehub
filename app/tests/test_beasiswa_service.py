@@ -881,11 +881,13 @@ def test_delete_payment_beasiswa_excludes_rejected_sibling_when_reverting_pa():
         f"PA should revert to open (rejected sibling doesn't count as active), got '{pa['status']}'"
 
 
-def test_delete_payment_row_refuses_already_rejected_row():
-    """Real-world data loss (2026-07-23): delete_payment_row only guarded against
-    deleting 'complete' rows, so a row already 'rejected' (data the reject
-    feature is meant to preserve) could still be permanently deleted through
-    this path. Must refuse exactly like it already refuses 'complete' rows."""
+def test_delete_payment_row_allows_deleting_rejected_row():
+    """Business rule change (2026-08-03, user-confirmed with full knowledge of
+    the 2026-07-23 data-loss incident this guard was originally added for):
+    'rejected' payments can now be deleted through this path. A rejected
+    payment was never realized, so unlike 'complete' it no longer needs
+    audit-trail protection here — see
+    test_delete_payment_row_refuses_complete_row for the guard that remains."""
     conn = get_conn()
     sid, pa_id, line_a = _seed_siswa_and_pa(conn, COMPANY_ID)
     conn.execute(
@@ -901,13 +903,39 @@ def test_delete_payment_row_refuses_already_rejected_row():
     conn.close()
 
     result = delete_payment_row(COMPANY_ID, row_id)
+    assert result["ok"] is True
+
+    conn = get_conn()
+    pb = conn.execute("SELECT id FROM payment_beasiswa WHERE id=?", (row_id,)).fetchone()
+    conn.close()
+    assert pb is None, "rejected row should be deleted"
+
+
+def test_delete_payment_row_refuses_complete_row():
+    """'complete' rows remain protected — a realized payment must not be
+    deletable through this path."""
+    conn = get_conn()
+    sid, pa_id, line_a = _seed_siswa_and_pa(conn, COMPANY_ID)
+    conn.execute(
+        """INSERT INTO payment_beasiswa
+           (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
+            perusahaan, etf_pa_line_id, status)
+           VALUES (?,?,?,?,?,?,?,?,?,'complete')""",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-07-01",
+         5000000, "AGRI", "PT ABC", line_a)
+    )
+    row_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+    conn.close()
+
+    result = delete_payment_row(COMPANY_ID, row_id)
     assert result["ok"] is False
 
     conn = get_conn()
     pb = conn.execute("SELECT status FROM payment_beasiswa WHERE id=?", (row_id,)).fetchone()
     conn.close()
-    assert pb is not None, "rejected row must survive the refused delete attempt"
-    assert pb["status"] == "rejected"
+    assert pb is not None, "complete row must survive the refused delete attempt"
+    assert pb["status"] == "complete"
 
 
 def test_delete_payment_beasiswa_refuses_already_rejected_row():

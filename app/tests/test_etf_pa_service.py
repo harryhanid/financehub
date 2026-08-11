@@ -362,3 +362,39 @@ def test_create_pa_default_route_is_gl():
     ).fetchone()
     conn.close()
     assert header["route"] == "gl"
+
+
+def test_create_pa_energy_tab_uses_energy_tables():
+    sid = _student_id("1230001")
+    result = create_pa(COMPANY_ID, {
+        "tgl_payment_application": "2026-06-01",
+        "tgl_surat_pengajuan": "2026-06-01",
+        "keterangan": "Test PA Energy",
+    }, [
+        {"student_id": sid, "jenis_pembayaran": "By Pendidikan",
+         "semester": "Semester 3", "tahun_ajaran": "2025/2026",
+         "ipk_sem_sebelumnya": 3.6, "jumlah_pembayaran": 5000000}
+    ], tab="energy")
+    assert result["ok"] is True
+    assert result["pa_number"].startswith("PA/ENERGY/001/")
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM energy_pa WHERE id=?", (result["pa_id"],)).fetchone()
+    conn.close()
+    assert row is not None
+    assert row["pa_number"] == result["pa_number"]
+
+
+def test_update_pa_energy_tab_status_on_process_generates_pam():
+    sid = _student_id("1230001")
+    r = create_pa(COMPANY_ID, {"tgl_payment_application": "2026-06-01"}, [
+        {"student_id": sid, "jenis_pembayaran": "By Pendidikan",
+         "semester": "Semester 3", "tahun_ajaran": "2025/2026",
+         "ipk_sem_sebelumnya": 3.6, "jumlah_pembayaran": 5000000}
+    ], tab="energy")
+    upd = update_pa(r["pa_id"], COMPANY_ID, {
+        "status": "on_process",
+        "tgl_payment_application": "2026-06-01",
+    }, tab="energy")
+    assert upd["ok"] is True
+    assert upd["nomor_pam"] is not None
+    assert "ENERGY" in upd["nomor_pam"]

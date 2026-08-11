@@ -494,7 +494,7 @@ th[data-sort-dir="desc"]::after { content: ' ▼'; opacity: 1; color: var(--acce
 .filter-bar {
   position: sticky;
   top: var(--navbar-h, 52px);
-  z-index: 10;
+  z-index: 20;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   padding-bottom: .5rem;

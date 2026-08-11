@@ -519,6 +519,14 @@ function fmtJutaan(amount) {
   return jt.toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
+// Whole-million amount, no "Rp" prefix or "Jt" suffix — e.g. 607473125 -> "607".
+// Shared by every dashboard that wants a plain rounded-millions number
+// (Sponsorship Dashboard, Budget Dashboard).
+function fmtJutaanBulat(amount) {
+  const jt = Math.round((amount || 0) / 1000000);
+  return jt.toLocaleString("id-ID");
+}
+
 
 function showToast(msg, type = "success") {
   let toast = document.getElementById("fh-toast");

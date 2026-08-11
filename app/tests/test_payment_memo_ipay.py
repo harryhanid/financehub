@@ -156,3 +156,28 @@ def test_pam_index_page_has_pt_vendor_edit_field(client):
     assert b'id="edit-pam-pt-search"' in resp.data
     assert b"editPamPtSearch" in resp.data
 
+
+def test_energy_in_valid_tabs():
+    assert "energy" in VALID_TABS
+
+
+def test_energy_tab_config():
+    pa_tbl, lines_tbl, pa_prefix, pam_prefix = _TAB_CFG["energy"]
+    assert pa_tbl == "energy_pa"
+    assert lines_tbl == "energy_pa_lines"
+    assert pa_prefix == "ENERGY"
+    assert pam_prefix == "ENERGY"
+
+
+def test_tbls_energy_resolves():
+    pa_tbl, lines_tbl, pa_prefix, pam_prefix = _tbls("energy")
+    assert pa_tbl == "energy_pa"
+    assert lines_tbl == "energy_pa_lines"
+
+
+def test_get_next_pam_no_energy_format():
+    """EFIN uses ENERGY prefix → PAM-NNN-ENERGY-MM-YYYY"""
+    result = get_next_pam_no(company_id=1, company_code="ETF",
+                             tab="energy", date_str="2026-06-08")
+    assert re.match(r"PAM-\d{3}-ENERGY-06-2026", result), f"Got: {result}"
+

@@ -1,6 +1,5 @@
 <div class="budget-page">
   <div class="setf-print-header">Disajikan dalam jutaan Rupiah</div>
-  <h1>Dashboard Sahabat ETF</h1>
 
   {% if wrong_company %}
   <div class="budget-card">
@@ -9,10 +8,6 @@
     <a class="budget-btn" href="{{ url_for('dashboard.select_company') }}">Ganti Company</a>
   </div>
   {% else %}
-
-  <p style="color:var(--text-muted);font-size:.8rem;margin-bottom:1rem">
-    Semua nilai pada dashboard ini ditampilkan dalam jutaan rupiah (Jt).
-  </p>
 
   <div class="setf-subtabs">
     <button type="button" class="setf-subtab-btn active" data-subtab="dashboard">Dashboard</button>

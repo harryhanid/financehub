@@ -33,7 +33,10 @@ function budgetRenderBarChart(canvasId, labels, datasets) {
     data: { labels: labels, datasets: datasets },
     options: {
       responsive: true,
-      plugins: { legend: { labels: { color: "#e2e8f0" } } },
+      plugins: {
+        legend: { labels: { color: "#e2e8f0" } },
+        tooltip: { callbacks: { label: c => c.dataset.label + ": " + fmtJutaanBulat(c.parsed.y) } },
+      },
       scales: {
         x: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.1)" } },
         y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(148,163,184,0.1)" } },
@@ -42,23 +45,45 @@ function budgetRenderBarChart(canvasId, labels, datasets) {
   });
 }
 
-function budgetRenderPieChart(canvasId, labels, values, colors) {
+function budgetRenderPieChart(canvasId, labels, values, colors, formatValue) {
+  const fmt = formatValue || function (v) { return v; };
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
   if (budgetCharts[canvasId]) budgetCharts[canvasId].destroy();
   budgetCharts[canvasId] = new Chart(ctx, {
     type: "doughnut",
     data: { labels: labels, datasets: [{ data: values, backgroundColor: colors }] },
-    options: { responsive: true, plugins: { legend: { labels: { color: "#e2e8f0" } } } },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: "#e2e8f0" } },
+        tooltip: { callbacks: { label: c => c.label + ": " + fmt(c.parsed) } },
+      },
+    },
   });
+}
+
+function budgetRenderGroupTable(elId, chartData, labelHeader) {
+  const el = document.getElementById(elId);
+  if (!chartData.labels.length) {
+    el.innerHTML = '<tr><td style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>';
+    return;
+  }
+  let html = "<thead><tr><th>" + labelHeader + "</th><th>Jumlah</th><th>Budget</th><th>Realisasi</th></tr></thead><tbody>";
+  chartData.labels.forEach(function (label, i) {
+    html += "<tr><td>" + label + "</td><td>" + chartData.count[i] + "</td><td>" +
+      fmtJutaanBulat(chartData.budget[i]) + "</td><td>" + fmtJutaanBulat(chartData.realized[i]) + "</td></tr>";
+  });
+  html += "</tbody>";
+  el.innerHTML = html;
 }
 
 function budgetRenderSummary(summary) {
   const el = document.getElementById("budget-summary");
   const cards = [
-    ["Total Budget", summary.formatted.totalBudget],
-    ["Total Realisasi", summary.formatted.totalRealized],
-    ["Sisa", summary.formatted.remaining],
+    ["Total Budget", fmtJutaanBulat(summary.totalBudget)],
+    ["Total Realisasi", fmtJutaanBulat(summary.totalRealized)],
+    ["Sisa", fmtJutaanBulat(summary.remaining)],
     ["Utilisasi Rata-rata", summary.formatted.avgUtilization],
     ["Expired", summary.totalExpired],
     ["Near Limit", summary.totalNearLimit],
@@ -74,8 +99,8 @@ function budgetRenderExpiredAnalysis(expiredAnalysis) {
   const summaryEl = document.getElementById("budget-expired-summary");
   const cards = [
     ["Total Expired", expiredAnalysis.totalExpired],
-    ["Total Amount", "Rp " + fmtRupiah(expiredAnalysis.totalAmount)],
-    ["Total Realized", "Rp " + fmtRupiah(expiredAnalysis.totalRealized)],
+    ["Total Amount", fmtJutaanBulat(expiredAnalysis.totalAmount)],
+    ["Total Realized", fmtJutaanBulat(expiredAnalysis.totalRealized)],
     ["\u226430 Hari", expiredAnalysis.ageBuckets.recent],
     ["31-90 Hari", expiredAnalysis.ageBuckets.midterm],
     [">90 Hari", expiredAnalysis.ageBuckets.longterm],
@@ -93,8 +118,8 @@ function budgetRenderExpiredAnalysis(expiredAnalysis) {
     }
     let html = "<thead><tr><th>" + labelHeader + "</th><th>Jumlah</th><th>Amount</th><th>Realized</th></tr></thead><tbody>";
     rows.forEach(function (r) {
-      html += "<tr><td>" + r[labelKey] + "</td><td>" + r.count + "</td><td>Rp " +
-        fmtRupiah(r.amount) + "</td><td>Rp " + fmtRupiah(r.realized) + "</td></tr>";
+      html += "<tr><td>" + r[labelKey] + "</td><td>" + r.count + "</td><td>" +
+        fmtJutaanBulat(r.amount) + "</td><td>" + fmtJutaanBulat(r.realized) + "</td></tr>";
     });
     html += "</tbody>";
     el.innerHTML = html;
@@ -112,7 +137,7 @@ function budgetRenderCompliance(complianceData) {
     ["Pending", complianceData.pending],
     ["Rejected", complianceData.rejected],
     ["Carryover / Additional", complianceData.carryoverCount + " / " + complianceData.additionalCount],
-    ["Additional Disetujui", complianceData.additionalApproved + " (Rp " + fmtRupiah(complianceData.additionalAmountApproved) + ")"],
+    ["Additional Disetujui", complianceData.additionalApproved + " (" + fmtJutaanBulat(complianceData.additionalAmountApproved) + ")"],
   ];
   el.innerHTML = cards.map(function (c) {
     return '<div class="budget-stat-card"><div class="label">' + c[0] +
@@ -166,20 +191,11 @@ function budgetLoadDashboard() {
         { label: "Budget", data: data.monthlyChart.budget, backgroundColor: "#6366f1" },
         { label: "Realisasi", data: data.monthlyChart.realized, backgroundColor: "#818cf8" },
       ]);
-      budgetRenderBarChart("chart-dept", data.deptChart.labels, [
-        { label: "Budget", data: data.deptChart.budget, backgroundColor: "#6366f1" },
-        { label: "Realisasi", data: data.deptChart.realized, backgroundColor: "#818cf8" },
-      ]);
-      budgetRenderBarChart("chart-activity", data.activityChart.labels, [
-        { label: "Budget", data: data.activityChart.budget, backgroundColor: "#6366f1" },
-        { label: "Realisasi", data: data.activityChart.realized, backgroundColor: "#818cf8" },
-      ]);
-      budgetRenderBarChart("chart-category", data.categoryChart.labels, [
-        { label: "Budget", data: data.categoryChart.budget, backgroundColor: "#6366f1" },
-        { label: "Realisasi", data: data.categoryChart.realized, backgroundColor: "#818cf8" },
-      ]);
+      budgetRenderGroupTable("table-dept", data.deptChart, "Department");
+      budgetRenderGroupTable("table-activity", data.activityChart, "Activity");
+      budgetRenderGroupTable("table-category", data.categoryChart, "Category");
       budgetRenderPieChart("chart-company", data.companyChart.labels, data.companyChart.budget,
-        ["#f97316", "#06b6d4"]);
+        ["#f97316", "#06b6d4"], fmtJutaanBulat);
       budgetRenderPieChart("chart-status", data.statusChart.labels, data.statusChart.values,
         ["#10b981", "#f59e0b", "#ef4444", "#3b82f6"]);
     })
@@ -190,5 +206,7 @@ function budgetLoadDashboard() {
 
 function initBudgetDashboard() {
   budgetLoadLookups().then(budgetLoadDashboard);
-  document.getElementById("bf-apply").addEventListener("click", budgetLoadDashboard);
+  ["bf-company", "bf-dept", "bf-year", "bf-category", "bf-activity"].forEach(function (id) {
+    document.getElementById(id).addEventListener("change", budgetLoadDashboard);
+  });
 }

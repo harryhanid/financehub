@@ -43,7 +43,7 @@ def test_dashboard_pillar_chart_covers_all_four_pillars(app):
     pillars = {row["pillar"]: row["amount"] for row in data["pillarChart"]}
     assert pillars["AGRI"] == 1000
     assert pillars["APP"] == 0
-    assert pillars["ENERGY & FINANCE"] == 0
+    assert pillars["EFIN"] == 0
     assert pillars["PROPERTY"] == 0
 
 

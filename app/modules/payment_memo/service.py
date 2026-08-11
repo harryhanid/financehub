@@ -335,6 +335,7 @@ _IPAY_PAM_PREFIX = {
     "app":      "APP",
     "sml":      "LAND",
     "setf":     "SETF",
+    "energy":   "ENERGY",
     "smt":      "SMT",
     "advance":  "SMT",
 }

@@ -383,7 +383,8 @@
     <div style="max-width:480px;margin-bottom:1.25rem;position:relative">
       <label style="font-weight:600;display:block;margin-bottom:.375rem">Pilih Siswa</label>
       <input type="text" id="lpr-search" placeholder="Ketik nama atau kode siswa..." autocomplete="off"
-             style="width:100%" oninput="lprSearchInput()" onblur="setTimeout(()=>document.getElementById('lpr-sugg').style.display='none',200)">
+             style="width:100%" oninput="lprSearchInput()" onkeydown="lprSearchKeydown(event)"
+             onblur="setTimeout(()=>document.getElementById('lpr-sugg').style.display='none',200)">
       <div id="lpr-sugg" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:400;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
     </div>
     <div id="lpr-content" style="display:none">
@@ -1700,31 +1701,71 @@ function lprReset() {
   document.getElementById("lpr-content").style.display = "none";
 }
 
+let _lprHits = [];
+let _lprActiveIdx = -1;
+
 function lprSearchInput() {
   const q = document.getElementById("lpr-search").value.toLowerCase().trim();
   const sug = document.getElementById("lpr-sugg");
+  _lprActiveIdx = -1;
   if (!q) { sug.style.display = "none"; return; }
   const hits = SISWA_LIST.filter(s =>
     (s.nama && s.nama.toLowerCase().includes(q)) ||
     (s.code && String(s.code).includes(q))
   ).slice(0, 12);
+  _lprHits = hits;
   if (!hits.length) { sug.style.display = "none"; return; }
   sug.innerHTML = "";
-  hits.forEach(s => {
+  hits.forEach((s, idx) => {
     const div = document.createElement("div");
     div.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
     div.innerHTML = `<strong>${s.code}</strong> — ${s.nama}`;
     div.addEventListener("mousedown", () => lprSelectSiswa(s.code, s.nama));
-    div.addEventListener("mouseover", () => { div.style.background = "#eff6ff"; });
+    div.addEventListener("mouseover", () => { _lprActiveIdx = idx; _lprHighlight(); });
     div.addEventListener("mouseout",  () => { div.style.background = ""; });
     sug.appendChild(div);
   });
   sug.style.display = "block";
 }
 
+function _lprHighlight() {
+  const items = document.getElementById("lpr-sugg").querySelectorAll("div");
+  items.forEach((item, idx) => {
+    if (idx === _lprActiveIdx) {
+      item.style.background = "#eff6ff";
+    } else {
+      item.style.background = "";
+    }
+  });
+}
+
+function lprSearchKeydown(e) {
+  const sug = document.getElementById("lpr-sugg");
+  if (sug.style.display === "none" || !_lprHits.length) return;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    _lprActiveIdx = (_lprActiveIdx + 1) % _lprHits.length;
+    _lprHighlight();
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    _lprActiveIdx = (_lprActiveIdx - 1 + _lprHits.length) % _lprHits.length;
+    _lprHighlight();
+  } else if (e.key === "Enter") {
+    if (_lprActiveIdx > -1 && _lprHits[_lprActiveIdx]) {
+      e.preventDefault();
+      const s = _lprHits[_lprActiveIdx];
+      lprSelectSiswa(s.code, s.nama);
+    }
+  } else if (e.key === "Escape") {
+    sug.style.display = "none";
+    _lprActiveIdx = -1;
+  }
+}
+
 async function lprSelectSiswa(code, nama) {
   document.getElementById("lpr-search").value = `${code} — ${nama}`;
   document.getElementById("lpr-sugg").style.display = "none";
+  _lprActiveIdx = -1;
   await loadLaporan(code);
 }
 

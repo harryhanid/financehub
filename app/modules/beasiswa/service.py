@@ -713,9 +713,9 @@ def delete_payment_row(company_id: int, row_id: int) -> dict:
     if not row:
         conn.close()
         return {"ok": False, "pesan": "Baris payment tidak ditemukan."}
-    if row["status"] in ("complete", "rejected"):
+    if row["status"] == "complete":
         conn.close()
-        return {"ok": False, "pesan": "Payment yang sudah selesai atau di-reject tidak bisa dihapus."}
+        return {"ok": False, "pesan": "Payment yang sudah selesai tidak bisa dihapus."}
 
     pam_no = row["pam"]
     line_id = row["etf_pa_line_id"]

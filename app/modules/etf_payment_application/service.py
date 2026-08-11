@@ -2,14 +2,15 @@
 from datetime import datetime
 from database import get_conn
 
-VALID_TABS = {"agri", "app", "sml", "setf"}
+VALID_TABS = {"agri", "app", "sml", "setf", "energy"}
 
 # Maps tab → (pa_table, lines_table, pa_number_prefix, pam_prefix)
 _TAB_CFG = {
-    "agri":  ("etf_pa",  "etf_pa_lines",  "ETF",  "ETF"),
-    "app":   ("app_pa",  "app_pa_lines",  "APP",  "APP"),
-    "sml":   ("sml_pa",  "sml_pa_lines",  "SML",  "SML"),
-    "setf":  ("setf_pa", "setf_pa_lines", "SETF", "SETF"),
+    "agri":   ("etf_pa",     "etf_pa_lines",     "ETF",    "ETF"),
+    "app":    ("app_pa",     "app_pa_lines",     "APP",    "APP"),
+    "sml":    ("sml_pa",     "sml_pa_lines",     "SML",    "SML"),
+    "setf":   ("setf_pa",    "setf_pa_lines",    "SETF",   "SETF"),
+    "energy": ("energy_pa",  "energy_pa_lines",  "ENERGY", "ENERGY"),
 }
 
 

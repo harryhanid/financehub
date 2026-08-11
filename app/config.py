@@ -57,6 +57,17 @@ SPONSORSHIP_CAT4 = ["Include", "Exclude"]
 
 SPONSORSHIP_PILLARS = ["APP", "AGRI", "ENERGY & FINANCE", "PROPERTY"]
 
+# Sponsorship MR (Management Report) — fixed defaults. See
+# docs/superpowers/specs/2026-08-05-sponsorship-mr-tab-design.md
+SPONSORSHIP_MR_ACCOUNT_MANAGEMENT = 70107800
+SPONSORSHIP_MR_COST_CENTER        = "POSPON"
+SPONSORSHIP_MR_SOURCE             = "Sponsor"
+SPONSORSHIP_MR_COA_HO             = 70107800
+SPONSORSHIP_MR_COST_CENTER2       = "$POCCOM"
+SPONSORSHIP_MR_CC1                = 5
+SPONSORSHIP_MR_BC1                = "-25-"
+SPONSORSHIP_MR_BC                 = "Sponsorship - Non Building"
+
 CAT1_BGT = ["By Pendidikan", "By Tunjangan", "By Penelitian", "By Medical"]
 
 CAT2_SEM = [

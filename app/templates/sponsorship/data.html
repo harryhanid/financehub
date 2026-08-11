@@ -74,9 +74,9 @@
         <td>{{ r.tanggal_form_sponsor }}</td><td>{{ r.tanggal_payment or '' }}</td>
         <td>{{ r.cat1 }}</td><td>{{ r.cat2 }}</td><td>{{ r.cat3 }}</td>
         <td>{{ r.lembaga_perorangan }}</td><td>{{ r.perihal or '' }}</td>
-        <td>{{ r.amount_request }}</td>
-        <td>{{ r.app_amount }}</td><td>{{ r.energy_finance_amount }}</td>
-        <td>{{ r.property_amount }}</td><td>{{ r.agri_amount }}</td>
+        <td class="num-right">{{ r.amount_request | rupiah(false) }}</td>
+        <td class="num-right">{{ r.app_amount | rupiah(false) }}</td><td class="num-right">{{ r.energy_finance_amount | rupiah(false) }}</td>
+        <td class="num-right">{{ r.property_amount | rupiah(false) }}</td><td class="num-right">{{ r.agri_amount | rupiah(false) }}</td>
         <td>{{ r.reff or '' }}</td><td>{{ r.status or '' }}</td><td>{{ r.cat4 or '' }}</td>
         <td>{{ r.coa }}</td><td>{{ r.cc_total }}</td><td>{{ r.cc }}</td><td>{{ r.source }}</td>
         <td><button class="budget-btn" onclick="sponsorshipDataEdit({{ r.id }})">Edit</button></td>

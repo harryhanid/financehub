@@ -166,7 +166,7 @@
 
 {% block module_tabs %}
 <div class="tabs" style="margin-bottom:0" title="Alt+&#8592; / Alt+&#8594; untuk pindah tab">
-  {% for t, label in [('summary','Open PA'),('advance','Advance'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
+  {% for t, label in [('summary','Open PA'),('advance','Advance'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('energy','EFIN'),('setf','SETF')] %}
   <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
      class="tab-btn{% if active_tab == t %} active{% endif %}"
      style="text-decoration:none"
@@ -280,7 +280,7 @@
   <div class="form-section tint-jenis">
     <div class="form-section-title">Pilih Jenis PA *</div>
     <div style="display:flex; gap:1.25rem; flex-wrap:wrap">
-      {% for t, lbl in [('agri','AGRI'),('app','APP'),('sml','LAND'),('setf','SETF')] %}
+      {% for t, lbl in [('agri','AGRI'),('app','APP'),('sml','LAND'),('energy','EFIN'),('setf','SETF')] %}
       <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
         <input type="radio" name="pa-company-type" value="{{ t }}" {% if loop.first %}checked{% endif %} style="width:15px;height:15px;accent-color:#1d4ed8">
         {{ lbl }}
@@ -438,7 +438,7 @@
           data-pam="{{ r.nomor_pam or '' | lower }}"
           data-tgl-pa="{{ r.tgl_payment_application or '' }}"
           class="{% if r.status == 'on_process' %}row-op{% endif %}">
-        <td class="s0"><input type="checkbox" class="row-chk" onchange="onRowCheck()" value="{{ r.pa_id }}"></td>
+        <td class="s0"><input type="checkbox" class="row-chk" onchange="onRowCheck()" value="{{ r.line_id }}"></td>
         <td class="s1"><code style="white-space:nowrap">{{ r.pa_number }}</code></td>
         <td class="s2">{{ r.student_code }}</td>
         <td class="s3" style="white-space:nowrap">{{ r.nama }}</td>
@@ -536,6 +536,7 @@
       <option value="agri">AGRI</option>
       <option value="app">APP</option>
       <option value="sml">LAND</option>
+      <option value="energy">EFIN</option>
       <option value="setf">SETF</option>
     </select>
   </div>
@@ -604,12 +605,13 @@
   const _summaryPageSize = 50;
 
   const _PILLAR_STYLE = {
-    agri: 'background:#fef3c7;color:#92400e;border:1px solid #d97706',
-    app:  'background:#ede9fe;color:#4c1d95;border:1px solid #7c3aed',
-    sml:  'background:#d1fae5;color:#064e3b;border:1px solid #059669',
-    setf: 'background:#cffafe;color:#164e63;border:1px solid #0891b2',
+    agri:   'background:#fef3c7;color:#92400e;border:1px solid #d97706',
+    app:    'background:#ede9fe;color:#4c1d95;border:1px solid #7c3aed',
+    sml:    'background:#d1fae5;color:#064e3b;border:1px solid #059669',
+    energy: 'background:#fce7f3;color:#9d174d;border:1px solid #be185d',
+    setf:   'background:#cffafe;color:#164e63;border:1px solid #0891b2',
   };
-  const _PILLAR_LABEL = { agri:'AGRI', app:'APP', sml:'LAND', setf:'SETF' };
+  const _PILLAR_LABEL = { agri:'AGRI', app:'APP', sml:'LAND', energy:'EFIN', setf:'SETF' };
   const _STATUS_STYLE = {
     open:       'background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd',
     on_process: 'background:#fef3c7;color:#92400e;border:1px solid #fbbf24',
@@ -802,12 +804,13 @@
   let _advanceRows = [];
 
   const _PILLAR_STYLE = {
-    agri: 'background:#fef3c7;color:#92400e;border:1px solid #d97706',
-    app:  'background:#ede9fe;color:#4c1d95;border:1px solid #7c3aed',
-    sml:  'background:#d1fae5;color:#064e3b;border:1px solid #059669',
-    setf: 'background:#cffafe;color:#164e63;border:1px solid #0891b2',
+    agri:   'background:#fef3c7;color:#92400e;border:1px solid #d97706',
+    app:    'background:#ede9fe;color:#4c1d95;border:1px solid #7c3aed',
+    sml:    'background:#d1fae5;color:#064e3b;border:1px solid #059669',
+    energy: 'background:#fce7f3;color:#9d174d;border:1px solid #be185d',
+    setf:   'background:#cffafe;color:#164e63;border:1px solid #0891b2',
   };
-  const _PILLAR_LABEL = { agri:'AGRI', app:'APP', sml:'LAND', setf:'SETF' };
+  const _PILLAR_LABEL = { agri:'AGRI', app:'APP', sml:'LAND', energy:'EFIN', setf:'SETF' };
   const _STATUS_STYLE = {
     open:       'background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd',
     on_process: 'background:#fef3c7;color:#92400e;border:1px solid #fbbf24',
@@ -1198,31 +1201,38 @@ function getSelectedPa(tab) {
 function setSelectedPa(tab, list) {
   try { sessionStorage.setItem(_paSelectionKey(tab), JSON.stringify(list)); } catch (e) {}
 }
-function addSelectedPa(tab, id, nama) {
+// Entries are keyed by line_id (unique per rendered <tr>) — a PA with
+// multiple payment lines renders one <tr> per line, all sharing the same
+// pa_id. Keying by pa_id here would make restorePaSelection() check every
+// sibling line whenever any one of them was selected. pa_id is still
+// carried on each entry (as paId) so bulk actions — which operate on whole
+// PA records, not individual lines — can still be assembled correctly.
+function addSelectedPa(tab, lineId, paId, nama) {
   const list = getSelectedPa(tab);
-  if (!list.some(e => e.id === id)) {
-    list.push({ id, nama });
+  if (!list.some(e => e.id === lineId)) {
+    list.push({ id: lineId, paId, nama });
     setSelectedPa(tab, list);
   }
 }
-function removeSelectedPa(tab, id) {
-  setSelectedPa(tab, getSelectedPa(tab).filter(e => e.id !== id));
+function removeSelectedPa(tab, lineId) {
+  setSelectedPa(tab, getSelectedPa(tab).filter(e => e.id !== lineId));
 }
 function clearSelectedPa(tab) {
   try { sessionStorage.removeItem(_paSelectionKey(tab)); } catch (e) {}
 }
 
-// Restores checked state on any currently-rendered row whose id is in the
-// persisted selection, then syncs the "select all" header checkbox and bulk
-// bar. Called once after the table has rendered (see DOMContentLoaded below).
+// Restores checked state on any currently-rendered row whose line_id is in
+// the persisted selection, then syncs the "select all" header checkbox and
+// bulk bar. Called once after the table has rendered (see DOMContentLoaded
+// below).
 function restorePaSelection() {
   const selected = getSelectedPa(ACTIVE_TAB);
   if (!selected.length) return;
-  const ids = new Set(selected.map(e => e.id));
+  const lineIds = new Set(selected.map(e => e.id));
   document.querySelectorAll("#pa-table tbody tr[data-pa-id]").forEach(tr => {
-    const id = parseInt(tr.dataset.paId);
+    const lineId = parseInt(tr.dataset.lineId);
     const cb = tr.querySelector(".row-chk");
-    if (cb && ids.has(id)) {
+    if (cb && lineIds.has(lineId)) {
       cb.checked = true;
       tr.classList.add("row-sel");
     }
@@ -1241,18 +1251,20 @@ function toggleAll(chk) {
       c.checked = chk.checked;
       const tr = c.closest("tr");
       tr.classList.toggle("row-sel", chk.checked);
-      const id = parseInt(c.value);
-      if (chk.checked) addSelectedPa(ACTIVE_TAB, id, tr.dataset.nama || '');
-      else removeSelectedPa(ACTIVE_TAB, id);
+      const lineId = parseInt(c.value);
+      const paId = parseInt(tr.dataset.paId);
+      if (chk.checked) addSelectedPa(ACTIVE_TAB, lineId, paId, tr.dataset.nama || '');
+      else removeSelectedPa(ACTIVE_TAB, lineId);
     });
   updateBulkBar();
 }
 function onRowCheck() {
   const tr = event.target.closest("tr");
   tr.classList.toggle("row-sel", event.target.checked);
-  const id = parseInt(event.target.value);
-  if (event.target.checked) addSelectedPa(ACTIVE_TAB, id, tr.dataset.nama || '');
-  else removeSelectedPa(ACTIVE_TAB, id);
+  const lineId = parseInt(event.target.value);
+  const paId = parseInt(tr.dataset.paId);
+  if (event.target.checked) addSelectedPa(ACTIVE_TAB, lineId, paId, tr.dataset.nama || '');
+  else removeSelectedPa(ACTIVE_TAB, lineId);
   const all  = document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none']) .row-chk");
   const checked = [...all].filter(c => c.checked);
   document.getElementById("chk-all").checked = checked.length === all.length && all.length > 0;
@@ -1303,17 +1315,19 @@ function expandPaChips() {
   b.textContent   = expanded ? `+${getSelectedPa(ACTIVE_TAB).length - 5} lagi ▾` : "▲ sembunyikan";
 }
 
-function removePaChip(paId) {
-  const cb = document.querySelector(`.row-chk[value="${paId}"]`);
+function removePaChip(lineId) {
+  const cb = document.querySelector(`.row-chk[value="${lineId}"]`);
   if (cb) { cb.checked = false; cb.closest("tr")?.classList.remove("row-sel"); }
-  removeSelectedPa(ACTIVE_TAB, paId);
+  removeSelectedPa(ACTIVE_TAB, lineId);
   const all     = document.querySelectorAll("#pa-table tbody tr[data-pa-id]:not([style*='none']) .row-chk");
   const checked = [...all].filter(c => c.checked);
   document.getElementById("chk-all").checked = checked.length === all.length && all.length > 0;
   updateBulkBar();
 }
+// doBulkUpdate submits pa_ids (bulk actions operate on whole PA records) --
+// dedup here since two selected lines can belong to the same PA.
 function selectedPaIds() {
-  return getSelectedPa(ACTIVE_TAB).map(e => e.id);
+  return [...new Set(getSelectedPa(ACTIVE_TAB).map(e => e.paId))];
 }
 document.addEventListener('DOMContentLoaded', restorePaSelection);
 function visiblePaIds() {
@@ -1626,7 +1640,7 @@ function addPayLine() {
 }
 
 // ─── Create ───────────────────────────────────────────────────────────────────
-const _TAB_LABEL = { agri: 'AGRI', app: 'APP', sml: 'LAND', setf: 'SETF' };
+const _TAB_LABEL = { agri: 'AGRI', app: 'APP', sml: 'LAND', energy: 'EFIN', setf: 'SETF' };
 async function submitPA() {
   const selectedTab = document.querySelector('input[name="pa-company-type"]:checked')?.value || 'agri';
   const siswaId = document.getElementById('pa-siswa-id').value;

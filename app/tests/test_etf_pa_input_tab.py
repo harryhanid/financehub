@@ -15,3 +15,13 @@ def test_input_tab_renders_form_sections(client):
     assert "Buat Payment Application Baru" in html
     assert "Pilih Jenis PA" in html
     assert "Daftar Pembayaran" in html
+
+
+def test_input_tab_has_energy(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/etf-payment-application/?tab=input")
+    assert resp.status_code == 200
+    html = resp.data.decode()
+    assert 'value="energy"' in html
+    assert "EFIN" in html or "EFIN" in html

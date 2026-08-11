@@ -91,6 +91,7 @@
 .badge-app   { background: #ede9fe; color: #4c1d95; border: 1px solid #7c3aed; border-radius: .25rem; padding: .1rem .35rem; }
 .badge-land  { background: #d1fae5; color: #064e3b; border: 1px solid #059669; border-radius: .25rem; padding: .1rem .35rem; }
 .badge-setf  { background: #cffafe; color: #164e63; border: 1px solid #0891b2; border-radius: .25rem; padding: .1rem .35rem; }
+.badge-energy { background: #fce7f3; color: #9d174d; border: 1px solid #be185d; border-radius: .25rem; padding: .1rem .35rem; }
 .pam-unassigned-row { background: #fef3c7 !important; }
 #pam-memo-bar {
   display: none;
@@ -120,6 +121,7 @@
   <button class="tab-btn" data-tab="tab-pam" onclick="loadPAM()">AGRI</button>
   <button class="tab-btn" data-tab="tab-fiori" onclick="loadFIORI()">APP</button>
   <button class="tab-btn" data-tab="tab-sml" onclick="loadSML()">LAND</button>
+  <button class="tab-btn" data-tab="tab-energy" onclick="loadENERGY()">EFIN</button>
   <button class="tab-btn" data-tab="tab-setf" onclick="loadSETF()">SETF</button>
   <button class="tab-btn" data-tab="tab-pa-advance" onclick="loadPaAdvance()">Advance</button>
   <button class="tab-btn" data-tab="tab-vendors" onclick="loadVendors()">Vendors</button>
@@ -196,6 +198,7 @@
           <option value="agri">AGRI</option>
           <option value="app">APP</option>
           <option value="sml">LAND</option>
+          <option value="energy">EFIN</option>
           <option value="setf">SETF</option>
         </select>
       </div>
@@ -979,6 +982,78 @@
     </div>
   </div>
 
+  <!-- ENERGY Tab -->
+  <div class="tab-panel" id="tab-energy" data-full-bleed="true">
+    <div id="pam-filter-energy" class="filter-bar collapsible" style="align-items:center;gap:6px">
+      <input id="energy-search" type="text" placeholder="Cari PAM No / PT / Keterangan..."
+             style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
+             oninput="loadENERGYDebounced()">
+      <select id="energy-filter-bulan" onchange="loadENERGYDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:80px">
+        <option value="">Bulan</option>
+        <option value="01">Jan</option><option value="02">Feb</option>
+        <option value="03">Mar</option><option value="04">Apr</option>
+        <option value="05">Mei</option><option value="06">Jun</option>
+        <option value="07">Jul</option><option value="08">Agu</option>
+        <option value="09">Sep</option><option value="10">Okt</option>
+        <option value="11">Nov</option><option value="12">Des</option>
+      </select>
+      <select id="energy-filter-tahun" onchange="loadENERGYDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:76px">
+        <option value="">Tahun</option>
+        <option value="2024">2024</option><option value="2025">2025</option>
+        <option value="2026">2026</option><option value="2027">2027</option>
+      </select>
+      <select id="energy-filter-status" onchange="loadENERGYDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+        <option value="">Semua Status</option>
+        <option value="open">Open</option>
+        <option value="on_process">On Process</option>
+        <option value="complete">Complete</option>
+        <option value="rejected">Rejected</option>
+      </select>
+      <select id="energy-filter-source" onchange="loadENERGYDebounced()"
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+        <option value="">Semua Source</option>
+        <option value="beasiswa">Beasiswa</option>
+        <option value="klaim_medis">Klaim Medis</option>
+        <option value="etf">ETF</option>
+        <option value="tagihan">Tagihan</option>
+        <option value="sponsor">Sponsor</option>
+        <option value="others">Others</option>
+      </select>
+      <button class="btn btn-success btn-sm" onclick="exportPillarExcel('ENERGY')">&#8595; Export Excel</button>
+      <span id="energy-count" style="font-size:11px;color:var(--text-muted)"></span>
+    </div>
+    <div class="pillar-table-wrap">
+      <table id="energy-table" style="min-width:1500px;border-collapse:collapse;font-size:12px;">
+        <thead class="thead-primary">
+          <tr>
+            <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="1">Tgl PAM</th>
+            <th style="padding:7px 8px;white-space:nowrap">GL Account</th>
+            <th style="padding:7px 8px;white-space:nowrap">Cost Center</th>
+            <th style="padding:7px 8px;">PT</th>
+            <th style="padding:7px 8px;">Requestor</th>
+            <th style="padding:7px 8px;min-width:160px;">Keterangan</th>
+            <th style="padding:7px 8px;white-space:nowrap">Mata Uang</th>
+            <th style="padding:7px 8px;text-align:right;">DPP</th>
+            <th style="padding:7px 8px;text-align:right;">PPN</th>
+            <th style="padding:7px 8px;text-align:right;white-space:nowrap" data-sort="10" data-sort-type="num">Total (Rp)</th>
+            <th style="padding:7px 8px;white-space:nowrap" data-sort="11">Due Date</th>
+            <th style="padding:7px 8px;">Status</th>
+            <th style="padding:7px 8px;white-space:nowrap">Tgl Bayar</th>
+            <th style="padding:7px 8px;">Source</th>
+            <th style="padding:7px 8px;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="energy-tbody">
+          <tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data ENERGY.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Advance Tab (ETF PA quarantine-until-realized route) -->
   <div class="tab-panel" id="tab-pa-advance" data-full-bleed="true">
     <div id="pam-filter-pa-advance" class="filter-bar collapsible" style="align-items:center;gap:6px">
@@ -1053,6 +1128,7 @@
         <option value="AGRI">AGRI</option>
         <option value="APP">APP</option>
         <option value="LAND">LAND</option>
+        <option value="ENERGY">EFIN</option>
         <option value="SETF">SETF</option>
       </select>
       <span id="vendors-count" style="font-size:11px;color:var(--text-muted)"></span>
@@ -1068,7 +1144,8 @@
           <option value="AGRI">AGRI</option>
           <option value="APP">APP</option>
           <option value="LAND">LAND</option>
-          <option value="SETF">SETF</option>
+          <option value="ENERGY">EFIN</option>
+        <option value="SETF">SETF</option>
         </select>
       </div>
       <div class="form-group" style="margin:0">
@@ -1607,6 +1684,7 @@ function _pillarBadge(pillar) {
     AGRI:   'background:#fef3c7;color:#92400e;border:1px solid #d97706',
     APP:    'background:#ede9fe;color:#4c1d95;border:1px solid #7c3aed',
     LAND:   'background:#d1fae5;color:#064e3b;border:1px solid #059669',
+    ENERGY: 'background:#fce7f3;color:#9d174d;border:1px solid #be185d',
     SETF:   'background:#cffafe;color:#164e63;border:1px solid #0891b2',
     ENERGY: 'background:#fee2e2;color:#991b1b;border:1px solid #ef4444',
     SSMT:   'background:#f3f4f6;color:#374151;border:1px solid #9ca3af',
@@ -2266,6 +2344,128 @@ async function setfFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   toggleEl.innerHTML = '&#9660;';
 }
 
+// ── ENERGY ──────────────────────────────────────────────────────────────────────
+let _energyDebounce;
+function loadENERGYDebounced() { clearTimeout(_energyDebounce); _energyDebounce = setTimeout(loadENERGY, 300); }
+async function loadENERGY() {
+  const search  = (document.getElementById('energy-search')?.value || '').trim();
+  const bulan   = (document.getElementById('energy-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('energy-filter-tahun')?.value || '');
+  const status  = (document.getElementById('energy-filter-status')?.value || '');
+  const source  = (document.getElementById('energy-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('energy-tbody');
+  tbody.innerHTML = skeletonRows(16);
+  const res     = await apiFetch('/payment-memo/by-pillar/ENERGY?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  const count  = document.getElementById('energy-count');
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data ENERGY.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map((r, i) => `
+    <tr class="sml-row" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};"
+      ${r.source === 'beasiswa' ? `onclick="energyToggleExpand(this.querySelector('.energy-toggle'),${r.id})"` : ''}>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${r.source === 'beasiswa' ? `<span class="energy-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-right:4px" onclick="energyToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
+      <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      <td style="padding:6px 8px">${_aksiCell(r)}</td>
+    </tr>
+  `).join('');
+  makeSortable('energy-table');
+}
+
+let _energyBeasiswaCache = {};
+
+function energyToggleExpand(toggleEl, pamId) {
+  const masterTr = toggleEl.closest('tr');
+  const existing = document.querySelectorAll(`.energy-detail-rows[data-pam-id="${pamId}"]`);
+  if (existing.length) {
+    const nowHidden = existing[0].style.display === 'none';
+    existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
+    toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
+    return;
+  }
+  energyFetchBeasiswaLines(masterTr, toggleEl, pamId);
+}
+
+async function energyFetchBeasiswaLines(masterTr, toggleEl, pamId) {
+  if (_energyBeasiswaCache[pamId] === 'loading') return;
+  _energyBeasiswaCache[pamId] = 'loading';
+
+  const loadingTr = document.createElement('tr');
+  loadingTr.classList.add('energy-detail-rows');
+  loadingTr.dataset.pamId = pamId;
+  loadingTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  masterTr.insertAdjacentElement('afterend', loadingTr);
+
+  const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
+  loadingTr.remove();
+
+  if (!res) {
+    _energyBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('energy-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  const data = await res.json();
+  if (!data.ok) {
+    _energyBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('energy-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = `<td colspan="16" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  _energyBeasiswaCache[pamId] = data.rows;
+
+  if (!data.rows.length) {
+    const emptyTr = document.createElement('tr');
+    emptyTr.classList.add('energy-detail-rows');
+    emptyTr.dataset.pamId = pamId;
+    emptyTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    masterTr.insertAdjacentElement('afterend', emptyTr);
+    toggleEl.innerHTML = '&#9660;';
+    return;
+  }
+
+  [...data.rows].reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.classList.add('energy-detail-rows');
+    tr.dataset.pamId = pamId;
+    tr.innerHTML =
+      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td colspan="12" style="padding:4px 8px;vertical-align:middle"></td>`;
+    masterTr.insertAdjacentElement('afterend', tr);
+  });
+
+  toggleEl.innerHTML = '&#9660;';
+}
+
 // ── PA Advance (ETF PA quarantine-until-realized route) ────────────────────────
 let _paAdvanceDebounce;
 function loadPaAdvanceDebounced() { clearTimeout(_paAdvanceDebounce); _paAdvanceDebounce = setTimeout(loadPaAdvance, 300); }
@@ -2369,7 +2569,7 @@ function vendorsStartEdit(vendorId) {
   const currentCc = ccCell.textContent === '-' ? '' : ccCell.textContent;
   nameCell.innerHTML = `<input type="text" value="${esc(currentName)}" style="width:100%;font-size:12px" class="vendors-edit-name">`;
   pillarCell.innerHTML = `<select style="font-size:12px" class="vendors-edit-pillar">` +
-    ['AGRI', 'APP', 'LAND', 'SETF'].map(p => `<option value="${p}" ${p === currentPillar ? 'selected' : ''}>${p}</option>`).join('') +
+    ['AGRI', 'APP', 'LAND', 'ENERGY', 'SETF'].map(p => `<option value="${p}" ${p === currentPillar ? 'selected' : ''}>${p}</option>`).join('') +
     `</select>`;
   ccCell.innerHTML = `<input type="text" value="${esc(currentCc)}" style="width:100%;font-size:12px" class="vendors-edit-cc">`;
   actionCell.innerHTML = `<button class="btn btn-primary btn-sm" onclick="vendorsSaveEdit(${vendorId})">Simpan</button> <button class="btn btn-secondary btn-sm" onclick="loadVendors()">Batal</button>`;
@@ -4040,7 +4240,7 @@ function dmRenderForm(p) {
   const cbRow = (id, label, checked) =>
     `<div style="padding:4px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;align-items:center">
       <input type="checkbox" id="${id}" class="dm-cb" ${checked ? 'checked' : ''}>
-      <label for="${id}" style="cursor:pointer;margin-left:4px">${label}</label>
+      <label for="${id}" style="cursor:pointer;margin-left:4px;color:#374151">${label}</label>
     </div>`;
 
   const dateVal = s => (s || '').slice(0, 10);
@@ -4094,9 +4294,9 @@ function dmRenderForm(p) {
     </div>
     ${sectionH('Business Unit')}
     <div style="padding:5px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;gap:20px;align-items:center">
-      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="dm-f-bu-upstream"   class="dm-cb"> Upstream</label>
-      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="dm-f-bu-downstream" class="dm-cb"> Downstream</label>
-      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="dm-f-bu-corporate"  class="dm-cb" checked> Corporate</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151"><input type="checkbox" id="dm-f-bu-upstream"   class="dm-cb"> Upstream</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151"><input type="checkbox" id="dm-f-bu-downstream" class="dm-cb"> Downstream</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151"><input type="checkbox" id="dm-f-bu-corporate"  class="dm-cb" checked> Corporate</label>
     </div>
     ${sectionH('Type of Request')}
     ${cbRow('dm-f-type-dp',  'Downpayment to vendor', _dmTipeDokumenConsensus(p) === 'Downpayment to vendor')}
@@ -4558,7 +4758,7 @@ function _ipayUpdateSisaCell(tr) {
   tr._sisaCell.style.color = amt > sisa ? "var(--danger)" : "#15803d";
 }
 
-const _PAM_RE = /^PAM-\d{3}-(ETF|APP|LAND|SETF|SMT)-\d{2}-\d{4}$/;
+const _PAM_RE = /^PAM-\d{3}-(ETF|APP|LAND|ENERGY|SETF|SMT)-\d{2}-\d{4}$/;
 
 function _ipayResetPamState() {
   const pamEl = document.getElementById("ipay-pam-full");
@@ -4614,7 +4814,7 @@ async function ipayCheckPamCollision() {
   } catch { /* ignore */ }
 }
 
-const _IPAY_LABEL = { agri: 'AGRI', app: 'APP', sml: 'LAND', setf: 'SETF', smt: 'SMT', advance: 'Advance' };
+const _IPAY_LABEL = { agri: 'AGRI', app: 'APP', sml: 'LAND', energy: 'EFIN', setf: 'SETF', smt: 'SMT', advance: 'Advance' };
 function ipayOnTypeChange() {
   const type  = document.getElementById("ipay-type")?.value || "agri";
   const lbl   = _IPAY_LABEL[type] || type.toUpperCase();
@@ -5883,7 +6083,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 });
 
 function exportPillarExcel(pillar) {
-  const prefix = { AGRI: 'pam', APP: 'fiori', LAND: 'sml', SETF: 'setf', SMT: 'smt', ADVANCE: 'advance' }[pillar] || 'pam';
+  const prefix = { AGRI: 'pam', APP: 'fiori', LAND: 'sml', ENERGY: 'energy', SETF: 'setf', SMT: 'smt', ADVANCE: 'advance' }[pillar] || 'pam';
   const url    = new URL('/payment-memo/export/pam', window.location.origin);
   url.searchParams.set('pillar', pillar);
   const search = (document.getElementById(prefix + '-search')?.value || '').trim();
@@ -5912,6 +6112,7 @@ document.addEventListener('DOMContentLoaded', function () {
     AGRI: ['tab-pam',   'pam-search'],
     APP:  ['tab-fiori', 'fiori-search'],
     LAND: ['tab-sml',   'sml-search'],
+    ENERGY: ['tab-energy', 'energy-search'],
     SETF: ['tab-setf',  'setf-search'],
     ADVANCE: ['tab-pa-advance', 'pa-advance-search'],
   }[pillar];

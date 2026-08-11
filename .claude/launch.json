@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "financehub",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "flask", "--app", "app:create_app", "run", "--port", "5050", "--debug"],
+      "port": 5050,
+      "cwd": "C:\\Financehub\\app"
+    }
+  ]
+}

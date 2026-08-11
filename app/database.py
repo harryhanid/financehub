@@ -433,6 +433,7 @@ CREATE TABLE IF NOT EXISTS energy_pa (
     kirim_aspiro             TEXT,
     paid                     TEXT,
     status                   TEXT NOT NULL DEFAULT 'open',
+    route                    TEXT DEFAULT 'gl',
     created_at               TEXT NOT NULL,
     updated_at               TEXT
 );
@@ -445,7 +446,8 @@ CREATE TABLE IF NOT EXISTS energy_pa_lines (
     semester             TEXT,
     tahun_ajaran         TEXT,
     ipk_sem_sebelumnya   REAL,
-    jumlah_pembayaran    INTEGER DEFAULT 0
+    jumlah_pembayaran    INTEGER DEFAULT 0,
+    route                TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_agri_pam_lines_pam   ON agri_pam_lines(pam_id);
@@ -1096,7 +1098,7 @@ def migrate_db():
     conn.commit()
 
     # ── route + advance realization columns (2026-07-07) ──────────────────
-    for pa_lines_tbl in ["etf_pa_lines", "app_pa_lines", "sml_pa_lines", "setf_pa_lines"]:
+    for pa_lines_tbl in ["etf_pa_lines", "app_pa_lines", "sml_pa_lines", "setf_pa_lines", "energy_pa_lines"]:
         try:
             conn.execute(f"ALTER TABLE {pa_lines_tbl} ADD COLUMN route TEXT")
             conn.commit()
@@ -1115,7 +1117,7 @@ def migrate_db():
         pass
 
     # ── route pada PA header — sumber kebenaran GL/Advance (2026-07-08) ────
-    for pa_hdr_tbl in ["etf_pa", "app_pa", "sml_pa", "setf_pa"]:
+    for pa_hdr_tbl in ["etf_pa", "app_pa", "sml_pa", "setf_pa", "energy_pa"]:
         try:
             conn.execute(f"ALTER TABLE {pa_hdr_tbl} ADD COLUMN route TEXT DEFAULT 'gl'")
             conn.commit()

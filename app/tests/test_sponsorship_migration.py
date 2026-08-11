@@ -25,7 +25,7 @@ def fixture_transaksi_xlsx(tmp_path):
     ws.append([
         "Cat", "Description", "Year", "Tanggal Form Sponsor", "Tanggal Payment",
         "Cat1", "Lembaga/Perorangan", "Perihal", "Amount Request", "Reff", "Status",
-        "Cat4", "Cat2", "Cat3", "APP", "AGRI", "ENERGY & FINANCE", "PROPERTY",
+        "Cat4", "Cat2", "Cat3", "APP", "AGRI", "EFIN", "PROPERTY",
         "COA", "CC Total", "CC", "Source",
     ])
     ws.append([
@@ -116,7 +116,7 @@ def test_migrate_skips_row_with_non_date_tanggal_form(app, fixture_perusahaan_xl
     ws.append([
         "Cat", "Description", "Year", "Tanggal Form Sponsor", "Tanggal Payment",
         "Cat1", "Lembaga/Perorangan", "Perihal", "Amount Request", "Reff", "Status",
-        "Cat4", "Cat2", "Cat3", "APP", "AGRI", "ENERGY & FINANCE", "PROPERTY",
+        "Cat4", "Cat2", "Cat3", "APP", "AGRI", "EFIN", "PROPERTY",
         "COA", "CC Total", "CC", "Source",
     ])
     ws.append([
@@ -139,7 +139,7 @@ def test_migrate_catches_integrity_error_and_records_in_skipped(app, fixture_per
     ws.append([
         "Cat", "Description", "Year", "Tanggal Form Sponsor", "Tanggal Payment",
         "Cat1", "Lembaga/Perorangan", "Perihal", "Amount Request", "Reff", "Status",
-        "Cat4", "Cat2", "Cat3", "APP", "AGRI", "ENERGY & FINANCE", "PROPERTY",
+        "Cat4", "Cat2", "Cat3", "APP", "AGRI", "EFIN", "PROPERTY",
         "COA", "CC Total", "CC", "Source",
     ])
     ws.append([

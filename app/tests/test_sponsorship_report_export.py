@@ -17,10 +17,10 @@ def test_export_report_excel_has_expected_title(app):
         "tanggal_form_sponsor": "2026-01-15", "cat1": "SMART",
         "lembaga_perorangan": "Yayasan Test", "amount_request": 1000000,
     })
-    xls_bytes = export_report_excel(SMT, "2026", "all")
+    xls_bytes = export_report_excel(SMT, ["2026"], "all")
     wb = openpyxl.load_workbook(io.BytesIO(xls_bytes))
     ws = wb.active
-    assert ws["A1"].value == "RANGKUMAN SPONSORSHIP 2026 - in Rp Full Amount"
+    assert ws["B1"].value == "RANGKUMAN SPONSORSHIP - in Rp Full Amount"
 
 
 def test_export_report_excel_contains_section_and_lembaga(app):
@@ -30,7 +30,7 @@ def test_export_report_excel_contains_section_and_lembaga(app):
         "tanggal_form_sponsor": "2026-01-15", "cat1": "SMART",
         "lembaga_perorangan": "Yayasan Test", "amount_request": 1000000,
     })
-    xls_bytes = export_report_excel(SMT, "2026", "all")
+    xls_bytes = export_report_excel(SMT, ["2026"], "all")
     wb = openpyxl.load_workbook(io.BytesIO(xls_bytes))
     ws = wb.active
     values = [cell.value for row in ws.iter_rows() for cell in row]
@@ -41,7 +41,7 @@ def test_export_report_excel_contains_section_and_lembaga(app):
 
 def test_export_report_excel_empty_data_still_generates_file(app):
     _seed()
-    xls_bytes = export_report_excel(SMT, "2026", "all")
+    xls_bytes = export_report_excel(SMT, ["2026"], "all")
     wb = openpyxl.load_workbook(io.BytesIO(xls_bytes))
     ws = wb.active
-    assert ws["A1"].value == "RANGKUMAN SPONSORSHIP 2026 - in Rp Full Amount"
+    assert ws["B1"].value == "RANGKUMAN SPONSORSHIP - in Rp Full Amount"

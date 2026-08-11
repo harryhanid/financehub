@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% set full_bleed = true %}
+{% block title %}Sponsorship MR
+{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+<style>
+.mr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  background: var(--bg-card);
+  white-space: nowrap;
+}
+.mr-table th, .mr-table td {
+  border: 1px solid var(--border-color);
+  padding: 0.4rem 0.55rem;
+}
+.mr-table th {
+  color: #fff;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.mr-table th.mr-navy { background: #1e3a5f; }
+.mr-table th.mr-red { background: #c00000; }
+.mr-table td.num-right { text-align: right; }
+.mr-table td.mr-memo { white-space: normal; min-width: 320px; }
+</style>
+{% endblock %}
+{% block module_tabs %}
+{% set active_tab = "mr" %}
+{% include "sponsorship/_toolbar.html" with context %}
+{% endblock %}
+{% block content %}
+<div class="budget-page">
+  {% if wrong_company %}
+    {% include "sponsorship/_notice.html" %}
+  {% else %}
+  <form class="budget-toolbar filter-bar collapsible" method="get" id="sp-mr-filter-form">
+    <div class="budget-dropdown-check">
+      <button type="button" class="budget-dropdown-btn" onclick="this.nextElementSibling.classList.toggle('show')">
+        Tahun <span style="font-size: 0.7em;">▼</span>
+      </button>
+      <div class="budget-dropdown-content">
+        {% for y in years %}
+        <label><input type="checkbox" name="tahun" value="{{ y }}" {% if y in tahun %}checked{% endif %}> {{ y }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <button type="submit" class="budget-btn">Terapkan Filter</button>
+    <button type="button" class="budget-btn" style="background-color:#10b981;margin-left:auto" onclick="exportMrExcel()">Export to Excel</button>
+  </form>
+
+  <div class="budget-table-container" id="sp-table-wrap">
+    <table class="mr-table">
+      <thead>
+        <tr>
+          <th class="mr-navy">Account<br>Management</th>
+          <th class="mr-navy">ID#</th>
+          <th class="mr-navy">Date</th>
+          <th class="mr-navy">Allocation Memo</th>
+          <th class="mr-navy">Budget Activity</th>
+          <th class="mr-navy">COST CENTER</th>
+          <th class="mr-navy">DEBIT - CREDIT</th>
+          <th class="mr-navy">Source</th>
+          <th class="mr-red">COA HO</th>
+          <th class="mr-red">COST CENTER2</th>
+          <th class="mr-red">Month</th>
+          <th class="mr-red">CC0</th>
+          <th class="mr-red">CC1</th>
+          <th class="mr-red">BC1</th>
+          <th class="mr-navy">New Code</th>
+          <th class="mr-navy">Memo</th>
+          <th class="mr-navy">BC</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="num-right">{{ r.account_management | rupiah(false) }}</td>
+          <td>{{ r.id_no }}</td>
+          <td>{{ r.date_display }}</td>
+          <td>{{ r.allocation_memo }}</td>
+          <td>{{ r.budget_activity }}</td>
+          <td>{{ r.cost_center }}</td>
+          <td class="num-right">{{ r.debit_credit | rupiah(false) }}</td>
+          <td>{{ r.source }}</td>
+          <td class="num-right">{{ r.coa_ho | rupiah(false) }}</td>
+          <td>{{ r.cost_center2 }}</td>
+          <td>{{ r.month }}</td>
+          <td>{{ r.cc0 }}</td>
+          <td>{{ r.cc1 }}</td>
+          <td>{{ r.bc1 }}</td>
+          <td>{{ r.new_code }}</td>
+          <td class="mr-memo">{{ r.memo }}</td>
+          <td>{{ r.bc }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+<script>
+function exportMrExcel() {
+  const form = document.getElementById("sp-mr-filter-form");
+  const params = new URLSearchParams(new FormData(form));
+  window.location.href = "/sponsorship/mr/export?" + params.toString();
+}
+</script>
+<script>
+(function() {
+  function sizeWrap() {
+    const wrap = document.getElementById('sp-table-wrap');
+    if (!wrap) return;
+    requestAnimationFrame(() => {
+      wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top) + 'px';
+    });
+  }
+  window.addEventListener('load', sizeWrap);
+  window.addEventListener('resize', sizeWrap);
+  document.addEventListener('DOMContentLoaded', sizeWrap);
+  document.addEventListener('DOMContentLoaded', () => {
+    const filterForm = document.getElementById('sp-mr-filter-form');
+    if (filterForm && window.ResizeObserver) new ResizeObserver(sizeWrap).observe(filterForm);
+  });
+})();
+</script>
