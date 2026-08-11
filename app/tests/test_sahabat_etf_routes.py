@@ -515,8 +515,10 @@ def test_api_report_includes_periode_fields_in_siswa_rows(client):
                 if row.get("periode_start") and row.get("periode_end"):
                     found_periode = True
 
+    assert found_periode, "expected at least one siswa row with periode_start/periode_end populated"
 
-def test_laporan_html_rendering_includes_periode_column(client):
+
+def test_api_report_siswa_rows_have_all_laporan_render_fields(client):
     login(client)
     _select_etf(client)
     client.post("/beasiswa/siswa/tambah", json={
@@ -532,8 +534,9 @@ def test_laporan_html_rendering_includes_periode_column(client):
     data = resp.get_json()
     assert data["ok"] is True
 
-    # Check that the header row contains the Periode column header
-    # This is rendered by setfLaporanHeaderRow in JavaScript, but we verify the data structure supports it
+    # Check that the JSON response carries all fields the Periode column needs.
+    # Actual header/column rendering happens in setfLaporanHeaderRow (JavaScript);
+    # this test only verifies the data structure supports it, not the rendered HTML/JS.
     assert len(data["data"]["sections"]) > 0
 
     # Verify the table structure has the right number of columns:
