@@ -45,7 +45,8 @@ def _fetch_report_rows(company_id: int):
     conn = get_conn()
     budget_rows = conn.execute(
         """
-        SELECT s.nama AS nama, s.jenjang AS jenjang, b.cat1 AS cat1, b.cat2 AS cat2,
+        SELECT s.nama AS nama, s.jenjang AS jenjang, s.angkatan AS angkatan,
+               b.cat1 AS cat1, b.cat2 AS cat2,
                b.pillar AS pillar, CAST(strftime('%Y', b.tanggal) AS INTEGER) AS tahun,
                b.amount AS amount
         FROM budget_beasiswa b
@@ -56,7 +57,8 @@ def _fetch_report_rows(company_id: int):
     ).fetchall()
     payment_rows = conn.execute(
         """
-        SELECT s.nama AS nama, s.jenjang AS jenjang, p.cat1 AS cat1, p.cat2 AS cat2,
+        SELECT s.nama AS nama, s.jenjang AS jenjang, s.angkatan AS angkatan,
+               p.cat1 AS cat1, p.cat2 AS cat2,
                p.pillar AS pillar, p.status AS status,
                CAST(strftime('%Y', p.tanggal) AS INTEGER) AS tahun, p.amount AS amount
         FROM payment_beasiswa p
@@ -79,6 +81,19 @@ def _row_subgroup(section: str, row: dict) -> str:
     return row["jenjang"] or "(Tanpa Jenjang)"
 
 
+_JENJANG_DURASI = {"SD": 6, "SMP": 3, "SMA": 3, "SMK": 3, "S1": 4, "S2": 2, "S3": 4}
+_KESEHATAN_DURASI = 1
+
+
+def _compute_periode(section_key: str, jenjang: str, angkatan) -> tuple:
+    if not angkatan:
+        return None, None
+    if section_key == "KESEHATAN":
+        return angkatan, angkatan + _KESEHATAN_DURASI
+    durasi = _JENJANG_DURASI.get(jenjang)
+    return (angkatan, angkatan + durasi) if durasi else (None, None)
+
+
 def _build_buckets(company_id: int, report_year: int) -> dict:
     """bucket[(section, subgroup, nama)] -> {"cur": metrics, "cum": metrics, "pillars": set}"""
     budget_rows, payment_rows = _fetch_report_rows(company_id)
@@ -87,7 +102,7 @@ def _build_buckets(company_id: int, report_year: int) -> dict:
     def bucket(section, subgroup, nama):
         key = (section, subgroup, nama)
         if key not in buckets:
-            buckets[key] = {"cur": _empty_metrics(), "cum": _empty_metrics(), "pillars": set()}
+            buckets[key] = {"cur": _empty_metrics(), "cum": _empty_metrics(), "pillars": set(), "angkatan": None}
         return buckets[key]
 
     for r in budget_rows:
@@ -97,6 +112,7 @@ def _build_buckets(company_id: int, report_year: int) -> dict:
         amount   = float(r["amount"] or 0)
         b = bucket(section, subgroup, r["nama"])
         b["pillars"].add(r["pillar"] or "")
+        b["angkatan"] = r["angkatan"]
         if tahun == report_year:
             _add_metrics(b["cur"], plafon=amount)
         if tahun is not None and tahun <= report_year:
@@ -110,6 +126,7 @@ def _build_buckets(company_id: int, report_year: int) -> dict:
         dibayar  = amount if r["status"] == "complete" else 0.0
         b = bucket(section, subgroup, r["nama"])
         b["pillars"].add(r["pillar"] or "")
+        b["angkatan"] = r["angkatan"]
         if tahun == report_year:
             _add_metrics(b["cur"], klaim=amount, dibayar=dibayar)
         if tahun is not None and tahun <= report_year:
@@ -137,9 +154,11 @@ def _build_section(section_key: str, buckets: dict) -> dict:
         siswa_rows = []
         for nama in namas:
             b = buckets[(section_key, subgroup, nama)]
+            periode_start, periode_end = _compute_periode(section_key, subgroup, b["angkatan"])
             siswa_rows.append({
                 "nama": nama, "pillar": _pillar_label(b["pillars"]),
                 "cur": b["cur"], "cum": b["cum"],
+                "periode_start": periode_start, "periode_end": periode_end,
             })
         subtotal = {
             "cur": _sum_metrics(*[r["cur"] for r in siswa_rows]),

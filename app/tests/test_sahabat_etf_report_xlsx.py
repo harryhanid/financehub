@@ -138,3 +138,40 @@ def test_build_report_workbook_writes_grand_total_and_pillar_breakdown():
     assert values[pillar_row]["G"] == 1.0  # 1,000,000 / 1,000,000
     pct_row = pillar_row + 1
     assert values[pct_row]["G"] == 1.0  # 100%
+
+
+def test_build_report_workbook_writes_periode_for_siswa_row():
+    data = _sample_data_with_content()
+    data["sections"][0]["groups"][0]["siswa_rows"][0]["periode_start"] = 2026
+    data["sections"][0]["groups"][0]["siswa_rows"][0]["periode_end"] = 2032
+    xlsx_bytes = build_report_workbook(data)
+    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    ws = wb.active
+
+    values = {}
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+        for cell in row:
+            if cell.value is not None:
+                values.setdefault(cell.row, {})[cell.column_letter] = cell.value
+    richard_row = next(r for r, v in values.items() if v.get("B") == "Richard Widjaja")
+    assert values[richard_row]["C"] == 2026
+    assert values[richard_row]["D"] == "-"
+    assert values[richard_row]["E"] == 2032
+
+
+def test_build_report_workbook_leaves_periode_blank_when_missing():
+    data = _sample_data_with_content()
+    # periode_start/periode_end intentionally absent from the siswa row dict,
+    # matching build_report_data()'s own output when angkatan is missing.
+    xlsx_bytes = build_report_workbook(data)
+    wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
+    ws = wb.active
+
+    values = {}
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row):
+        for cell in row:
+            if cell.value is not None:
+                values.setdefault(cell.row, {})[cell.column_letter] = cell.value
+    richard_row = next(r for r, v in values.items() if v.get("B") == "Richard Widjaja")
+    assert "C" not in values[richard_row]
+    assert "E" not in values[richard_row]

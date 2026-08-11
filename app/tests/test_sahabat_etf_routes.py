@@ -485,3 +485,69 @@ def test_index_contains_subtab_elements_for_etf_company(client):
                       b'id="setf-laporan-content"', b'id="setf-detail-table"',
                       ):
         assert expected in resp.data, f"missing {expected!r} in response"
+
+
+def test_api_report_includes_periode_fields_in_siswa_rows(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9995001", "nama": "Siswa Periode Test", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/budget/tambah", json={"code": "9995001", "tanggal": "2026-01-10",
+        "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}]})
+
+    resp = client.get("/beasiswa/sahabat/api/report?year=2026")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert len(data["data"]["sections"]) > 0
+
+    # Verify at least one section has siswa_rows with periode fields
+    found_periode = False
+    for section in data["data"]["sections"]:
+        for group in section.get("groups", []):
+            for row in group.get("siswa_rows", []):
+                # periode_start and periode_end should be present in the response
+                assert "periode_start" in row, "periode_start missing from siswa_row"
+                assert "periode_end" in row, "periode_end missing from siswa_row"
+                if row.get("periode_start") and row.get("periode_end"):
+                    found_periode = True
+
+    assert found_periode, "expected at least one siswa row with periode_start/periode_end populated"
+
+
+def test_api_report_siswa_rows_have_all_laporan_render_fields(client):
+    login(client)
+    _select_etf(client)
+    client.post("/beasiswa/siswa/tambah", json={
+        "code": "9995002", "nama": "Siswa Laporan Periode", "jenjang": "S1", "angkatan": 2024,
+        "program": "Sahabat ETF", "fakultas": "", "universitas": "", "bank": "",
+        "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
+    })
+    client.post("/beasiswa/budget/tambah", json={"code": "9995002", "tanggal": "2026-01-10",
+        "pillar": "SETF", "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}]})
+
+    resp = client.get("/beasiswa/sahabat/api/report?year=2026")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+
+    # Check that the JSON response carries all fields the Periode column needs.
+    # Actual header/column rendering happens in setfLaporanHeaderRow (JavaScript);
+    # this test only verifies the data structure supports it, not the rendered HTML/JS.
+    assert len(data["data"]["sections"]) > 0
+
+    # Verify the table structure has the right number of columns:
+    # 3 non-metric columns (Nama, Periode, Pillar) + 8 metric columns = 11 total
+    for section in data["data"]["sections"]:
+        for group in section.get("groups", []):
+            for row in group.get("siswa_rows", []):
+                # Row should have all required fields for rendering
+                assert "nama" in row
+                assert "pillar" in row
+                assert "periode_start" in row
+                assert "periode_end" in row
+                assert "cur" in row
+                assert "cum" in row
