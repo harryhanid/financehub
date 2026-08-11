@@ -4,6 +4,7 @@ import secrets
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH  = os.path.join(BASE_DIR, "finance_hub.db")
+SOP_STORAGE_DIR = os.path.join(BASE_DIR, "storage", "sop")
 BACKUP_ROOT = r"Y:\Seagate\Flow"
 
 def _load_or_create_secret(env_var: str, filename: str) -> str:

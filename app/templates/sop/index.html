@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}SOP Portal{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sop.css') }}">
+{% endblock %}
+{% block content %}
+<div class="sop-page">
+  <h1>SOP Portal — SMT &amp; ETF</h1>
+
+  <form method="get" class="sop-filter-bar">
+    <input type="text" name="q" placeholder="Cari judul SOP..." value="{{ search }}">
+    <div class="sop-filter-chips">
+      {% for m in modules %}
+      <a href="?modul={{ m }}{% if search %}&q={{ search }}{% endif %}"
+         class="sop-filter-chip {% if modul == m %}sop-filter-chip-active{% endif %}">{{ m }}</a>
+      {% endfor %}
+    </div>
+    <div class="sop-filter-chips">
+      <a href="?status=aktif{% if search %}&q={{ search }}{% endif %}"
+         class="sop-filter-chip {% if status == 'aktif' %}sop-filter-chip-active{% endif %}">Aktif</a>
+      <a href="?status=belum_dibuat{% if search %}&q={{ search }}{% endif %}"
+         class="sop-filter-chip {% if status == 'belum_dibuat' %}sop-filter-chip-active{% endif %}">Belum Dibuat</a>
+      <a href="{{ url_for('sop.index') }}" class="sop-filter-chip">Reset</a>
+    </div>
+  </form>
+
+  <table class="sop-table-index">
+    <thead>
+      <tr><th>Modul</th><th>Nama SOP</th><th>Status</th><th>Perlu Verifikasi</th><th>Revisi Terakhir</th></tr>
+    </thead>
+    <tbody>
+      {% for doc in documents %}
+      <tr>
+        <td>{{ doc.modul }}</td>
+        <td><a href="{{ url_for('sop.read_page', doc_id=doc.id) }}">{{ doc.nama }}</a></td>
+        <td>{{ doc.status }}</td>
+        <td>{{ doc.perlu_verifikasi_count }}</td>
+        <td>{{ doc.uploaded_at or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

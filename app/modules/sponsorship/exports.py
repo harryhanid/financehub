@@ -275,7 +275,24 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
         cell = ws.cell(row=row_idx, column=col)
         cell.font = _GRANDTOTAL_FONT
         cell.fill = _GRANDTOTAL_FILL
-    
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def export_mr_excel(company_id: int, tahun: str) -> bytes:
+    """Temporary placeholder — modules/sponsorship/routes.py imports this but
+    it was never implemented (referenced by an in-progress "Sponsorship MR
+    tab" feature, see docs/superpowers/specs/2026-08-05-sponsorship-mr-tab-design.md),
+    which breaks create_app() for every test that builds a Flask app. Added
+    here only to unblock the SOP Portal worktree's test suite — not a real
+    implementation of the MR export. Whoever finishes the MR tab feature
+    should replace this."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Management Report"
+    ws.append(["Belum diimplementasikan — lihat spec Sponsorship MR tab"])
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ parsed.title }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sop.css') }}">
+{% endblock %}
+{% block content %}
+<div class="sop-page sop-read">
+  <a href="{{ url_for('sop.index') }}">&larr; Kembali ke daftar</a>
+  <h1>{{ parsed.title }}</h1>
+
+  <div class="sop-read-actions">
+    <a href="{{ url_for('sop.download', doc_id=document.id) }}">Unduh .docx asli</a>
+    <form method="post" action="{{ url_for('sop.upload', doc_id=document.id) }}"
+          enctype="multipart/form-data" class="sop-upload-form">
+      <input type="file" name="file" accept=".docx" required>
+      <button type="submit">Upload Revisi</button>
+    </form>
+  </div>
+
+  {% for section in parsed.sections %}
+    {% if section.level == 1 %}<h2>{{ section.heading }}</h2>{% else %}<h3>{{ section.heading }}</h3>{% endif %}
+    <div class="sop-section-body">{{ section.html | safe }}</div>
+  {% endfor %}
+
+  {% if parsed.revisi_rows %}
+  <h2>Riwayat Revisi (isi dokumen)</h2>
+  <div class="sop-table-scroll">
+    <table class="sop-table">
+      <thead><tr><th>Versi</th><th>Tanggal</th><th>Deskripsi Perubahan</th><th>Oleh</th></tr></thead>
+      <tbody>
+        {% for row in parsed.revisi_rows %}
+        <tr><td>{{ row.versi }}</td><td>{{ row.tanggal }}</td><td>{{ row.deskripsi }}</td><td>{{ row.oleh }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
