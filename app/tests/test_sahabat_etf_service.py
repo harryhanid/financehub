@@ -38,9 +38,9 @@ def clean_db():
     # No post-test cleanup needed - next test's setup will truncate
 
 
-def _add_siswa(code, nama, program="Sahabat ETF", company_id=COMPANY_ID, jenjang="S1"):
+def _add_siswa(code, nama, program="Sahabat ETF", company_id=COMPANY_ID, jenjang="S1", angkatan=2024):
     add_siswa(company_id, {
-        "code": code, "nama": nama, "jenjang": jenjang, "angkatan": 2024,
+        "code": code, "nama": nama, "jenjang": jenjang, "angkatan": angkatan,
         "program": program, "fakultas": "", "universitas": "", "bank": "",
         "norek": "", "namarek": "", "referensi": "", "status": "Aktif", "catatan": "",
     })
@@ -815,3 +815,59 @@ def test_build_report_data_pillar_breakdown_empty_when_no_data():
     data = build_report_data(COMPANY_ID, 2026)
     assert data["pillar_breakdown"] == []
     assert data["grand_total"]["cur"]["plafon"] == 0
+
+
+def test_build_report_data_computes_periode_for_pendidikan_siswa():
+    _add_siswa("9995001", "Siswa S1", jenjang="S1", angkatan=2023)
+    add_budget_batch(COMPANY_ID, "9995001", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    row = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")["groups"][0]["siswa_rows"][0]
+    assert row["periode_start"] == 2023
+    assert row["periode_end"] == 2027  # S1 = 4 tahun
+
+
+def test_build_report_data_computes_periode_for_kesehatan_siswa():
+    _add_siswa("9995002", "Siswa Sehat", jenjang="SETF", angkatan=2026)
+    add_budget_batch(COMPANY_ID, "9995002", "2026-01-10", "SETF",
+        [{"cat1": "By Medical", "cat2": "Rawat Inap", "amount": 500000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    row = next(s for s in data["sections"] if s["key"] == "KESEHATAN")["groups"][0]["siswa_rows"][0]
+    assert row["periode_start"] == 2026
+    assert row["periode_end"] == 2027  # Kesehatan = 1 tahun
+
+
+def test_build_report_data_periode_blank_when_angkatan_missing():
+    _add_siswa("9995003", "Siswa Tanpa Angkatan", jenjang="SD", angkatan=None)
+    add_budget_batch(COMPANY_ID, "9995003", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    row = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")["groups"][0]["siswa_rows"][0]
+    assert row["periode_start"] is None
+    assert row["periode_end"] is None
+
+
+def test_build_report_data_periode_blank_for_unmapped_jenjang():
+    _add_siswa("9995004", "Siswa Jenjang Aneh", jenjang="D3", angkatan=2024)
+    add_budget_batch(COMPANY_ID, "9995004", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    row = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")["groups"][0]["siswa_rows"][0]
+    assert row["periode_start"] is None
+    assert row["periode_end"] is None
+
+
+def test_build_report_data_recap_has_no_periode_keys():
+    _add_siswa("9995005", "Siswa Recap", jenjang="S1", angkatan=2023)
+    add_budget_batch(COMPANY_ID, "9995005", "2026-01-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000}])
+
+    data = build_report_data(COMPANY_ID, 2026)
+    pend = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")
+    recap_row = pend["recap"][0]
+    assert "periode_start" not in recap_row
+    assert "periode_end" not in recap_row
