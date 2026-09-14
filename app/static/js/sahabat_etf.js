@@ -8,6 +8,67 @@ function setfHexToRgba(hex, alpha) {
 // static/js/sahabat_etf.js
 let setfCharts = {};
 
+let setfActiveKategoriDrilldown = null;
+
+function setfExpandGrafik() {
+  const details = document.getElementById("setf-grafik-accordion");
+  if (!details) return;
+  if (!details.open) details.open = true;
+}
+
+function setfHighlightMonthlyRow(bulanIndex) {
+  setfExpandGrafik();
+  const tbody = document.querySelector("#setf-monthly-table tbody");
+  if (!tbody) return;
+  const rows = tbody.querySelectorAll("tr");
+  rows.forEach(function (tr) { tr.classList.remove("setf-row-highlight"); });
+  const target = rows[bulanIndex];
+  if (target) {
+    target.classList.add("setf-row-highlight");
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+function setfRenderDrilldownChip() {
+  const chip = document.getElementById("setf-drilldown-chip");
+  if (!chip) return;
+  if (!setfActiveKategoriDrilldown) {
+    chip.style.display = "none";
+    chip.innerHTML = "";
+    return;
+  }
+  chip.style.display = "inline-flex";
+  chip.innerHTML = "Filter aktif: Kategori = " + setfActiveKategoriDrilldown +
+    ' <button type="button" class="budget-btn" style="padding:.15rem .6rem;font-size:.72rem" ' +
+    'onclick="setfClearKategoriDrilldown()">Hapus filter</button>';
+}
+
+function setfRefetchLatestPayments() {
+  const filters = setfGetSelectedFilters();
+  const params = new URLSearchParams(setfBuildQueryString(filters));
+  if (setfActiveKategoriDrilldown) params.set("kategori", setfActiveKategoriDrilldown);
+  fetch("/beasiswa/sahabat/api/latest_payments?" + params.toString())
+    .then(function (r) { return r.json(); })
+    .then(function (data) { setfRenderLatestPaymentsTable(data.rows); })
+    .catch(function () { showToast("Gagal memuat 10 transaksi terakhir.", "error"); });
+}
+
+function setfSetKategoriDrilldown(kategoriName) {
+  setfActiveKategoriDrilldown = kategoriName;
+  setfRenderDrilldownChip();
+  setfExpandGrafik();
+  setfRefetchLatestPayments();
+  const table = document.getElementById("setf-latest-payments-table");
+  if (table) table.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function setfClearKategoriDrilldown() {
+  setfActiveKategoriDrilldown = null;
+  setfRenderDrilldownChip();
+  setfRefetchLatestPayments();
+}
+
+
 const setfGroupedSublabelPlugin = {
     id: 'groupedSublabel',
     afterDraw: function(chart) {
@@ -253,8 +314,16 @@ function setfRenderBarChart(canvasId, labels, datasets, onBarClick) {
     data: { labels: families.map(function (f) { return f.label; }), datasets: datasets },
     plugins: [ChartDataLabels, setfStackTotalPlugin],
     options: {
-      responsive: true,
-      layout: { padding: { top: 20, bottom: 25 } },
+            responsive: true,
+            layout: { padding: { top: 20, bottom: 25 } },
+            onClick: function (evt, elements) {
+                if (!elements.length) return;
+                const idx = elements[0].index;
+                const clickedLabel = dual.labels[idx];
+                if (clickedLabel !== "TOTAL" && canvasId === "chart-kategori") {
+                    setfSetKategoriDrilldown(clickedLabel);
+                }
+            },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -1269,6 +1338,14 @@ function setfRenderBudgetVsRealisasiChart(canvasId, labels, budgets, realisasis)
         options: {
             responsive: true,
             layout: { padding: { top: 20, bottom: 25 } },
+            onClick: function (evt, elements) {
+                if (!elements.length) return;
+                const idx = elements[0].index;
+                const clickedLabel = dual.labels[idx];
+                if (clickedLabel !== "TOTAL" && canvasId === "chart-kategori") {
+                    setfSetKategoriDrilldown(clickedLabel);
+                }
+            },
             plugins: {
                 legend: { 
                     display: true,
@@ -1363,6 +1440,14 @@ function setfRenderStackedGroupedChart(canvasId, years, dataList, mode) {
         options: {
             responsive: true,
             layout: { padding: { top: 20, bottom: 25 } },
+            onClick: function (evt, elements) {
+                if (!elements.length) return;
+                const idx = elements[0].index;
+                const clickedLabel = dual.labels[idx];
+                if (clickedLabel !== "TOTAL" && canvasId === "chart-kategori") {
+                    setfSetKategoriDrilldown(clickedLabel);
+                }
+            },
             plugins: {
                 legend: { 
                    display: true,
