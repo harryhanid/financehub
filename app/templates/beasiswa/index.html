@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/beasiswa_dashboard.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/patternomaly@1.3.2/dist/patternomaly.min.js"></script>
 {% endblock %}
 {% block module_tabs %}
 {% if not wrong_company %}
@@ -104,6 +105,21 @@
                 </div>
               </div>
             </div>
+            <div class="beasiswa-dash-filter-chip">
+              <span class="lbl">Status</span>
+              <span class="val">Semua</span>
+              <span class="caret">▾</span>
+              <div class="beasiswa-dash-filter-panel">
+                <div class="panel-head">
+                  <button type="button" data-act="all">Semua</button>
+                  <button type="button" data-act="none">Kosongkan</button>
+                </div>
+                <div class="panel-opts" id="dash-filter-status">
+                  <label><input type="checkbox" class="dash-status-cb" value="open" checked> Open</label>
+                  <label><input type="checkbox" class="dash-status-cb" value="complete" checked> Complete</label>
+                </div>
+              </div>
+            </div>
           </div>
           
           <div class="beasiswa-dash-summary-grid" id="dash-summary"></div>
@@ -114,25 +130,6 @@
         <summary>Grafik</summary>
         <div class="setf-accordion-body">
           <div class="beasiswa-dash-grafik-wrap">
-            <div class="beasiswa-dash-section-panel">
-              <div class="beasiswa-dash-section-title">Trend</div>
-              <div class="beasiswa-dash-grafik-grid">
-                <div class="beasiswa-dash-chart-card"><h3>Trend per Bulan</h3><canvas id="dash-chart-bulanan"></canvas></div>
-                <div class="beasiswa-dash-chart-card"><h3>Trend per Tahun</h3><canvas id="dash-chart-tahunan"></canvas></div>
-              </div>
-              <div class="beasiswa-dash-grafik-grid">
-                <div class="beasiswa-dash-chart-card compact">
-                  <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
-                  <div class="setf-compact-scroll">
-                    <table id="dash-monthly-table">
-                      <thead><tr id="dash-monthly-thead-row"><th>Bulan</th></tr></thead>
-                      <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <div class="beasiswa-dash-section-panel">
               <div class="beasiswa-dash-section-title">Breakdown Realisasi</div>
               <div class="beasiswa-dash-grafik-grid">
@@ -174,6 +171,25 @@
                         <tr><th>Program</th><th class="num-right">Budget</th><th class="num-right">Payment</th><th class="num-right">Sisa</th></tr>
                       </thead>
                       <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="beasiswa-dash-section-panel">
+              <div class="beasiswa-dash-section-title">Trend</div>
+              <div class="beasiswa-dash-grafik-grid">
+                <div class="beasiswa-dash-chart-card"><h3>Trend per Bulan</h3><canvas id="dash-chart-bulanan"></canvas></div>
+                <div class="beasiswa-dash-chart-card"><h3>Trend per Tahun</h3><canvas id="dash-chart-tahunan"></canvas></div>
+              </div>
+              <div class="beasiswa-dash-grafik-grid">
+                <div class="beasiswa-dash-chart-card compact">
+                  <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
+                  <div class="setf-compact-scroll">
+                    <table id="dash-monthly-table">
+                      <thead><tr id="dash-monthly-thead-row"><th>Bulan</th></tr></thead>
+                      <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
                     </table>
                   </div>
                 </div>
@@ -428,9 +444,9 @@
         <div class="card-title">Detail Payment</div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>PAM</th><th>Perusahaan</th><th>Pillar</th><th class="num-right">Amount</th><th>Status</th></tr></thead>
+            <thead><tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>PAM</th><th>Perusahaan</th><th>Pillar</th><th class="num-right">Amount</th><th>Status</th><th>Tanggal Bayar</th></tr></thead>
             <tbody id="lpr-pay-tbody"></tbody>
-            <tfoot><tr><th colspan="6" style="text-align:right">Subtotal</th><th class="num-right" id="lpr-pay-subtotal"></th><th></th></tr></tfoot>
+            <tfoot><tr><th colspan="6" style="text-align:right">Subtotal</th><th class="num-right" id="lpr-pay-subtotal"></th><th></th><th></th></tr></tfoot>
           </table>
         </div>
       </div>
@@ -632,7 +648,9 @@
       <div class="form-group"><label>Nama Lengkap</label>
         <input type="text" id="s-nama" placeholder="Nama lengkap"></div>
       <div class="form-group"><label>Program</label>
-        <select id="s-program">{% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></div>
+        <select id="s-program" onchange="toggleGroupSetf()">{% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></div>
+      <div class="form-group" id="wrap-group-setf" style="display:none;"><label>Group Sahabat</label>
+        <input type="text" id="s-group_setf" placeholder="e.g. 1, 1.1, 2"></div>
       <div class="form-group"><label>Status</label>
         <select id="s-status">{% for s in status_siswa %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
       <div class="form-group"><label>Prodi</label><input type="text" id="s-prodi" placeholder="Teknik Informatika"></div>
@@ -702,7 +720,7 @@
       <!-- ADD BATCH section -->
       <div id="bgt-add-section">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem;max-width:420px">
-          <div class="form-group" style="margin:0"><label>Tanggal</label><input type="date" id="bgt-tgl"></div>
+          <div class="form-group" style="margin:0"><label>Tanggal</label><input type="date" id="bgt-tgl" onclick="this.showPicker()" onkeydown="return false"></div>
           <div class="form-group" style="margin:0">
             <label>Pillar</label>
             <select id="bgt-pillar">{% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select>
@@ -737,12 +755,12 @@
               <div id="bgt-cat2-opts" style="max-height:200px;overflow-y:auto"></div>
             </div>
           </div>
-          <div class="form-group" style="margin:0"><label>Tanggal</label><input type="date" id="bgt-edit-tgl"></div>
+          <div class="form-group" style="margin:0"><label>Tanggal</label><input type="date" id="bgt-edit-tgl" onclick="this.showPicker()" onkeydown="return false"></div>
           <div class="form-group" style="margin:0">
             <label>Pillar</label>
             <select id="bgt-edit-pillar">{% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select>
           </div>
-          <div class="form-group" style="margin:0"><label>Amount</label><input type="number" id="bgt-amount" placeholder="0" min="0"></div>
+          <div class="form-group" style="margin:0"><label>Amount</label><input type="text" id="bgt-amount" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g,'');this.value=v?parseInt(v,10).toLocaleString('en-US'):''"></div>
         </div>
         <div style="display:flex;gap:.5rem">
           <button class="btn btn-primary btn-sm" onclick="bgtSaveRow()">Update</button>
@@ -847,7 +865,7 @@
     </div>
     <div class="form-group" style="margin:.75rem 0 .25rem">
       <label>Tanggal Bayar</label>
-      <input type="date" id="edit-payment-tanggal-bayar" style="width:100%">
+      <input type="date" id="edit-payment-tanggal-bayar" style="width:100%" onclick="this.showPicker()" onkeydown="return false">
       <div id="edit-payment-tgl-note" style="display:none;font-size:.75rem;color:#d97706;margin-top:.25rem">
         Isi No PAM dulu.
       </div>
@@ -875,7 +893,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/dashboard_beasiswa.js') }}"></script>
-<script src="{{ url_for('static', filename='js/sahabat_etf.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sahabat_etf.js') }}?v=5.009"></script>
 <script>
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -923,6 +941,7 @@ async function simpanSiswa() {
     jenjang: document.getElementById("s-jenjang").value,
     angkatan: parseInt(document.getElementById("s-angkatan").value) || null,
     program: document.getElementById("s-program").value,
+    group_setf: document.getElementById("s-group_setf").value,
     fakultas: document.getElementById("s-fakultas").value,
     universitas: document.getElementById("s-universitas").value,
     bank: document.getElementById("s-bank").value,
@@ -956,10 +975,21 @@ async function simpanSiswa() {
   }
 }
 
+function toggleGroupSetf() {
+  const prog = document.getElementById("s-program").value;
+  const wrap = document.getElementById("wrap-group-setf");
+  if (prog === "Sahabat ETF") {
+    wrap.style.display = "block";
+  } else {
+    wrap.style.display = "none";
+    document.getElementById("s-group_setf").value = "";
+  }
+}
+
 function openTambahSiswa() {
   _editMode = false; _editCode = "";
   document.getElementById("siswa-modal-title").textContent = "Tambah Siswa Baru";
-  ["code","jenjang","angkatan","nama","program","status","fakultas","universitas",
+  ["code","jenjang","angkatan","nama","program","group_setf","status","fakultas","universitas",
    "bank","norek","namarek","referensi","catatan","catatan_budget","catatan_payment",
    "prodi","angkatan_kuliah"].forEach(k => {
     const el = document.getElementById(`s-${k}`);
@@ -967,6 +997,7 @@ function openTambahSiswa() {
   });
   for (let i = 1; i <= 10; i++) { const el = document.getElementById(`s-ipk-sem${i}`); if (el) el.value = ""; }
   for (let i = 1; i <= 3; i++) { const el = document.getElementById(`s-ipk-pen${i}`); if (el) el.value = ""; }
+  toggleGroupSetf();
   openModal("modal-siswa-tambah");
 }
 
@@ -977,12 +1008,13 @@ async function openEditSiswa(code) {
   const s = d.data;
   _editMode = true; _editCode = code;
   document.getElementById("siswa-modal-title").textContent = `Update Data Siswa — ${code}`;
-  ["code","jenjang","angkatan","nama","program","status","fakultas","universitas",
+  ["code","jenjang","angkatan","nama","program","group_setf","status","fakultas","universitas",
    "bank","norek","namarek","referensi","catatan","catatan_budget","catatan_payment",
    "prodi","angkatan_kuliah"].forEach(k => {
     const el = document.getElementById(`s-${k}`);
     if (el) el.value = s[k] || "";
   });
+  toggleGroupSetf();
   for (let i = 1; i <= 10; i++) {
     const el = document.getElementById(`s-ipk-sem${i}`);
     if (el) el.value = s[`ipk_sem${i}`] || "";
@@ -1053,7 +1085,7 @@ function bgtSearchInput() {
     const div = document.createElement("div");
     div.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
     div.innerHTML = `<strong>${s.code}</strong> — ${s.nama}`;
-    div.addEventListener("mousedown", () => bgtSelectSiswa(s.code, s.nama));
+    div.addEventListener("click", () => bgtSelectSiswa(s.code, s.nama));
     div.addEventListener("mouseover", () => { div.style.background = "#eff6ff"; });
     div.addEventListener("mouseout",  () => { div.style.background = ""; });
     sug.appendChild(div);
@@ -1081,6 +1113,7 @@ function bgtOpenAdd() {
   document.getElementById("bgt-tgl").value = "";
   document.getElementById("bgt-items").innerHTML = "";
   _bgtAddItemRow();
+  document.querySelector("#modal-bgt-form .modal").style.overflow = "auto";
   openModal("modal-bgt-form");
 }
 
@@ -1094,7 +1127,8 @@ function bgtEditRow(id, cat1, cat2, tanggal, pillar, amount) {
   bgtCat2Select(cat2);
   document.getElementById("bgt-edit-tgl").value = tanggal;
   document.getElementById("bgt-edit-pillar").value = pillar;
-  document.getElementById("bgt-amount").value = amount;
+  document.getElementById("bgt-amount").value = amount ? parseInt(amount, 10).toLocaleString('en-US') : "";
+  document.querySelector("#modal-bgt-form .modal").style.overflow = "visible";
   openModal("modal-bgt-form");
 }
 
@@ -1161,16 +1195,50 @@ function bgtCat2Toggle() {
   document.getElementById("bgt-cat2-search").focus();
 }
 
+let _bgtCat2ActiveIdx = -1;
+let _bgtCat2Items = [];
 function bgtCat2Filter() {
   const q    = document.getElementById("bgt-cat2-search").value.toLowerCase();
   const list = document.getElementById("bgt-cat2-opts");
   list.innerHTML = "";
-  CAT2.filter(c => c.toLowerCase().includes(q)).forEach(c => {
+  _bgtCat2ActiveIdx = -1;
+  _bgtCat2Items = CAT2.filter(c => c.toLowerCase().includes(q));
+  _bgtCat2Items.forEach(c => {
     const div = document.createElement("div");
     div.textContent = c;
     div.className = "fh-custom-panel-item";
-    div.addEventListener("mousedown", () => bgtCat2Select(c));
+    div.addEventListener("click", () => bgtCat2Select(c));
     list.appendChild(div);
+  });
+}
+document.getElementById("bgt-cat2-search").addEventListener("keydown", function(e) {
+  const list = document.getElementById("bgt-cat2-opts");
+  const items = list.querySelectorAll(".fh-custom-panel-item");
+  if (!items.length) return;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    _bgtCat2ActiveIdx = (_bgtCat2ActiveIdx + 1) % items.length;
+    bgtCat2UpdateActive(items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    _bgtCat2ActiveIdx = (_bgtCat2ActiveIdx - 1 + items.length) % items.length;
+    bgtCat2UpdateActive(items);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (_bgtCat2ActiveIdx >= 0 && _bgtCat2ActiveIdx < items.length) {
+      bgtCat2Select(_bgtCat2Items[_bgtCat2ActiveIdx]);
+      document.getElementById("bgt-cat2-panel").style.display = "none";
+    }
+  }
+});
+function bgtCat2UpdateActive(items) {
+  items.forEach((item, idx) => {
+    if (idx === _bgtCat2ActiveIdx) {
+      item.style.backgroundColor = "var(--bg-muted, #f3f4f6)";
+      item.scrollIntoView({ block: 'nearest' });
+    } else {
+      item.style.backgroundColor = "";
+    }
   });
 }
 
@@ -1195,7 +1263,7 @@ async function bgtSaveRow() {
   const cat2   = document.getElementById("bgt-cat2").value;
   const tanggal= document.getElementById("bgt-edit-tgl").value;
   const pillar = document.getElementById("bgt-edit-pillar").value;
-  const amount = parseFloat(document.getElementById("bgt-amount").value) || 0;
+  const amount = parseFloat(document.getElementById("bgt-amount").value.replace(/,/g, '')) || 0;
   if (!tanggal) { showToast("Tanggal wajib diisi.", "error"); return; }
   if (amount <= 0) { showToast("Amount harus lebih dari 0.", "error"); return; }
   const body = JSON.stringify({ cat1, cat2, tanggal, pillar, amount });
@@ -1219,7 +1287,6 @@ function _mkDrop(opts, ph) {
   const arr = document.createElement("span");
   arr.textContent = "▾"; arr.className = "fh-custom-select-arrow";
   dsp.appendChild(lbl); dsp.appendChild(arr);
-  // pan is attached to document.body with position:fixed to escape .table-wrap overflow:hidden clipping
   const pan = document.createElement("div");
   pan.className = "fh-custom-panel";
   pan.style.cssText = "display:none;position:fixed;z-index:9999";
@@ -1230,32 +1297,65 @@ function _mkDrop(opts, ph) {
   const lst = document.createElement("div"); lst.style.cssText = "max-height:200px;overflow-y:auto";
   pan.appendChild(sw); pan.appendChild(lst);
   document.body.appendChild(pan);
+  
+  let activeIdx = -1;
+  let currentItems = [];
+
   function _posPan() {
     const r = dsp.getBoundingClientRect();
     pan.style.top   = (r.bottom + 2) + "px";
     pan.style.left  = r.left + "px";
     pan.style.width = r.width + "px";
   }
+  function updateActive(items) {
+    items.forEach((item, idx) => {
+      if (idx === activeIdx) {
+        item.style.backgroundColor = "var(--bg-muted, #f3f4f6)";
+        item.scrollIntoView({ block: 'nearest' });
+      } else {
+        item.style.backgroundColor = "";
+      }
+    });
+  }
   function render(q) {
     lst.innerHTML = "";
-    opts.filter(c => c.toLowerCase().includes(q.toLowerCase())).forEach(c => {
+    activeIdx = -1;
+    currentItems = opts.filter(c => c.toLowerCase().includes(q.toLowerCase()));
+    currentItems.forEach(c => {
       const d = document.createElement("div");
       d.textContent = c;
       d.className = "fh-custom-panel-item";
-      d.addEventListener("mousedown", () => { hid.value=c; lbl.textContent=c; lbl.style.color="var(--sl-700)"; pan.style.display="none"; si.value=""; });
+      d.addEventListener("click", () => { hid.value=c; lbl.textContent=c; lbl.style.color="var(--sl-700)"; pan.style.display="none"; si.value=""; });
       lst.appendChild(d);
     });
   }
+  si.addEventListener("keydown", e => {
+    const items = lst.querySelectorAll('.fh-custom-panel-item');
+    if (items.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeIdx = (activeIdx + 1) % items.length;
+      updateActive(items);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeIdx = (activeIdx - 1 + items.length) % items.length;
+      updateActive(items);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeIdx >= 0 && activeIdx < items.length) {
+        const c = currentItems[activeIdx];
+        hid.value=c; lbl.textContent=c; lbl.style.color="var(--sl-700)"; pan.style.display="none"; si.value="";
+      }
+    }
+  });
   dsp.addEventListener("click", () => {
     if (pan.style.display !== "none") { pan.style.display="none"; return; }
     si.value=""; render(""); _posPan(); pan.style.display="block"; si.focus();
   });
   si.addEventListener("input", () => render(si.value));
-  // Check both w and pan since pan is no longer a child of w
   document.addEventListener("mousedown", e => { if (!w.contains(e.target) && !pan.contains(e.target)) pan.style.display="none"; });
   w.appendChild(hid); w.appendChild(dsp);
-  w._hid = hid;
-  w._pan = pan;
+  w._hid = hid; w._pan = pan;
   return w;
 }
 
@@ -1273,8 +1373,12 @@ function _bgtAddItemRow() {
   const amtFg = document.createElement("div"); amtFg.className = "form-group"; amtFg.style.margin = "0";
   const amtLbl = document.createElement("label"); amtLbl.textContent = "Amount";
   const amtInp = document.createElement("input");
-  amtInp.type = "number"; amtInp.className = "bgt-row-amount";
-  amtInp.placeholder = "0"; amtInp.min = "0"; amtInp.style.width = "100%";
+  amtInp.type = "text"; amtInp.className = "bgt-row-amount";
+  amtInp.placeholder = "0"; amtInp.style.width = "100%";
+  amtInp.addEventListener("input", function() {
+    let v = this.value.replace(/[^0-9]/g, '');
+    this.value = v ? parseInt(v, 10).toLocaleString('en-US') : '';
+  });
   amtFg.appendChild(amtLbl); amtFg.appendChild(amtInp);
   const rmBtn = document.createElement("button");
   rmBtn.className = "btn btn-sm";
@@ -1299,7 +1403,7 @@ async function bgtSaveRows() {
   const items = itemEls.map(r => ({
     cat1:   r.querySelector(".bgt-row-cat1")._hid.value,
     cat2:   r.querySelector(".bgt-row-cat2")._hid.value,
-    amount: parseFloat(r.querySelector(".bgt-row-amount").value) || 0,
+    amount: parseFloat(r.querySelector(".bgt-row-amount").value.replace(/,/g, '')) || 0,
   })).filter(it => it.amount > 0);
   if (!items.length) { showToast("Minimal 1 baris dengan amount > 0.", "error"); return; }
   const body = JSON.stringify({ code: _bgtCode, tanggal, pillar, items });
@@ -1720,7 +1824,7 @@ function lprSearchInput() {
     const div = document.createElement("div");
     div.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
     div.innerHTML = `<strong>${s.code}</strong> — ${s.nama}`;
-    div.addEventListener("mousedown", () => lprSelectSiswa(s.code, s.nama));
+    div.addEventListener("click", () => lprSelectSiswa(s.code, s.nama));
     div.addEventListener("mouseover", () => { _lprActiveIdx = idx; _lprHighlight(); });
     div.addEventListener("mouseout",  () => { div.style.background = ""; });
     sug.appendChild(div);
@@ -1918,7 +2022,8 @@ async function loadLaporan(code) {
     <td style="font-size:.8rem">${r.pillar || ""}</td>
     <td class="num-right">${fmtRupiah(r.amount || 0)}</td>
     <td>${LBADGE[r.status] || r.status || ""}</td>
-  </tr>`).join("") || `<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
+    <td style="white-space:nowrap">${r.tanggal_bayar || ""}</td>
+  </tr>`).join("") || `<tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
   document.getElementById("lpr-pay-subtotal").textContent = fmtRupiah(payRows.reduce((s, r) => s + (r.amount || 0), 0));
 }
 
