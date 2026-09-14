@@ -1662,3 +1662,161 @@ async function setfExportPdf() {
         showToast("Terjadi kesalahan saat membuat PDF.", "error");
     });
 }
+
+// --- Diagram Pohon ---
+
+function setfLoadPohon() {
+  const years = Array.from(document.querySelectorAll('.setf-pohon-year-cb:checked')).map(cb => cb.value);
+  const selMonth = document.getElementById('setf-pohon-month');
+  
+  const pillars = Array.from(document.querySelectorAll('.setf-pohon-pillar-cb:checked')).map(cb => cb.value);
+  
+  let qs = '';
+  years.forEach(y => { qs += 'years[]=' + encodeURIComponent(y) + '&'; });
+  qs = qs.slice(0, -1);
+
+  if (selMonth) qs += '&month=' + encodeURIComponent(selMonth.value);
+  pillars.forEach(p => { qs += '&pillars[]=' + encodeURIComponent(p); });
+
+  const container1 = document.getElementById('setf-pohon-container');
+  const container2 = document.getElementById('setf-pohon-group-container');
+  
+  if (container1) container1.innerHTML = '<div style="text-align:center;color:var(--text-muted)">Memuat data pohon...</div>';
+  if (container2) container2.innerHTML = '';
+
+  fetch('/beasiswa/sahabat/api/pohon?' + qs)
+    .then(r => r.json())
+    .then(resp => {
+      if (!resp.ok) {
+        showToast(resp.pesan || 'Gagal memuat diagram pohon.', 'error');
+        return;
+      }
+      window._setfPohonLoaded = true;
+      if (container1) container1.innerHTML = setfRenderDiagram1(resp.data.diagram1);
+      if (container2) container2.innerHTML = setfRenderDiagram2(resp.data.diagram2);
+    })
+    .catch(e => {
+      showToast('Gagal memuat diagram pohon.', 'error');
+    });
+}
+
+function setfBuildTreeNode(nodeData, isGroupNode=false) {
+  const widthClass = isGroupNode ? 'tree-node-group' : '';
+  const label = nodeData.label || nodeData.group_name;
+  
+  let html = `
+    <div class="tree-node ${widthClass}" style="margin: 0 auto;">
+      <div class="tree-node-header">${label}</div>
+      <div class="tree-node-body">
+        <div class="tree-metrics">
+          <div class="tree-metric-box">
+            <div class="tree-metric-label">Plafon</div>
+            <div class="tree-metric-val">${setfFmtJutaan(nodeData.plafon)}</div>
+          </div>
+          <div class="tree-metric-box">
+            <div class="tree-metric-label">Realisasi</div>
+            <div class="tree-metric-val">${setfFmtJutaan(nodeData.realisasi)}</div>
+          </div>
+        </div>
+  `;
+  
+  const list = nodeData.siswa || nodeData.detail || [];
+  if (list.length > 0) {
+    html += `
+        <div class="tree-table-wrap">
+          <table class="tree-table">
+            <thead>
+              <tr>
+                <th>Nama</th>
+                <th style="text-align:right">Plafon</th>
+                <th style="text-align:right">Realisasi</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    let totPlafon = 0;
+    let totRealisasi = 0;
+    list.forEach(item => {
+      totPlafon += item.plafon || 0;
+      totRealisasi += item.realisasi || 0;
+      html += `
+              <tr>
+                <td>${item.nama}</td>
+                <td>${setfFmtJutaan(item.plafon)}</td>
+                <td>${setfFmtJutaan(item.realisasi)}</td>
+              </tr>
+      `;
+    });
+    html += `
+              <tr class="tree-total-row">
+                <td>Total</td>
+                <td>${setfFmtJutaan(totPlafon)}</td>
+                <td>${setfFmtJutaan(totRealisasi)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+    `;
+  }
+  
+  html += `
+      </div>
+    </div>
+  `;
+  return html;
+}
+
+function setfRenderDiagram1(data) {
+  if (!data || !data.root) return '<div style="color:var(--text-muted)">Data kosong</div>';
+  
+  return `
+    <style>
+      .setf-tree-branch { display: flex; gap: 1.5rem; padding-top: 20px; position: relative; }
+      .setf-tree-branch .tree-item { position: relative; display: flex; flex-direction: column; align-items: center; }
+      .setf-tree-branch .tree-item::before { content:""; position:absolute; top: -20px; left: 50%; width: 2px; height: 20px; background: var(--accent); }
+      .setf-tree-branch .tree-item::after { content:""; position:absolute; top: -20px; height: 2px; background: var(--accent); }
+      .setf-tree-branch .tree-item:first-child::after { left: 50%; right: -0.75rem; }
+      .setf-tree-branch .tree-item:last-child::after { right: 50%; left: -0.75rem; }
+      .setf-tree-branch .tree-item:not(:first-child):not(:last-child)::after { left: -0.75rem; right: -0.75rem; }
+      .setf-tree-branch .tree-item:first-child:last-child::after { display: none; }
+      
+      /* Print scale so the tree structure fits on A4 Landscape */
+      @media print {
+        #setf-pohon-group-container > div { zoom: 0.55; }
+        #setf-pohon-container > div { zoom: 0.8; }
+      }
+    </style>
+    <div style="display:flex; flex-direction:column; align-items:center; min-width: max-content; padding: 10px;">
+      ${setfBuildTreeNode(data.root)}
+      
+      <div class="tree-connector-root" style="width: 2px; height: 20px; background: var(--accent);"></div>
+      
+      <div class="setf-tree-branch">
+        <div class="tree-item">${setfBuildTreeNode(data.kesehatan)}</div>
+        <div class="tree-item">${setfBuildTreeNode(data.pendidikan)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function setfRenderDiagram2(data) {
+  if (!data || !data.root || !data.groups) return '';
+  
+  let groupsHtml = data.groups.map(g => `
+    <div class="tree-item">
+      ${setfBuildTreeNode(g, true)}
+    </div>
+  `).join('');
+  
+  return `
+    <div style="display:flex; flex-direction:column; align-items:center; min-width: max-content; padding: 10px;">
+      ${setfBuildTreeNode(data.root)}
+      
+      <div class="tree-connector-root" style="width: 2px; height: 20px; background: var(--accent);"></div>
+      
+      <div class="setf-tree-branch">
+        ${groupsHtml}
+      </div>
+    </div>
+  `;
+}
