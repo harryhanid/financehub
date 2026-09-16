@@ -1147,6 +1147,10 @@ function initSetfSubtabs() {
         window._setfDetailLoaded = true;
         setfLoadDetailTransaksi();
       }
+      if (btn.dataset.subtab === "pohon" && !window._setfPohonLoaded) {
+        window._setfPohonLoaded = true;
+        setfLoadPohon();
+      }
     });
   });
 }
@@ -1184,6 +1188,19 @@ function initSahabatEtf() {
   const laporanTab = document.getElementById("setf-subtab-laporan");
   if (laporanTab) {
     initFilterChips(laporanTab, reloadLaporan);
+  }
+  
+  const pohonTab = document.getElementById("setf-subtab-pohon");
+  if (pohonTab) {
+    initFilterChips(pohonTab, function() {
+      if (window._setfPohonLoaded) setfLoadPohon();
+    });
+  }
+  const reportPohonMonth = document.getElementById("setf-pohon-month");
+  if (reportPohonMonth) {
+    reportPohonMonth.addEventListener("change", function() {
+      if (window._setfPohonLoaded) setfLoadPohon();
+    });
   }
   setfApplyFilters();
 }
