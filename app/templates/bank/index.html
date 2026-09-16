@@ -52,6 +52,7 @@
           </select>
           <button type="button" class="btn btn-primary btn-sm" id="btn-tambah-transaksi">+ Tambah Transaksi</button>
           <a href="{{ url_for('bank.export_laporan_mutasi_route') }}" class="btn btn-secondary btn-sm">Export Laporan Mutasi (Excel)</a>
+          <a href="{{ url_for('bank.export_detail_transaksi_route', bulan=(selected_bulan if selected_bulan is not none else 'all'), tahun=(selected_tahun if selected_tahun is not none else 'all')) }}" class="btn btn-secondary btn-sm">Export Detail Transaksi (Excel)</a>
         </div>
 
         {% if display_rows %}

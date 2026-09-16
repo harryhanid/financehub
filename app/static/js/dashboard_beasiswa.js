@@ -120,6 +120,112 @@ function dashRefetchLatestPayments() {
     .catch(function () { showToast("Gagal memuat 10 transaksi terakhir.", "error"); });
 }
 
+function dashRenderBudgetVsRealisasiChart(canvasId, labels, budgets, realisasis) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (dashCharts[canvasId]) dashCharts[canvasId].destroy();
+  
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const textColor = isDark ? "#e2e8f0" : "#475569";
+  const gridColor = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)";
+  const percentColor = isDark ? "#fbbf24" : "#d97706"; // Amber
+
+  const budgetColor = "rgba(148, 163, 184, 0.8)"; // Slate 400
+  const realisasiColor = "rgba(59, 130, 246, 0.9)"; // Blue 500
+
+  dashCharts[canvasId] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: "Budget",
+          data: budgets,
+          backgroundColor: budgetColor,
+          borderRadius: 4,
+        },
+        {
+          label: "Realisasi",
+          data: realisasis,
+          backgroundColor: realisasiColor,
+          borderRadius: 4,
+        }
+      ]
+    },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 35 } },
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: { position: "top", labels: { color: textColor } },
+        datalabels: {
+          display: true,
+          labels: {
+            nominal: {
+              align: 'end',
+              anchor: 'end',
+              color: textColor,
+              font: { size: 10, weight: '500' },
+              offset: function(context) {
+                 if (context.datasetIndex === 1 && context.chart.data.datasets[0].data[context.dataIndex] > 0) {
+                     return 12; // push up if percentage is shown
+                 }
+                 return 0;
+              },
+              formatter: function(value) {
+                return value ? dashFmtJutaan(value) : "";
+              }
+            },
+            percent: {
+              align: 'end',
+              anchor: 'end',
+              color: percentColor,
+              font: { size: 10, weight: 'bold' },
+              offset: -4,
+              formatter: function(value, context) {
+                if (context.datasetIndex === 1) {
+                  let budgetVal = context.chart.data.datasets[0].data[context.dataIndex];
+                  if (budgetVal > 0) {
+                    let pct = (value / budgetVal) * 100;
+                    return '(' + pct.toFixed(1) + '%)';
+                  }
+                }
+                return "";
+              }
+            }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.dataset.label + ": " + dashFmtJutaan(context.raw);
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: gridColor },
+          ticks: {
+            color: textColor,
+            callback: function(value) { return dashFmtJutaan(value); }
+          }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: textColor }
+        }
+      }
+    }
+  });
+}
+
 function dashRenderDoughnutChart(canvasId, labels, values, colors) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
@@ -435,10 +541,18 @@ function dashApplyFilters() {
   fetch("/beasiswa/api/dashboard/breakdown" + (qs ? "?" + qs : ""))
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      dashRenderDoughnutChart("dash-chart-kategori",
-        data.data.kategori.map(function (k) { return k.cat1; }),
-        data.data.kategori.map(function (k) { return k.realisasi; }),
-        data.data.kategori.map(function (k) { return dashColorForCategory(k.cat1); }));
+      let labels = data.data.kategori.map(function (k) { return k.cat1 || "Tanpa Kategori"; });
+      let budgets = data.data.kategori.map(function (k) { return k.budget; });
+      let realisasis = data.data.kategori.map(function (k) { return k.realisasi; });
+      
+      let totalBudget = budgets.reduce((a, b) => a + b, 0);
+      let totalRealisasi = realisasis.reduce((a, b) => a + b, 0);
+      
+      labels.push("Total");
+      budgets.push(totalBudget);
+      realisasis.push(totalRealisasi);
+      
+      dashRenderBudgetVsRealisasiChart("dash-chart-kategori", labels, budgets, realisasis);
       dashRenderKategoriTable(data.data.kategori);
       dashRenderJenjangTable(data.data.jenjang);
     })

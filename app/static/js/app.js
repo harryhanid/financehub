@@ -815,20 +815,22 @@ function initFilterChips(root, onChange) {
         onChange();
       });
     }
-    chip.addEventListener("click", function (e) {
-      if (e.target.closest(".beasiswa-dash-filter-panel")) return;
-      document.querySelectorAll(".beasiswa-dash-filter-chip.open").forEach(function (c) {
-        if (c !== chip) c.classList.remove("open");
-      });
-      chip.classList.toggle("open");
-    });
     updateFilterChipSummary(chip);
   });
 }
 
 document.addEventListener("click", function (e) {
-  if (!e.target.closest(".beasiswa-dash-filter-chip")) {
-    document.querySelectorAll(".beasiswa-dash-filter-chip.open").forEach(function (c) { c.classList.remove("open"); });
+  const chip = e.target.closest(".beasiswa-dash-filter-chip");
+  if (chip) {
+    if (e.target.closest(".beasiswa-dash-filter-panel")) return;
+    document.querySelectorAll(".beasiswa-dash-filter-chip.open").forEach(function (c) {
+      if (c !== chip) c.classList.remove("open");
+    });
+    chip.classList.toggle("open");
+  } else {
+    document.querySelectorAll(".beasiswa-dash-filter-chip.open").forEach(function (c) {
+      c.classList.remove("open");
+    });
   }
 });
 

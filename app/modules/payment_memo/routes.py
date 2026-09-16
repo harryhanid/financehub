@@ -3,6 +3,7 @@ from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required, json_required
 from modules.beasiswa.service import get_siswa_list, get_vendors
 from modules.payment_memo.service import (
+    update_beasiswa_line_amount,
     get_draft_payments, create_memo, get_memo_list, get_memo_detail,
     update_memo_status, export_memo_pdf,
     get_pam_list, get_coa_list, update_pam_gl_account,
@@ -604,7 +605,16 @@ def update_pam_lines(pam_id):
     return jsonify(result)
 
 
-@bp.route("/pam-lines/bulk-update", methods=["POST"])
+@bp.route('/beasiswa-line/<int:line_id>/amount', methods=['POST'])
+@json_required
+def update_beasiswa_line_amount_route(line_id):
+    company_id = session.get('company_id')
+    data = request.get_json(force=True) or {}
+    amount = data.get('amount', 0)
+    result = update_beasiswa_line_amount(line_id, amount, company_id)
+    return jsonify(result)
+
+@bp.route('/pam-lines/bulk-update', methods=["POST"])
 @json_required
 def pam_lines_bulk_update():
     """Bulk-set one date field in {pillar}_pam_lines for selected pam_records ids."""

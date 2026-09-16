@@ -1,5 +1,4 @@
 <div class="budget-page">
-  <div class="setf-print-header">Disajikan dalam jutaan Rupiah</div>
 
   {% if wrong_company %}
   <div class="budget-card">
@@ -12,6 +11,7 @@
   <div class="setf-subtabs">
     <button type="button" class="setf-subtab-btn active" data-subtab="dashboard">Dashboard</button>
     <button type="button" class="setf-subtab-btn" data-subtab="laporan">Laporan</button>
+    <button type="button" class="setf-subtab-btn" data-subtab="pohon">Diagram</button>
     <button type="button" class="setf-subtab-btn" data-subtab="detail">Detail Transaksi</button>
   </div>
 
@@ -63,9 +63,9 @@
 
       <div class="budget-summary-grid" id="setf-summary"></div>
 
-      <div class="budget-card" id="setf-alert-card" style="display:none">
-        <h3>Anggota Over-Budget</h3>
-        <ul id="setf-alert-list"></ul>
+      <div class="budget-card" id="setf-exec-summary-card">
+        <h3>Executive Summary</h3>
+        <p id="setf-exec-summary-text" style="line-height: 1.6; margin-top: 0.5rem;"></p>
       </div>
     </div>
   </details>
@@ -74,46 +74,95 @@
     <summary>Grafik</summary>
     <div class="setf-accordion-body">
       <div class="setf-grafik-grid">
-        <div class="budget-chart-card"><h3>Trend per Bulan</h3><canvas id="chart-bulanan"></canvas></div>
-        <div class="budget-chart-card"><h3>Trend per Tahun</h3><canvas id="chart-tahunan"></canvas></div>
-
+        <!-- Actual per Kategori -->
+        <div class="budget-chart-card"><h3>Budget vs Actual per Kategori</h3><canvas id="chart-kategori"></canvas></div>
         <div class="budget-chart-card setf-compact-card">
-          <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
-          <div class="setf-compact-scroll">
-            <table id="setf-monthly-table">
-              <thead><tr id="setf-monthly-thead-row"><th>Bulan</th></tr></thead>
-              <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="budget-chart-card setf-compact-card">
-          <h3>Realisasi per Pillar</h3>
-          <div class="setf-compact-scroll">
-            <table id="setf-pillar-table">
-              <thead><tr><th>Pillar</th><th>Budget</th><th>Realisasi</th><th>Sisa</th></tr></thead>
-              <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="budget-chart-card"><h3>Realisasi per Sahabat</h3><canvas id="chart-keluarga"></canvas></div>
-        <div class="budget-chart-card setf-compact-card">
-          <h3>Realisasi per Sahabat (Tabel)</h3>
-          <div class="setf-compact-scroll">
-            <table id="setf-family-table">
-              <thead><tr><th>Sahabat</th><th>Nama</th><th>Kategori Realisasi</th><th class="num-right">Realisasi</th></tr></thead>
-              <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="budget-chart-card"><h3>Realisasi per Kategori</h3><canvas id="chart-kategori"></canvas></div>
-        <div class="budget-chart-card setf-compact-card">
-          <h3>Realisasi per Kategori (Tabel)</h3>
+          <h3>Budget vs Actual per Kategori (Tabel)</h3>
           <div class="setf-compact-scroll">
             <table id="setf-kategori-table">
-              <thead><tr><th>Kategori</th><th>Budget</th><th>Realisasi</th><th>Sisa</th></tr></thead>
-              <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+              <thead><tr><th>Kategori</th><th>Budget</th><th>Actual</th><th>Sisa</th></tr></thead>
+              <tbody><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Actual per Pillar -->
+        <div class="budget-chart-card"><h3>Budget vs Actual per Pillar</h3><canvas id="chart-pillar"></canvas></div>
+        <div class="budget-chart-card setf-compact-card">
+          <h3>Budget vs Actual per Pillar (Tabel)</h3>
+          <div class="setf-compact-scroll">
+            <table id="setf-pillar-table">
+              <thead><tr><th>Pillar</th><th>Budget</th><th>Actual</th><th>Sisa</th></tr></thead>
+              <tbody><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Trend Tahunan Kategori -->
+        <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="budget-chart-card" style="margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h3 style="margin: 0;">Trend per Tahun per Kategori</h3>
+              <div class="chart-toggle-group">
+                <label><input type="radio" name="setf-tahunan-kat-mode" value="all" checked> All</label>
+                <label><input type="radio" name="setf-tahunan-kat-mode" value="budget"> Budget</label>
+                <label><input type="radio" name="setf-tahunan-kat-mode" value="realisasi"> Actual</label>
+              </div>
+            </div>
+            <div style="height: 350px;"><canvas id="chart-tahunan-kategori"></canvas></div>
+          </div>
+          <div class="budget-chart-card setf-compact-card" style="margin-bottom: 0;">
+            <h3>Trend Actual per Kategori</h3>
+            <div class="setf-compact-scroll" style="max-height: 350px;">
+              <table id="setf-tahunan-kategori-table" class="budget-table">
+                <thead><tr><th>Kategori</th><th class="num-right">Total Actual</th></tr></thead>
+                <tbody><tr><td colspan="2" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trend Tahunan Pillar -->
+        <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="budget-chart-card" style="margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h3 style="margin: 0;">Trend per Tahun per Pillar</h3>
+              <div class="chart-toggle-group">
+                <label><input type="radio" name="setf-tahunan-pil-mode" value="all" checked> All</label>
+                <label><input type="radio" name="setf-tahunan-pil-mode" value="budget"> Budget</label>
+                <label><input type="radio" name="setf-tahunan-pil-mode" value="realisasi"> Actual</label>
+              </div>
+            </div>
+            <div style="height: 350px;"><canvas id="chart-tahunan-pillar"></canvas></div>
+          </div>
+          <div class="budget-chart-card setf-compact-card" style="margin-bottom: 0;">
+            <h3>Trend Actual per Pillar</h3>
+            <div class="setf-compact-scroll" style="max-height: 350px;">
+              <table id="setf-tahunan-pillar-table" class="budget-table">
+                <thead><tr><th>Pillar</th><th class="num-right">Total Actual</th></tr></thead>
+                <tbody><tr><td colspan="2" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="budget-chart-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h3 style="margin: 0;">Budget vs Actual per Sahabat</h3>
+              <div class="chart-toggle-group">
+                <label><input type="radio" name="setf-keluarga-mode" value="all" checked> All</label>
+                <label><input type="radio" name="setf-keluarga-mode" value="budget"> Budget</label>
+                <label><input type="radio" name="setf-keluarga-mode" value="realisasi"> Actual</label>
+              </div>
+            </div>
+            <div style="height: 350px;"><canvas id="chart-keluarga"></canvas></div>
+          </div>
+        <div class="budget-chart-card setf-compact-card">
+          <h3>Budget vs Actual per Sahabat (Tabel)</h3>
+          <div class="setf-compact-scroll">
+            <table id="setf-family-table">
+              <thead><tr><th>Sahabat</th><th>Nama</th><th>Kategori</th><th class="num-right">Budget</th><th class="num-right">Actual</th><th class="num-right">Sisa</th></tr></thead>
+              <tbody><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -129,7 +178,7 @@
                   <th>Nama</th>
                   <th>Kategori</th>
                   <th>Kategori 2</th>
-                  <th class="num-right">Realisasi</th>
+                  <th class="num-right">Actual</th>
                 </tr>
               </thead>
               <tbody><tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
@@ -145,23 +194,70 @@
     <div class="setf-accordion-body">
 
       <div class="table-wrap">
-        <h3>Rincian Budget vs Realisasi per Anggota</h3>
+        <h3>Rincian Budget vs Actual per Anggota</h3>
         <table id="setf-table">
           <thead>
             <tr><th>Nama</th><th>Jenjang</th><th>Angkatan</th><th>Status</th>
-                <th>Budget</th><th>Klaim</th><th>Realisasi</th><th>Sisa</th></tr>
+                <th>Budget</th><th>Klaim</th><th>Actual</th><th>Sisa</th></tr>
           </thead>
           <tbody><tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
         </table>
       </div>
+
+      <div class="budget-chart-card setf-compact-card" style="margin-top: 2rem;">
+        <h3>Perbandingan Actual per Bulan per Tahun</h3>
+        <div class="setf-compact-scroll">
+          <table id="setf-monthly-table" class="budget-table">
+            <thead><tr id="setf-monthly-thead-row"><th>Bulan</th></tr></thead>
+            <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </details>
 
   </div>
 
   <div class="setf-subtab-panel" id="setf-subtab-laporan">
-    <div class="filter-bar">
-      <div class="filter-field">
+    <div class="filter-bar beasiswa-dash-filterbar">
+      <div class="beasiswa-dash-filter-chip">
+        <span class="lbl">Pillar</span>
+        <span class="val">Semua</span>
+        <span class="caret">▾</span>
+        <div class="beasiswa-dash-filter-panel">
+          <div class="panel-head">
+            <button type="button" data-act="all">Semua</button>
+            <button type="button" data-act="none">Kosongkan</button>
+          </div>
+          <div class="panel-opts" id="setf-laporan-filter-pillar">
+            {% for p in available_pillars %}
+            <label><input type="checkbox" class="setf-laporan-pillar-cb" value="{{ p }}" checked> {{ p }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      
+      <div class="filter-field" style="margin-left: 1rem;">
+        <label>Bulan Cutoff</label>
+        <select id="setf-report-month">
+          <option value="1">Januari</option>
+          <option value="2">Februari</option>
+          <option value="3">Maret</option>
+          <option value="4">April</option>
+          <option value="5">Mei</option>
+          <option value="6">Juni</option>
+          <option value="7">Juli</option>
+          <option value="8">Agustus</option>
+          <option value="9">September</option>
+          <option value="10">Oktober</option>
+          <option value="11">November</option>
+          <option value="12">Desember</option>
+          <option value="12">All Months (Full Year)</option>
+        </select>
+      </div>
+
+      <div class="filter-field" style="margin-left: 1rem;">
         <label>Tahun Report</label>
         <select id="setf-report-year">
           {% for y in available_years|reverse %}
@@ -169,10 +265,14 @@
           {% endfor %}
         </select>
       </div>
+      <div class="budget-toolbar" style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
+        <a class="budget-btn" id="setf-export-report-detail" href="{{ url_for('sahabat_etf.export_report_detail', year=available_years|first or 2026) }}">Download Trans</a>
+        <a class="budget-btn" id="setf-export-report" href="{{ url_for('sahabat_etf.export_report', year=available_years|first or 2026) }}">Download Report</a>
+        <a class="budget-btn" id="setf-export-ppt-fy" href="{{ url_for('sahabat_etf.export_ppt_report', year=available_years|first or 2026, mode='fy') }}" style="background: #D24726; color: white;">Download PPT (YTD)</a>
+        <a class="budget-btn" id="setf-export-ppt-ytd" href="{{ url_for('sahabat_etf.export_ppt_report', year=available_years|first or 2026, mode='ytd') }}" style="background: #D24726; color: white;">Download PPT (Cum.)</a>
+      </div>
     </div>
-    <div class="budget-toolbar">
-      <a class="budget-btn" id="setf-export-report" href="{{ url_for('sahabat_etf.export_report', year=available_years|first or 2026) }}">Export Laporan (Excel)</a>
-    </div>
+    
     <div id="setf-laporan-content">
       <p style="color:var(--text-muted);text-align:center;padding:2rem">Memuat laporan...</p>
     </div>
@@ -213,19 +313,109 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <div class="budget-toolbar">
-      <a class="budget-btn" id="setf-export-detail" href="{{ url_for('sahabat_etf.export_detail') }}">Export Detail Transaksi (CSV)</a>
+      <div class="budget-toolbar" style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
+        <a class="budget-btn" href="{{ url_for('sahabat_etf.export_detail') }}" style="background: var(--sl-800); color: white;">Export (Excel)</a>
+        <a class="budget-btn" href="{{ url_for('sahabat_etf.export_detail_csv') }}" style="background: var(--sl-600); color: white;">Export (CSV)</a>
+      </div>
     </div>
 
     <div class="table-wrap">
       <table id="setf-detail-table">
         <thead>
-          <tr><th>Sumber</th><th>Kode Siswa</th><th>Nama</th><th>Tanggal</th><th>Kategori 1</th><th>Kategori 2</th><th class="num-right">Amount</th><th>Status</th></tr>
+          <tr><th>Sumber</th><th>Kode Siswa</th><th>Nama</th><th>Tanggal</th><th>Kategori 1</th><th>Kategori 2</th><th>Pillar</th><th class="num-right">Amount</th><th>Status</th></tr>
         </thead>
-        <tbody><tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+        <tbody><tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
       </table>
+    </div>
+  </div>
+
+  <div class="setf-subtab-panel" id="setf-subtab-pohon" style="padding-top: 90px;">
+    <div class="filter-bar beasiswa-dash-filterbar">
+      <div class="beasiswa-dash-filter-chip">
+        <span class="lbl">Tahun Laporan</span>
+        <span class="val">Semua Tahun</span>
+        <span class="caret">?</span>
+        <div class="beasiswa-dash-filter-panel">
+          <div class="panel-head">
+            <button type="button" data-act="all">Semua</button>
+            <button type="button" data-act="none">Kosongkan</button>
+          </div>
+          <div class="panel-opts" id="setf-pohon-year">
+            {% for y in available_years %}
+            <label><input type="checkbox" class="setf-pohon-year-cb" value="{{ y }}" checked> {{ y }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="filter-field" style="margin-left: 1rem;">
+        <label>Bulan Cutoff</label>
+        <select id="setf-pohon-month">
+          <option value="1">Januari</option>
+          <option value="2">Februari</option>
+          <option value="3">Maret</option>
+          <option value="4">April</option>
+          <option value="5">Mei</option>
+          <option value="6">Juni</option>
+          <option value="7">Juli</option>
+          <option value="8">Agustus</option>
+          <option value="9">September</option>
+          <option value="10">Oktober</option>
+          <option value="11">November</option>
+          <option value="12">Desember</option>
+          <option value="12">All Months (Full Year)</option>
+        </select>
+      </div>
+      <div class="beasiswa-dash-filter-chip" style="margin-left: 1rem;">
+        <span class="lbl">Pillar</span>
+        <span class="val">Semua</span>
+        <span class="caret">▾</span>
+        <div class="beasiswa-dash-filter-panel">
+          <div class="panel-head">
+            <button type="button" data-act="all">Semua</button>
+            <button type="button" data-act="none">Kosongkan</button>
+          </div>
+          <div class="panel-opts" id="setf-pohon-filter-pillar">
+            {% for p in available_pillars %}
+            <label><input type="checkbox" class="setf-pohon-pillar-cb" value="{{ p }}" checked> {{ p }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="budget-toolbar" style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
+        <button type="button" class="budget-btn" onclick="window.print()" style="background: var(--sl-800); color: white; border: none; cursor: pointer;">Export (PDF)</button>
+      </div>
+    </div>
+    <style>
+      .tree-node-group { width: 290px !important; }
+      .tree-node { border: 2px solid var(--accent); border-radius: 8px; padding: 0; background: var(--card); width: 380px; box-shadow: var(--sh-md); font-size: 0.9rem; transition: background 0.3s, border-color 0.3s; }
+      .tree-node-header { background: var(--accent); color: #fff; padding: 10px; text-align: center; font-weight: 600; border-top-left-radius: 5px; border-top-right-radius: 5px; }
+      .tree-node-body { padding: 0; }
+      .tree-metrics { display: flex; border-bottom: 1px solid var(--border); transition: border-color 0.3s; }
+      .tree-metric-box { flex: 1; padding: 8px; text-align: center; }
+      .tree-metric-box:first-child { border-right: 1px solid var(--border); }
+      .tree-metric-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; transition: color 0.3s; }
+      .tree-metric-val { font-weight: 600; color: var(--text); transition: color 0.3s; }
+      .tree-table-wrap { max-height: 250px; overflow-y: auto; background: var(--bg); border-bottom-left-radius: 5px; border-bottom-right-radius: 5px; transition: background 0.3s; }
+      .tree-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+      .tree-table th { position: sticky; top: 0; background: var(--bg-muted); text-align: right; padding: 6px; border-bottom: 1px solid var(--border); font-weight: 600; z-index: 1; color: var(--text); transition: background 0.3s, border-color 0.3s, color 0.3s; }
+      .tree-table th:nth-child(1), .tree-table th:nth-child(2) { text-align: left; }
+      .tree-table td { padding: 6px; text-align: right; border-bottom: 1px solid var(--border); color: var(--text); transition: border-color 0.3s, color 0.3s; }
+      .tree-table td:nth-child(1), .tree-table td:nth-child(2) { text-align: left; }
+      .tree-table tr:last-child td { border-bottom: none; }
+      .tree-table tr.tree-total-row td { position: sticky; bottom: 0; background: var(--bg-muted); font-weight: bold; border-top: 1px solid var(--border); color: var(--text); transition: background 0.3s, border-color 0.3s, color 0.3s; }
+    </style>
+    <!-- Pohon Sahabat Container -->
+    <div class="setf-print-header-inline" style="display:none; text-align: right; margin-bottom: 1rem;"><strong style="font-size: 11px; color: #000; display: block; margin-bottom: 2px;">Flow - Beasiswa Sahabat ETF</strong>Disajikan dalam jutaan Rupiah</div>
+    <div id="setf-pohon-container" style="overflow-x: auto; padding-bottom: 2rem; padding-top: 1rem; margin-top: 3rem; text-align: center;">
+      <div style="text-align:center;color:var(--text-muted)">Memuat data pohon...</div>
+    </div>
+    
+    <!-- Diagram Pohon Group (Diagram 2) -->
+    <div class="setf-print-header-inline page-2-header" style="display:none; text-align: right; margin-bottom: 1rem;"><strong style="font-size: 11px; color: #000; display: block; margin-bottom: 2px;">Flow - Beasiswa Sahabat ETF</strong>Disajikan dalam jutaan Rupiah</div>
+    <div id="setf-pohon-group-container" style="overflow-x: auto; padding-bottom: 2rem; padding-top: 2rem; text-align: center; border-top: 2px dashed #ddd; margin-top: 1rem;">
+    </div>
+    <div class="helper-text-print-hide" style="text-align:center; font-size: 0.8rem; color: #888; margin-bottom: 2rem;">
+      (Saat Export PDF, Diagram 2 ini akan otomatis tercetak di Halaman 2).
     </div>
   </div>
 

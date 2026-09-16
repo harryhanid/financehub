@@ -129,17 +129,38 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: var(--text-secondary);
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: #ffffff;
   font-weight: 600;
   text-transform: uppercase;
   font-size: 0.72rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-bottom: none;
 }
-.budget-table tr:hover td {
-  background: var(--bg-card-hover);
+.budget-table th:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .budget-table th {
+  background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+  color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+[data-theme="dark"] .budget-table th:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+/* UI/UX Promax: Subtle Zebra Striping for readability */
+.budget-table tbody tr:nth-child(even) td {
+  background: var(--bg-muted);
+}
+[data-theme="dark"] .budget-table tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.budget-table tbody tr:hover td {
+  background: var(--bg-card-hover) !important;
 }
 
 .budget-badge {
@@ -165,6 +186,11 @@
 .badge-cat-by-penelitian { background: rgba(217, 119, 6, 0.15); color: #d97706; }
 .badge-cat-by-medical    { background: rgba(219, 39, 119, 0.15); color: #db2777; }
 .badge-cat-lainnya       { background: var(--sl-100, rgba(148,163,184,0.15)); color: var(--text-muted); }
+
+.badge-pil-agri    { background: rgba(22, 163, 74, 0.15); color: #16a34a; }   /* Green */
+.badge-pil-app     { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }  /* Blue */
+.badge-pil-finance { background: rgba(217, 119, 6, 0.15); color: #d97706; }   /* Amber */
+.badge-pil-setf    { background: rgba(124, 58, 237, 0.15); color: #7c3aed; }  /* Violet */
 
 /* Jenjang badges — deliberately a different shape (square tag, left accent)
    from the pill-shaped Status badges so the two columns read distinctly. */
@@ -349,6 +375,9 @@
   position: sticky;
   top: 0;
   background: var(--bg-card);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 10;
 }
 
 /* ── Print (Export PDF) ──────────────────────────────── */
@@ -489,7 +518,17 @@
 .setf-subtabs {
   display: flex; flex-wrap: wrap;
   gap: .4rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
+  background: var(--bg);
+  padding: 0.5rem 0;
+}
+#tab-sahabat .filter-bar {
+  position: sticky !important;
+  top: var(--navbar-h, 52px) !important;
+  z-index: 24;
+}
+[data-theme="dark"] #tab-sahabat .filter-bar {
+  background: var(--bg) !important;
 }
 .setf-subtab-btn {
   display: inline-flex; align-items: center;
@@ -520,3 +559,37 @@
 .setf-laporan-total-row { font-weight: 700; background: var(--accent-surface); }
 .setf-laporan-recap-row { font-style: italic; color: var(--text-muted); }
 .setf-laporan-pct-row { font-size: .72rem; color: var(--text-muted); }
+
+@media print { .filter-bar, .setf-subtabs { display: none !important; } }
+
+@media print { #setf-pohon-container, #setf-pohon-group-container, .tree-table-wrap { overflow: visible !important; max-height: none !important; height: auto !important; } .tree-node { page-break-inside: avoid; } }
+
+@media print { .tree-total-row, .tree-total-row td { position: static !important; } }
+
+@media print { @page { margin: 0; size: A4 portrait; } @page landscape_mode { size: A4 landscape; margin: 0; } .budget-page { padding: 10mm 5mm; } .setf-print-header-inline { display: block !important; margin-bottom: 2rem !important; margin-top: 10mm; } .page-2-header { page: landscape_mode; page-break-before: always; margin-top: 5mm; } }
+
+@media print { .tree-table th { position: static !important; } }
+
+@media print { #setf-pohon-group-container { page: landscape_mode; page-break-before: avoid !important; border-top: none !important; margin-top: 0 !important; padding-top: 30px !important;  } }
+
+@media print { #setf-pohon-group-container {   margin-top: 0 !important; } }
+
+@media print { #setf-pohon-container {  padding-top: 30px !important; } }
+
+@media print { .helper-text-print-hide { display: none !important; } }
+
+.chart-toggle-group {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    background: var(--bg-muted);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-md);
+}
+.chart-toggle-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+}
+

@@ -644,18 +644,22 @@ def laporan_export(code, fmt):
         cell_style.leading = 10
         cell_style.wordWrap = 'CJK'
 
+        amount_cell_style = cell_style.clone('amount_cell_style')
+        amount_cell_style.alignment = TA_RIGHT
+
         label_style = cell_style.clone('label_style')
         label_style.fontName = 'Helvetica-Bold'
         label_style.fontSize = 7
         label_style.textColor = MUTED
 
-        def wrap_row(row, is_header=False, is_footer=False):
+        def wrap_row(row, is_header=False, is_footer=False, amount_col=None):
             wrapped = []
-            for item in row:
+            for i, item in enumerate(row):
                 if is_header or is_footer:
                     wrapped.append(item)
                 else:
-                    wrapped.append(Paragraph(str(item), cell_style) if item else "")
+                    style = amount_cell_style if i == amount_col else cell_style
+                    wrapped.append(Paragraph(str(item), style) if item else "")
             return wrapped
 
         def _lv_row(label1, value1, label2, value2):
@@ -823,7 +827,7 @@ def laporan_export(code, fmt):
         for r in data["budget_rows"]:
             a = r.get("amount", 0); bgt_total += a
             bgt_data.append(wrap_row([r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                             r.get("pillar",""), format_rupiah(a, prefix="")]))
+                             r.get("pillar",""), format_rupiah(a, prefix="")], amount_col=4))
         if data["budget_rows"]:
             bgt_data.append(wrap_row(["", "TOTAL", "", "", format_rupiah(bgt_total, prefix="")], is_footer=True))
         bt = Table(bgt_data, colWidths=[3.5*cm, 4*cm, 2.5*cm, 3*cm, 4*cm], repeatRows=1)
@@ -847,18 +851,19 @@ def laporan_export(code, fmt):
 
         # Payment detail
         elems.append(section_header("Detail Payment", accent=GREEN))
-        pay_headers = ["Kategori 1", "Kategori 2", "Tanggal", "PAM", "Pillar", "Amount (Rp)", "Status"]
+        pay_headers = ["Kategori 1", "Kategori 2", "Tanggal", "PAM", "Pillar", "Amount (Rp)", "Status", "Tanggal Bayar"]
         pay_data = [wrap_row(pay_headers, is_header=True)]
         pay_total = 0
         for r in data["payment_rows"]:
             a = r.get("amount", 0); pay_total += a
             pay_data.append(wrap_row([r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
                              r.get("pam",""), r.get("pillar",""),
-                             format_rupiah(a, prefix=""), r.get("status","")]))
+                             format_rupiah(a, prefix=""), r.get("status",""),
+                             r.get("tanggal_bayar","")], amount_col=5))
         if data["payment_rows"]:
-            pay_data.append(wrap_row(["", "TOTAL", "", "", "", format_rupiah(pay_total, prefix=""), ""], is_footer=True))
+            pay_data.append(wrap_row(["", "TOTAL", "", "", "", format_rupiah(pay_total, prefix=""), "", ""], is_footer=True))
 
-        pt = Table(pay_data, colWidths=[2.8*cm, 3.2*cm, 2.0*cm, 3.5*cm, 2.0*cm, 2.5*cm, 1.8*cm], repeatRows=1)
+        pt = Table(pay_data, colWidths=[2.4*cm, 2.4*cm, 2.1*cm, 2.4*cm, 1.5*cm, 2.3*cm, 1.5*cm, 2.1*cm], repeatRows=1)
         pt.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,0), GREEN_TINT),
             ("TEXTCOLOR", (0,0), (-1,0), GREEN),
@@ -1001,7 +1006,9 @@ def api_dashboard_summary():
     jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
     jenjangs = [j for j in jenjangs_str.split(",") if j]
-    return jsonify({"ok": True, "data": get_dashboard_summary(_cid(), years, pillars, programs, jenjangs)})
+    statuses_str = request.args.get("statuses", "")
+    statuses = [s for s in statuses_str.split(",") if s]
+    return jsonify({"ok": True, "data": get_dashboard_summary(_cid(), years, pillars, programs, jenjangs, statuses)})
 
 
 @bp.route("/api/dashboard/breakdown")
@@ -1016,7 +1023,9 @@ def api_dashboard_breakdown():
     jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
     jenjangs = [j for j in jenjangs_str.split(",") if j]
-    return jsonify({"ok": True, "data": get_dashboard_breakdown(_cid(), years, pillars, programs, jenjangs)})
+    statuses_str = request.args.get("statuses", "")
+    statuses = [s for s in statuses_str.split(",") if s]
+    return jsonify({"ok": True, "data": get_dashboard_breakdown(_cid(), years, pillars, programs, jenjangs, statuses)})
 
 
 @bp.route("/api/dashboard/monthly")
@@ -1031,7 +1040,9 @@ def api_dashboard_monthly():
     jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
     jenjangs = [j for j in jenjangs_str.split(",") if j]
-    return jsonify({"ok": True, "data": get_dashboard_monthly(_cid(), years, pillars, programs, jenjangs)})
+    statuses_str = request.args.get("statuses", "")
+    statuses = [s for s in statuses_str.split(",") if s]
+    return jsonify({"ok": True, "data": get_dashboard_monthly(_cid(), years, pillars, programs, jenjangs, statuses)})
 
 
 @bp.route("/api/dashboard/latest_payments")
@@ -1046,7 +1057,9 @@ def api_dashboard_latest_payments():
     jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
     jenjangs = [j for j in jenjangs_str.split(",") if j]
-    return jsonify({"ok": True, "data": get_dashboard_latest_payments(_cid(), years, pillars, programs, jenjangs)})
+    statuses_str = request.args.get("statuses", "")
+    statuses = [s for s in statuses_str.split(",") if s]
+    return jsonify({"ok": True, "data": get_dashboard_latest_payments(_cid(), years, pillars, programs, jenjangs, statuses)})
 
 
 @bp.route("/api/dashboard/program_summary")
@@ -1061,7 +1074,9 @@ def api_dashboard_program_summary():
     jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
     jenjangs = [j for j in jenjangs_str.split(",") if j]
-    return jsonify({"ok": True, "data": get_dashboard_program_summary(_cid(), years, pillars, programs, jenjangs)})
+    statuses_str = request.args.get("statuses", "")
+    statuses = [s for s in statuses_str.split(",") if s]
+    return jsonify({"ok": True, "data": get_dashboard_program_summary(_cid(), years, pillars, programs, jenjangs, statuses)})
 
 
 @bp.route("/api/dashboard/pillar_yearly")
@@ -1074,5 +1089,7 @@ def api_dashboard_pillar_yearly():
     jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
     jenjangs = [j for j in jenjangs_str.split(",") if j]
-    return jsonify({"ok": True, "data": get_dashboard_pillar_yearly(_cid(), pillars, programs, jenjangs)})
+    statuses_str = request.args.get("statuses", "")
+    statuses = [s for s in statuses_str.split(",") if s]
+    return jsonify({"ok": True, "data": get_dashboard_pillar_yearly(_cid(), pillars, programs, jenjangs, statuses)})
 

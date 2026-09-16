@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 def login(client, username="admin", password="Admin@123"):
     return client.post("/auth/login", json={"username": username, "password": password})
 
@@ -96,13 +97,12 @@ def test_export_summary_returns_csv(client):
     assert b"API Test Siswa" in resp.data
 
 
-def test_export_detail_returns_csv(client):
+def test_export_detail_returns_xlsx(client):
     login(client)
     _select_etf(client)
     resp = client.get("/beasiswa/sahabat/export/detail")
     assert resp.status_code == 200
-    assert resp.headers["Content-Type"].startswith("text/csv")
-    assert b"Sumber" in resp.data  # header row
+    assert resp.headers["Content-Type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def test_index_contains_dashboard_elements_for_etf_company(client):
@@ -279,7 +279,7 @@ def test_export_summary_respects_year_filter(client):
     assert b"1000000.0" not in resp.data
 
 
-def test_export_detail_respects_pillar_filter(client):
+def test_export_detail_respects_pillar_filter(client, monkeypatch):
     login(client)
     _select_etf(client)
     client.post("/beasiswa/siswa/tambah", json={
@@ -294,9 +294,17 @@ def test_export_detail_respects_pillar_filter(client):
         "pillar": "SETF", "perusahaan": "ETF",
         "items": [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 600000}]})
 
+    mock_build = MagicMock(return_value=b"mock")
+    monkeypatch.setattr("modules.sahabat_etf.report_xlsx.build_detail_workbook", mock_build)
+
     resp = client.get("/beasiswa/sahabat/export/detail?pillars=SETF")
-    assert b"600000.0" in resp.data
-    assert b"400000.0" not in resp.data
+    assert resp.status_code == 200
+    
+    mock_build.assert_called_once()
+    rows = mock_build.call_args[0][0]
+    amounts = [r["amount"] for r in rows if r["siswa_code"] == "9992011"]
+    assert 600000.0 in amounts
+    assert 400000.0 not in amounts
 
 
 def test_api_breakdown_respects_multiple_pillars_query_param(client):
@@ -551,3 +559,55 @@ def test_api_report_siswa_rows_have_all_laporan_render_fields(client):
                 assert "periode_end" in row
                 assert "cur" in row
                 assert "cum" in row
+
+
+def test_api_report_respects_month_and_pillars_array_query_params(client, monkeypatch):
+    login(client)
+    _select_etf(client)
+    mock_build = MagicMock(return_value={})
+    monkeypatch.setattr("modules.sahabat_etf.routes.build_report_data", mock_build)
+    
+    # Simulate frontend sending month and pillars[] array
+    client.get("/beasiswa/sahabat/api/report?year=2026&month=8&pillars[]=APP&pillars[]=SETF")
+    
+    # Service should be called with month=8, pillars=["APP", "SETF"]
+    mock_build.assert_called_once_with(2, 2026, 8, ["APP", "SETF"])
+
+
+def test_api_pohon_respects_month_and_pillars_array_query_params(client, monkeypatch):
+    login(client)
+    _select_etf(client)
+    mock_build = MagicMock(return_value={})
+    mock_build_group = MagicMock(return_value={})
+    monkeypatch.setattr("modules.sahabat_etf.service.build_pohon_data", mock_build)
+    monkeypatch.setattr("modules.sahabat_etf.service.build_pohon_group_data", mock_build_group)
+    
+    client.get("/beasiswa/sahabat/api/pohon?year=2026&month=9&pillars[]=SETF")
+    
+    mock_build.assert_called_once_with(2, 2026, 9, ["SETF"])
+
+
+def test_export_report_respects_month_and_pillars_array_query_params(client, monkeypatch):
+    login(client)
+    _select_etf(client)
+    mock_build = MagicMock(return_value={})
+    mock_workbook = MagicMock(return_value=b"mock")
+    monkeypatch.setattr("modules.sahabat_etf.routes.build_report_data", mock_build)
+    monkeypatch.setattr("modules.sahabat_etf.report_xlsx.build_report_workbook", mock_workbook)
+    
+    client.get("/beasiswa/sahabat/export/report?year=2026&month=10&pillars[]=FINANCE")
+    
+    mock_build.assert_called_once_with(2, 2026, 10, ["FINANCE"])
+
+
+def test_export_ppt_report_respects_month_and_pillars_array_query_params(client, monkeypatch):
+    login(client)
+    _select_etf(client)
+    mock_build = MagicMock(return_value={})
+    mock_pptx = MagicMock(return_value=b"mock")
+    monkeypatch.setattr("modules.sahabat_etf.routes.build_report_data", mock_build)
+    monkeypatch.setattr("modules.sahabat_etf.report_pptx.build_report_pptx", mock_pptx)
+    
+    client.get("/beasiswa/sahabat/api/report/export_ppt?year=2026&month=11&pillars[]=APP")
+    
+    mock_build.assert_called_once_with(2, 2026, 11, ["APP"])

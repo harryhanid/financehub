@@ -118,3 +118,27 @@ def export_laporan_mutasi_route():
         download_name=filename,
         as_attachment=True,
     )
+
+
+@bp.route("/export-detail-transaksi")
+@jwt_html_required
+def export_detail_transaksi_route():
+    cid = _cid()
+    if not cid:
+        return redirect(url_for("dashboard.select_company"))
+    
+    bank_rows = get_bank_setf_rows(cid)
+    balance = compute_running_balance(bank_rows)
+    bulan, tahun = resolve_period(request.args.get("bulan"), request.args.get("tahun"))
+    display_rows = filter_period(balance["rows"], bulan, tahun)
+    
+    from modules.bank.reports import build_detail_transaksi_excel
+    xls_bytes = build_detail_transaksi_excel(display_rows)
+    filename = f"Detail Transaksi Bank Sahabat ETF - {datetime.now():%Y-%m-%d}.xlsx"
+    
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )

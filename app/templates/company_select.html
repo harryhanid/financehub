@@ -97,6 +97,8 @@
     body.branch-hover-smt .chart-shadow  { opacity: .18 !important; }
     body.branch-hover-etf .chart-shadow  { stroke-width: 2.4; opacity: 1 !important; }
     body.branch-hover-etf .chart-primary { opacity: .5; }
+    body.branch-hover-backup .chart-primary { stroke: #F59E0B; opacity: 1; }
+    body.branch-hover-backup .chart-shadow { stroke: #F59E0B; opacity: 1 !important; }
 
     /* Click flourish: brief brighten + glow before the form submits */
     body.branch-firing-smt .chart-primary {
@@ -104,6 +106,12 @@
     }
     body.branch-firing-etf .chart-shadow {
       stroke-width: 3; filter: drop-shadow(0 0 6px rgba(34,211,238,.8));
+    }
+    body.branch-firing-backup .chart-primary {
+      stroke: #F59E0B; stroke-width: 4; filter: drop-shadow(0 0 6px rgba(245,158,11,.8));
+    }
+    body.branch-firing-backup .chart-shadow {
+      stroke: #F59E0B; stroke-width: 4; filter: drop-shadow(0 0 6px rgba(245,158,11,.8));
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -189,6 +197,7 @@
     .company-panel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .company-panel-smt:hover, .company-panel-smt:focus-visible { border-color: rgba(91,140,255,.4); }
     .company-panel-etf:hover, .company-panel-etf:focus-visible { border-color: rgba(34,211,238,.4); }
+    .company-panel-backup:hover, .company-panel-backup:focus-visible { border-color: rgba(245,158,11,.4); }
 
     .company-landing-dot {
       width: 6px; height: 6px; border-radius: 50%;
@@ -196,6 +205,7 @@
     }
     .company-panel-smt .company-landing-dot { background: #5B8CFF; box-shadow: 0 0 10px #5B8CFF; }
     .company-panel-etf .company-landing-dot { background: #22D3EE; box-shadow: 0 0 10px #22D3EE; animation-delay: .5s; }
+    /* The backup button dot is styled inline, but we can add hover effects here if needed */
 
     .company-name { font-size: 1rem; font-weight: 700; color: var(--ink); text-align: center; }
     .company-code {
@@ -253,6 +263,17 @@
         </button>
       </form>
       {% endfor %}
+      
+      <!-- Backup Data Y Button -->
+      <form method="POST" action="/backup/" class="company-form">
+        <button type="submit"
+                class="company-panel company-panel-backup"
+                data-code="backup">
+          <span class="company-landing-dot" style="background: #F59E0B; box-shadow: 0 0 10px #F59E0B; animation-delay: 1s;"></span>
+          <span class="company-name">Backup Data Y</span>
+          <span class="company-code">BACKUP</span>
+        </button>
+      </form>
     </div>
   </div>
 

@@ -50,6 +50,8 @@
   flex-wrap: wrap;
   gap: 0.6rem;
   margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 30;
 }
 
 .beasiswa-dash-filter-chip {

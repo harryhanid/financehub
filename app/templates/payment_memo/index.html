@@ -364,20 +364,20 @@
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
       <div class="form-group" style="margin:0">
         <label>DPP <span style="color:#ef4444">*</span></label>
-        <input type="number" id="others-dpp" class="dm-inp" placeholder="0"
-               min="0" oninput="othersCalcTotal()"
+        <input type="text" id="others-dpp" class="dm-inp" placeholder="0"
+               oninput="let v=this.value.replace(/[^0-9]/g,'');this.value=v?parseInt(v,10).toLocaleString('en-US'):'';othersCalcTotal()"
                style="text-align:right">
       </div>
       <div class="form-group" style="margin:0">
         <label>PPN</label>
-        <input type="number" id="others-ppn" class="dm-inp" placeholder="0"
-               min="0" oninput="othersCalcTotal()"
+        <input type="text" id="others-ppn" class="dm-inp" placeholder="0"
+               oninput="let v=this.value.replace(/[^0-9]/g,'');this.value=v?parseInt(v,10).toLocaleString('en-US'):'';othersCalcTotal()"
                style="text-align:right">
       </div>
       <div class="form-group" style="margin:0">
         <label>Others</label>
-        <input type="number" id="others-others" class="dm-inp" placeholder="0"
-               min="0" oninput="othersCalcTotal()"
+        <input type="text" id="others-others" class="dm-inp" placeholder="0"
+               oninput="let v=this.value.replace(/[^0-9]/g,'');this.value=v?parseInt(v,10).toLocaleString('en-US'):'';othersCalcTotal()"
                style="text-align:right">
       </div>
       <div class="form-group" style="margin:0">
@@ -628,9 +628,9 @@
             <th style="padding:7px 8px;text-align:center"><input type="checkbox" id="fiori-select-all" onchange="fioriToggleSelectAll(this)"></th>
             <th style="padding:7px 8px;white-space:nowrap">PAM No</th>
             <th style="padding:7px 8px;white-space:nowrap" data-sort="2">Tgl PAM</th>
-            <th style="padding:7px 8px;white-space:nowrap">GL Account</th>
-            <th style="padding:7px 8px;white-space:nowrap">Cost Center</th>
             <th style="padding:7px 8px;">PT</th>
+            <th style="padding:7px 8px;white-space:nowrap">Cost Center</th>
+            <th style="padding:7px 8px;white-space:nowrap">GL Account</th>
             <th style="padding:7px 8px;">Requestor</th>
             <th style="padding:7px 8px;min-width:160px;">Keterangan</th>
             <th style="padding:7px 8px;white-space:nowrap">Mata Uang</th>
@@ -1247,15 +1247,15 @@
       </div>
       <div class="form-group">
         <label>DPP</label>
-        <input type="number" id="edit-fiori-dpp" min="0">
+        <input type="text" id="edit-fiori-dpp" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g, '');this.value=v?parseInt(v,10).toLocaleString('en-US'):''">
       </div>
       <div class="form-group">
         <label>PPN</label>
-        <input type="number" id="edit-fiori-ppn" min="0">
+        <input type="text" id="edit-fiori-ppn" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g, '');this.value=v?parseInt(v,10).toLocaleString('en-US'):''">
       </div>
       <div class="form-group">
         <label>Total</label>
-        <input type="number" id="edit-fiori-total" min="0">
+        <input type="text" id="edit-fiori-total" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g, '');this.value=v?parseInt(v,10).toLocaleString('en-US'):''">
       </div>
     </div>
     <div style="border-top:1px solid var(--border);margin:.5rem 0 .75rem;padding-top:.75rem">
@@ -1312,8 +1312,20 @@
         <input type="text" id="edit-pam-requestor">
       </div>
       <div class="form-group">
+        <label>DPP (Rp)</label>
+        <input type="text" id="edit-pam-dpp" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g, '');this.value=v?parseInt(v,10).toLocaleString('en-US'):'';editPamCalcTotal()">
+      </div>
+      <div class="form-group">
+        <label>PPN (Rp)</label>
+        <input type="text" id="edit-pam-ppn" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g, '');this.value=v?parseInt(v,10).toLocaleString('en-US'):'';editPamCalcTotal()">
+      </div>
+      <div class="form-group">
+        <label>Others (Rp)</label>
+        <input type="text" id="edit-pam-others" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g, '');this.value=v?parseInt(v,10).toLocaleString('en-US'):'';editPamCalcTotal()">
+      </div>
+      <div class="form-group">
         <label>Total Amount (Rp)</label>
-        <input type="number" id="edit-pam-amount" min="0">
+        <input type="text" id="edit-pam-amount" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g, '');this.value=v?parseInt(v,10).toLocaleString('en-US'):''">
       </div>
       <div class="form-group">
         <label>PAM Date</label>
@@ -1398,7 +1410,7 @@
       </div>
       <div class="form-group" style="margin:0;grid-column:1/-1">
         <label>Amount (Rp)</label>
-        <input type="number" id="edit-draft-amount" min="0" style="width:100%;box-sizing:border-box">
+        <input type="text" id="edit-draft-amount" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g, '');this.value=v?parseInt(v,10).toLocaleString('en-US'):''" style="width:100%;box-sizing:border-box">
       </div>
     </div>
     <div style="display:flex;gap:.75rem;justify-content:flex-end">
@@ -1478,6 +1490,29 @@
     </div>
   </div>
 </div>
+
+<div class="modal-overlay" id="modal-edit-beasiswa-line">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <span class="modal-title">Edit Amount Siswa</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-beasiswa-line')">x</button>
+    </div>
+    <input type="hidden" id="edit-line-id">
+    <input type="hidden" id="edit-line-pam-id">
+    <div class="form-group">
+      <label>Siswa</label>
+      <input type="text" id="edit-line-siswa-name" disabled style="background:#f3f4f6">
+    </div>
+    <div class="form-group">
+      <label>Amount (Rp)</label>
+      <input type="text" id="edit-line-amount" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g, '');this.value=v?parseInt(v,10).toLocaleString('en-US'):''">
+    </div>
+    <div style="display:flex;gap:.75rem;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-beasiswa-line')">Batal</button>
+      <button class="btn btn-primary" onclick="submitEditBeasiswaLine()">Simpan</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -1544,6 +1579,16 @@ function esc(s) {
   const d = document.createElement('div');
   d.textContent = String(s ?? '');
   return d.innerHTML;
+}
+
+function fmtDate(s) {
+  if (!s || s === '-') return '-';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return esc(s);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
 }
 
 function toggleAllDrafts(cb) {
@@ -1954,7 +1999,7 @@ async function loadSML() {
       <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
-      <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
       <td style="padding:6px 8px">${esc(r.no_vendor || '-')}</td>
       <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
@@ -2260,7 +2305,7 @@ async function loadSETF() {
       <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
-      <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
@@ -2337,7 +2382,7 @@ async function setfFetchBeasiswaLines(masterTr, toggleEl, pamId) {
       `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
       `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
       `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
-      `<td colspan="12" style="padding:4px 8px;vertical-align:middle"></td>`;
+      `<td colspan="12" style="padding:4px 8px;vertical-align:middle;text-align:right"><button class="btn btn-sm" style="padding:2px 8px;font-size:10px" onclick="openEditLineModal(${r.id}, ${pamId}, '${esc(r.nama || r.siswa_code || '')}', ${r.amount})">Edit</button></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
 
@@ -2382,7 +2427,7 @@ async function loadENERGY() {
       <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
-      <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
@@ -2459,7 +2504,7 @@ async function energyFetchBeasiswaLines(masterTr, toggleEl, pamId) {
       `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
       `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
       `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
-      `<td colspan="12" style="padding:4px 8px;vertical-align:middle"></td>`;
+      `<td colspan="12" style="padding:4px 8px;vertical-align:middle;text-align:right"><button class="btn btn-sm" style="padding:2px 8px;font-size:10px" onclick="openEditLineModal(${r.id}, ${pamId}, '${esc(r.nama || r.siswa_code || '')}', ${r.amount})">Edit</button></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
 
@@ -2502,7 +2547,7 @@ async function loadPaAdvance() {
       <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.amount)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
       <td style="padding:6px 8px">${esc(r.status)}</td>
-      <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.advance_amount)}</td>
       <td style="padding:6px 8px;text-align:right">${r.realized_amount != null ? fmtRupiah(r.realized_amount) : '-'}</td>
       <td style="padding:6px 8px">${r.status === 'paid'
@@ -2726,7 +2771,7 @@ function _smtRenderPage() {
       <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
-      <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
       ${_plDate(r.id,'SMT','tgl_received',r.tgl_received)}
       ${_plDate(r.id,'SMT','tgl_a0',r.tgl_a0)}
@@ -3004,6 +3049,8 @@ async function loadFIORI() {
       <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="fiori-cb" data-id="${r.id}" ${isSel ? 'checked' : ''} style="cursor:pointer;vertical-align:middle" onclick="event.stopPropagation()" onchange="fioriToggleCb(this)">${r.source === 'beasiswa' ? `<span class="fiori-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:4px" onclick="fioriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}</td>
       <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
@@ -3013,7 +3060,7 @@ async function loadFIORI() {
       <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
-      <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
       <td style="padding:6px 8px">${esc(r.no_vendor || '-')}</td>
       <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
@@ -3123,9 +3170,9 @@ async function openEditFiori(id) {
   document.getElementById('edit-fiori-nomor-vendor').value = r.nomor_vendor || '';
   document.getElementById('edit-fiori-nama-vendor').value  = r.nama_vendor || '';
   document.getElementById('edit-fiori-mata-uang').value   = r.mata_uang || 'IDR';
-  document.getElementById('edit-fiori-dpp').value         = r.dpp || 0;
-  document.getElementById('edit-fiori-ppn').value         = r.ppn || 0;
-  document.getElementById('edit-fiori-total').value       = r.total || 0;
+  document.getElementById('edit-fiori-dpp').value = r.dpp ? parseInt(r.dpp, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-fiori-ppn').value = r.ppn ? parseInt(r.ppn, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-fiori-total').value = r.total ? parseInt(r.total, 10).toLocaleString('en-US') : '';
   document.getElementById('edit-fiori-terima-doc').value      = r.terima_document || '';
   document.getElementById('edit-fiori-input-aspiro').value    = r.input_aspiro || '';
   document.getElementById('edit-fiori-verifikasi-tax').value  = r.verifikasi_tax || '';
@@ -3148,9 +3195,9 @@ async function submitEditFiori() {
     nomor_vendor: document.getElementById('edit-fiori-nomor-vendor').value.trim(),
     nama_vendor:  document.getElementById('edit-fiori-nama-vendor').value.trim(),
     mata_uang:    document.getElementById('edit-fiori-mata-uang').value.trim() || 'IDR',
-    dpp:              parseFloat(document.getElementById('edit-fiori-dpp').value) || 0,
-    ppn:              parseFloat(document.getElementById('edit-fiori-ppn').value) || 0,
-    total:            parseFloat(document.getElementById('edit-fiori-total').value) || 0,
+    dpp:              parseFloat(document.getElementById('edit-fiori-dpp').value.replace(/,/g, '')) || 0,
+    ppn:              parseFloat(document.getElementById('edit-fiori-ppn').value.replace(/,/g, '')) || 0,
+    total:            parseFloat(document.getElementById('edit-fiori-total').value.replace(/,/g, '')) || 0,
     terima_document:  document.getElementById('edit-fiori-terima-doc').value || null,
     input_aspiro:     document.getElementById('edit-fiori-input-aspiro').value || null,
     verifikasi_tax:   document.getElementById('edit-fiori-verifikasi-tax').value || null,
@@ -3556,7 +3603,7 @@ function _agriRenderPage() {
       <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
-      <td style="padding:6px 8px;white-space:nowrap">${esc(r.tanggal_bayar || '-')}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
       <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_pengajuan, r.sub_total)}</td>
       <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_receive,   r.sub_total)}</td>
@@ -3922,7 +3969,10 @@ async function openEditPAM(pamId) {
   document.getElementById('edit-pam-date').value          = r.pam_date || '';
   document.getElementById('edit-pam-due').value           = r.due_date || '';
   document.getElementById('edit-pam-tanggal-bayar').value = r.tanggal_bayar || '';
-  document.getElementById('edit-pam-amount').value        = r.total_amount || 0;
+  document.getElementById('edit-pam-dpp').value = r.dpp ? parseInt(r.dpp, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-pam-ppn').value = r.ppn ? parseInt(r.ppn, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-pam-others').value = r.others ? parseInt(r.others, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-pam-amount').value = r.total_amount ? parseInt(r.total_amount, 10).toLocaleString('en-US') : '';
   document.getElementById('edit-pam-pt-search').value     = r.pt || '';
   document.getElementById('edit-pam-pt').value             = r.pt || '';
   document.getElementById('edit-pam-cost-center').value    = r.cost_center || '';
@@ -3930,6 +3980,14 @@ async function openEditPAM(pamId) {
   const app = r.payment_application || {};
   document.getElementById('edit-pam-app-notes').value     = app.notes || '';
   openModal('modal-edit-pam');
+}
+
+function editPamCalcTotal() {
+  const dpp = parseFloat(document.getElementById('edit-pam-dpp').value.replace(/,/g, '')) || 0;
+  const ppn = parseFloat(document.getElementById('edit-pam-ppn').value.replace(/,/g, '')) || 0;
+  const others = parseFloat(document.getElementById('edit-pam-others').value.replace(/,/g, '')) || 0;
+  const total = dpp + ppn + others;
+  document.getElementById('edit-pam-amount').value = total ? total.toLocaleString('en-US') : '0';
 }
 
 async function submitEditPAM() {
@@ -3942,7 +4000,10 @@ async function submitEditPAM() {
       requestors_name: document.getElementById('edit-pam-requestor').value.trim(),
       pam_date:        document.getElementById('edit-pam-date').value,
       due_date:        document.getElementById('edit-pam-due').value,
-      total_amount:    parseFloat(document.getElementById('edit-pam-amount').value) || 0,
+      dpp: parseFloat(document.getElementById('edit-pam-dpp').value.replace(/,/g, '')) || 0,
+      ppn: parseFloat(document.getElementById('edit-pam-ppn').value.replace(/,/g, '')) || 0,
+      others: parseFloat(document.getElementById('edit-pam-others').value.replace(/,/g, '')) || 0,
+      total_amount: parseFloat(document.getElementById('edit-pam-amount').value.replace(/,/g, '')) || 0,
       tanggal_bayar:   document.getElementById('edit-pam-tanggal-bayar').value || null,
       pt:              document.getElementById('edit-pam-pt').value.trim() || null,
       cost_center:     document.getElementById('edit-pam-cost-center').value.trim() || null,
@@ -4016,7 +4077,7 @@ async function openEditDraft(paymentId) {
   // cat2 dropdown
   draftCat2Set(d.cat2 || '');
   // amount
-  document.getElementById('edit-draft-amount').value = d.amount || 0;
+  document.getElementById('edit-draft-amount').value = d.amount ? parseInt(d.amount, 10).toLocaleString('en-US') : '';
   openModal('modal-edit-draft');
 }
 
@@ -4029,7 +4090,7 @@ async function submitEditDraft() {
     payment: {
       cat1:   document.getElementById('edit-draft-cat1').value,
       cat2:   cat2val,
-      amount: parseFloat(document.getElementById('edit-draft-amount').value) || 0,
+      amount: parseFloat(document.getElementById('edit-draft-amount').value.replace(/,/g, '')) || 0,
     },
     pam: {}, app: {},
   };
@@ -4113,6 +4174,39 @@ async function rejectStudentFromPAM(paymentBeasiswaId, namaLabel) {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+function openEditLineModal(lineId, pamId, nama, amount) {
+  document.getElementById('edit-line-id').value = lineId;
+  document.getElementById('edit-line-pam-id').value = pamId;
+  document.getElementById('edit-line-siswa-name').value = nama;
+  document.getElementById('edit-line-amount').value = amount ? parseInt(amount, 10).toLocaleString('en-US') : '0';
+  openModal('modal-edit-beasiswa-line');
+}
+
+async function submitEditBeasiswaLine() {
+  const lineId = parseInt(document.getElementById('edit-line-id').value);
+  const pamId = parseInt(document.getElementById('edit-line-pam-id').value);
+  const amount = parseFloat(document.getElementById('edit-line-amount').value.replace(/,/g, '')) || 0;
+  const res = await apiFetch('/payment-memo/beasiswa-line/' + lineId + '/amount', { method: 'POST', body: JSON.stringify({ amount }) });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    closeModal('modal-edit-beasiswa-line');
+    if (typeof _setfBeasiswaCache !== 'undefined') _setfBeasiswaCache[pamId] = null;
+    if (typeof _smlBeasiswaCache !== 'undefined') _smlBeasiswaCache[pamId] = null;
+    if (typeof _energyBeasiswaCache !== 'undefined') _energyBeasiswaCache[pamId] = null;
+    if (typeof _smtBeasiswaCache !== 'undefined') _smtBeasiswaCache[pamId] = null;
+    if (typeof _fioriBeasiswaCache !== 'undefined') _fioriBeasiswaCache[pamId] = null;
+    if (typeof _agriBeasiswaCache !== 'undefined') _agriBeasiswaCache[pamId] = null;
+    if (typeof loadSETFDebounced === 'function') loadSETFDebounced();
+    if (typeof loadSMLDebounced === 'function') loadSMLDebounced();
+    if (typeof loadEnergyDebounced === 'function') loadEnergyDebounced();
+    if (typeof loadSMTDebounced === 'function') loadSMTDebounced();
+    if (typeof loadFioriDebounced === 'function') loadFioriDebounced();
+    if (typeof loadAGRIDebounced === 'function') loadAGRIDebounced();
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const pamBtn = document.querySelector('[data-tab="tab-pam"]');
   if (pamBtn) pamBtn.addEventListener('click', loadPAM);
@@ -4658,7 +4752,7 @@ function _ipayResetAutoFill(tr) {
 
 function _ipayFillLine(tr, line) {
   tr._hidEtfLineId.value = line.line_id;
-  tr._amtInp.value = line.jumlah_pembayaran || ""; tr._amtInp.readOnly = true;
+  tr._amtInp.value = line.jumlah_pembayaran ? parseInt(line.jumlah_pembayaran, 10).toLocaleString('en-US') : ""; tr._amtInp.readOnly = true;
   tr._tgls[0].value = line.tgl_surat_pengajuan || "";
   tr._tgls[1].value = line.doc_received_by_educ || "";
   tr._tgls[2].value = line.tgl_payment_application || "";
@@ -4743,14 +4837,14 @@ function ipayReset() {
 
 function ipayUpdateTotal() {
   let total = 0;
-  document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]").forEach(tr => { total += parseFloat(tr._amtInp?.value) || 0; });
+  document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]").forEach(tr => { total += parseFloat(tr._amtInp?.value.replace(/,/g, '')) || 0; });
   const el = document.getElementById("ipay-total-amt");
   if (el) el.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(total);
 }
 
 function _ipayUpdateSisaCell(tr) {
   const cat1 = tr._cat1Select?.value;
-  const amt  = parseFloat(tr._amtInp?.value) || 0;
+  const amt  = parseFloat(tr._amtInp?.value.replace(/,/g, '')) || 0;
   if (!cat1 || !tr.dataset.siswaCode || !tr._sisaBudget || !Object.keys(tr._sisaBudget).length) { tr._sisaCell.textContent = "—"; tr._sisaCell.style.color = "#6b7280"; return; }
   const sisa = tr._sisaBudget[cat1];
   if (sisa === undefined) { tr._sisaCell.textContent = "Tdk ada budget"; tr._sisaCell.style.color = "#d97706"; return; }
@@ -4996,9 +5090,16 @@ function ipayAddRow() {
 
   function tdInput(type, placeholder, extra) {
     const td = document.createElement("td"), inp = document.createElement("input");
-    inp.type = type; inp.placeholder = placeholder || "";
+    inp.type = type === "number" ? "text" : type; 
+    inp.placeholder = placeholder || "";
     if (extra) Object.assign(inp, extra);
     inp.style.cssText = "width:100%;box-sizing:border-box";
+    if (type === "number") {
+      inp.addEventListener("input", function() {
+        let v = this.value.replace(/[^0-9]/g, '');
+        this.value = v ? parseInt(v, 10).toLocaleString('en-US') : '';
+      });
+    }
     td.appendChild(inp); return { td, inp };
   }
 
@@ -5195,12 +5296,12 @@ async function ipaySave() {
   const tanggal=document.getElementById("ipay-tgl").value, pillar=document.getElementById("ipay-pillar").value, perusahaan=document.getElementById("ipay-perusahaan").value, pam=document.getElementById("ipay-pam-full").value;
   if (!tanggal||!pillar||!perusahaan) { showToast("Tanggal, Pillar, dan Perusahaan wajib diisi.","error"); return; }
   const allTrs=[...document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]")];
-  const over=allTrs.filter(tr=>{const amt=parseFloat(tr._amtInp?.value)||0;if(amt<=0)return false;const cat1=tr._cat1Select?.value;if(!cat1||!tr._sisaBudget||!Object.keys(tr._sisaBudget).length)return false;const sisa=tr._sisaBudget[cat1];return sisa!==undefined&&amt>sisa;});
+  const over=allTrs.filter(tr=>{const amt=parseFloat(tr._amtInp?.value.replace(/,/g, ''))||0;if(amt<=0)return false;const cat1=tr._cat1Select?.value;if(!cat1||!tr._sisaBudget||!Object.keys(tr._sisaBudget).length)return false;const sisa=tr._sisaBudget[cat1];return sisa!==undefined&&amt>sisa;});
   if (over.length) { showToast(`${over.length} baris melebihi sisa budget.`,"error"); return; }
   const incompleteMedis = allTrs.filter(tr => {
     const cat1 = tr._cat1Select?.value;
     const cat2 = tr._cat2Drop?._hid?.value;
-    const amt  = parseFloat(tr._amtInp?.value) || 0;
+    const amt  = parseFloat(tr._amtInp?.value.replace(/,/g, '')) || 0;
     return amt > 0 && _isMedical(cat1, cat2) && !tr._medisComplete();
   });
   if (incompleteMedis.length) {
@@ -5221,7 +5322,7 @@ async function ipaySave() {
       siswa_code:     tr.dataset.siswaCode||"",
       cat1,
       cat2,
-      amount:         parseFloat(tr._amtInp.value)||0,
+      amount:         parseFloat(tr._amtInp.value.replace(/,/g, ''))||0,
       tgl_pengajuan:  tr._tgls[0].value,
       tgl_receive:    tr._tgls[1].value,
       tgl_pa:         tr._tgls[2].value,
@@ -5284,7 +5385,7 @@ async function ipaySavePa() {
     etf_pa_line_id: tr._hidEtfLineId?.value ? parseInt(tr._hidEtfLineId.value) : null,
     cat1:           tr._cat1Select?.value || "",
     cat2:           tr._cat2Drop?._hid?.value || "",
-    amount:         parseFloat(tr._amtInp?.value) || 0,
+    amount:         parseFloat(tr._amtInp?.value.replace(/,/g, '')) || 0,
     tgl_pengajuan:  tr._tgls?.[0]?.value || "",
     tgl_receive:    tr._tgls?.[1]?.value || "",
     tgl_pa:         tr._tgls?.[2]?.value || "",
@@ -5620,9 +5721,9 @@ async function ipaySaveKlaim() {
 
 // ── Others Panel ──────────────────────────────────────────────────────────
 function othersCalcTotal() {
-  const dpp    = parseFloat(document.getElementById("others-dpp")?.value) || 0;
-  const ppn    = parseFloat(document.getElementById("others-ppn")?.value) || 0;
-  const others = parseFloat(document.getElementById("others-others")?.value) || 0;
+  const dpp    = parseFloat(document.getElementById("others-dpp")?.value.replace(/,/g, '')) || 0;
+  const ppn    = parseFloat(document.getElementById("others-ppn")?.value.replace(/,/g, '')) || 0;
+  const others = parseFloat(document.getElementById("others-others")?.value.replace(/,/g, '')) || 0;
   const total  = dpp + ppn + others;
   const el = document.getElementById("others-total");
   if (el) el.textContent = "Rp " + total.toLocaleString("id-ID");
@@ -5650,9 +5751,9 @@ async function ipaySaveOthers() {
   const pillar     = document.getElementById("ipay-pillar").value;
   const perusahaan = document.getElementById("ipay-perusahaan").value;
   const mata_uang  = document.getElementById("others-mataUang")?.value || "IDR";
-  const dpp        = parseFloat(document.getElementById("others-dpp")?.value) || 0;
-  const ppn        = parseFloat(document.getElementById("others-ppn")?.value) || 0;
-  const others     = parseFloat(document.getElementById("others-others")?.value) || 0;
+  const dpp        = parseFloat(document.getElementById("others-dpp")?.value.replace(/,/g, '')) || 0;
+  const ppn        = parseFloat(document.getElementById("others-ppn")?.value.replace(/,/g, '')) || 0;
+  const others     = parseFloat(document.getElementById("others-others")?.value.replace(/,/g, '')) || 0;
 
   if (!tanggal || !pam_no || pam_no === "Memuat...") {
     showToast("Tanggal dan No. PAM wajib ada.", "error"); return;

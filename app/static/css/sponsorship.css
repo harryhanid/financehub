@@ -78,16 +78,49 @@
 .sp-form-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1.25rem 1.5rem;
+  border-top: 4px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+  border-radius: 12px;
+  padding: 1.75rem 2.25rem;
+  box-shadow: 0 8px 30px -4px rgba(0,0,0,0.08);
+  transition: box-shadow 0.3s ease;
+}
+.sp-form-card::before {
+  content: "";
+  position: absolute;
+  top: -4px; left: -1px; right: -1px; height: 4px;
+  background: linear-gradient(135deg, var(--primary, #1e3a8a), #3b82f6);
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+[data-theme="dark"] .sp-form-card {
+  box-shadow: 0 4px 20px -4px rgba(0,0,0,0.2);
+  border-color: rgba(255,255,255,0.08);
+  background: linear-gradient(145deg, var(--bg-card), rgba(255,255,255,0.02));
 }
 .sp-form-section-title {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-secondary);
-  margin-bottom: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--primary, #1d4ed8);
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sp-form-section-title::before {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, var(--primary, #1e3a8a), #60a5fa);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+[data-theme="dark"] .sp-form-section-title {
+  color: #60a5fa;
 }
 .sp-form-section-title.sp-form-section-title-divider {
   margin-top: 1rem;
@@ -151,9 +184,141 @@
   margin-top: 0.6rem;
 }
 
-/* -- Full-height table wrapper — Data/Outstanding tabs --------------------- */
+/* -- Full-height table wrapper  Data/Outstanding tabs --------------------- */
 /* Overrides .budget-table-container's stale max-height (budget.css) with a
    JS-driven height instead, matching Payment Application's #pa-scroll-wrap
    technique (etf_payment_application/index.html). An id selector already
    outranks the class rule, so no !important is needed. */
 #sp-table-wrap { max-height: none; }
+
+/* --- UI/UX Promax Enhancements for Input Form --- */
+
+.sp-form-field input,
+.sp-form-field select {
+  transition: all 0.2s ease;
+}
+.sp-form-field input:focus,
+.sp-form-field select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+[data-theme="dark"] .sp-form-field input:focus,
+[data-theme="dark"] .sp-form-field select:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.sp-promax-line-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--sl-300, #cbd5e1);
+  padding: 1.25rem 1.5rem 0.5rem 1.5rem;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 10px -2px rgba(0,0,0,0.03);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.sp-promax-line-card:hover {
+  border-left-color: #3b82f6;
+}
+[data-theme="dark"] .sp-promax-line-card {
+  border-left-color: rgba(255,255,255,0.15);
+}
+[data-theme="dark"] .sp-promax-line-card:hover {
+  border-left-color: #3b82f6;
+}
+.sp-promax-line-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(0,0,0,0.08);
+  border-color: var(--sl-300);
+}
+[data-theme="dark"] .sp-promax-line-card {
+  background: rgba(255,255,255,0.015);
+  border-color: rgba(255,255,255,0.06);
+}
+[data-theme="dark"] .sp-promax-line-card:hover {
+  border-color: rgba(255,255,255,0.15);
+  box-shadow: 0 8px 24px -4px rgba(0,0,0,0.3);
+}
+
+.sp-promax-remove-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.35rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.sp-promax-remove-btn:hover {
+  background: #fef2f2;
+  color: #ef4444;
+}
+[data-theme="dark"] .sp-promax-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.sp-promax-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: 1.5px dashed var(--sl-300);
+  color: var(--text-muted);
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: center;
+}
+.sp-promax-add-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(59, 130, 246, 0.05);
+}
+[data-theme="dark"] .sp-promax-add-btn {
+  border-color: rgba(255,255,255,0.15);
+}
+[data-theme="dark"] .sp-promax-add-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--primary);
+}
+
+.sp-promax-footer {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+}
+.sp-promax-submit-btn {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  border: none;
+  padding: 0.75rem 2.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transition: all 0.2s ease;
+}
+.sp-promax-submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+.sp-promax-submit-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}

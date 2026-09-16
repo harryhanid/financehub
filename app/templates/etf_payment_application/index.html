@@ -166,7 +166,7 @@
 
 {% block module_tabs %}
 <div class="tabs" style="margin-bottom:0" title="Alt+&#8592; / Alt+&#8594; untuk pindah tab">
-  {% for t, label in [('summary','Open PA'),('advance','Advance'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('energy','EFIN'),('setf','SETF')] %}
+  {% for t, label in [('summary','Open PA'),('advance','Advance'),('combine','Combine'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('energy','EFIN'),('setf','SETF')] %}
   <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
      class="tab-btn{% if active_tab == t %} active{% endif %}"
      style="text-decoration:none"
@@ -394,6 +394,7 @@
           <span id="grp-siswa-icon">▶</span>
           <div class="grp-siswa-label" id="grp-siswa-lbl">DATA SISWA</div>
         </th>
+        {% if active_tab == 'combine' %}<th>Pillar</th>{% endif %}
         <th class="col-siswa">Status PB</th>
         <th class="col-siswa">Instansi</th>
         <th class="col-siswa">Angkatan ETF</th>
@@ -443,6 +444,13 @@
         <td class="s2">{{ r.student_code }}</td>
         <td class="s3" style="white-space:nowrap">{{ r.nama }}</td>
         <td class="grp-toggle-cell" onclick="toggleSiswaGroup()" title="Expand/collapse Data Siswa">·</td>
+        {% if active_tab == 'combine' %}
+        <td>
+          {% set p_color = {'agri':'badge-yellow','app':'badge-blue','sml':'badge-green','energy':'badge-red','setf':'badge-gray'}.get(r.pillar, 'badge-gray') %}
+          {% set p_lbl = {'agri':'AGRI','app':'APP','sml':'LAND','energy':'EFIN','setf':'SETF'}.get(r.pillar, (r.pillar|upper)) %}
+          <span class="badge {{ p_color }}">{{ p_lbl }}</span>
+        </td>
+        {% endif %}
         <td class="col-siswa">{{ r.status_pb or '--' }}</td>
         <td class="col-siswa" style="white-space:nowrap">{{ r.instansi_pendidikan or '--' }}</td>
         <td class="col-siswa">{{ r.angkatan_etf or '--' }}</td>
@@ -926,7 +934,7 @@
         </div>
       </div>
       <div class="form-group"><label>Jumlah (Rp)</label>
-        <input type="number" id="edit-jumlah" min="0">
+        <input type="text" id="edit-jumlah" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g,'');this.value=v?parseInt(v,10).toLocaleString('en-US'):''">
       </div>
     </div>
     <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:1rem">
@@ -955,7 +963,7 @@
       <input type="text" class="pl-tahun-ajaran" placeholder="2024/2025">
     </div>
     <div class="form-group" style="margin:0"><label style="font-size:.75rem">Jumlah (Rp)</label>
-      <input type="number" class="pl-jumlah" placeholder="0" min="0">
+      <input type="text" class="pl-jumlah" placeholder="0" oninput="let v=this.value.replace(/[^0-9]/g,'');this.value=v?parseInt(v,10).toLocaleString('en-US'):''">
     </div>
     <button type="button" onclick="this.closest('.payline-row').remove()"
             style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;padding:.2rem .4rem;margin-bottom:.15rem;align-self:flex-end" title="Hapus baris">✕</button>
@@ -1660,7 +1668,7 @@ async function submitPA() {
       semester:           row.querySelector('.pl-semester').value,
       tahun_ajaran:       row.querySelector('.pl-tahun-ajaran') ? row.querySelector('.pl-tahun-ajaran').value : '',
       ipk_sem_sebelumnya: ipkVal,
-      jumlah_pembayaran:  parseInt(row.querySelector('.pl-jumlah').value) || 0,
+      jumlah_pembayaran:  parseInt(row.querySelector('.pl-jumlah').value.replace(/,/g, '')) || 0,
     });
   }
   const selectedRoute = document.querySelector('input[name="pa-route"]:checked')?.value || 'gl';
@@ -1736,7 +1744,7 @@ async function openEditById(paId, lineId) {
       document.getElementById("edit-semester").value     = line.semester || "";
       document.getElementById("edit-tahun-ajaran").value = line.tahun_ajaran || "";
       document.getElementById("edit-ipk").value          = line.ipk_sem_sebelumnya || "";
-      document.getElementById("edit-jumlah").value       = line.jumlah_pembayaran || "";
+      document.getElementById("edit-jumlah").value       = line.jumlah_pembayaran ? parseInt(line.jumlah_pembayaran, 10).toLocaleString('en-US') : "";
     }
   }
   openModal("modal-edit-pa");
@@ -1763,7 +1771,7 @@ async function saveEdit() {
     semester:                document.getElementById("edit-semester").value,
     tahun_ajaran:            document.getElementById("edit-tahun-ajaran").value,
     ipk_sem_sebelumnya:      parseFloat(document.getElementById("edit-ipk").value) || 0,
-    jumlah_pembayaran:       parseFloat(document.getElementById("edit-jumlah").value) || 0,
+    jumlah_pembayaran:       parseFloat(document.getElementById("edit-jumlah").value.replace(/,/g, '')) || 0,
   };
   showLoading("Menyimpan perubahan...");
   try {

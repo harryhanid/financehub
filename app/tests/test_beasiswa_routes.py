@@ -237,3 +237,75 @@ def test_setf_family_table_and_chart_ids_appear_exactly_once(client):
     # The other Detail Tabel table must still be present.
     assert 'id="setf-table"' in html
 
+
+def test_dashboard_api_summary_parses_statuses_csv(client):
+    from unittest.mock import patch
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    with patch("modules.beasiswa.routes.get_dashboard_summary") as mock_func:
+        mock_func.return_value = []
+        resp = client.get("/beasiswa/api/dashboard/summary?statuses=open,complete")
+        assert resp.status_code == 200
+        assert mock_func.call_count == 1
+        assert mock_func.call_args[0][5] == ["open", "complete"]
+
+def test_dashboard_api_breakdown_parses_statuses_csv(client):
+    from unittest.mock import patch
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    with patch("modules.beasiswa.routes.get_dashboard_breakdown") as mock_func:
+        mock_func.return_value = {}
+        resp = client.get("/beasiswa/api/dashboard/breakdown?statuses=open")
+        assert resp.status_code == 200
+        assert mock_func.call_count == 1
+        assert mock_func.call_args[0][5] == ["open"]
+
+def test_dashboard_api_monthly_parses_statuses_csv(client):
+    from unittest.mock import patch
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    with patch("modules.beasiswa.routes.get_dashboard_monthly") as mock_func:
+        mock_func.return_value = {}
+        resp = client.get("/beasiswa/api/dashboard/monthly?statuses=complete")
+        assert resp.status_code == 200
+        assert mock_func.call_count == 1
+        assert mock_func.call_args[0][5] == ["complete"]
+
+def test_dashboard_api_latest_payments_parses_statuses_csv(client):
+    from unittest.mock import patch
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    with patch("modules.beasiswa.routes.get_dashboard_latest_payments") as mock_func:
+        mock_func.return_value = []
+        resp = client.get("/beasiswa/api/dashboard/latest_payments?statuses=open,complete")
+        assert resp.status_code == 200
+        assert mock_func.call_count == 1
+        assert mock_func.call_args[0][5] == ["open", "complete"]
+
+def test_dashboard_api_program_summary_parses_statuses_csv(client):
+    from unittest.mock import patch
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    with patch("modules.beasiswa.routes.get_dashboard_program_summary") as mock_func:
+        mock_func.return_value = []
+        resp = client.get("/beasiswa/api/dashboard/program_summary?statuses=open")
+        assert resp.status_code == 200
+        assert mock_func.call_count == 1
+        assert mock_func.call_args[0][5] == ["open"]
+
+def test_dashboard_api_pillar_yearly_parses_statuses_csv(client):
+    from unittest.mock import patch
+    from tests.test_beasiswa_routes import login, _select_etf
+    login(client)
+    _select_etf(client)
+    with patch("modules.beasiswa.routes.get_dashboard_pillar_yearly") as mock_func:
+        mock_func.return_value = []
+        resp = client.get("/beasiswa/api/dashboard/pillar_yearly?statuses=open,complete")
+        assert resp.status_code == 200
+        assert mock_func.call_count == 1
+        assert mock_func.call_args[0][4] == ["open", "complete"]

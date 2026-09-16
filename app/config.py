@@ -21,7 +21,7 @@ def _load_or_create_secret(env_var: str, filename: str) -> str:
     return new
 
 JWT_SECRET       = _load_or_create_secret("FH_JWT_SECRET", ".jwt_secret")
-JWT_ACCESS_HOURS = 1
+JWT_ACCESS_HOURS = 24
 JWT_REFRESH_DAYS = 7
 
 FLASK_SECRET = _load_or_create_secret("FH_SECRET", ".flask_secret")
@@ -49,9 +49,16 @@ PILLAR = ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY", "SETF", "NON PILLAR", "
 SPONSORSHIP_CAT = ["Sponsorship", "CSR Gedung"]
 
 SPONSORSHIP_DESCRIPTION = [
-    "Akademisi", "Asosiasi", "Keagamaan", "Kesenian & Kebudayaan",
-    "Lembaga Kajian", "Media", "Organisasi Komunitas",
-    "Organisasi Profesional", "Sosial", "Lainnya",
+    "Akademisi",
+    "Organisasi Profesional",
+    "Media",
+    "Keagamaan",
+    "Kesenian & Kebudayaan",
+    "Asosiasi",
+    "Lembaga Kajian",
+    "Sosial",
+    "Organisasi Komunitas",
+    "Lainnya",
 ]
 
 SPONSORSHIP_CAT4 = ["Include", "Exclude"]
@@ -87,7 +94,7 @@ CAT2_SEM = [
     "By Ujian Kualifikasi", "Test Kemampuan Bahasa Inggris",
     "By Surat Keterangan Sehat & Bebas Narkoba",
     "By Buku dan Seragam", "By Kursus Bahasa Mandarin",
-    "By Kursus Matematika",
+    "By Kursus Matematika", "Tambahan Anggaran",
 ]
 
 CAT3_MEDICAL = [

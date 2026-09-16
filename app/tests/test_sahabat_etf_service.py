@@ -685,6 +685,33 @@ def test_build_report_data_cur_vs_cum_windows():
     assert row["cum"]["plafon"] == 5000000
 
 
+def test_build_report_data_report_month_filter():
+    _add_siswa("9993031", "Siswa Cutoff Bulan", jenjang="S1")
+    add_budget_batch(COMPANY_ID, "9993031", "2026-05-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    add_budget_batch(COMPANY_ID, "9993031", "2026-08-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 3000000}])
+    
+    # Filter by month 6 (June), so August budget should be excluded
+    data = build_report_data(COMPANY_ID, 2026, report_month=6)
+    row = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")["groups"][0]["siswa_rows"][0]
+    assert row["cur"]["plafon"] == 2000000
+    assert row["cum"]["plafon"] == 2000000
+
+
+def test_build_report_data_pillar_filter():
+    _add_siswa("9993032", "Siswa Pillar Data", jenjang="S1")
+    add_budget_batch(COMPANY_ID, "9993032", "2026-05-10", "SETF",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 2000000}])
+    add_budget_batch(COMPANY_ID, "9993032", "2026-05-10", "APP",
+        [{"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 5000000}])
+    
+    data = build_report_data(COMPANY_ID, 2026, pillars=["SETF"])
+    row = next(s for s in data["sections"] if s["key"] == "PENDIDIKAN")["groups"][0]["siswa_rows"][0]
+    assert row["cur"]["plafon"] == 2000000
+    assert row["cum"]["plafon"] == 2000000
+
+
 def test_build_report_data_combines_multiple_pillars_for_same_siswa_row():
     _add_siswa("9993040", "Siswa Dua Pillar", jenjang="S1")
     add_payment_batch(COMPANY_ID, "9993040", "2026-01-10", "APP", "ETF",

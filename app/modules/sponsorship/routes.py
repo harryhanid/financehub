@@ -68,6 +68,8 @@ def _wrong_company():
 
 def _parse_filters():
     filters = {}
+    is_initial = len(request.args) == 0
+
     for key in ("cat1", "cat2", "cat4", "description", "status"):
         val = request.args.get(key)
         if val:
@@ -81,6 +83,9 @@ def _parse_filters():
     tahun_vals = [y for y in request.args.getlist("tahun") if y.strip()]
     if tahun_vals:
         filters["tahun"] = tahun_vals
+    elif is_initial:
+        import datetime
+        filters["tahun"] = [str(datetime.date.today().year)]
 
     return filters
 
@@ -181,6 +186,14 @@ def input_create():
     result = create_transaksi(_cid(), payload)
     return jsonify(result)
 
+
+@bp.route("/input/create-bulk", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def input_create_bulk():
+    payload = request.get_json(force=True)
+    result = create_transaksi_bulk(_cid(), payload)
+    return jsonify(result)
 
 @bp.route("/data")
 @jwt_html_required

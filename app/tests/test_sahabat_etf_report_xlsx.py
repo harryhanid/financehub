@@ -4,11 +4,11 @@ from modules.sahabat_etf.report_xlsx import build_report_workbook
 
 
 def _empty_metrics():
-    return {"plafon": 0.0, "klaim": 0.0, "dibayar": 0.0, "saldo": 0.0}
+    return {"plafon": 0.0, "pta": 0.0, "klaim": 0.0, "dibayar": 0.0, "saldo": 0.0}
 
 
 def _metrics(plafon, klaim, dibayar):
-    return {"plafon": plafon, "klaim": klaim, "dibayar": dibayar, "saldo": plafon - dibayar}
+    return {"plafon": plafon, "pta": 0.0, "klaim": klaim, "dibayar": dibayar, "saldo": plafon - dibayar}
 
 
 def _sample_data():
@@ -54,7 +54,7 @@ def test_build_report_workbook_writes_title_and_unit_note():
     wb = openpyxl.load_workbook(io.BytesIO(xlsx_bytes))
     ws = wb.active
     assert ws["B1"].value.startswith("REPORT PER ")
-    assert ws["O1"].value == "(Rp, Dalam Jutaan)"
+    assert ws["Q1"].value == "(Rp, Dalam Jutaan)"
 
 
 def test_build_report_workbook_writes_column_header_labels():
@@ -65,12 +65,13 @@ def test_build_report_workbook_writes_column_header_labels():
     assert ws["C3"].value == "Periode"
     assert ws["F3"].value == "Pillar"
     assert ws["G3"].value == "TAHUN 2026"
-    assert ws["K3"].value == "S/D TAHUN 2026"
-    assert ws["O3"].value == "Catatan"
+    assert ws["L3"].value == "S/D TAHUN 2026"
+    assert ws["Q3"].value == "Catatan"
     assert ws["G4"].value == "Plafon"
-    assert ws["H4"].value == "Klaim"
-    assert ws["I4"].value == "Dibayar"
-    assert ws["J4"].value == "Saldo"
+    assert ws["H4"].value == "PTA"
+    assert ws["I4"].value == "Klaim"
+    assert ws["J4"].value == "Dibayar"
+    assert ws["K4"].value == "Saldo"
 
 
 def test_build_report_workbook_writes_section_group_and_siswa_row():
@@ -92,7 +93,7 @@ def test_build_report_workbook_writes_section_group_and_siswa_row():
 
     richard_row = next(r for r, v in values.items() if v.get("B") == "Richard Widjaja")
     assert values[richard_row]["G"] == 45.0   # cur.plafon = 45,000,000 / 1,000,000
-    assert values[richard_row]["K"] == 90.0   # cum.plafon = 90,000,000 / 1,000,000 (ensures cur/cum not swapped)
+    assert values[richard_row]["L"] == 90.0   # cum.plafon = 90,000,000 / 1,000,000 (ensures cur/cum not swapped)
     assert values[richard_row]["F"] == "SETF"
 
 
@@ -112,8 +113,8 @@ def test_build_report_workbook_writes_grand_total_and_pillar_breakdown():
             "pillar_label": "SAHABAT ETF",
             "cur": _metrics(1_000_000, 500_000, 500_000),
             "cum": _metrics(1_000_000, 500_000, 500_000),
-            "pct_cur": {"plafon": 1.0, "klaim": 1.0, "dibayar": 1.0, "saldo": 1.0},
-            "pct_cum": {"plafon": 1.0, "klaim": 1.0, "dibayar": 1.0, "saldo": 1.0},
+            "pct_cur": {"plafon": 1.0, "pta": 0.0, "klaim": 1.0, "dibayar": 1.0, "saldo": 1.0},
+            "pct_cum": {"plafon": 1.0, "pta": 0.0, "klaim": 1.0, "dibayar": 1.0, "saldo": 1.0},
         }],
     }
     xlsx_bytes = build_report_workbook(data)

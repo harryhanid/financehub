@@ -12,6 +12,9 @@ from modules.beasiswa.service import (
     add_payment_multi, get_budget_list, get_payment_list,
     delete_payment_beasiswa, delete_payment_row, update_payment_row,
     get_dashboard_monthly, get_dashboard_latest_payments,
+    get_dashboard_pillar_yearly, get_dashboard_summary,
+    get_dashboard_breakdown, get_dashboard_program_summary,
+    get_laporan_siswa,
 )
 
 COMPANY_ID = 2  # ETF
@@ -1028,3 +1031,195 @@ def test_get_dashboard_latest_payments_includes_both_open_and_complete():
     rows = get_dashboard_latest_payments(COMPANY_ID)
     statuses = sorted(r["status"] for r in rows)
     assert statuses == ["complete", "open"]
+
+
+def test_get_dashboard_monthly_statuses_none_includes_all_statuses():
+    """Python-level default: statuses=None means no restriction, same as
+    every other dashboard filter dimension when omitted."""
+    _add_siswa_a()
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'open')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-15", 1_500_000, "AGRI")
+    )
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'complete')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-16", 2_000_000, "AGRI")
+    )
+    conn.commit()
+    conn.close()
+
+    result = get_dashboard_monthly(COMPANY_ID, years=[2026])
+    march = next(m for m in result["months"] if m["bulan"] == 3)
+    assert march["realisasi"] == 3_500_000, "no statuses filter given -> both open and complete count"
+
+
+def test_get_dashboard_monthly_statuses_complete_only_excludes_open():
+    _add_siswa_a()
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'open')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-15", 1_500_000, "AGRI")
+    )
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'complete')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-16", 2_000_000, "AGRI")
+    )
+    conn.commit()
+    conn.close()
+
+    result = get_dashboard_monthly(COMPANY_ID, years=[2026], statuses=["complete"])
+    march = next(m for m in result["months"] if m["bulan"] == 3)
+    assert march["realisasi"] == 2_000_000
+
+
+def test_get_dashboard_latest_payments_statuses_filters_to_selection():
+    _add_siswa_a()
+    add_payment_batch(COMPANY_ID, "1250001", "2026-01-15", "AGRI", "PT. SMART Tbk", [
+        {"cat1": "By Pendidikan", "cat2": "Semester 1", "amount": 1000000},
+    ])
+    add_payment_batch(COMPANY_ID, "1250001", "2026-01-16", "AGRI", "PT. SMART Tbk", [
+        {"cat1": "By Pendidikan", "cat2": "Semester 2", "amount": 3000000},
+    ])
+    conn = get_conn()
+    conn.execute("UPDATE payment_beasiswa SET status='complete' WHERE company_id=? AND amount=?",
+                 (COMPANY_ID, 3000000))
+    conn.commit()
+    conn.close()
+
+    rows = get_dashboard_latest_payments(COMPANY_ID, statuses=["complete"])
+    assert len(rows) == 1
+    assert rows[0]["status"] == "complete"
+    assert rows[0]["amount"] == 3000000
+
+
+def test_get_dashboard_pillar_yearly_statuses_complete_only_excludes_open():
+    _add_siswa_a()
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'open')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-15", 5_000_000, "AGRI")
+    )
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'complete')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-16", 2_000_000, "AGRI")
+    )
+    conn.commit()
+    conn.close()
+
+    result = get_dashboard_pillar_yearly(COMPANY_ID, statuses=["complete"])
+    row_2026 = next(r for r in result if r["tahun"] == 2026)
+    assert row_2026["pillars"]["AGRI"] == 2_000_000
+
+
+def test_get_dashboard_summary_statuses_complete_only_excludes_open_from_realisasi():
+    _add_siswa_a()
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'open')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-15", 1_000_000, "AGRI")
+    )
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'complete')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-16", 4_000_000, "AGRI")
+    )
+    conn.commit()
+    conn.close()
+
+    result = get_dashboard_summary(COMPANY_ID, statuses=["complete"])
+    row = next(r for r in result if r["siswa_code"] == "1250001")
+    assert row["realisasi_total"] == 4_000_000
+    assert row["payment_total"] == 5_000_000, "payment_total stays unconditional (all statuses), only realisasi is gated"
+
+
+def test_get_dashboard_summary_statuses_none_includes_all_in_realisasi():
+    _add_siswa_a()
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'open')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-15", 1_000_000, "AGRI")
+    )
+    conn.commit()
+    conn.close()
+
+    result = get_dashboard_summary(COMPANY_ID)
+    row = next(r for r in result if r["siswa_code"] == "1250001")
+    assert row["realisasi_total"] == 1_000_000, "no statuses filter given -> open counts toward realisasi too"
+
+
+def test_get_dashboard_breakdown_statuses_complete_only_excludes_open():
+    _add_siswa_a()
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'open')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-15", 1_000_000, "AGRI")
+    )
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'complete')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-16", 4_000_000, "AGRI")
+    )
+    conn.commit()
+    conn.close()
+
+    result = get_dashboard_breakdown(COMPANY_ID, statuses=["complete"])
+    row = next(k for k in result["kategori"] if k["cat1"] == "By Pendidikan")
+    assert row["realisasi"] == 4_000_000
+    assert row["payment"] == 5_000_000
+
+
+def test_get_dashboard_program_summary_statuses_pass_through():
+    _add_siswa_a()  # program="SMART"
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, status) "
+        "VALUES (?,?,?,?,?,?,?,'open')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-15", 1_000_000, "AGRI")
+    )
+    conn.commit()
+    conn.close()
+
+    result = get_dashboard_program_summary(COMPANY_ID, statuses=["complete"])
+    row = next(p for p in result if p["program"] == "SMART")
+    assert row["realisasi"] == 0.0, "open row must not count when statuses=['complete']"
+
+
+def test_get_laporan_siswa_payment_rows_include_tanggal_bayar():
+    """New "Tanggal Bayar/Paid" column (2026-08-03): payment_beasiswa has its own
+    tgl_Paid_<PILLAR> column for APP/LAND/ENERGY/SETF, but AGRI (the majority
+    pillar) has none -- for AGRI, get_payment() must fall back to the linked
+    pam_records.tanggal_bayar instead of leaving the field unset."""
+    _add_siswa_a()  # program="SMART"
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, pam, status, \"tgl_Paid_APP\") "
+        "VALUES (?,?,?,?,?,?,?,?,'complete',?)",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-15", 1_000_000, "APP", "PAM-APP-001", "2026-03-20")
+    )
+    conn.execute(
+        "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, pam, status) "
+        "VALUES (?,?,?,?,?,?,?,?,'complete')",
+        (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-03-16", 2_000_000, "AGRI", "PAM-AGRI-001")
+    )
+    conn.execute(
+        "INSERT INTO pam_records (company_id, pam_no, pam_date, total_amount, pillar, source, status, tanggal_bayar, created_at) "
+        "VALUES (?,?,?,?,?,'beasiswa','complete',?,?)",
+        (COMPANY_ID, "PAM-AGRI-001", "2026-03-01", 2_000_000, "AGRI", "2026-03-22", "2026-03-01T00:00:00")
+    )
+    conn.commit()
+    conn.close()
+
+    result = get_laporan_siswa(COMPANY_ID, "1250001")
+    by_pillar = {r["pillar"]: r["tanggal_bayar"] for r in result["payment_rows"]}
+    assert by_pillar["APP"] == "2026-03-20", "APP must use its own tgl_Paid_APP column"
+    assert by_pillar["AGRI"] == "2026-03-22", "AGRI must fall back to pam_records.tanggal_bayar"

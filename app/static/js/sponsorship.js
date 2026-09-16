@@ -4,7 +4,8 @@ let sponsorshipPerusahaan = [];
 function sponsorshipLoadLookups() {
   const inputSearch = document.getElementById("sp-in-cat1-search");
   const editSearch = document.getElementById("sp-ed-cat1-search");
-  if (!inputSearch && !editSearch) return;
+  const isInputPage = document.getElementById("sp-lines-container") !== null;
+  if (!inputSearch && !editSearch && !isInputPage) return;
   apiFetch("/sponsorship/api/lookups").then(function (r) { return r.json(); }).then(function (data) {
     sponsorshipPerusahaan = data.perusahaan || [];
     const datalist = document.getElementById("sp-lembaga-datalist");
@@ -175,6 +176,9 @@ function sponsorshipDataSave() {
 
 document.addEventListener("DOMContentLoaded", function () {
   sponsorshipLoadLookups();
+  if (document.getElementById("sp-lines-container")) {
+    sponsorshipAddLine();
+  }
   const search = document.getElementById("sp-in-cat1-search");
   if (search) {
     search.addEventListener("input", function () {
@@ -740,3 +744,102 @@ function vendorFilterTable() {
   });
 }
 
+
+function sponsorshipAddLine() {
+  const container = document.getElementById("sp-lines-container");
+  const template = document.getElementById("sp-line-template");
+  if (!template) return;
+  const clone = template.content.cloneNode(true);
+  
+  // Setup autocomplete for this row
+  const searchInput = clone.querySelector(".sp-line-cat1-search");
+  const cat1Input = clone.querySelector(".sp-line-cat1");
+  const cat2Input = clone.querySelector(".sp-line-cat2");
+  const cat3Input = clone.querySelector(".sp-line-cat3");
+  const resultsBox = clone.querySelector(".sp-line-cat1-results");
+  const amountInput = clone.querySelector(".sp-line-amount");
+  
+  if (amountInput) {
+    amountInput.addEventListener("input", function() {
+      let v = this.value.replace(/[^0-9]/g, '');
+      this.value = v ? parseInt(v, 10).toLocaleString('en-US') : '';
+    });
+  }
+  
+  if (searchInput && resultsBox) {
+    let activeIdx = -1;
+    let currentMatches = [];
+
+    searchInput.addEventListener("input", function () {
+      const q = searchInput.value.trim().toLowerCase();
+      cat1Input.value = "";
+      cat2Input.value = "";
+      cat3Input.value = "";
+      activeIdx = -1;
+      if (!q) { resultsBox.classList.remove("open"); return; }
+      currentMatches = sponsorshipPerusahaan.filter(function (p) {
+        return p.cat1.toLowerCase().indexOf(q) !== -1;
+      });
+      
+      resultsBox.innerHTML = "";
+      if (currentMatches.length === 0) {
+        resultsBox.innerHTML = '<div class="sp-autocomplete-empty">Tidak ditemukan</div>';
+      } else {
+        currentMatches.forEach(function (p, idx) {
+          const item = document.createElement("div");
+          item.className = "sp-autocomplete-item";
+          item.textContent = p.cat1 + " (" + p.cat3 + ")";
+          item.onclick = function () {
+            cat1Input.value = p.cat1;
+            searchInput.value = p.cat1;
+            cat2Input.value = p.cat2;
+            cat3Input.value = p.cat3;
+            resultsBox.classList.remove("open");
+          };
+          resultsBox.appendChild(item);
+        });
+      }
+      resultsBox.classList.add("open");
+    });
+
+    searchInput.addEventListener("keydown", function(e) {
+      if (!resultsBox.classList.contains("open") || currentMatches.length === 0) return;
+      const items = resultsBox.querySelectorAll(".sp-autocomplete-item");
+      if (items.length === 0) return;
+      
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        activeIdx = (activeIdx + 1) % items.length;
+        updateHighlight();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        activeIdx = (activeIdx - 1 + items.length) % items.length;
+        updateHighlight();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (activeIdx >= 0 && activeIdx < items.length) {
+          items[activeIdx].click();
+        }
+      }
+      
+      function updateHighlight() {
+        items.forEach((it, i) => {
+          if (i === activeIdx) {
+            it.style.backgroundColor = "var(--bg-muted, #f3f4f6)";
+            it.scrollIntoView({ block: 'nearest' });
+          } else {
+            it.style.backgroundColor = "";
+          }
+        });
+      }
+    });
+  }
+  
+  container.appendChild(clone);
+}
+
+  document.addEventListener("click", function(e) {
+    if (!e.target.closest(".sp-line-cat1-search") && !e.target.closest(".sp-line-cat1-results")) {
+      document.querySelectorAll(".sp-line-cat1-results.open").forEach(box => box.classList.remove("open"));
+    }
+  });

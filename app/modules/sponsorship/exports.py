@@ -82,7 +82,8 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str) -> bytes:
         _write_section_headers()
         
     # Sort sections from largest total amount to smallest
-    data["sections"].sort(key=lambda s: s["subtotal"]["total"], reverse=True)
+    # (Removed to respect config.SPONSORSHIP_DESCRIPTION order)
+    # data["sections"].sort(key=lambda s: s["subtotal"]["total"], reverse=True)
 
     for section in data["sections"]:
         _write_section_headers()

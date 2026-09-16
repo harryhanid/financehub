@@ -13,16 +13,42 @@
   background: var(--bg-card);
 }
 .outstanding-table th, .outstanding-table td {
-  border: 1px solid var(--border-color);
-  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.6rem 0.9rem;
 }
 .outstanding-table th {
-  background: #0f4c5c;
-  color: #fff;
   text-align: left;
   position: sticky;
   top: 0;
   z-index: 10;
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: #ffffff;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-bottom: none;
+}
+.outstanding-table th:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+[data-theme="dark"] .outstanding-table th {
+  background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+[data-theme="dark"] .outstanding-table th:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+.outstanding-table tbody tr:nth-child(even) td {
+  background: var(--bg-muted, rgba(0, 0, 0, 0.02));
+}
+[data-theme="dark"] .outstanding-table tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.025);
+}
+.outstanding-table tbody tr:hover td {
+  background: var(--bg-card-hover) !important;
 }
 .outstanding-grand-total {
   background: #256d7b;

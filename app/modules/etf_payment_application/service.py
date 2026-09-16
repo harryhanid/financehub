@@ -248,8 +248,19 @@ def export_pa_excel(company_id: int, tab: str = "agri",
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
-    rows = get_pa_flat(company_id, tab, sf, nama, jenjang, program, angkatan, jenis, pam, bulan_pa, tahun_pa)
-    tab_label = tab.upper()
+    if tab == "combine":
+        all_rows = []
+        for t in VALID_TABS:
+            rows = get_pa_flat(company_id, t, sf, nama, jenjang, program, angkatan, jenis, pam, bulan_pa, tahun_pa)
+            for r in rows:
+                r["pillar"] = {'agri':'AGRI','app':'APP','sml':'LAND','energy':'EFIN','setf':'SETF'}.get(t, t.upper())
+            all_rows.extend(rows)
+        all_rows.sort(key=lambda x: (x.get("tgl_payment_application") or "", x.get("pa_number") or ""), reverse=True)
+        rows = all_rows
+        tab_label = "COMBINE"
+    else:
+        rows = get_pa_flat(company_id, tab, sf, nama, jenjang, program, angkatan, jenis, pam, bulan_pa, tahun_pa)
+        tab_label = tab.upper()
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -273,6 +284,13 @@ def export_pa_excel(company_id: int, tab: str = "agri",
         "pa_received_by_po_fin", "approval_by_htj_2", "nomor_pam", "tanggal_bayar",
         "keterangan", "status",
     ]
+    col_widths = [16, 12, 22, 9, 22, 11, 12, 9, 12, 18, 20,
+                  12, 14, 14, 12, 12, 10, 14, 12, 12, 12, 12, 12, 12, 12, 16, 12, 40, 10]
+
+    if tab == "combine":
+        headers.insert(1, "Pillar")
+        fields.insert(1, "pillar")
+        col_widths.insert(1, 10)
 
     hdr_fill = PatternFill("solid", fgColor="1E3A5F")
     hdr_font = Font(bold=True, color="FFFFFF", size=10)
@@ -300,8 +318,6 @@ def export_pa_excel(company_id: int, tab: str = "agri",
             if is_op:
                 cell.fill = op_fill
 
-    col_widths = [16, 12, 22, 9, 22, 11, 12, 9, 12, 18, 20,
-                  12, 14, 14, 12, 12, 10, 14, 12, 12, 12, 12, 12, 12, 12, 16, 12, 40, 10]
     for ci, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(ci)].width = w
 

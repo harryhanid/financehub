@@ -15,6 +15,7 @@ DASHBOARD_TABS = [
     ("Payment Application",   "etf_payment_application.index", "etf_payment_app"),
     ("Budget",                "budget.index",                  "budget"),
     ("Bank",                  "bank.index",                    "bank"),
+    ("General Ledger",        "general_ledger.index",          "general_ledger"),
     ("Sponsorship",           "sponsorship.index",             "sponsorship"),
     ("SOP Portal",            "sop.index",                     "sop"),
     ("Users",                 "users.index",                   "users"),

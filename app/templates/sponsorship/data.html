@@ -3,6 +3,22 @@
 {% block title %}Sponsorship Data
 {% endblock %}
 {% block head %}
+<style>
+.sp-promax-table-row {
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease;
+}
+.sp-promax-table-row:hover {
+  transform: scale(1.002) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  position: relative;
+  z-index: 5;
+}
+[data-theme="dark"] .sp-promax-table-row:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+</style>
+
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
 
@@ -64,12 +80,12 @@
         <th>ID</th><th>Cat</th><th>Description</th><th>Tgl Form</th><th>Tgl Payment</th>
         <th>Cat1</th><th>Cat2</th><th>Cat3</th><th>Lembaga/Perorangan</th><th>Perihal</th>
         <th>Amount Request</th><th>APP</th><th>ENERGY</th><th>PROPERTY</th><th>AGRI</th>
-        <th>Reff</th><th>Status</th><th>Cat4</th><th>COA</th><th>CC Total</th><th>CC</th><th>Source</th><th></th>
+        <th>Reff</th><th>Status</th><th>Cat4</th><th>COA</th><th>CC Total</th><th>CC</th><th>Source</th>
       </tr>
     </thead>
     <tbody>
       {% for r in rows %}
-      <tr data-transaksi-id="{{ r.id }}">
+      <tr data-transaksi-id="{{ r.id }}" onclick="sponsorshipDataEdit({{ r.id }})" class="sp-promax-table-row">
         <td>{{ r.id }}</td><td>{{ r.cat }}</td><td>{{ r.description }}</td>
         <td>{{ r.tanggal_form_sponsor }}</td><td>{{ r.tanggal_payment or '' }}</td>
         <td>{{ r.cat1 }}</td><td>{{ r.cat2 }}</td><td>{{ r.cat3 }}</td>
@@ -79,12 +95,10 @@
         <td class="num-right">{{ r.property_amount | rupiah(false) }}</td><td class="num-right">{{ r.agri_amount | rupiah(false) }}</td>
         <td>{{ r.reff or '' }}</td><td>{{ r.status or '' }}</td><td>{{ r.cat4 or '' }}</td>
         <td>{{ r.coa }}</td><td>{{ r.cc_total }}</td><td>{{ r.cc }}</td><td>{{ r.source }}</td>
-        <td><button class="budget-btn" onclick="sponsorshipDataEdit({{ r.id }})">Edit</button></td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  {% if total_pages and total_pages > 1 %}
   <div class="floating-pagination">
     <span class="budget-pagination-info">Halaman {{ page }} dari {{ total_pages }} ({{ total_count }} data)</span>
     <div class="budget-pagination-nav">
@@ -99,17 +113,16 @@
   {% endif %}
 {% endfor %}
 {% set filter_qs = ('&' ~ query_str|join('&')) if query_str else '' %}
-      <a class="budget-btn {% if page <= 1 %}disabled{% endif %}" href="?page={{ page - 1 }}&page_size={{ page_size }}{{ filter_qs }}">‹ Prev</a>
-      <a class="budget-btn {% if page >= total_pages %}disabled{% endif %}" href="?page={{ page + 1 }}&page_size={{ page_size }}{{ filter_qs }}">Next ›</a>
+      <a class="budget-btn {% if page <= 1 %}disabled{% endif %}" href="?page={{ page - 1 }}&page_size={{ page_size }}{{ filter_qs }}">< Prev</a>
+      <a class="budget-btn {% if page >= total_pages %}disabled{% endif %}" href="?page={{ page + 1 }}&page_size={{ page_size }}{{ filter_qs }}">Next ></a>
     </div>
   </div>
-  {% endif %}
 
   <div id="sp-edit-modal" class="modal-overlay" role="dialog" aria-modal="true">
     <div class="modal">
       <div class="modal-header"><span class="modal-title">Edit Transaksi Sponsorship</span></div>
       <div class="modal-body">
-        <form id="sp-edit-form" class="sp-form-card">
+        <form id="sp-edit-form" class="sp-form-card" style="box-shadow:none; border:none; padding:1rem 1.5rem;">
           <input type="hidden" id="sp-ed-id">
           <div class="sp-form-section-title">Kategori Transaksi</div>
           <div class="sp-form-grid">
@@ -196,9 +209,9 @@
           </details>
         </form>
       </div>
-      <div class="modal-footer" style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem">
-        <button class="btn btn-secondary" onclick="closeModal('sp-edit-modal')">Batal</button>
-        <button class="budget-btn" onclick="sponsorshipDataSave()">Simpan</button>
+      <div class="sp-promax-footer" style="margin-top:0; padding:1.25rem 1rem 1rem 1rem; border-top:1px solid var(--border-color); display:flex; justify-content:flex-end; gap:0.75rem; background:var(--bg-card);">
+        <button type="button" style="background:transparent; border:1px solid var(--sl-300); color:var(--text-muted); padding:0.6rem 1.5rem; border-radius:8px; font-weight:600; cursor:pointer;" onclick="closeModal('sp-edit-modal')" onmouseover="this.style.background='var(--sl-100)';this.style.color='var(--text-primary)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)'">Batal</button>
+        <button type="button" class="sp-promax-submit-btn" style="padding:0.6rem 2rem;" onclick="sponsorshipDataSave()">Simpan Transaksi</button>
       </div>
     </div>
   </div>

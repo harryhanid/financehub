@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}General Ledger - FLOW{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h2 class="h4 mb-0 text-white"><i class="fas fa-file-invoice-dollar me-2"></i> General Ledger Sync</h2>
+        <p class="text-muted mb-0 mt-1">Sinkronisasi data Excel GL (GL - MASTER) yang sedang terbuka ke Database FLOW</p>
+    </div>
+    <div class="col-auto">
+        <button id="btnSyncGL" class="btn btn-primary shadow-sm" onclick="syncGL()">
+            <i class="fas fa-sync-alt me-2"></i> Tarik Data GL Excel Aktif
+        </button>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4 bg-dark">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title text-white mb-0">Preview Data GL <span class="text-warning">({{ active_company }})</span></h5>
+            <span class="badge bg-info text-dark px-3 py-2">Total: {{ count }} baris di tabel {{ target_table }}</span>
+        </div>
+        
+        <div class="alert alert-secondary bg-dark border-secondary text-light">
+            <i class="fas fa-info-circle text-primary me-2"></i> 
+            <strong>Petunjuk:</strong> Buka file Excel bernama <code>GL - MASTER</code> sebelum menekan tombol tarik data.
+        </div>
+        
+        <div class="table-responsive mt-3" style="max-height: 600px;">
+            <table class="table table-dark table-hover table-bordered table-sm" style="font-size: 0.85rem;">
+                <thead class="table-secondary sticky-top">
+                    <tr>
+                        {% for col in columns %}
+                            <th class="text-nowrap">{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if rows %}
+                        {% for row in rows %}
+                        <tr>
+                            {% for cell in row %}
+                                <td class="text-nowrap">{{ cell }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="100%" class="text-center text-muted py-4">
+                                Belum ada data di tabel <strong>{{ target_table }}</strong>. Silakan tekan tombol "Tarik Data GL Excel Aktif".
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function syncGL() {
+    const btn = document.getElementById('btnSyncGL');
+    const originalHtml = btn.innerHTML;
+    
+    // UI Loading state
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Sinkronisasi...';
+    btn.disabled = true;
+    
+    apiFetch('{{ url_for("general_ledger.sync_data") }}', {
+        method: 'POST'
+    })
+    .then(data => {
+        if (data.ok) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Sinkronisasi Selesai',
+                text: data.pesan,
+                background: '#1F2937', color: '#fff', confirmButtonColor: '#3B82F6'
+            }).then(() => {
+                window.location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Sinkronisasi',
+                text: data.pesan,
+                background: '#1F2937', color: '#fff', confirmButtonColor: '#3B82F6'
+            });
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        Swal.fire({
+            icon: 'error',
+            title: 'Kesalahan Sistem',
+            text: 'Terjadi kesalahan jaringan atau server saat sinkronisasi.',
+            background: '#1F2937', color: '#fff', confirmButtonColor: '#3B82F6'
+        });
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}

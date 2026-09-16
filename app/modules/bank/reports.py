@@ -210,7 +210,43 @@ def build_laporan_mutasi_excel(company_id: int, today=None) -> bytes:
     for k in range(n_months + 1):
         ws.column_dimensions[get_column_letter(_FIRST_MONTH_COL + k)].width = 14
 
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return buf.read()
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+def build_detail_transaksi_excel(rows: list) -> bytes:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Detail Transaksi"
+    
+    headers = ["Tanggal", "Keterangan", "Pemasukan", "Pengeluaran", "Saldo Berjalan"]
+    ws.append(headers)
+    
+    _NAVY = "1F4E79"
+    _WHITE = "FFFFFF"
+    header_fill = PatternFill(start_color=_NAVY, end_color=_NAVY, fill_type="solid")
+    header_font = Font(color=_WHITE, bold=True)
+    
+    from openpyxl.styles import Alignment
+    for i, _ in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=i)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws.column_dimensions[get_column_letter(i)].width = 20
+        
+    ws.column_dimensions["B"].width = 40
+    
+    for r in rows:
+        ws.append([
+            r.get("tanggal", ""),
+            r.get("keterangan", ""),
+            r.get("pemasukan", 0),
+            r.get("pengeluaran", 0),
+            r.get("saldo_berjalan", 0)
+        ])
+        
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()

@@ -57,6 +57,12 @@ def create_app(testing=False):
     from modules.users.routes import bp as users_bp
     app.register_blueprint(users_bp)
 
+    from modules.backup.routes import bp as backup_bp
+    app.register_blueprint(backup_bp)
+    
+    from modules.general_ledger.routes import bp as gl_bp
+    app.register_blueprint(gl_bp)
+
     from modules.beasiswa.api import beasiswa_api
     app.register_blueprint(beasiswa_api)
 

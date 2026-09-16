@@ -26,7 +26,7 @@ def _ctx():
         return {}
 
 
-def _tab(allow_input: bool = False, allow_summary: bool = False, allow_advance: bool = False):
+def _tab(allow_input: bool = False, allow_summary: bool = False, allow_advance: bool = False, allow_combine: bool = False):
     t = request.args.get("tab", "summary").lower()
     if allow_input and t == "input":
         return "input"
@@ -34,6 +34,8 @@ def _tab(allow_input: bool = False, allow_summary: bool = False, allow_advance: 
         return "summary"
     if allow_advance and t == "advance":
         return "advance"
+    if allow_combine and t == "combine":
+        return "combine"
     return t if t in VALID_TABS else "summary"
 
 
@@ -58,7 +60,7 @@ def index():
     if not session.get("company_id"):
         return redirect(url_for("dashboard.select_company"))
     company_id = session["company_id"]
-    tab = _tab(allow_input=True, allow_summary=True, allow_advance=True)
+    tab = _tab(allow_input=True, allow_summary=True, allow_advance=True, allow_combine=True)
     sf = ""
     pa_rows = []
     all_rows = []
@@ -73,7 +75,17 @@ def index():
         sf = request.args.get("sf", "active").lower()
         if sf not in ("open", "on_process", "complete", "active", ""):
             sf = "active"
-        all_rows = get_pa_flat(company_id, tab, sf)
+        if tab == "combine":
+            all_rows = []
+            for t in VALID_TABS:
+                rows = get_pa_flat(company_id, t, sf)
+                for r in rows:
+                    r["pillar"] = t
+                all_rows.extend(rows)
+            # sort combined rows
+            all_rows.sort(key=lambda x: (x.get("tgl_payment_application") or "", x.get("pa_number") or ""), reverse=True)
+        else:
+            all_rows = get_pa_flat(company_id, tab, sf)
 
         f_nama     = request.args.get("nama", "").strip()
         f_jenjang  = request.args.get("jenjang", "").strip()
@@ -225,7 +237,7 @@ def lines(pa_id):
 @jwt_html_required
 def export_excel():
     company_id = session.get("company_id")
-    tab      = _tab()
+    tab      = _tab(allow_combine=True)
     sf       = request.args.get("sf",       "").strip()
     nama     = request.args.get("nama",     "").strip()
     jenjang  = request.args.get("jenjang",  "").strip()

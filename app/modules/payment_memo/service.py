@@ -1780,6 +1780,22 @@ def bulk_update_dates(ids: list, dates: dict, company_id: int) -> dict:
             "pesan": f"{updated} baris berhasil diperbarui."}
 
 
+def update_beasiswa_line_amount(line_id: int, amount: float, company_id: int) -> dict:
+    conn = get_conn()
+    line = conn.execute('SELECT pam, amount FROM payment_beasiswa WHERE id=? AND company_id=?', (line_id, company_id)).fetchone()
+    if not line:
+        conn.close()
+        return {'ok': False, 'pesan': 'Baris transaksi tidak ditemukan.'}
+    old_amount = line['amount'] or 0
+    pam_no = line['pam']
+    conn.execute('UPDATE payment_beasiswa SET amount=? WHERE id=? AND company_id=?', (amount, line_id, company_id))
+    diff = amount - old_amount
+    if pam_no and diff != 0:
+        conn.execute('UPDATE pam_records SET total_amount = COALESCE(total_amount, 0) + ? WHERE pam_no=? AND company_id=?', (diff, pam_no, company_id))
+    conn.commit()
+    conn.close()
+    return {'ok': True, 'pesan': 'Amount berhasil diperbarui.'}
+
 def update_pam_and_application(pam_id: int, pam_data: dict,
                                 app_data: dict, company_id: int) -> dict:
     conn = get_conn()
@@ -1813,7 +1829,7 @@ def update_pam_and_application(pam_id: int, pam_data: dict,
             return {"ok": False, "pesan": f"No. PAM '{new_pam_no}' sudah digunakan oleh PAM lain."}
 
     _PAM_FIELDS = ("keterangan", "requestors_name", "total_amount", "due_date",
-                   "pam_date", "tanggal_bayar", "pt", "cost_center")
+                   "pam_date", "tanggal_bayar", "pt", "cost_center", "dpp", "ppn", "others")
     f, p = [], []
     if pam_no_changed:
         f.append("pam_no=?"); p.append(new_pam_no)
