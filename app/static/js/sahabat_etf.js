@@ -791,22 +791,66 @@ function setfRenderKategoriTable(kategoriRows) {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada data kategori.</td></tr>';
     return;
   }
-  const rows = kategoriRows.map(function (k) {
-    const sisa = k.budget - k.realisasi;
-    return "<tr>" +
-      "<td>" + setfCatBadge(k.cat1) + "</td>" +
-      "<td>" + setfFmtJutaan(k.budget) + "</td>" +
-      "<td>" + setfFmtJutaan(k.realisasi) + "</td>" +
-      setfSisaCell(sisa) +
-      "</tr>";
-  }).join("");
-  const totalBudget = kategoriRows.reduce(function (s, k) { return s + k.budget; }, 0);
-  const totalRealisasi = kategoriRows.reduce(function (s, k) { return s + k.realisasi; }, 0);
-  const totalRow = "<tr style=\"font-weight:bold\"><td>Total</td>" +
-    "<td>" + setfFmtJutaan(totalBudget) + "</td>" +
-    "<td>" + setfFmtJutaan(totalRealisasi) + "</td>" +
-    setfSisaCell(totalBudget - totalRealisasi) + "</tr>";
-  tbody.innerHTML = rows + totalRow;
+  
+  const pddRows = kategoriRows.filter(k => k.cat1 !== "By Medical");
+  const kesRows = kategoriRows.filter(k => k.cat1 === "By Medical");
+  
+  let html = "";
+  
+  if (pddRows.length > 0) {
+      html += '<tr><td colspan="4" style="font-weight:bold; font-size:1.1em; padding-top:1rem; padding-bottom:0.5rem; color:var(--text-primary)">Pendidikan</td></tr>';
+      html += pddRows.map(function (k) {
+        const sisa = k.budget - k.realisasi;
+        return "<tr>" +
+          "<td>" + setfCatBadge(k.cat1) + "</td>" +
+          "<td>" + setfFmtJutaan(k.budget) + "</td>" +
+          "<td>" + setfFmtJutaan(k.realisasi) + "</td>" +
+          setfSisaCell(sisa) +
+          "</tr>";
+      }).join("");
+      
+      const subBgt = pddRows.reduce((s, k) => s + k.budget, 0);
+      const subAct = pddRows.reduce((s, k) => s + k.realisasi, 0);
+      const subSisa = subBgt - subAct;
+      html += '<tr style="font-weight:bold; background:rgba(241, 245, 249, 0.5)">' +
+        '<td style="color:var(--text-primary)">Sub Total Pendidikan</td>' +
+        '<td style="color:var(--text-primary)">' + setfFmtJutaan(subBgt) + '</td>' +
+        '<td style="color:var(--text-primary)">' + setfFmtJutaan(subAct) + '</td>' +
+        '<td ' + (subSisa < 0 ? 'class="setf-sisa-negative"' : '') + '>' + setfFmtJutaan(subSisa) + '</td></tr>';
+  }
+  
+  if (kesRows.length > 0) {
+      html += '<tr><td colspan="4" style="font-weight:bold; font-size:1.1em; padding-top:1rem; padding-bottom:0.5rem; color:var(--text-primary)">Kesehatan</td></tr>';
+      html += kesRows.map(function (k) {
+        const sisa = k.budget - k.realisasi;
+        return "<tr>" +
+          "<td>" + setfCatBadge(k.cat1) + "</td>" +
+          "<td>" + setfFmtJutaan(k.budget) + "</td>" +
+          "<td>" + setfFmtJutaan(k.realisasi) + "</td>" +
+          setfSisaCell(sisa) +
+          "</tr>";
+      }).join("");
+      
+      const subBgt = kesRows.reduce((s, k) => s + k.budget, 0);
+      const subAct = kesRows.reduce((s, k) => s + k.realisasi, 0);
+      const subSisa = subBgt - subAct;
+      html += '<tr style="font-weight:bold; background:rgba(241, 245, 249, 0.5)">' +
+        '<td style="color:var(--text-primary)">Sub Total Kesehatan</td>' +
+        '<td style="color:var(--text-primary)">' + setfFmtJutaan(subBgt) + '</td>' +
+        '<td style="color:var(--text-primary)">' + setfFmtJutaan(subAct) + '</td>' +
+        '<td ' + (subSisa < 0 ? 'class="setf-sisa-negative"' : '') + '>' + setfFmtJutaan(subSisa) + '</td></tr>';
+  }
+  
+  const totalBgt = kategoriRows.reduce((s, k) => s + k.budget, 0);
+  const totalAct = kategoriRows.reduce((s, k) => s + k.realisasi, 0);
+  const totalSisa = totalBgt - totalAct;
+  html += '<tr style="font-weight:bold;">' +
+    '<td style="color:var(--text-primary); font-size: 1.05em; padding-top:1rem;">Total Pendidikan dan Kesehatan</td>' +
+    '<td style="color:var(--text-primary); font-size: 1.05em; padding-top:1rem;">' + setfFmtJutaan(totalBgt) + '</td>' +
+    '<td style="color:var(--text-primary); font-size: 1.05em; padding-top:1rem;">' + setfFmtJutaan(totalAct) + '</td>' +
+    '<td style="font-size: 1.05em; padding-top:1rem;" ' + (totalSisa < 0 ? 'class="setf-sisa-negative"' : '') + '>' + setfFmtJutaan(totalSisa) + '</td></tr>';
+    
+  tbody.innerHTML = html;
 }
 
 let setfYearlyData = null;
