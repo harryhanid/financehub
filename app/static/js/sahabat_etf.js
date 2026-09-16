@@ -584,7 +584,8 @@ const setfCategoryColorMap = {};
 function setfRenderAlert(overBudget) {
   const card = document.getElementById("setf-alert-card");
   const list = document.getElementById("setf-alert-list");
-  if (!overBudget.length) {
+  if (!card || !list) return;
+  if (!overBudget || !overBudget.length) {
     card.style.display = "none";
     return;
   }
