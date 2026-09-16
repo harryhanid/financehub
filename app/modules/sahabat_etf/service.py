@@ -569,12 +569,14 @@ def get_family_summary(company_id: int, years: list = None, pillars: list = None
             row = by_code[code]
             nama = row["nama"]
             cats = kategori_map.get(code, set())
+            realisasi_val = float(row["realisasi_total"] or 0)
+            budget_val = float(row["budget_total"] or 0)
             if nama in by_nama:
-                by_nama[nama]["realisasi"] += row["realisasi_total"]
-                by_nama[nama]["budget"] += row["budget_total"]
+                by_nama[nama]["realisasi"] += realisasi_val
+                by_nama[nama]["budget"] += budget_val
                 by_nama[nama]["_kategori_set"] |= cats
             else:
-                member = {"nama": nama, "realisasi": row["realisasi_total"], "budget": row["budget_total"], "_kategori_set": set(cats)}
+                member = {"nama": nama, "realisasi": realisasi_val, "budget": budget_val, "_kategori_set": set(cats)}
                 by_nama[nama] = member
                 members.append(member)
         for m in members:

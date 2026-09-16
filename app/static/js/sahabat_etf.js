@@ -1,4 +1,545 @@
 
+function setfRenderKategoriChartCustom(canvasId, kategoriRows) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (setfCharts[canvasId]) setfCharts[canvasId].destroy();
+
+  // Sort or just use as-is
+  const labels = kategoriRows.map(k => k.cat1).concat(["TOTAL"]);
+  
+  // Left Axis Data
+  const budgetLeft = kategoriRows.map(k => k.budget).concat([null]);
+  const actualLeft = kategoriRows.map(k => k.realisasi).concat([null]);
+  
+  // Right Axis Data
+  const totalBudget = kategoriRows.reduce((sum, k) => sum + k.budget, 0);
+  const totalActual = kategoriRows.reduce((sum, k) => sum + k.realisasi, 0);
+  
+  const budgetRight = kategoriRows.map(k => null).concat([totalBudget]);
+  const actualRight = kategoriRows.map(k => null).concat([totalActual]);
+
+  const colorBudget = "#cbd5e1"; // light grey-blue
+  const colorActual = "#3b82f6"; // bright blue
+
+  setfCharts[canvasId] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [
+        { label: "Budget", data: budgetLeft, backgroundColor: colorBudget, yAxisID: "y", categoryPercentage: 0.8, barPercentage: 0.9 },
+        { label: "Actual", data: actualLeft, backgroundColor: colorActual, yAxisID: "y", categoryPercentage: 0.8, barPercentage: 0.9 },
+        { label: "Budget (Total)", data: budgetRight, backgroundColor: colorBudget, yAxisID: "y2", categoryPercentage: 0.8, barPercentage: 0.9 },
+        { label: "Actual (Total)", data: actualRight, backgroundColor: colorActual, yAxisID: "y2", categoryPercentage: 0.8, barPercentage: 0.9 }
+      ]
+    },
+    plugins: [ChartDataLabels, {
+      id: 'customTotalBox',
+      beforeDraw: (chart) => {
+        const ctx = chart.ctx;
+        const xAxis = chart.scales.x;
+        const yAxis = chart.scales.y;
+        if (!xAxis || !yAxis) return;
+        
+        const lastIndex = labels.length - 1;
+        // get bounding box for the TOTAL category
+        const tickWidth = xAxis.getPixelForTick(1) - xAxis.getPixelForTick(0);
+        const center = xAxis.getPixelForTick(lastIndex);
+        const leftX = center - tickWidth/2;
+        const rightX = center + tickWidth/2;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = setfThemeColor("--border-color", "#cbd5e1");
+        ctx.lineWidth = 1;
+        ctx.rect(leftX, chart.chartArea.top, rightX - leftX, chart.chartArea.bottom - chart.chartArea.top);
+        ctx.stroke();
+        
+        // draw slightly gray background for total box
+        ctx.fillStyle = "rgba(241, 245, 249, 0.3)";
+        ctx.fill();
+        ctx.restore();
+      },
+      afterDraw: (chart) => {
+        const ctx = chart.ctx;
+        const xAxis = chart.scales.x;
+        
+        ctx.save();
+        ctx.font = '10px Arial';
+        ctx.fillStyle = setfThemeColor("--text-muted", "#94a3b8");
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        const metaBgt = chart.getDatasetMeta(0);
+        const metaAct = chart.getDatasetMeta(1);
+        const metaBgtTotal = chart.getDatasetMeta(2);
+        const metaActTotal = chart.getDatasetMeta(3);
+        
+        for (let i = 0; i < labels.length; i++) {
+           const yPos = xAxis.top + 4;
+           if (i === labels.length - 1) {
+             if(metaBgtTotal.data[i] && metaActTotal.data[i]) {
+                ctx.fillText('Bgt', metaBgtTotal.data[i].x, yPos);
+                ctx.fillText('Act', metaActTotal.data[i].x, yPos);
+             }
+           } else {
+             if(metaBgt.data[i] && metaAct.data[i]) {
+                ctx.fillText('Bgt', metaBgt.data[i].x, yPos);
+                ctx.fillText('Act', metaAct.data[i].x, yPos);
+             }
+           }
+        }
+        ctx.restore();
+      }
+    }],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { top: 20 }
+      },
+      plugins: {
+        legend: {
+          position: 'top',
+          align: 'end',
+          labels: { 
+            color: setfThemeColor("--text-primary", "#1e293b"),
+            usePointStyle: true,
+            boxWidth: 8,
+            filter: function(item, chart) {
+              return !item.text.includes('(Total)');
+            }
+          }
+        },
+        datalabels: {
+          anchor: "end",
+          align: "top",
+          color: setfThemeColor("--text-primary", "#1e293b"),
+          font: { size: 10, weight: "bold" },
+          formatter: function(value) {
+            if (value === null || value === 0) return "";
+            return (value / 1000000).toFixed(1);
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { 
+            color: setfThemeColor("--text-primary", "#1e293b"),
+            padding: 20,
+            font: { weight: "600" }
+          },
+          grid: { display: false }
+        },
+        y: {
+          position: 'left',
+          ticks: {
+            color: setfThemeColor("--text-secondary", "#64748b"),
+            callback: function(value) { return (value / 1000000).toFixed(1); }
+          },
+          grid: { color: "rgba(148,163,184,0.1)" },
+          title: { display: false }
+        },
+        y2: {
+          position: 'right',
+          ticks: {
+            color: setfThemeColor("--text-secondary", "#64748b"),
+            callback: function(value) { return (value / 1000000).toFixed(1); }
+          },
+          grid: { display: false },
+          title: { display: true, text: 'Skala Total (Juta Rp)', color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+
+function setfRenderCustomYearlyStackedChart(canvasId, dataKey, nameKey, mode) {
+  const data = setfYearlyData;
+  if (!data || !data.years || !data.years.length) {
+    if (setfCharts[canvasId]) { setfCharts[canvasId].destroy(); delete setfCharts[canvasId]; }
+    return;
+  }
+  
+  const labels = data.years.map(y => String(y)).concat(["TOTAL"]);
+  const datasets = [];
+  
+  data[dataKey].forEach(function(k, idx) {
+    const color = SETF_PALETTE[idx % SETF_PALETTE.length];
+    
+    const budgetLeft = k.budget.concat([null]);
+    const actualLeft = k.realisasi.concat([null]);
+    
+    const totalBudget = k.budget.reduce((a,b)=>a+b, 0);
+    const totalActual = k.realisasi.reduce((a,b)=>a+b, 0);
+    
+    const budgetRight = k.budget.map(()=>null).concat([totalBudget]);
+    const actualRight = k.realisasi.map(()=>null).concat([totalActual]);
+    
+    if (mode === "all" || mode === "budget") {
+      datasets.push({ 
+        label: k[nameKey], data: budgetLeft, backgroundColor: color, stack: "Bgt", yAxisID: "y", 
+        categoryPercentage: 0.8, barPercentage: 0.9, hiddenLegend: false 
+      });
+      datasets.push({ 
+        label: k[nameKey] + " (BgtTot)", data: budgetRight, backgroundColor: color, stack: "Bgt", yAxisID: "y2", 
+        categoryPercentage: 0.8, barPercentage: 0.9, hiddenLegend: true 
+      });
+    }
+    
+    if (mode === "all" || mode === "realisasi") {
+      datasets.push({ 
+        label: k[nameKey] + (mode === "all" ? " (Act)" : ""), data: actualLeft, backgroundColor: color, stack: "Act", yAxisID: "y", 
+        categoryPercentage: 0.8, barPercentage: 0.9, hiddenLegend: (mode === "all") 
+      });
+      datasets.push({ 
+        label: k[nameKey] + " (ActTot)", data: actualRight, backgroundColor: color, stack: "Act", yAxisID: "y2", 
+        categoryPercentage: 0.8, barPercentage: 0.9, hiddenLegend: true 
+      });
+    }
+  });
+
+  if (setfCharts[canvasId]) setfCharts[canvasId].destroy();
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  
+  setfCharts[canvasId] = new Chart(ctx, {
+    type: "bar",
+    data: { labels: labels, datasets: datasets },
+    plugins: [ChartDataLabels, {
+      id: 'yearlyTotalBox',
+      beforeDatasetsDraw: (chart) => {
+        const ctx = chart.ctx;
+        if (!labels || labels.length === 0) return;
+        
+        const tickWidth = (chart.chartArea.right - chart.chartArea.left) / labels.length;
+        const leftX = chart.chartArea.right - tickWidth;
+        const rightX = chart.chartArea.right;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = setfThemeColor("--border-color", "#94a3b8");
+        ctx.lineWidth = 1;
+        ctx.rect(leftX, chart.chartArea.top, rightX - leftX, chart.chartArea.bottom - chart.chartArea.top);
+        ctx.stroke();
+        
+        ctx.fillStyle = "rgba(241, 245, 249, 0.3)";
+        ctx.fill();
+        ctx.restore();
+      },
+      afterDraw: (chart) => {
+        const ctx = chart.ctx;
+        const xAxis = chart.scales.x;
+        
+        ctx.save();
+        ctx.font = '10px Arial';
+        ctx.fillStyle = setfThemeColor("--text-muted", "#94a3b8");
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        const bgtIndex = chart.data.datasets.findIndex(d => d.stack === "Bgt");
+        const actIndex = chart.data.datasets.findIndex(d => d.stack === "Act");
+        
+        const metaBgt = bgtIndex >= 0 ? chart.getDatasetMeta(bgtIndex) : null;
+        const metaAct = actIndex >= 0 ? chart.getDatasetMeta(actIndex) : null;
+        
+        for (let i = 0; i < labels.length; i++) {
+           const yPos = xAxis.top + 4;
+           if (metaBgt && metaBgt.data[i]) ctx.fillText('Bgt', metaBgt.data[i].x, yPos);
+           if (metaAct && metaAct.data[i]) ctx.fillText('Act', metaAct.data[i].x, yPos);
+        }
+        ctx.restore();
+      }
+    }],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 20 } },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top', align: 'end',
+          labels: { 
+            usePointStyle: true, boxWidth: 8,
+            color: setfThemeColor("--text-primary", "#1e293b"),
+            filter: function(item, data) {
+               const ds = data.datasets[item.datasetIndex];
+               return !ds.hiddenLegend;
+            }
+          }
+        },
+        datalabels: {
+          anchor: "end", align: "top",
+          color: setfThemeColor("--text-primary", "#1e293b"),
+          font: { size: 9, weight: "bold" },
+          formatter: function(value, context) {
+            if (!value) return "";
+            const dsIndex = context.datasetIndex;
+            const idx = context.dataIndex;
+            const stackId = context.chart.data.datasets[dsIndex].stack;
+            
+            let lastDsIndex = -1;
+            let sum = 0;
+            for (let i = 0; i < context.chart.data.datasets.length; i++) {
+               const iterDs = context.chart.data.datasets[i];
+               if (iterDs.stack === stackId) {
+                  const val = iterDs.data[idx];
+                  if (val) {
+                     sum += val;
+                     lastDsIndex = i;
+                  }
+               }
+            }
+            if (dsIndex === lastDsIndex) {
+               return (sum / 1000000).toFixed(1);
+            }
+            return ""; 
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { color: setfThemeColor("--text-primary", "#1e293b"), padding: 20, font: { weight: "600" } },
+          grid: { display: false }
+        },
+        y: {
+          stacked: true, position: 'left',
+          ticks: { color: setfThemeColor("--text-secondary", "#64748b"), callback: function(value) { return (value / 1000000).toFixed(1); } },
+          grid: { color: "rgba(148,163,184,0.1)" },
+          title: { display: false }
+        },
+        y2: {
+          stacked: true, position: 'right',
+          ticks: { color: setfThemeColor("--text-secondary", "#64748b"), callback: function(value) { return (value / 1000000).toFixed(1); } },
+          grid: { display: false },
+          title: { display: true, text: 'Skala Total (Juta Rp)', color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+
+function setfRenderCustomBudgetChart(canvasId, dataRows, labelKey) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (setfCharts[canvasId]) setfCharts[canvasId].destroy();
+
+  // Sort or just use as-is
+  const labels = dataRows.map(k => k[labelKey]).concat(["TOTAL"]);
+  
+  // Left Axis Data
+  const budgetLeft = dataRows.map(k => k.budget).concat([null]);
+  const actualLeft = dataRows.map(k => k.realisasi).concat([null]);
+  
+  // Right Axis Data
+  const totalBudget = dataRows.reduce((sum, k) => sum + k.budget, 0);
+  const totalActual = dataRows.reduce((sum, k) => sum + k.realisasi, 0);
+  
+  const budgetRight = dataRows.map(k => null).concat([totalBudget]);
+  const actualRight = dataRows.map(k => null).concat([totalActual]);
+
+  const colorBudget = "#cbd5e1"; // light grey-blue
+  const colorActual = "#3b82f6"; // bright blue
+
+  setfCharts[canvasId] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [
+        { label: "Budget", data: budgetLeft, backgroundColor: colorBudget, yAxisID: "y", categoryPercentage: 0.8, barPercentage: 0.9 },
+        { label: "Actual", data: actualLeft, backgroundColor: colorActual, yAxisID: "y", categoryPercentage: 0.8, barPercentage: 0.9 },
+        { label: "Budget (Total)", data: budgetRight, backgroundColor: colorBudget, yAxisID: "y2", categoryPercentage: 0.8, barPercentage: 0.9 },
+        { label: "Actual (Total)", data: actualRight, backgroundColor: colorActual, yAxisID: "y2", categoryPercentage: 0.8, barPercentage: 0.9 }
+      ]
+    },
+    plugins: [ChartDataLabels, {
+      id: 'customTotalBox',
+      beforeDatasetsDraw: (chart) => {
+        const ctx = chart.ctx;
+        const xAxis = chart.scales.x;
+        const yAxis = chart.scales.y;
+        if (!xAxis || !yAxis) return;
+        
+        if (!labels || labels.length === 0) return;
+        
+        // Mathematical absolute calculation for the last column (TOTAL)
+        const tickWidth = (chart.chartArea.right - chart.chartArea.left) / labels.length;
+        const leftX = chart.chartArea.right - tickWidth;
+        const rightX = chart.chartArea.right;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = setfThemeColor("--border-color", "#94a3b8");
+        ctx.lineWidth = 1;
+        ctx.rect(leftX, chart.chartArea.top, rightX - leftX, chart.chartArea.bottom - chart.chartArea.top);
+        ctx.stroke();
+        
+        ctx.fillStyle = "rgba(241, 245, 249, 0.3)";
+        ctx.fill();
+        ctx.restore();
+      },
+      afterDraw: (chart) => {
+        const ctx = chart.ctx;
+        const xAxis = chart.scales.x;
+        
+        ctx.save();
+        ctx.font = '10px Arial';
+        ctx.fillStyle = setfThemeColor("--text-muted", "#94a3b8");
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        const metaBgt = chart.getDatasetMeta(0);
+        const metaAct = chart.getDatasetMeta(1);
+        const metaBgtTotal = chart.getDatasetMeta(2);
+        const metaActTotal = chart.getDatasetMeta(3);
+        
+        for (let i = 0; i < labels.length; i++) {
+           const yPos = xAxis.top + 4;
+           if (i === labels.length - 1) {
+             if(metaBgtTotal.data[i] && metaActTotal.data[i]) {
+                ctx.fillText('Bgt', metaBgtTotal.data[i].x, yPos);
+                ctx.fillText('Act', metaActTotal.data[i].x, yPos);
+             }
+           } else {
+             if(metaBgt.data[i] && metaAct.data[i]) {
+                ctx.fillText('Bgt', metaBgt.data[i].x, yPos);
+                ctx.fillText('Act', metaAct.data[i].x, yPos);
+             }
+           }
+        }
+        ctx.restore();
+      }
+    }],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { top: 20 }
+      },
+      plugins: {
+        legend: {
+          position: 'top',
+          align: 'end',
+          labels: { 
+            color: setfThemeColor("--text-primary", "#1e293b"),
+            usePointStyle: true,
+            boxWidth: 8,
+            filter: function(item, chart) {
+              return !item.text.includes('(Total)');
+            }
+          }
+        },
+        datalabels: {
+          anchor: "end",
+          align: "top",
+          color: setfThemeColor("--text-primary", "#1e293b"),
+          font: { size: 10, weight: "bold" },
+          formatter: function(value) {
+            if (value === null || value === 0) return "";
+            return (value / 1000000).toFixed(1);
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { 
+            color: setfThemeColor("--text-primary", "#1e293b"),
+            padding: 20,
+            font: { weight: "600" }
+          },
+          grid: { display: false }
+        },
+        y: {
+          position: 'left',
+          ticks: {
+            color: setfThemeColor("--text-secondary", "#64748b"),
+            callback: function(value) { return (value / 1000000).toFixed(1); }
+          },
+          grid: { color: "rgba(148,163,184,0.1)" },
+          title: { display: false }
+        },
+        y2: {
+          position: 'right',
+          ticks: {
+            color: setfThemeColor("--text-secondary", "#64748b"),
+            callback: function(value) { return (value / 1000000).toFixed(1); }
+          },
+          grid: { display: false },
+          title: { display: true, text: 'Skala Total (Juta Rp)', color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+
+const setfStackTotalPlugin = {
+  id: "setfStackTotal",
+  afterDatasetsDraw: function (chart) {
+    const totals = {};
+    chart.data.datasets.forEach(function (ds) {
+      if (!ds.hidden) {
+        ds.data.forEach(function (v, i) { totals[i] = (totals[i] || 0) + (v || 0); });
+      }
+    });
+    const meta = chart.getDatasetMeta(0);
+    if (!meta || !meta.data.length) return;
+    const ctx = chart.ctx;
+    const yScale = chart.scales.y;
+    ctx.save();
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillStyle = setfThemeColor("--text-primary", "#e2e8f0");
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    meta.data.forEach(function (bar, i) {
+      const total = totals[i] || 0;
+      if (!total) return;
+      ctx.fillText(setfFmtJutaan(total), bar.x, yScale.getPixelForValue(total) - 4);
+    });
+    ctx.restore();
+  }
+};
+
+const setfTotalZonePlugin = {
+  id: 'totalZone',
+  beforeDraw: function(chart) {
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const ctx = chart.ctx;
+    const xAxis = chart.scales.x;
+    const yAxisRight = chart.scales['y-right'];
+    if (!xAxis || !yAxisRight) return;
+    
+    let totalIndex = -1;
+    xAxis.getTicks().forEach((tick, i) => {
+       if (tick.label === "TOTAL") totalIndex = i;
+    });
+    if (totalIndex === -1) return;
+    
+    const leftX = totalIndex === 0 ? xAxis.left : (xAxis.getPixelForTick(totalIndex - 1) + xAxis.getPixelForTick(totalIndex)) / 2;
+    const rightX = xAxis.right;
+    
+    const topY = chart.chartArea.top;
+    const bottomY = chart.chartArea.bottom;
+    
+    ctx.save();
+    ctx.beginPath();
+    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)";
+    ctx.rect(leftX, topY, rightX - leftX, bottomY - topY);
+    ctx.stroke();
+    
+    ctx.fillStyle = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.02)";
+    ctx.fill();
+    ctx.restore();
+  }
+};
+
+
 
 const SETF_CAT_BADGE_CLASS = {
   "By Pendidikan": "badge-cat-by-pendidikan",
@@ -267,15 +808,89 @@ function setfRenderKategoriTable(kategoriRows) {
   tbody.innerHTML = rows + totalRow;
 }
 
-function setfRenderYearlyChart(yearly) {
-  if (!yearly || !yearly.length) {
-    if (setfCharts["chart-tahunan"]) { setfCharts["chart-tahunan"].destroy(); delete setfCharts["chart-tahunan"]; }
+let setfYearlyData = null;
+
+function setfRenderTahunanData(yearly) {
+  setfYearlyData = yearly;
+  setfRenderTahunanKategori();
+  setfRenderTahunanPillar();
+}
+
+function setfRenderTahunanKategori() {
+  try {
+  const modeEl = document.querySelector('input[name="setf-tahunan-kat-mode"]:checked');
+  const mode = modeEl ? modeEl.value : "all";
+  const data = setfYearlyData;
+  if (!data || !data.years || !data.years.length) {
+    if (setfCharts["chart-tahunan-kategori"]) { setfCharts["chart-tahunan-kategori"].destroy(); delete setfCharts["chart-tahunan-kategori"]; }
+    const tb = document.querySelector("#setf-tahunan-kategori-table tbody");
+
+
+    if(tb) tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada data.</td></tr>';
     return;
   }
-  setfRenderBarChart("chart-tahunan", yearly.map(function (y) { return y.tahun; }), [
-    { label: "Realisasi", data: yearly.map(function (y) { return y.realisasi; }), backgroundColor: "#10b981" },
-  ]);
+  
+  let tbodyHtml = "";
+  data.kategori.forEach(function(k) {
+    const budget = k.budget.reduce((a,b)=>a+b, 0);
+    const actual = k.realisasi.reduce((a,b)=>a+b, 0);
+    const sisa = budget - actual;
+    tbodyHtml += "<tr><td>" + k.name + '</td><td class="num-right">' + setfFmtJutaan(budget) + '</td><td class="num-right">' + setfFmtJutaan(actual) + '</td>' + setfSisaCell(sisa) + '</tr>';
+  });
+  const grandBudget = data.kategori.reduce((s, k) => s + k.budget.reduce((a,b)=>a+b,0), 0);
+  const grandActual = data.kategori.reduce((s, k) => s + k.realisasi.reduce((a,b)=>a+b,0), 0);
+  const grandSisa = grandBudget - grandActual;
+  tbodyHtml += '<tr style="font-weight:bold"><td>Total</td><td class="num-right">' + setfFmtJutaan(grandBudget) + '</td><td class="num-right">' + setfFmtJutaan(grandActual) + '</td>' + setfSisaCell(grandSisa) + '</tr>';
+  const tb = document.querySelector("#setf-tahunan-kategori-table tbody");
+
+
+  if(tb) tb.innerHTML = tbodyHtml;
+
+  setfRenderCustomYearlyStackedChart("chart-tahunan-kategori", "kategori", "name", mode);
+  } catch(e) {
+    console.error("Error in setfRenderTahunanKategori:", e);
+    alert("Error in setfRenderTahunanKategori: " + e.message);
+  }
 }
+
+function setfRenderTahunanPillar() {
+  try {
+  const modeEl = document.querySelector('input[name="setf-tahunan-pil-mode"]:checked');
+  const mode = modeEl ? modeEl.value : "all";
+  const data = setfYearlyData;
+  if (!data || !data.years || !data.years.length) {
+    if (setfCharts["chart-tahunan-pillar"]) { setfCharts["chart-tahunan-pillar"].destroy(); delete setfCharts["chart-tahunan-pillar"]; }
+    const tb = document.querySelector("#setf-tahunan-pillar-table tbody");
+
+
+    if(tb) tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada data.</td></tr>';
+    return;
+  }
+  
+  let tbodyHtml = "";
+  data.pillar.forEach(function(k) {
+    const budget = k.budget.reduce((a,b)=>a+b, 0);
+    const actual = k.realisasi.reduce((a,b)=>a+b, 0);
+    const sisa = budget - actual;
+    tbodyHtml += "<tr><td>" + k.name + '</td><td class="num-right">' + setfFmtJutaan(budget) + '</td><td class="num-right">' + setfFmtJutaan(actual) + '</td>' + setfSisaCell(sisa) + '</tr>';
+  });
+  const grandBudget = data.pillar.reduce((s, k) => s + k.budget.reduce((a,b)=>a+b,0), 0);
+  const grandActual = data.pillar.reduce((s, k) => s + k.realisasi.reduce((a,b)=>a+b,0), 0);
+  const grandSisa = grandBudget - grandActual;
+  tbodyHtml += '<tr style="font-weight:bold"><td>Total</td><td class="num-right">' + setfFmtJutaan(grandBudget) + '</td><td class="num-right">' + setfFmtJutaan(grandActual) + '</td>' + setfSisaCell(grandSisa) + '</tr>';
+  const tb = document.querySelector("#setf-tahunan-pillar-table tbody");
+
+
+  if(tb) tb.innerHTML = tbodyHtml;
+
+  setfRenderCustomYearlyStackedChart("chart-tahunan-pillar", "pillar", "name", mode);
+  } catch(e) {
+    console.error("Error in setfRenderTahunanPillar:", e);
+    alert("Error in setfRenderTahunanPillar: " + e.message);
+  }
+}
+
+
 
 function setfRenderDoughnutChart(canvasId, labels, values, colors) {
   const ctx = document.getElementById(canvasId);
@@ -1081,6 +1696,10 @@ function setfApplyFilters() {
   document.querySelector("#setf-latest-payments-table tbody").innerHTML = skeletonRows(5, 6);
   document.querySelector("#setf-pillar-table tbody").innerHTML = skeletonRows(4, 4);
   document.querySelector("#setf-family-table tbody").innerHTML = skeletonRows(4, 6);
+  const tkat = document.querySelector("#setf-tahunan-kategori-table tbody");
+  if(tkat) tkat.innerHTML = skeletonRows(3, 4);
+  const tpil = document.querySelector("#setf-tahunan-pillar-table tbody");
+  if(tpil) tpil.innerHTML = skeletonRows(3, 4);
 
   setfRefetchLatestPayments();
 
@@ -1103,16 +1722,14 @@ function setfApplyFilters() {
   fetch("/beasiswa/sahabat/api/breakdown" + (qs ? "?" + qs : ""))
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      setfRenderDoughnutChart("chart-kategori",
-        data.kategori.map(function (k) { return k.cat1; }),
-        data.kategori.map(function (k) { return k.realisasi; }),
-        data.kategori.map(function (k) { return setfColorForCategory(k.cat1); }));
-      setfRenderKategoriTable(data.kategori);
-      setfRenderAlert(data.over_budget);
-      setfRenderYearlyChart(data.yearly);
-      setfRenderPillarTable(data.pillar);
+      try { setfRenderKategoriChartCustom("chart-kategori", data.kategori); } catch(e) { alert("Err Kategori Chart: " + e.message); }
+      try { setfRenderKategoriTable(data.kategori); } catch(e) { alert("Err Kategori Table: " + e.message); }
+      try { setfRenderAlert(data.over_budget); } catch(e) { alert("Err Alert: " + e.message); }
+      try { setfRenderTahunanData(data.yearly); } catch(e) { alert("Err Tahunan Data: " + e.message); }
+      try { setfRenderPillarTable(data.pillar); } catch(e) { alert("Err Pillar Table: " + e.message); }
+      try { setfRenderCustomBudgetChart("chart-pillar", data.pillar, "pillar"); } catch(e) { alert("Err Pillar Chart: " + e.message); }
     })
-    .catch(function () { showToast("Gagal memuat breakdown kategori.", "error"); });
+    .catch(function (e) { alert("Fetch failed: " + e.message); showToast("Gagal memuat breakdown kategori.", "error"); });
 
   if (filters.years.length) {
     document.querySelector("#setf-monthly-table tbody").innerHTML = skeletonRows(2, 4);
