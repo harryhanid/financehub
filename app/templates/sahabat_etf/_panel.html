@@ -104,9 +104,9 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
               <h3 style="margin: 0;">Trend per Tahun per Kategori</h3>
               <div class="chart-toggle-group">
-                <label><input type="radio" name="setf-tahunan-kat-mode" value="all" checked> All</label>
-                <label><input type="radio" name="setf-tahunan-kat-mode" value="budget"> Budget</label>
-                <label><input type="radio" name="setf-tahunan-kat-mode" value="realisasi"> Actual</label>
+                <label><input type="radio" name="setf-tahunan-kat-mode" value="all" onchange="setfRenderTahunanKategori()" checked> All</label>
+                <label><input type="radio" name="setf-tahunan-kat-mode" value="budget" onchange="setfRenderTahunanKategori()"> Budget</label>
+                <label><input type="radio" name="setf-tahunan-kat-mode" value="realisasi" onchange="setfRenderTahunanKategori()"> Actual</label>
               </div>
             </div>
             <div style="height: 350px;"><canvas id="chart-tahunan-kategori"></canvas></div>
@@ -128,9 +128,9 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
               <h3 style="margin: 0;">Trend per Tahun per Pillar</h3>
               <div class="chart-toggle-group">
-                <label><input type="radio" name="setf-tahunan-pil-mode" value="all" checked> All</label>
-                <label><input type="radio" name="setf-tahunan-pil-mode" value="budget"> Budget</label>
-                <label><input type="radio" name="setf-tahunan-pil-mode" value="realisasi"> Actual</label>
+                <label><input type="radio" name="setf-tahunan-pil-mode" value="all" onchange="setfRenderTahunanPillar()" checked> All</label>
+                <label><input type="radio" name="setf-tahunan-pil-mode" value="budget" onchange="setfRenderTahunanPillar()"> Budget</label>
+                <label><input type="radio" name="setf-tahunan-pil-mode" value="realisasi" onchange="setfRenderTahunanPillar()"> Actual</label>
               </div>
             </div>
             <div style="height: 350px;"><canvas id="chart-tahunan-pillar"></canvas></div>
