@@ -115,7 +115,7 @@ def api_monthly():
 @etf_company_required
 def api_family_summary():
     years, pillars = _parse_filters()
-    return jsonify({"families": get_family_summary(_cid(), years, pillars)})
+    return jsonify(get_family_summary(_cid(), years, pillars))
 
 
 @bp.route("/api/latest_payments")

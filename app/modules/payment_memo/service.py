@@ -608,11 +608,14 @@ def save_klaim_payment(company_id: int, company_code: str, data: dict) -> dict:
     if not rows:
         return {"ok": False, "pesan": "Minimal 1 baris siswa."}
 
+    print(rows)
+    with open("C:/Financehub/debug_payload.txt", "a") as f:
+        import json
+        f.write(json.dumps(rows) + "\n")
     for row in rows:
-        if not (row.get("cat3_items") and
-                any(float(i.get("amount", 0)) > 0 for i in row["cat3_items"])):
+        if float(row.get("amount", 0)) <= 0:
             return {"ok": False,
-                    "pesan": f"Siswa {row.get('siswa_code', '?')} harus memiliki minimal 1 cat3 dengan amount > 0."}
+                    "pesan": f"Siswa {row.get('siswa_code', '?')} harus memiliki amount > 0."}
 
     conn = get_conn()
     try:
@@ -624,35 +627,32 @@ def save_klaim_payment(company_id: int, company_code: str, data: dict) -> dict:
             rumah_sakit  = row.get("rumah_sakit") or ""
             diagnosa     = row.get("diagnosa") or ""
             spesialisasi = row.get("spesialisasi") or ""
-            cat3_items   = [i for i in row.get("cat3_items", [])
-                            if float(i.get("amount", 0)) > 0]
-            row_total    = sum(float(i["amount"]) for i in cat3_items)
+            cat3         = row.get("cat3") or ""
+            amount       = float(row.get("amount") or 0)
+            row_tanggal  = row.get("tanggal") or tanggal
 
             cur = conn.execute(
                 """INSERT INTO payment_beasiswa
                    (company_id, siswa_code, cat1, cat2, tanggal, amount,
                     pillar, perusahaan, pam, status)
                    VALUES (?,?,?,?,?,?,?,?,?,'open')""",
-                (company_id, siswa_code, "By Medical", cat2, tanggal,
-                 row_total, pillar, perusahaan, pam_no)
+                (company_id, siswa_code, "By Medical", cat2, row_tanggal,
+                 amount, pillar, perusahaan, pam_no)
             )
             pb_id = cur.lastrowid
 
-            for item in cat3_items:
-                conn.execute(
-                    """INSERT INTO klaim_medical
-                       (company_id, siswa_code, pam, tanggal, amount, perawatan,
-                        kelas, rumah_sakit, diagnosa, spesialisasi,
-                        pillar, perusahaan, payment_id, created_at)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (company_id, siswa_code, pam_no,
-                     item.get("tanggal") or tanggal,
-                     float(item["amount"]),
-                     item.get("cat3") or "",
-                     kelas, rumah_sakit, diagnosa, spesialisasi,
-                     pillar, perusahaan, pb_id, _ts())
-                )
-            grand_total += row_total
+            conn.execute(
+                """INSERT INTO klaim_medical
+                   (company_id, siswa_code, pam, tanggal, amount, perawatan,
+                    kelas, rumah_sakit, diagnosa, spesialisasi,
+                    pillar, perusahaan, payment_id, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (company_id, siswa_code, pam_no,
+                 row_tanggal, amount, cat3,
+                 kelas, rumah_sakit, diagnosa, spesialisasi,
+                 pillar, perusahaan, pb_id, _ts())
+            )
+            grand_total += amount
 
         due_date = _workday(tanggal, 8).strftime("%Y-%m-%d")
         conn.execute(

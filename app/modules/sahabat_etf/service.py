@@ -542,7 +542,37 @@ def _sort_kategori(cats: set) -> list:
     return sorted(cats, key=key)
 
 
-def get_family_summary(company_id: int, years: list = None, pillars: list = None) -> list:
+def get_family_summary(company_id: int, years: list = None, pillars: list = None) -> dict:
+    conn = get_conn()
+    budget_year_sql, budget_year_params = _year_filter_sql(years, "b.tanggal")
+    payment_year_sql, payment_year_params = _year_filter_sql(years, "p.tanggal")
+    pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
+    budget_pillar_sql, budget_pillar_params = _pillar_filter_sql(pillars, "b.pillar")
+
+    budget_rows = conn.execute(
+        f"""
+        SELECT b.siswa_code, b.cat1, SUM(b.amount) AS total
+        FROM budget_beasiswa b
+        JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
+        WHERE b.company_id = ? AND s.program = ?{budget_year_sql}{budget_pillar_sql}
+        GROUP BY b.siswa_code, b.cat1
+        """,
+        [company_id, PROGRAM_NAME, *budget_year_params, *budget_pillar_params],
+    ).fetchall()
+
+    payment_rows = conn.execute(
+        f"""
+        SELECT p.siswa_code, p.cat1,
+               SUM(CASE WHEN p.status = 'complete' THEN p.amount ELSE 0 END) AS realisasi
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ? AND s.program = ?{payment_year_sql}{pillar_sql}
+        GROUP BY p.siswa_code, p.cat1
+        """,
+        [company_id, PROGRAM_NAME, *payment_year_params, *pillar_params],
+    ).fetchall()
+    conn.close()
+
     siswa_rows = get_siswa_summary(company_id, years, pillars)
     by_code = {r["siswa_code"]: r for r in siswa_rows}
     kategori_map = _siswa_kategori_map(company_id, years, pillars)
@@ -559,6 +589,8 @@ def get_family_summary(company_id: int, years: list = None, pillars: list = None
         groups_order.append(("non_group", non_group_codes))
 
     families = []
+    family_idx = {}
+    idx = 0
     for family_key, codes in groups_order:
         existing_codes = [c for c in codes if c in by_code]
         if not existing_codes:
@@ -587,6 +619,8 @@ def get_family_summary(company_id: int, years: list = None, pillars: list = None
             "total_realisasi": sum(m["realisasi"] for m in members),
             "total_budget": sum(m["budget"] for m in members),
         })
+        family_idx[family_key] = idx
+        idx += 1
 
     for f in families:
         if f["family_key"] == "non_group":
@@ -596,7 +630,7 @@ def get_family_summary(company_id: int, years: list = None, pillars: list = None
         else:
             f["label"] = f["members"][0]["nama"]
 
-    return [
+    final_families = [
         {
             "family_key":      f["family_key"],
             "label":           f["label"],
@@ -607,6 +641,35 @@ def get_family_summary(company_id: int, years: list = None, pillars: list = None
         for f in families
     ]
 
+    kategori_data = {}
+    for r in budget_rows:
+        cat1 = r["cat1"] or "(Tanpa Kategori)"
+        code = r["siswa_code"]
+        fk = code_to_family.get(code, "non_group")
+        if fk in family_idx:
+            kategori_data.setdefault(cat1, {"budget": [0]*len(families), "realisasi": [0]*len(families)})
+            kategori_data[cat1]["budget"][family_idx[fk]] += float(r["total"] or 0)
+
+    for r in payment_rows:
+        cat1 = r["cat1"] or "(Tanpa Kategori)"
+        code = r["siswa_code"]
+        fk = code_to_family.get(code, "non_group")
+        if fk in family_idx:
+            kategori_data.setdefault(cat1, {"budget": [0]*len(families), "realisasi": [0]*len(families)})
+            kategori_data[cat1]["realisasi"][family_idx[fk]] += float(r["realisasi"] or 0)
+
+    kategori_series = []
+    for cat1 in _sort_kategori(kategori_data.keys()):
+        kategori_series.append({
+            "name": cat1,
+            "budget": kategori_data[cat1]["budget"],
+            "realisasi": kategori_data[cat1]["realisasi"]
+        })
+
+    return {
+        "families": final_families,
+        "kategori_series": kategori_series
+    }
 
 def get_kategori_breakdown(company_id: int, years: list = None, pillars: list = None) -> dict:
     conn = get_conn()

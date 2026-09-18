@@ -150,9 +150,9 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
               <h3 style="margin: 0;">Budget vs Actual per Sahabat</h3>
               <div class="chart-toggle-group">
-                <label><input type="radio" name="setf-keluarga-mode" value="all" checked> All</label>
-                <label><input type="radio" name="setf-keluarga-mode" value="budget"> Budget</label>
-                <label><input type="radio" name="setf-keluarga-mode" value="realisasi"> Actual</label>
+                <label><input type="radio" name="setf-keluarga-mode" value="all" onchange="setfRenderKeluargaChart()" checked> All</label>
+                <label><input type="radio" name="setf-keluarga-mode" value="budget" onchange="setfRenderKeluargaChart()"> Budget</label>
+                <label><input type="radio" name="setf-keluarga-mode" value="realisasi" onchange="setfRenderKeluargaChart()"> Actual</label>
               </div>
             </div>
             <div style="height: 350px;"><canvas id="chart-keluarga"></canvas></div>

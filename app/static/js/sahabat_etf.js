@@ -56,7 +56,7 @@ function setfRenderKategoriChartCustom(canvasId, kategoriRows) {
         ctx.stroke();
         
         // draw slightly gray background for total box
-        ctx.fillStyle = "rgba(241, 245, 249, 0.3)";
+        ctx.fillStyle = "rgba(255, 205, 86, 0.2)";
         ctx.fill();
         ctx.restore();
       },
@@ -220,12 +220,12 @@ function setfRenderCustomYearlyStackedChart(canvasId, dataKey, nameKey, mode) {
         ctx.save();
         ctx.beginPath();
         ctx.setLineDash([5, 5]);
-        ctx.strokeStyle = setfThemeColor("--border-color", "#94a3b8");
+        ctx.strokeStyle = "rgba(255, 205, 86, 1)";
         ctx.lineWidth = 1;
         ctx.rect(leftX, chart.chartArea.top, rightX - leftX, chart.chartArea.bottom - chart.chartArea.top);
         ctx.stroke();
         
-        ctx.fillStyle = "rgba(241, 245, 249, 0.3)";
+        ctx.fillStyle = "rgba(255, 205, 86, 0.2)";
         ctx.fill();
         ctx.restore();
       },
@@ -373,12 +373,12 @@ function setfRenderCustomBudgetChart(canvasId, dataRows, labelKey) {
         ctx.save();
         ctx.beginPath();
         ctx.setLineDash([5, 5]);
-        ctx.strokeStyle = setfThemeColor("--border-color", "#94a3b8");
+        ctx.strokeStyle = "rgba(255, 205, 86, 1)";
         ctx.lineWidth = 1;
         ctx.rect(leftX, chart.chartArea.top, rightX - leftX, chart.chartArea.bottom - chart.chartArea.top);
         ctx.stroke();
         
-        ctx.fillStyle = "rgba(241, 245, 249, 0.3)";
+        ctx.fillStyle = "rgba(255, 205, 86, 0.2)";
         ctx.fill();
         ctx.restore();
       },
@@ -529,11 +529,11 @@ const setfTotalZonePlugin = {
     ctx.beginPath();
     ctx.setLineDash([5, 5]);
     ctx.lineWidth = 1;
-    ctx.strokeStyle = isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)";
+    ctx.strokeStyle = "rgba(255, 205, 86, 1)";
     ctx.rect(leftX, topY, rightX - leftX, bottomY - topY);
     ctx.stroke();
     
-    ctx.fillStyle = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.02)";
+    ctx.fillStyle = "rgba(255, 205, 86, 0.2)";
     ctx.fill();
     ctx.restore();
   }
@@ -1137,12 +1137,12 @@ function setfRenderCustomSahabatStackedChart(canvasId, dataKey, nameKey, mode) {
         ctx.save();
         ctx.beginPath();
         ctx.setLineDash([5, 5]);
-        ctx.strokeStyle = setfThemeColor("--border-color", "#94a3b8");
+        ctx.strokeStyle = "rgba(255, 205, 86, 1)";
         ctx.lineWidth = 1;
         ctx.rect(leftX, chart.chartArea.top, rightX - leftX, chart.chartArea.bottom - chart.chartArea.top);
         ctx.stroke();
         
-        ctx.fillStyle = "rgba(241, 245, 249, 0.3)";
+        ctx.fillStyle = "rgba(255, 205, 86, 0.2)";
         ctx.fill();
         ctx.restore();
       },
