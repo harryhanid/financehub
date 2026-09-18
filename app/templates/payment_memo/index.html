@@ -4632,7 +4632,8 @@ function ipayPerusahaanSearch() {
   if (!q) {
     sugg.style.display="none";
     document.getElementById("ipay-perusahaan").value="";
-    if (COMPANY_CODE !== "SMT") document.getElementById("ipay-pillar").value="";
+    const _ipayTx = document.getElementById("ipay-tx")?.value;
+    if (COMPANY_CODE !== "SMT" && _ipayTx !== "beasiswa") document.getElementById("ipay-pillar").value="";
     return;
   }
   
