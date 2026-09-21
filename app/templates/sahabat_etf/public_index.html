@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sahabat ETF</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/beasiswa_dashboard.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/patternomaly@1.3.2/dist/patternomaly.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
+<style>
+body { margin: 0; padding: 20px; background-color: #f8fafc; font-family: sans-serif; }
+</style>
+</head>
+<body>
+<div class="budget-page" style="padding:20px; margin: 0 auto; max-width: 1400px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <div style="display: flex; align-items: center; margin-bottom: 24px; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.25rem; color: #1e293b; letter-spacing: -0.02em;">
+            <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: var(--sl-50); border: 1px solid var(--sl-200); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,.02);">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <defs>
+                  <linearGradient id="flow-mark-grad" x1="0" y1="0" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" style="stop-color:var(--accent)"/>
+                    <stop offset="1" style="stop-color:var(--accent-2)"/>
+                  </linearGradient>
+                </defs>
+                <path d="M2 13c2-4 4-4 6 0s4 4 6 0s3-5 3-5" stroke="url(#flow-mark-grad)" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M2 8c2-4 4-4 6 0s4 4 6 0" stroke="url(#flow-mark-grad)" stroke-width="1.1" stroke-linecap="round" opacity="0.45"/>
+              </svg>
+            </span>
+            FLOW
+        </div>
+        <div style="color: #cbd5e1; font-size: 1.5rem; font-weight: 300; padding-bottom: 2px;">|</div>
+        <h2 style="margin: 0; color: #1e293b; font-size: 1.25rem; font-weight: 600;">Sahabat ETF</h2>
+    </div>
+    {% include "sahabat_etf/_panel.html" %}
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sahabat_etf.js') }}?v=6.004"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        initSahabatEtf();
+    });
+</script>
+</body>
+</html>

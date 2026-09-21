@@ -2459,19 +2459,45 @@ async function initTreeQuery() {
 
 function renderTree(data) {
   const option = {
-    tooltip: { trigger: 'item', triggerOn: 'mousemove' },
+    tooltip: { 
+      trigger: 'item', 
+      triggerOn: 'mousemove',
+      formatter: function(params) {
+         let d = params.data;
+         if (!d) return '';
+         let html = '<div style="font-weight:bold;margin-bottom:5px;border-bottom:1px solid #eee;padding-bottom:3px;">' + (d.name || '') + '</div>';
+         
+         let hasInfo = false;
+         if (d.tanggal_lahir) { html += '<div style="font-size:12px;"><b>Tanggal Lahir:</b> ' + d.tanggal_lahir + '</div>'; hasInfo = true; }
+         if (d.catatan) { html += '<div style="font-size:12px;max-width:250px;white-space:normal;"><b>Catatan:</b> ' + d.catatan + '</div>'; hasInfo = true; }
+         if (!hasInfo) { html += '<div style="font-size:12px;color:#888;"><i>Tidak ada informasi tambahan</i></div>'; }
+         
+         if (d.partners && d.partners.length > 0) {
+             html += '<hr style="margin:8px 0; border:0; border-top:1px solid #ddd">';
+             d.partners.forEach(p => {
+                 html += '<div style="font-weight:bold;margin-bottom:3px;">' + (p.name || '') + ' <span style="font-size:10px;color:#666;font-weight:normal;">(Partner)</span></div>';
+                 let hasPInfo = false;
+                 if (p.tanggal_lahir) { html += '<div style="font-size:12px;"><b>Tanggal Lahir:</b> ' + p.tanggal_lahir + '</div>'; hasPInfo = true; }
+                 if (p.catatan) { html += '<div style="font-size:12px;max-width:250px;white-space:normal;"><b>Catatan:</b> ' + p.catatan + '</div>'; hasPInfo = true; }
+                 if (!hasPInfo) { html += '<div style="font-size:12px;color:#888;"><i>Tidak ada informasi tambahan</i></div>'; }
+             });
+         }
+         return html;
+      }
+    },
     series: [
       {
         type: 'tree',
+        orient: 'TB',
         data: data,
-        top: '1%', left: '7%', bottom: '1%', right: '20%',
+        top: 80, left: 20, bottom: 80, right: 20,
         symbolSize: 7,
         initialTreeDepth: 2,
         roam: true,
         label: {
-          position: 'left',
+          position: 'top',
           verticalAlign: 'middle',
-          align: 'right',
+          align: 'center',
           fontSize: 12,
           backgroundColor: '#f8f9fa',
           borderColor: '#d1d5db',
@@ -2507,7 +2533,7 @@ function renderTree(data) {
             partner: { fontSize: 11, color: '#666', padding: [2,0,2,0] }
           }
         },
-        leaves: { label: { position: 'right', verticalAlign: 'middle', align: 'left' } },
+        leaves: { label: { position: 'bottom', verticalAlign: 'middle', align: 'center' } },
         emphasis: { focus: 'descendant' },
         expandAndCollapse: true,
         animationDuration: 550,

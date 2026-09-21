@@ -61,8 +61,30 @@ def etf_company_required(f):
 
 
 @bp.route("/")
-@jwt_html_required
 def index():
+    tab = request.args.get("tab")
+    
+    # Intercept public access for sahabat tab
+    if tab == "sahabat":
+        if session.get("public_sahabat_access"):
+            return render_template(
+                "sahabat_etf/public_index.html",
+                available_years=get_available_years(2),
+                available_pillars=get_available_pillars(2)
+            )
+            
+        try:
+            from flask_jwt_extended import verify_jwt_in_request
+            verify_jwt_in_request()
+        except Exception:
+            return redirect(url_for("sahabat_etf.public_login"))
+    else:
+        try:
+            from flask_jwt_extended import verify_jwt_in_request
+            verify_jwt_in_request()
+        except Exception:
+            return redirect(url_for("auth.login_page"))
+
     if not _cid():
         return redirect(url_for("dashboard.select_company"))
     wrong_company = _wrong_company()

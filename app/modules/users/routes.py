@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session
 from flask_jwt_extended import get_jwt
-from auth.middleware import html_admin_required, json_admin_required
+from auth.middleware import html_admin_required, json_admin_required, jwt_html_required, is_admin
 from modules.users.service import get_users, add_user, toggle_user_active, change_user_role
 
 bp = Blueprint("users", __name__, url_prefix="/users")
@@ -21,10 +21,16 @@ def _ctx():
 
 
 @bp.route("/")
-@html_admin_required
+@jwt_html_required
 def index():
-    return render_template("users/index.html", users=get_users(),
-                           active_page="users", use_unified_header=True, **_ctx())
+    ctx = _ctx()
+    # Check if admin
+    if ctx.get("current_role") == "admin" or ctx.get("current_user") == "admin":
+        return render_template("users/index.html", users=get_users(),
+                               active_page="users", use_unified_header=True, **ctx)
+    else:
+        # Non-admin sees their profile
+        return render_template("users/profile.html", active_page="users", use_unified_header=True, **ctx)
 
 
 @bp.route("/add", methods=["POST"])

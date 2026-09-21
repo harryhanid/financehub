@@ -26,6 +26,8 @@ def _ctx():
 
 
 def _cid():
+    if session.get("public_sahabat_access"):
+        return 2
     return session.get("company_id")
 
 
@@ -57,15 +59,25 @@ def _parse_report_filters():
     return month, pillars
 
 
-def etf_company_required(f):
-    """Guard for JSON/CSV endpoints: Sahabat ETF data is ETF-only.
 
-    The index page already shows a "Ganti Company" notice via `wrong_company`,
-    but that only guards HTML rendering — it does not stop a non-ETF session
-    from hitting these API/export URLs directly. Enforce it server-side here.
-    """
+def sahabat_public_or_jwt(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        if session.get("public_sahabat_access"):
+            return f(*args, **kwargs)
+        try:
+            from flask_jwt_extended import verify_jwt_in_request
+            verify_jwt_in_request()
+        except Exception:
+            return jsonify({"ok": False, "pesan": "Token tidak valid atau expired."}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+def etf_company_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if session.get("public_sahabat_access"):
+            return f(*args, **kwargs)
         if session.get("company_code") != "ETF":
             return jsonify({"ok": False, "pesan": "Akses ditolak. Modul ini khusus company ETF."}), 403
         return f(*args, **kwargs)
@@ -73,7 +85,7 @@ def etf_company_required(f):
 
 
 @bp.route("/")
-@jwt_html_required
+@sahabat_public_or_jwt
 def index():
     # The standalone page is now embedded as a tab in Beasiswa (see
     # templates/beasiswa/index.html's tab-sahabat panel) — redirect old
@@ -82,7 +94,7 @@ def index():
 
 
 @bp.route("/api/summary")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def api_summary():
     years, pillars = _parse_filters()
@@ -90,7 +102,7 @@ def api_summary():
 
 
 @bp.route("/api/breakdown")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def api_breakdown():
     years, pillars = _parse_filters()
@@ -101,7 +113,7 @@ def api_breakdown():
 
 
 @bp.route("/api/monthly")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def api_monthly():
     years, pillars = _parse_filters()
@@ -111,7 +123,7 @@ def api_monthly():
 
 
 @bp.route("/api/family_summary")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def api_family_summary():
     years, pillars = _parse_filters()
@@ -119,7 +131,7 @@ def api_family_summary():
 
 
 @bp.route("/api/latest_payments")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def api_latest_payments():
     years, pillars = _parse_filters()
@@ -129,14 +141,14 @@ def api_latest_payments():
 
 
 @bp.route("/api/detail/<siswa_code>")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def api_detail(siswa_code):
     return jsonify({"rows": get_siswa_detail(_cid(), siswa_code)})
 
 
 @bp.route("/api/report")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def api_report():
     year_param = request.args.get("year", "")
@@ -154,7 +166,7 @@ def api_report():
 
 
 @bp.route("/api/pohon")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def api_pohon():
     years = request.args.getlist("years[]")
@@ -186,7 +198,7 @@ def api_pohon():
 
 
 @bp.route("/api/all_transactions")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def api_all_transactions():
     years, pillars = _parse_filters()
@@ -194,7 +206,7 @@ def api_all_transactions():
 
 
 @bp.route("/export/summary")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def export_summary():
     import csv, io
@@ -214,7 +226,7 @@ def export_summary():
 
 
 @bp.route("/export/detail")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def export_detail():
     import io
@@ -235,7 +247,7 @@ def export_detail():
 
 
 @bp.route("/export/detail/csv")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def export_detail_csv():
     import csv, io
@@ -254,7 +266,7 @@ def export_detail_csv():
 
 
 @bp.route("/export/report/detail")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def export_report_detail():
     import io
@@ -282,7 +294,7 @@ def export_report_detail():
 
 
 @bp.route("/export/report")
-@jwt_html_required
+@sahabat_public_or_jwt
 @etf_company_required
 def export_report():
     import io
@@ -333,31 +345,31 @@ def export_ppt_report():
     )
 
 @bp.route("/tree-data")
-@jwt_html_required
+@sahabat_public_or_jwt
 def tree_data():
     from database import get_conn
     conn = get_conn()
-    rows = conn.execute("SELECT code, nama, group_setf FROM siswa WHERE program='Sahabat ETF' AND group_setf != ''").fetchall()
+    rows = conn.execute("SELECT code, nama, group_setf, tanggal_lahir, catatan FROM siswa WHERE program='Sahabat ETF' AND group_setf != ''").fetchall()
     conn.close()
 
     bloodlines = {}
     partners = {}
 
-    for code, nama, g in rows:
+    for code, nama, g, tgl_lahir, catatan in rows:
         g = g.strip()
         if g in ['A', 'B']:
-            bloodlines[g] = {'id': g, 'code': code, 'name': nama, 'partners': [], 'children': []}
+            bloodlines[g] = {'id': g, 'code': code, 'name': nama, 'partners': [], 'children': [], 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
         elif '.' not in g:
             base = 'A' if (g.isdigit() and int(g) < 10) else 'B'
-            partners[g] = {'id': g, 'name': nama, 'code': code, 'base': base}
+            partners[g] = {'id': g, 'name': nama, 'code': code, 'base': base, 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
         else:
             parts = g.split('.')
             last = parts[-1]
             if last == '0' * len(last):
                 base = '.'.join(parts[:-1])
-                partners[g] = {'id': g, 'name': nama, 'code': code, 'base': base}
+                partners[g] = {'id': g, 'name': nama, 'code': code, 'base': base, 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
             else:
-                bloodlines[g] = {'id': g, 'code': code, 'name': nama, 'partners': [], 'children': []}
+                bloodlines[g] = {'id': g, 'code': code, 'name': nama, 'partners': [], 'children': [], 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
 
     for pid, p in partners.items():
         base = p['base']
@@ -389,3 +401,15 @@ def tree_data():
             roots.append(b)
 
     return jsonify({"ok": True, "data": roots})
+
+
+@bp.route("/login", methods=["GET", "POST"])
+def public_login():
+    if request.method == "POST":
+        pwd = request.form.get("password")
+        if pwd == "Sahabat88":
+            session["public_sahabat_access"] = True
+            return redirect(url_for("beasiswa.index", tab="sahabat"))
+        else:
+            return render_template("sahabat_etf/public_login.html", error="Password salah!")
+    return render_template("sahabat_etf/public_login.html")

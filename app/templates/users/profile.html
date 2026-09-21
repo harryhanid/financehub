@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block content %}
+<div class="fh-page-header">
+  <div class="fh-page-header-left">
+    <h1 class="fh-page-title">My Profile</h1>
+    <div class="fh-page-subtitle">Kelola informasi akun dan kata sandi Anda</div>
+  </div>
+</div>
+
+<div class="fh-page-body">
+  <div style="max-width: 500px; background: #fff; border: 1px solid var(--sl-200); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.05); padding: 1.5rem; margin-top: 1rem;">
+    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--sl-200);">
+      <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--accent-surface); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold;">
+        {{ current_user[0]|upper if current_user else 'U' }}
+      </div>
+      <div>
+        <h2 style="margin: 0; font-size: 1.25rem; color: var(--sl-800);">{{ current_user }}</h2>
+        <div style="color: var(--sl-500); font-size: 0.875rem; margin-top: 0.25rem;">Role: {{ current_role|title }}</div>
+      </div>
+    </div>
+
+    <h3 style="font-size: 1rem; color: var(--sl-800); margin-bottom: 1rem;">Ganti Password</h3>
+    
+    <div id="pw-error" class="alert alert-danger" style="display:none; margin-bottom: 1rem; font-size: 0.875rem;"></div>
+    <div id="pw-success" class="alert alert-success" style="display:none; margin-bottom: 1rem; font-size: 0.875rem; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; padding: 0.75rem; border-radius: 6px;"></div>
+    
+    <div class="fh-form-group" style="margin-bottom: 1rem;">
+      <label class="fh-form-label">Password Saat Ini</label>
+      <input type="password" id="old_pw" class="fh-input" placeholder="Masukkan password saat ini">
+    </div>
+    
+    <div class="fh-form-group" style="margin-bottom: 1rem;">
+      <label class="fh-form-label">Password Baru</label>
+      <input type="password" id="new_pw" class="fh-input" placeholder="Minimal 8 karakter">
+    </div>
+    
+    <div class="fh-form-group" style="margin-bottom: 1.5rem;">
+      <label class="fh-form-label">Konfirmasi Password Baru</label>
+      <input type="password" id="confirm_pw" class="fh-input" placeholder="Ulangi password baru">
+    </div>
+    
+    <button id="pw-submit-btn" class="fh-btn fh-btn-primary" style="width: 100%;" onclick="doChangePw()">Update Password</button>
+  </div>
+</div>
+
+<script>
+async function doChangePw() {
+  const old_pw = document.getElementById("old_pw").value;
+  const new_pw = document.getElementById("new_pw").value;
+  const confirm_pw = document.getElementById("confirm_pw").value;
+  const errEl = document.getElementById("pw-error");
+  const sucEl = document.getElementById("pw-success");
+  const btn = document.getElementById("pw-submit-btn");
+
+  errEl.style.display = "none";
+  sucEl.style.display = "none";
+
+  if (!old_pw) {
+    errEl.textContent = "Password saat ini harus diisi.";
+    errEl.style.display = "block";
+    return;
+  }
+  if (new_pw.length < 8) {
+    errEl.textContent = "Password baru minimal 8 karakter.";
+    errEl.style.display = "block";
+    return;
+  }
+  if (new_pw !== confirm_pw) {
+    errEl.textContent = "Konfirmasi password baru tidak cocok.";
+    errEl.style.display = "block";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Menyimpan...";
+
+  try {
+    const res = await apiFetch("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ old_password: old_pw, new_password: new_pw })
+    });
+    const json = await res.json();
+    if (!json.ok) {
+      errEl.textContent = json.pesan || "Terjadi kesalahan.";
+      errEl.style.display = "block";
+    } else {
+      sucEl.textContent = "Password berhasil diubah!";
+      sucEl.style.display = "block";
+      document.getElementById("old_pw").value = "";
+      document.getElementById("new_pw").value = "";
+      document.getElementById("confirm_pw").value = "";
+    }
+  } catch (err) {
+    errEl.textContent = "Gagal menghubungi server.";
+    errEl.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Update Password";
+  }
+}
+</script>
+{% endblock %}
