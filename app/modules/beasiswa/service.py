@@ -123,17 +123,17 @@ def add_siswa(company_id: int, data: dict) -> dict:
     conn.execute(
         """INSERT INTO siswa
            (company_id, code, nama, jenjang, angkatan, program, group_setf, fakultas, universitas,
-            bank, norek, namarek, referensi,
+            bank, norek, namarek, referensi, tanggal_lahir,
             ipk_sem1,ipk_sem2,ipk_sem3,ipk_sem4,ipk_sem5,
             ipk_sem6,ipk_sem7,ipk_sem8,ipk_sem9,ipk_sem10,
             ipk_pen1,ipk_pen2,ipk_pen3,
             status, catatan, catatan_budget, catatan_payment, prodi, angkatan_kuliah, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (company_id, code, nama,
          data.get("jenjang", ""), data.get("angkatan") or None,
          data.get("program", ""), data.get("group_setf", ""), data.get("fakultas", ""), data.get("universitas", ""),
          data.get("bank", ""), data.get("norek", ""), data.get("namarek", ""),
-         data.get("referensi", ""),
+         data.get("referensi", ""), data.get("tanggal_lahir", ""),
          *ipk_sem, *ipk_pen,
          data.get("status", "Aktif"), data.get("catatan", ""),
          data.get("catatan_budget", ""), data.get("catatan_payment", ""),
@@ -159,7 +159,7 @@ def update_siswa(company_id: int, code: str, data: dict) -> dict:
     conn.execute(
         """UPDATE siswa SET
            nama=?,jenjang=?,angkatan=?,program=?,group_setf=?,fakultas=?,universitas=?,
-           bank=?,norek=?,namarek=?,referensi=?,
+           bank=?,norek=?,namarek=?,referensi=?,tanggal_lahir=?,
            ipk_sem1=?,ipk_sem2=?,ipk_sem3=?,ipk_sem4=?,ipk_sem5=?,
            ipk_sem6=?,ipk_sem7=?,ipk_sem8=?,ipk_sem9=?,ipk_sem10=?,
            ipk_pen1=?,ipk_pen2=?,ipk_pen3=?,
@@ -168,7 +168,7 @@ def update_siswa(company_id: int, code: str, data: dict) -> dict:
         (data.get("nama",""), data.get("jenjang",""), data.get("angkatan") or None,
          data.get("program",""), data.get("group_setf",""), data.get("fakultas",""), data.get("universitas",""),
          data.get("bank",""), data.get("norek",""), data.get("namarek",""),
-         data.get("referensi",""),
+         data.get("referensi",""), data.get("tanggal_lahir",""),
          *ipk_sem, *ipk_pen,
          data.get("status","Aktif"), data.get("catatan",""),
          data.get("catatan_budget",""), data.get("catatan_payment",""),

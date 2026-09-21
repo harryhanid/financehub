@@ -647,6 +647,8 @@
         <input type="text" id="s-code" readonly style="background:#f3f4f6"></div>
       <div class="form-group"><label>Nama Lengkap</label>
         <input type="text" id="s-nama" placeholder="Nama lengkap"></div>
+      <div class="form-group"><label>Tanggal Lahir</label>
+        <input type="date" id="s-tanggal_lahir"></div>
       <div class="form-group"><label>Program</label>
         <select id="s-program" onchange="toggleGroupSetf()">{% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></div>
       <div class="form-group" id="wrap-group-setf" style="display:none;"><label>Group Sahabat</label>
@@ -948,6 +950,7 @@ async function simpanSiswa() {
     norek: document.getElementById("s-norek").value,
     namarek: document.getElementById("s-namarek").value,
     referensi: document.getElementById("s-referensi").value,
+    tanggal_lahir: document.getElementById("s-tanggal_lahir").value,
     status: document.getElementById("s-status").value,
     catatan: document.getElementById("s-catatan").value,
     catatan_budget: document.getElementById("s-catatan_budget").value,
@@ -990,7 +993,7 @@ function openTambahSiswa() {
   _editMode = false; _editCode = "";
   document.getElementById("siswa-modal-title").textContent = "Tambah Siswa Baru";
   ["code","jenjang","angkatan","nama","program","group_setf","status","fakultas","universitas",
-   "bank","norek","namarek","referensi","catatan","catatan_budget","catatan_payment",
+   "bank","norek","namarek","referensi","tanggal_lahir","catatan","catatan_budget","catatan_payment",
    "prodi","angkatan_kuliah"].forEach(k => {
     const el = document.getElementById(`s-${k}`);
     if (el) el.value = "";
@@ -1009,7 +1012,7 @@ async function openEditSiswa(code) {
   _editMode = true; _editCode = code;
   document.getElementById("siswa-modal-title").textContent = `Update Data Siswa — ${code}`;
   ["code","jenjang","angkatan","nama","program","group_setf","status","fakultas","universitas",
-   "bank","norek","namarek","referensi","catatan","catatan_budget","catatan_payment",
+   "bank","norek","namarek","referensi","tanggal_lahir","catatan","catatan_budget","catatan_payment",
    "prodi","angkatan_kuliah"].forEach(k => {
     const el = document.getElementById(`s-${k}`);
     if (el) el.value = s[k] || "";

@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS siswa (
     norek       TEXT,
     namarek     TEXT,
     referensi   TEXT,
+    tanggal_lahir TEXT,
     ipk_sem1  REAL DEFAULT 0, ipk_sem2  REAL DEFAULT 0,
     ipk_sem3  REAL DEFAULT 0, ipk_sem4  REAL DEFAULT 0,
     ipk_sem5  REAL DEFAULT 0, ipk_sem6  REAL DEFAULT 0,
@@ -664,7 +665,7 @@ def migrate_db():
         conn.commit()
     except Exception:
         pass
-    for col in ["catatan_budget", "catatan_payment", "angkatan_kuliah", "prodi"]:
+    for col in ["catatan_budget", "catatan_payment", "angkatan_kuliah", "prodi", "tanggal_lahir"]:
         try:
             conn.execute(f"ALTER TABLE siswa ADD COLUMN {col} TEXT DEFAULT ''")
             conn.commit()
