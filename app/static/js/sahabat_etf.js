@@ -50,7 +50,7 @@ function setfRenderKategoriChartCustom(canvasId, kategoriRows) {
         ctx.save();
         ctx.beginPath();
         ctx.setLineDash([5, 5]);
-        ctx.strokeStyle = setfThemeColor("--border-color", "#cbd5e1");
+        ctx.strokeStyle = "rgba(255, 205, 86, 1)";
         ctx.lineWidth = 1;
         ctx.rect(leftX, chart.chartArea.top, rightX - leftX, chart.chartArea.bottom - chart.chartArea.top);
         ctx.stroke();
@@ -108,6 +108,26 @@ function setfRenderKategoriChartCustom(canvasId, kategoriRows) {
             boxWidth: 8,
             filter: function(item, chart) {
               return !item.text.includes('(Total)');
+            },
+            onClick: function(e, legendItem, legend) {
+              const index = legendItem.datasetIndex;
+              const ci = legend.chart;
+              const isVisible = ci.isDatasetVisible(index);
+              ci.setDatasetVisibility(index, !isVisible);
+              
+              const baseLabel = ci.data.datasets[index].label;
+              let targetLabel = "";
+              if (baseLabel === "Budget") targetLabel = "Budget (Total)";
+              else if (baseLabel === "Actual") targetLabel = "Actual (Total)";
+              else if (baseLabel.endsWith(" (Act)")) targetLabel = baseLabel.replace(" (Act)", " (ActTot)");
+              else targetLabel = baseLabel + " (BgtTot)";
+
+              ci.data.datasets.forEach((ds, i) => {
+                if (ds.label === targetLabel) {
+                  ci.setDatasetVisibility(i, !isVisible);
+                }
+              });
+              ci.update();
             }
           }
         },
@@ -266,6 +286,26 @@ function setfRenderCustomYearlyStackedChart(canvasId, dataKey, nameKey, mode) {
             filter: function(item, data) {
                const ds = data.datasets[item.datasetIndex];
                return !ds.hiddenLegend;
+            },
+            onClick: function(e, legendItem, legend) {
+              const index = legendItem.datasetIndex;
+              const ci = legend.chart;
+              const isVisible = ci.isDatasetVisible(index);
+              ci.setDatasetVisibility(index, !isVisible);
+              
+              const baseLabel = ci.data.datasets[index].label;
+              let targetLabel = "";
+              if (baseLabel === "Budget") targetLabel = "Budget (Total)";
+              else if (baseLabel === "Actual") targetLabel = "Actual (Total)";
+              else if (baseLabel.endsWith(" (Act)")) targetLabel = baseLabel.replace(" (Act)", " (ActTot)");
+              else targetLabel = baseLabel + " (BgtTot)";
+
+              ci.data.datasets.forEach((ds, i) => {
+                if (ds.label === targetLabel) {
+                  ci.setDatasetVisibility(i, !isVisible);
+                }
+              });
+              ci.update();
             }
           }
         },
@@ -430,6 +470,26 @@ function setfRenderCustomBudgetChart(canvasId, dataRows, labelKey) {
             boxWidth: 8,
             filter: function(item, chart) {
               return !item.text.includes('(Total)');
+            },
+            onClick: function(e, legendItem, legend) {
+              const index = legendItem.datasetIndex;
+              const ci = legend.chart;
+              const isVisible = ci.isDatasetVisible(index);
+              ci.setDatasetVisibility(index, !isVisible);
+              
+              const baseLabel = ci.data.datasets[index].label;
+              let targetLabel = "";
+              if (baseLabel === "Budget") targetLabel = "Budget (Total)";
+              else if (baseLabel === "Actual") targetLabel = "Actual (Total)";
+              else if (baseLabel.endsWith(" (Act)")) targetLabel = baseLabel.replace(" (Act)", " (ActTot)");
+              else targetLabel = baseLabel + " (BgtTot)";
+
+              ci.data.datasets.forEach((ds, i) => {
+                if (ds.label === targetLabel) {
+                  ci.setDatasetVisibility(i, !isVisible);
+                }
+              });
+              ci.update();
             }
           }
         },
@@ -1183,6 +1243,26 @@ function setfRenderCustomSahabatStackedChart(canvasId, dataKey, nameKey, mode) {
             filter: function(item, data) {
                const ds = data.datasets[item.datasetIndex];
                return !ds.hiddenLegend;
+            },
+            onClick: function(e, legendItem, legend) {
+              const index = legendItem.datasetIndex;
+              const ci = legend.chart;
+              const isVisible = ci.isDatasetVisible(index);
+              ci.setDatasetVisibility(index, !isVisible);
+              
+              const baseLabel = ci.data.datasets[index].label;
+              let targetLabel = "";
+              if (baseLabel === "Budget") targetLabel = "Budget (Total)";
+              else if (baseLabel === "Actual") targetLabel = "Actual (Total)";
+              else if (baseLabel.endsWith(" (Act)")) targetLabel = baseLabel.replace(" (Act)", " (ActTot)");
+              else targetLabel = baseLabel + " (BgtTot)";
+
+              ci.data.datasets.forEach((ds, i) => {
+                if (ds.label === targetLabel) {
+                  ci.setDatasetVisibility(i, !isVisible);
+                }
+              });
+              ci.update();
             }
           }
         },
@@ -1925,6 +2005,7 @@ function initSetfSubtabs() {
         window._setfLaporanLoaded = true;
         setfLoadLaporan();
       }
+      if (btn.dataset.subtab === "treequery") { initTreeQuery(); }
       if (btn.dataset.subtab === "detail" && !window._setfDetailLoaded) {
         window._setfDetailLoaded = true;
         setfLoadDetailTransaksi();
@@ -2316,4 +2397,211 @@ function setfRenderDiagram2(data) {
       </div>
     </div>
   `;
+}
+
+let treeChartInstance = null;
+let treeRawData = null;
+
+
+function assignGenerations(node, depth) {
+  if (depth > 0) {
+    node.genLabel = "Gen " + depth;
+  } else {
+    node.genLabel = "";
+  }
+  if (node.children) {
+    node.children.forEach(c => assignGenerations(c, depth + 1));
+  }
+}
+
+async function initTreeQuery() {
+  if (treeChartInstance) return;
+  const chartDom = document.getElementById("tree-chart");
+  if (!chartDom) return;
+  
+  treeChartInstance = echarts.init(chartDom);
+  const searchInput = document.getElementById('tree-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') searchTree();
+    });
+  }
+  treeChartInstance.showLoading();
+  
+  try {
+    const res = await fetch("/beasiswa/sahabat/tree-data");
+    const json = await res.json();
+    if (!json.ok) throw new Error("Gagal ambil data");
+    
+        treeRawData = {
+      name: "Sahabat ETF",
+      children: json.data
+    };
+    assignGenerations(treeRawData, 0);
+    const dl = document.getElementById("tree-search-list");
+    if (dl) {
+      let opts = [];
+      function collectNames(n) {
+         opts.push(`<option value="${n.name}">`);
+         if (n.partners) n.partners.forEach(p => opts.push(`<option value="${p.name}">`));
+         if (n.children) n.children.forEach(c => collectNames(c));
+      }
+      if (treeRawData.children) treeRawData.children.forEach(c => collectNames(c));
+      dl.innerHTML = opts.join("");
+    }
+    renderTree([treeRawData]);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    treeChartInstance.hideLoading();
+  }
+}
+
+function renderTree(data) {
+  const option = {
+    tooltip: { trigger: 'item', triggerOn: 'mousemove' },
+    series: [
+      {
+        type: 'tree',
+        data: data,
+        top: '1%', left: '7%', bottom: '1%', right: '20%',
+        symbolSize: 7,
+        initialTreeDepth: 2,
+        roam: true,
+        label: {
+          position: 'left',
+          verticalAlign: 'middle',
+          align: 'right',
+          fontSize: 12,
+          backgroundColor: '#f8f9fa',
+          borderColor: '#d1d5db',
+          borderWidth: 1,
+          borderRadius: 4,
+          padding: 6,
+                              formatter: function(params) {
+            let n = params.data.name;
+            let lastCode = params.data.id ? params.data.id.split('.').pop() : '';
+            if (lastCode && lastCode !== 'A' && lastCode !== 'B') {
+                n = n + ' (' + lastCode + ')';
+            }
+            let gen = params.data.genLabel ? `{gen|[${params.data.genLabel}]} ` : '';
+            let lines = [`${gen}{main|${n}}`];
+            let ps = params.data.partners;
+            if (ps && ps.length > 0) {
+              lines.push('{sep|---------------}');
+              ps.forEach(p => {
+                  let pCode = p.id ? p.id.split('.').pop() : '';
+                  let pName = p.name;
+                  if (pCode && pCode !== 'A' && pCode !== 'B') {
+                      pName = pName + ' (' + pCode + ')';
+                  }
+                  lines.push(`{partner|${pName}}`); 
+              });
+            }
+            return lines.join('\n');
+          },
+          rich: {
+            main: { fontWeight: 'bold', fontSize: 13, padding: [4,0,4,0] },
+            gen: { fontSize: 11, color: '#3b82f6', fontWeight: 'bold' },
+            sep: { color: '#ccc', height: 2 },
+            partner: { fontSize: 11, color: '#666', padding: [2,0,2,0] }
+          }
+        },
+        leaves: { label: { position: 'right', verticalAlign: 'middle', align: 'left' } },
+        emphasis: { focus: 'descendant' },
+        expandAndCollapse: true,
+        animationDuration: 550,
+        animationDurationUpdate: 750
+      }
+    ]
+  };
+  treeChartInstance.setOption(option);
+}
+
+function expandPathToName(node, searchName) {
+  let found = false;
+  let isTarget = false;
+
+  if (node.name.toLowerCase().includes(searchName)) {
+    found = true;
+    isTarget = true;
+  }
+  if (node.partners && node.partners.some(p => p.name.toLowerCase().includes(searchName))) {
+    found = true;
+    isTarget = true;
+  }
+
+  let matchedChildren = [];
+  let neededPartnerIds = new Set();
+  let hasTargetChild = false;
+
+  if (node.children && node.children.length > 0) {
+    node.children.forEach(c => {
+      let isChildTarget = (c.name.toLowerCase().includes(searchName) || 
+                          (c.partners && c.partners.some(p => p.name.toLowerCase().includes(searchName))));
+      if (isChildTarget) {
+          hasTargetChild = true;
+      }
+      if (expandPathToName(c, searchName)) {
+        matchedChildren.push(c);
+        if (c.parent_partner_id) {
+          neededPartnerIds.add(c.parent_partner_id);
+        }
+        found = true;
+      }
+    });
+  }
+
+  if (found && !isTarget) {
+    let arr = Array.from(neededPartnerIds);
+    if (hasTargetChild) {
+        node.children = node.children.filter(c => c.parent_partner_id && arr.includes(c.parent_partner_id));
+        if (node.partners) {
+           node.partners = node.partners.filter(p => arr.includes(p.id));
+        }
+        node.collapsed = false;
+    } else {
+        node.children = matchedChildren;
+        if (node.partners) {
+           node.partners = node.partners.filter(p => arr.includes(p.id));
+        }
+        node.collapsed = false;
+    }
+  } else if (isTarget) {
+    node.collapsed = false; 
+    node.itemStyle = { borderColor: '#ef4444', borderWidth: 3 };
+    node.label = { backgroundColor: '#fee2e2', borderColor: '#ef4444' };
+  } else {
+    node.collapsed = true;
+  }
+  return found;
+}
+
+function searchTree() {
+  const q = document.getElementById("tree-search-input").value.toLowerCase();
+  if (!q) {
+    renderTree([treeRawData]);
+    return;
+  }
+  let dataCopy = JSON.parse(JSON.stringify(treeRawData));
+  expandPathToName(dataCopy, q);
+  
+  if (dataCopy.children && dataCopy.children.length === 1) {
+      renderTree([dataCopy.children[0]]);
+  } else {
+      renderTree([dataCopy]);
+  }
+}
+
+function zoomTreeQuery(ratio) {
+  if (treeChartInstance) {
+    let opt = treeChartInstance.getOption();
+    let currentZoom = 1;
+    if (opt && opt.series && opt.series.length > 0) {
+       currentZoom = opt.series[0].zoom || 1;
+    }
+    treeChartInstance.setOption({
+      series: [{ zoom: currentZoom * ratio }]
+    });
+  }
 }
