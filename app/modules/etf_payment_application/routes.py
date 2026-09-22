@@ -190,19 +190,74 @@ def create():
     tab        = request.args.get("tab", "agri").lower()
     if tab not in VALID_TABS:
         tab = "agri"
-    data   = request.get_json(force=True)
+    if request.is_json:
+        data = request.get_json(force=True)
+    else:
+        import json
+        data = json.loads(request.form.get("data", "{}"))
+        
     header = {
         "tgl_payment_application": data.get("tgl_payment_application", ""),
         "tgl_surat_pengajuan":     data.get("tgl_surat_pengajuan", ""),
         "keterangan":              data.get("keterangan", ""),
         "doc_received_by_educ":    data.get("doc_received_by_educ", ""),
         "received_pa_from_educ":   data.get("received_pa_from_educ", ""),
+        "attachment_file_id":      "",
     }
     lines = data.get("lines", [])
     route = (data.get("route") or "gl").lower()
     if route not in ("gl", "advance"):
         route = "gl"
-    return jsonify(create_pa(company_id, header, lines, tab, route=route))
+        
+    result = create_pa(company_id, header, lines, tab, route=route)
+    if not result.get("ok"):
+        return jsonify(result)
+        
+    # Setelah PA berhasil dibuat, buat folder di GDrive dan upload file
+    files = request.files.getlist("files")
+    single_file = request.files.get("file")
+    if single_file and single_file not in files:
+        files.append(single_file)
+        
+    valid_files = [f for f in files if f and f.filename]
+    if valid_files:
+        pa_number = result.get("pa_number")
+        pa_id = result.get("pa_id")
+        folder_name = pa_number.replace('/', '-')
+        
+        from utils.gdrive_service import create_gdrive_folder, upload_file_to_gdrive
+        try:
+            folder_id = create_gdrive_folder(folder_name)
+            attachment_ids = []
+            for file in valid_files:
+                fid = upload_file_to_gdrive(file, file.filename, file.mimetype, parent_folder_id=folder_id)
+                attachment_ids.append(fid)
+                
+            if attachment_ids:
+                from database import get_conn
+                from modules.etf_payment_application.service import _tbls
+                pa_tbl, *_ = _tbls(tab)
+                conn = get_conn()
+                conn.execute(f"UPDATE {pa_tbl} SET attachment_file_id=? WHERE id=?", (",".join(attachment_ids), pa_id))
+                conn.commit()
+                conn.close()
+        except Exception as e:
+            return jsonify({"ok": True, "pesan": f"PA {pa_number} berhasil dibuat, tapi gagal upload lampiran ke Google Drive: {str(e)}"})
+            
+    return jsonify(result)
+
+
+@bp.route("/attachment/<file_id>")
+@jwt_html_required
+def get_attachment(file_id):
+    from utils.gdrive_service import get_file_stream_from_gdrive, get_file_metadata_from_gdrive
+    try:
+        meta = get_file_metadata_from_gdrive(file_id)
+        file_stream = get_file_stream_from_gdrive(file_id)
+        from flask import send_file
+        return send_file(file_stream, as_attachment=False, mimetype=meta.get("mimeType"), download_name=meta.get("name", "lampiran"))
+    except Exception as e:
+        return str(e), 500
 
 
 @bp.route("/<int:pa_id>/update", methods=["POST"])

@@ -418,6 +418,11 @@ async function apiFetch(url, options = {}) {
     credentials: "include",
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
   };
+  
+  if (options.body instanceof FormData) {
+    delete defaults.headers["Content-Type"];
+  }
+  
   const resp = await fetch(url, { ...defaults, ...options });
   if (resp.status === 401) {
     const refreshed = await tryRefresh();

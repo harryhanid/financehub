@@ -1151,6 +1151,13 @@ def migrate_db():
         except Exception:
             pass
 
+    for pa_hdr_tbl in ["etf_pa", "app_pa", "sml_pa", "setf_pa", "energy_pa"]:
+        try:
+            conn.execute(f"ALTER TABLE {pa_hdr_tbl} ADD COLUMN attachment_file_id TEXT")
+            conn.commit()
+        except Exception:
+            pass
+
     # rekam_medis table (new — safe to run on existing DBs)
     try:
         conn.execute(

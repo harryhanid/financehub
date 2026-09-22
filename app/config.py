@@ -1,8 +1,12 @@
 # C:\Financehub\app\config.py
 import os
 import secrets
+from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(BASE_DIR, ".env")
+load_dotenv(env_path)
+
 DB_PATH  = os.path.join(BASE_DIR, "finance_hub.db")
 SOP_STORAGE_DIR = os.path.join(BASE_DIR, "storage", "sop")
 BACKUP_ROOT = r"Y:\Seagate\Flow"
@@ -234,3 +238,5 @@ COA_PAM_SEED = [
     ("Advance Membership Organisasi Nasional", "Advance Membership Organisasi Nasional", "15000900", "70110110"),
     ("Advance Others - Biaya Promosi Iklan", "Advance Others", "15000900", "70004110"),
 ]
+GDRIVE_CREDENTIALS_FILE = os.environ.get("GDRIVE_CREDENTIALS_FILE", os.path.join(BASE_DIR, "gdrive_credentials.json"))
+GDRIVE_FOLDER_ID = os.environ.get("GDRIVE_FOLDER_ID", "")
