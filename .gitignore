@@ -59,3 +59,6 @@ keluar
 .flask_secret
 .jwt_secret
 *.db.bak*
+app/client_secret.json
+app/token.json
+app/gdrive_credentials.json
