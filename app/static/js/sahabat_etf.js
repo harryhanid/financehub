@@ -2654,3 +2654,59 @@ function zoomTreeQuery(ratio) {
       node.children.forEach(c => foldChildren(c, depth + 1));
     }
   }
+
+  function resetTreeQuery() {
+    const input = document.getElementById("tree-search-input");
+    if (input) input.value = "";
+    searchTree();
+  }
+
+  async function exportTreePDF() {
+    if (!treeChartInstance) return;
+    showToast("Mengekspor Diagram Tree ke PDF...", "info");
+    
+    if (typeof html2pdf === 'undefined') {
+        await new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    let imgData = treeChartInstance.getDataURL({
+        type: 'png',
+        pixelRatio: 2,
+        backgroundColor: '#fff'
+    });
+    
+    let opt = {
+        margin:       10,
+        filename:     'Sahabat_ETF_Tree.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+    
+    let img = new Image();
+    img.onload = function() {
+        if (img.height > img.width) {
+            opt.jsPDF.orientation = 'portrait';
+        }
+        
+        let container = document.createElement('div');
+        container.style.width = '100%';
+        container.style.textAlign = 'center';
+        
+        let pdfImg = document.createElement('img');
+        pdfImg.src = imgData;
+        pdfImg.style.maxWidth = '100%';
+        container.appendChild(pdfImg);
+        
+        html2pdf().set(opt).from(container).save().then(() => {
+            // Success silently
+        });
+    };
+    img.src = imgData;
+  }
