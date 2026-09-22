@@ -303,6 +303,21 @@
       </label>
     </div>
   </div>
+  
+  {# ── Klasifikasi ── #}
+  <div class="form-section tint-route" style="background-color: #f1f5f9; border-left-color: #94a3b8;">
+    <div class="form-section-title">Klasifikasi *</div>
+    <div style="display:flex; gap:1.25rem; flex-wrap:wrap">
+      <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
+        <input type="radio" name="pa-klasifikasi" value="Normal" checked style="width:15px;height:15px;accent-color:#475569">
+        Normal
+      </label>
+      <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
+        <input type="radio" name="pa-klasifikasi" value="With Memo" style="width:15px;height:15px;accent-color:#475569">
+        With Memo
+      </label>
+    </div>
+  </div>
 
   {# ── Siswa + IPK ── #}
   <div class="form-section tint-siswa" style="margin-bottom:.75rem">
@@ -427,6 +442,7 @@
         <th>Status</th>
         <th>Lampiran</th>
         <th>Route</th>
+        <th style="white-space:nowrap;">Klasifikasi</th>
         <th>Aksi</th>
       </tr>
     </thead>
@@ -498,6 +514,7 @@
           {% endif %}
         </td>
         <td>{{ r.route or '-' }}</td>
+        <td>{{ r.klasifikasi or 'Normal' }}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-primary btn-sm" onclick="openEditById({{ r.pa_id }}, {{ r.line_id }})">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deletePa({{ r.pa_id }}, '{{ r.pa_number }}')">Hapus</button>
@@ -923,6 +940,12 @@
           <option value="open">Open</option>
           <option value="on_process">On Process</option>
           <option value="complete">Complete</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Klasifikasi</label>
+        <select id="edit-klasifikasi">
+          <option value="Normal">Normal</option>
+          <option value="With Memo">With Memo</option>
         </select>
       </div>
     </div>
@@ -1704,6 +1727,7 @@ async function submitPA() {
     doc_received_by_educ:    document.getElementById('pa-doc-recv').value,
     received_pa_from_educ:   document.getElementById('pa-recv-pa').value,
     route:                   selectedRoute,
+    klasifikasi:             document.querySelector('input[name="pa-klasifikasi"]:checked')?.value || 'Normal',
     lines,
   };
   
@@ -1772,6 +1796,7 @@ async function openEditById(paId, lineId) {
   document.getElementById("edit-tgl-bayar").value       = pa.tanggal_bayar || "";
   document.getElementById("edit-keterangan").value      = pa.keterangan || "";
   document.getElementById("edit-status").value          = pa.status || "open";
+  document.getElementById("edit-klasifikasi").value     = pa.klasifikasi || "Normal";
   
   const existingContainer = document.getElementById("edit-existing-attachments");
   existingContainer.innerHTML = "";
@@ -1850,6 +1875,7 @@ async function saveEdit() {
     tanggal_bayar:           document.getElementById("edit-tgl-bayar").value,
     keterangan:              document.getElementById("edit-keterangan").value,
     status:                  document.getElementById("edit-status").value,
+    klasifikasi:             document.getElementById("edit-klasifikasi").value,
     line_id:                 parseInt(document.getElementById("edit-line-id").value) || null,
     jenis_pembayaran:        document.getElementById("edit-jenis-bayar").value,
     semester:                document.getElementById("edit-semester").value,

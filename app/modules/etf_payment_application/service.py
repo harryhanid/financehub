@@ -162,7 +162,8 @@ def get_pa_flat(company_id: int, tab: str = "agri", status_filter: str = "",
                   l.id               AS line_id,
                   l.route,
                   p.route            AS pa_route,
-                  p.attachment_file_id
+                  p.attachment_file_id,
+                  p.klasifikasi
            FROM {pa_tbl} p
            JOIN {lines_tbl} l ON l.pa_id = p.id
            JOIN siswa s ON s.id = l.student_id
@@ -386,8 +387,8 @@ def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri",
     cur = conn.execute(
         f"""INSERT INTO {pa_tbl}
             (company_id, pa_number, tgl_payment_application, tgl_surat_pengajuan,
-             keterangan, doc_received_by_educ, received_pa_from_educ, status, route, attachment_file_id, created_at)
-            VALUES (?,?,?,?,?,?,?,'open',?,?,?)""",
+             keterangan, doc_received_by_educ, received_pa_from_educ, status, route, klasifikasi, attachment_file_id, created_at)
+            VALUES (?,?,?,?,?,?,?,'open',?,?,?,?)""",
         (company_id, pa_number,
          header.get("tgl_payment_application", ""),
          header.get("tgl_surat_pengajuan", ""),
@@ -395,6 +396,7 @@ def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri",
          header.get("doc_received_by_educ", ""),
          header.get("received_pa_from_educ", ""),
          route,
+         header.get("klasifikasi", "Normal"),
          header.get("attachment_file_id", ""),
          ts)
     )
@@ -478,14 +480,14 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
         "received_pa_from_educ   = ?", "checked_by_fincon       = ?", "approved_by_htj_1       = ?",
         "send_pa_back_to_educ    = ?", "pa_received_by_po_fin   = ?", "approval_by_htj_2       = ?",
         "nomor_pam               = ?", "tanggal_bayar           = ?", "keterangan              = ?",
-        "status                  = ?", "updated_at              = ?"
+        "status                  = ?", "klasifikasi             = ?", "updated_at              = ?"
     ]
     
     values = [
         data.get("tgl_payment_application", ""), data.get("tgl_surat_pengajuan", ""), data.get("doc_received_by_educ", ""),
         data.get("received_pa_from_educ", ""), data.get("checked_by_fincon", ""), data.get("approved_by_htj_1", ""),
         data.get("send_pa_back_to_educ", ""), data.get("pa_received_by_po_fin", ""), data.get("approval_by_htj_2", ""),
-        nomor_pam, data.get("tanggal_bayar", ""), data.get("keterangan", ""), new_status, _ts()
+        nomor_pam, data.get("tanggal_bayar", ""), data.get("keterangan", ""), new_status, data.get("klasifikasi", "Normal"), _ts()
     ]
     
     if "attachment_file_id" in data:
