@@ -927,6 +927,14 @@
       </div>
     </div>
     <div class="form-group"><label>Keterangan</label><textarea id="edit-keterangan" rows="3" style="width:100%; resize:vertical"></textarea></div>
+    
+    <div style="border-top:1px solid var(--border);margin-top:.75rem;padding-top:.75rem">
+      <div style="font-size:.75rem;font-weight:600;color:var(--sl-700);margin-bottom:.5rem">Lampiran</div>
+      <div id="edit-existing-attachments" style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px"></div>
+      <input type="hidden" id="edit-kept-attachments" value="">
+      <input type="file" id="edit-pa-attachment" accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx" multiple style="font-size:.8rem; padding:4px; width:100%">
+    </div>
+
     <div style="border-top:1px solid var(--border);margin-top:.75rem;padding-top:.75rem">
       <div style="font-size:.75rem;font-weight:600;color:var(--sl-700);margin-bottom:.5rem">Data Siswa (Line)</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
@@ -1764,6 +1772,53 @@ async function openEditById(paId, lineId) {
   document.getElementById("edit-tgl-bayar").value       = pa.tanggal_bayar || "";
   document.getElementById("edit-keterangan").value      = pa.keterangan || "";
   document.getElementById("edit-status").value          = pa.status || "open";
+  
+  const existingContainer = document.getElementById("edit-existing-attachments");
+  existingContainer.innerHTML = "";
+  const keptIds = [];
+  document.getElementById("edit-pa-attachment").value = "";
+  
+  if (pa.attachment_file_id) {
+    const ids = pa.attachment_file_id.split(',').filter(id => id.trim());
+    ids.forEach((id, idx) => {
+      keptIds.push(id);
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.padding = "4px 8px";
+      row.style.background = "var(--bg)";
+      row.style.border = "1px solid var(--border)";
+      row.style.borderRadius = "4px";
+      
+      const link = document.createElement("a");
+      link.href = `/etf-payment-application/attachment/${id}`;
+      link.target = "_blank";
+      link.textContent = `Lampiran ${idx + 1}`;
+      link.style.fontSize = ".75rem";
+      
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "Hapus";
+      delBtn.style.fontSize = ".7rem";
+      delBtn.style.color = "var(--red)";
+      delBtn.style.background = "transparent";
+      delBtn.style.border = "none";
+      delBtn.style.cursor = "pointer";
+      
+      delBtn.onclick = () => {
+        row.remove();
+        const keptInput = document.getElementById("edit-kept-attachments");
+        let currentKept = keptInput.value.split(',').filter(Boolean);
+        currentKept = currentKept.filter(kid => kid !== id);
+        keptInput.value = currentKept.join(',');
+      };
+      
+      row.appendChild(link);
+      row.appendChild(delBtn);
+      existingContainer.appendChild(row);
+    });
+  }
+  document.getElementById("edit-kept-attachments").value = keptIds.join(',');
   const lineResp = await apiFetch(`/etf-payment-application/${paId}/lines?tab=${ACTIVE_TAB}`);
   if (lineResp && lineResp.ok) {
     const lines = await lineResp.json();
@@ -1801,10 +1856,22 @@ async function saveEdit() {
     tahun_ajaran:            document.getElementById("edit-tahun-ajaran").value,
     ipk_sem_sebelumnya:      parseFloat(document.getElementById("edit-ipk").value) || 0,
     jumlah_pembayaran:       parseFloat(document.getElementById("edit-jumlah").value.replace(/,/g, '')) || 0,
+    attachment_file_id:      document.getElementById("edit-kept-attachments").value,
   };
+  
+  const formData = new FormData();
+  formData.append("data", JSON.stringify(payload));
+  
+  const fileInput = document.getElementById("edit-pa-attachment");
+  if (fileInput && fileInput.files.length > 0) {
+    for (let i = 0; i < fileInput.files.length; i++) {
+      formData.append("files", fileInput.files[i]);
+    }
+  }
+
   showLoading("Menyimpan perubahan...");
   try {
-    const resp = await apiFetch(`/etf-payment-application/${paId}/update?tab=${ACTIVE_TAB}`, { method: "POST", body: JSON.stringify(payload) });
+    const resp = await apiFetch(`/etf-payment-application/${paId}/update?tab=${ACTIVE_TAB}`, { method: "POST", body: formData });
     const data = await resp.json();
     showToast(data.pesan, data.ok ? "success" : "error");
     if (data.ok) { closeModal("modal-edit-pa"); setTimeout(() => location.reload(), 800); }

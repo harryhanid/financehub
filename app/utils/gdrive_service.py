@@ -40,10 +40,26 @@ def get_gdrive_service():
 def create_gdrive_folder(folder_name: str) -> str:
     """
     Membuat folder baru di dalam GDRIVE_FOLDER_ID dan mengembalikan ID folder tersebut.
+    Jika folder dengan nama yang sama sudah ada, akan mengembalikan ID folder yang sudah ada.
     """
     service = get_gdrive_service()
     if not config.GDRIVE_FOLDER_ID:
         raise ValueError("GDRIVE_FOLDER_ID belum diatur di .env atau config.py")
+
+    # Cari apakah folder sudah ada
+    query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and '{config.GDRIVE_FOLDER_ID}' in parents and trashed=false"
+    results = service.files().list(
+        q=query, 
+        spaces='drive', 
+        fields='files(id, name)', 
+        supportsAllDrives=True, 
+        includeItemsFromAllDrives=True
+    ).execute()
+    
+    items = results.get('files', [])
+    if items:
+        # Jika sudah ada, kembalikan ID folder pertama yang ditemukan
+        return items[0]['id']
 
     file_metadata = {
         'name': folder_name,
@@ -58,6 +74,16 @@ def create_gdrive_folder(folder_name: str) -> str:
     ).execute()
     
     return folder.get('id')
+
+def delete_gdrive_file(file_id: str):
+    """
+    Menghapus file secara permanen dari Google Drive berdasarkan ID.
+    """
+    service = get_gdrive_service()
+    try:
+        service.files().delete(fileId=file_id, supportsAllDrives=True).execute()
+    except Exception as e:
+        print(f"Gagal menghapus file {file_id}: {e}")
 
 def upload_file_to_gdrive(file_obj: FileStorage, filename: str, mime_type: str, parent_folder_id: str = None) -> str:
     """

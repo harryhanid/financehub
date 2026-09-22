@@ -267,7 +267,47 @@ def update(pa_id):
     tab        = request.args.get("tab", "agri").lower()
     if tab not in VALID_TABS:
         tab = "agri"
-    data = request.get_json(force=True)
+    if request.is_json:
+        data = request.get_json(force=True)
+    else:
+        import json
+        data = json.loads(request.form.get("data", "{}"))
+        
+    # Get kept attachment IDs from frontend
+    kept_attachments = data.get("attachment_file_id", "")
+    attachment_ids = [fid.strip() for fid in kept_attachments.split(",")] if kept_attachments else []
+    
+    files = request.files.getlist("files")
+    single_file = request.files.get("file")
+    if single_file and single_file not in files:
+        files.append(single_file)
+        
+    valid_files = [f for f in files if f and f.filename]
+    from modules.etf_payment_application.service import get_pa_header
+    pa = get_pa_header(pa_id, company_id, tab)
+    
+    if pa:
+        # Hapus file fisik dari gdrive jika user mengklik Hapus
+        if pa.get("attachment_file_id"):
+            old_ids = [fid.strip() for fid in pa["attachment_file_id"].split(",")]
+            deleted_ids = [fid for fid in old_ids if fid and fid not in attachment_ids]
+            if deleted_ids:
+                from utils.gdrive_service import delete_gdrive_file
+                for did in deleted_ids:
+                    delete_gdrive_file(did)
+
+        if valid_files and pa.get("pa_number"):
+            folder_name = pa.get("pa_number").replace('/', '-')
+            from utils.gdrive_service import create_gdrive_folder, upload_file_to_gdrive
+            try:
+                folder_id = create_gdrive_folder(folder_name)
+                for file in valid_files:
+                    fid = upload_file_to_gdrive(file, file.filename, file.mimetype, parent_folder_id=folder_id)
+                    attachment_ids.append(fid)
+            except Exception as e:
+                return jsonify({"ok": False, "pesan": f"Gagal upload file baru: {str(e)}"})
+    
+    data["attachment_file_id"] = ",".join(attachment_ids)
     return jsonify(update_pa(pa_id, company_id, data, tab))
 
 

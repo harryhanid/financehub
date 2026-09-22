@@ -472,38 +472,32 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
                         "(sudah diproses/dibayar) — amount tidak bisa diubah dari sini. "
                         "Koreksi lewat modul Payment Memo."}
 
+    # Construct the update fields dynamically for optional attachment_file_id
+    update_fields = [
+        "tgl_payment_application = ?", "tgl_surat_pengajuan     = ?", "doc_received_by_educ    = ?",
+        "received_pa_from_educ   = ?", "checked_by_fincon       = ?", "approved_by_htj_1       = ?",
+        "send_pa_back_to_educ    = ?", "pa_received_by_po_fin   = ?", "approval_by_htj_2       = ?",
+        "nomor_pam               = ?", "tanggal_bayar           = ?", "keterangan              = ?",
+        "status                  = ?", "updated_at              = ?"
+    ]
+    
+    values = [
+        data.get("tgl_payment_application", ""), data.get("tgl_surat_pengajuan", ""), data.get("doc_received_by_educ", ""),
+        data.get("received_pa_from_educ", ""), data.get("checked_by_fincon", ""), data.get("approved_by_htj_1", ""),
+        data.get("send_pa_back_to_educ", ""), data.get("pa_received_by_po_fin", ""), data.get("approval_by_htj_2", ""),
+        nomor_pam, data.get("tanggal_bayar", ""), data.get("keterangan", ""), new_status, _ts()
+    ]
+    
+    if "attachment_file_id" in data:
+        update_fields.append("attachment_file_id = ?")
+        values.append(data["attachment_file_id"])
+    values.extend([pa_id, company_id])
+    
     conn.execute(
-        f"""UPDATE {pa_tbl} SET
-             tgl_payment_application = ?,
-             tgl_surat_pengajuan     = ?,
-             doc_received_by_educ    = ?,
-             received_pa_from_educ   = ?,
-             checked_by_fincon       = ?,
-             approved_by_htj_1       = ?,
-             send_pa_back_to_educ    = ?,
-             pa_received_by_po_fin   = ?,
-             approval_by_htj_2       = ?,
-             nomor_pam               = ?,
-             tanggal_bayar           = ?,
-             keterangan              = ?,
-             status                  = ?,
-             updated_at              = ?
-            WHERE id=? AND company_id=?""",
-        (data.get("tgl_payment_application", ""),
-         data.get("tgl_surat_pengajuan", ""),
-         data.get("doc_received_by_educ", ""),
-         data.get("received_pa_from_educ", ""),
-         data.get("checked_by_fincon", ""),
-         data.get("approved_by_htj_1", ""),
-         data.get("send_pa_back_to_educ", ""),
-         data.get("pa_received_by_po_fin", ""),
-         data.get("approval_by_htj_2", ""),
-         nomor_pam,
-         data.get("tanggal_bayar", ""),
-         data.get("keterangan", ""),
-         new_status,
-         _ts(), pa_id, company_id)
+        f"UPDATE {pa_tbl} SET {', '.join(update_fields)} WHERE id=? AND company_id=?",
+        tuple(values)
     )
+    
     if line_id:
         conn.execute(
             f"""UPDATE {lines_tbl} SET
