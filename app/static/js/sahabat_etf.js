@@ -2404,8 +2404,8 @@ let treeRawData = null;
 
 
 function assignGenerations(node, depth) {
-  if (depth > 0) {
-    node.genLabel = "Gen " + depth;
+  if (depth > 1) {
+    node.genLabel = "L" + (depth - 1);
   } else {
     node.genLabel = "";
   }
@@ -2438,6 +2438,8 @@ async function initTreeQuery() {
       children: json.data
     };
     assignGenerations(treeRawData, 0);
+      window.treeRawDataPristine = JSON.parse(JSON.stringify(treeRawData));
+      
     const dl = document.getElementById("tree-search-list");
     if (dl) {
       let opts = [];
@@ -2446,7 +2448,7 @@ async function initTreeQuery() {
          if (n.partners) n.partners.forEach(p => opts.push(`<option value="${p.name}">`));
          if (n.children) n.children.forEach(c => collectNames(c));
       }
-      if (treeRawData.children) treeRawData.children.forEach(c => collectNames(c));
+      if (window.treeRawDataPristine.children) window.treeRawDataPristine.children.forEach(c => collectNames(c));
       dl.innerHTML = opts.join("");
     }
     renderTree([treeRawData]);
@@ -2465,7 +2467,8 @@ function renderTree(data) {
       formatter: function(params) {
          let d = params.data;
          if (!d) return '';
-         let html = '<div style="font-weight:bold;margin-bottom:5px;border-bottom:1px solid #eee;padding-bottom:3px;">' + (d.name || '') + '</div>';
+         let mainIdStr = d.id ? ' | ' + d.id : '';
+           let html = '<div style=\"font-weight:bold;margin-bottom:5px;border-bottom:1px solid #eee;padding-bottom:3px;\">' + (d.name || '') + mainIdStr + '</div>';
          
          let hasInfo = false;
          if (d.tanggal_lahir) { html += '<div style="font-size:12px;"><b>Tanggal Lahir:</b> ' + d.tanggal_lahir + '</div>'; hasInfo = true; }
@@ -2475,7 +2478,8 @@ function renderTree(data) {
          if (d.partners && d.partners.length > 0) {
              html += '<hr style="margin:8px 0; border:0; border-top:1px solid #ddd">';
              d.partners.forEach(p => {
-                 html += '<div style="font-weight:bold;margin-bottom:3px;">' + (p.name || '') + ' <span style="font-size:10px;color:#666;font-weight:normal;">(Partner)</span></div>';
+                 let pIdStr = p.id ? ' | ' + p.id : '';
+                   html += '<div style=\"font-weight:bold;margin-bottom:3px;\">' + (p.name || '') + ' <span style=\"font-size:11px;color:#666;font-weight:normal;\">(Partner)</span>' + pIdStr + '</div>';
                  let hasPInfo = false;
                  if (p.tanggal_lahir) { html += '<div style="font-size:12px;"><b>Tanggal Lahir:</b> ' + p.tanggal_lahir + '</div>'; hasPInfo = true; }
                  if (p.catatan) { html += '<div style="font-size:12px;max-width:250px;white-space:normal;"><b>Catatan:</b> ' + p.catatan + '</div>'; hasPInfo = true; }
@@ -2489,6 +2493,7 @@ function renderTree(data) {
       {
         type: 'tree',
         orient: 'TB',
+        edgeShape: 'polyline',
         data: data,
         top: 80, left: 20, bottom: 80, right: 20,
         symbolSize: 7,
@@ -2512,19 +2517,21 @@ function renderTree(data) {
             }
             let gen = params.data.genLabel ? `{gen|[${params.data.genLabel}]} ` : '';
             let lines = [`${gen}{main|${n}}`];
-            let ps = params.data.partners;
-            if (ps && ps.length > 0) {
-              lines.push('{sep|---------------}');
-              ps.forEach(p => {
-                  let pCode = p.id ? p.id.split('.').pop() : '';
-                  let pName = p.name;
-                  if (pCode && pCode !== 'A' && pCode !== 'B') {
-                      pName = pName + ' (' + pCode + ')';
-                  }
-                  lines.push(`{partner|${pName}}`); 
-              });
-            }
-            return lines.join('\n');
+                          let ps = params.data.partners;
+              if (ps && ps.length > 0) {
+                lines.push('{sep|---------------}');
+                ps.forEach(p => {
+                    let pCode = p.id ? p.id.split('.').pop() : '';
+                    let pName = p.name;
+                    if (pCode && pCode !== 'A' && pCode !== 'B') {
+                        pName = pName + ' (' + pCode + ')';
+                    }
+                    lines.push(`{partner|${pName} (Partner)}`); 
+                });
+              }
+
+
+              return lines.join('\n');
           },
           rich: {
             main: { fontWeight: 'bold', fontSize: 13, padding: [4,0,4,0] },
@@ -2609,7 +2616,13 @@ function searchTree() {
     renderTree([treeRawData]);
     return;
   }
-  let dataCopy = JSON.parse(JSON.stringify(treeRawData));
+  let dataCopy;
+  if (!q) {
+      dataCopy = JSON.parse(JSON.stringify(window.treeRawDataPristine));
+      
+  } else {
+      dataCopy = JSON.parse(JSON.stringify(window.treeRawDataPristine));
+  }
   expandPathToName(dataCopy, q);
   
   if (dataCopy.children && dataCopy.children.length === 1) {
@@ -2631,3 +2644,13 @@ function zoomTreeQuery(ratio) {
     });
   }
 }
+  function foldChildren(node, depth) {
+    // If it's Depth 2 (Wives) and it's not part of an expanded search path
+    if (depth === 2 && node.collapsed !== false && node.children && node.children.length > 0) {
+      node._folded = true;
+      node._actualChildren = node.children;
+      node.children = []; // Remove children so they don't branch
+    } else if (node.children) {
+      node.children.forEach(c => foldChildren(c, depth + 1));
+    }
+  }

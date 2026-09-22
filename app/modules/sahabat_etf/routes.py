@@ -344,10 +344,12 @@ def export_ppt_report():
         download_name=filename
     )
 
-@bp.route("/tree-data")
+@bp.route('/tree-data')
 @sahabat_public_or_jwt
 def tree_data():
     from database import get_conn
+    from flask import jsonify
+    import re
     conn = get_conn()
     rows = conn.execute("SELECT code, nama, group_setf, tanggal_lahir, catatan FROM siswa WHERE program='Sahabat ETF' AND group_setf != ''").fetchall()
     conn.close()
@@ -360,48 +362,65 @@ def tree_data():
         if g in ['A', 'B']:
             bloodlines[g] = {'id': g, 'code': code, 'name': nama, 'partners': [], 'children': [], 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
         elif '.' not in g:
-            base = 'A' if (g.isdigit() and int(g) < 10) else 'B'
+            base = g[0]
             partners[g] = {'id': g, 'name': nama, 'code': code, 'base': base, 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
         else:
             parts = g.split('.')
             last = parts[-1]
-            if last == '0' * len(last):
-                base = '.'.join(parts[:-1])
+            base = '.'.join(parts[:-1])
+            if last.isalpha():
                 partners[g] = {'id': g, 'name': nama, 'code': code, 'base': base, 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
             else:
-                bloodlines[g] = {'id': g, 'code': code, 'name': nama, 'partners': [], 'children': [], 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
+                bloodlines[g] = {'id': g, 'code': code, 'name': nama, 'partners': [], 'children': [], 'parent': base, 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
+
+    roots = []
+    if 'A' in bloodlines: roots.append(bloodlines['A'])
+    if 'B' in bloodlines: roots.append(bloodlines['B'])
 
     for pid, p in partners.items():
         base = p['base']
-        if base in bloodlines:
-            bloodlines[base]['partners'].append(p)
+        if base in ['A', 'B']:
+            if base in bloodlines:
+                pass # Removed prepending
+                p['children'] = []
+                bloodlines[base]['children'].append(p)
+        else:
+            if base in bloodlines:
+                bloodlines[base]['partners'].append(p)
 
-    roots = []
     for g, b in bloodlines.items():
-        if g in ['A', 'B']:
-            roots.append(b)
-            continue
-
-        parts = g.split('.')
-        if len(parts) == 2:
-            parent_partner_id = parts[0]
-        else:
-            last = parts[-1]
-            prefix = '.'.join(parts[:-1])
-            parent_partner_id = prefix + '.' + '0'*len(last)
-
-        parent_bloodline_id = None
+        if g in ['A', 'B']: continue
+        parent_partner_id = b.get('parent')
+        
         if parent_partner_id in partners:
-            parent_bloodline_id = partners[parent_partner_id]['base']
+            partner = partners[parent_partner_id]
+            if partner['base'] in ['A', 'B']:
+                partner['children'].append(b)
+            else:
+                base_bloodline_id = partner['base']
+                if base_bloodline_id in bloodlines:
+                    b['parent_partner_id'] = parent_partner_id
+                    bloodlines[base_bloodline_id]['children'].append(b)
+                    
+    def get_sort_key(x):
+        last = x['id'].split('.')[-1]
+        if last.isdigit(): return int(last)
+        m = re.search(r'[0-9]+', last)
+        if m: return int(m.group())
+        return last
 
-        if parent_bloodline_id and parent_bloodline_id in bloodlines:
-            b['parent_partner_id'] = parent_partner_id
-            bloodlines[parent_bloodline_id]['children'].append(b)
-        else:
-            roots.append(b)
+    def sort_tree(node):
+        if 'children' in node and node['children']:
+            node['children'].sort(key=get_sort_key)
+            for c in node['children']:
+                sort_tree(c)
+                
+    for r in roots:
+        sort_tree(r)
+        
+    roots.sort(key=get_sort_key)
 
     return jsonify({"ok": True, "data": roots})
-
 
 @bp.route("/login", methods=["GET", "POST"])
 def public_login():
