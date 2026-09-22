@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Sponsorship Input{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+{% endblock %}
+{% block module_tabs %}
+{% set active_tab = "input" %}
+{% include "sponsorship/_toolbar.html" with context %}
+{% endblock %}
+{% block content %}
+<div class="budget-page">
+  {% if wrong_company %}
+    {% include "sponsorship/_notice.html" %}
+  {% else %}
+  <form id="sp-input-form" class="sp-form-card">
+    <div class="sp-form-section-title">Kategori Transaksi</div>
+    <div class="sp-form-grid">
+      <div class="sp-form-field">
+        <label>Cat</label>
+        <select id="sp-in-cat">{% for c in cat_choices %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
+      </div>
+      <div class="sp-form-field">
+        <label>Description</label>
+        <select id="sp-in-description">{% for d in description_choices %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+      </div>
+      <div class="sp-form-field sp-form-span2">
+        <label>Cat1 (Perusahaan)</label>
+        <input type="text" id="sp-in-cat1-search" placeholder="Cari perusahaan...">
+        <input type="hidden" id="sp-in-cat1">
+        <div id="sp-in-cat1-results" class="sp-autocomplete-results"></div>
+      </div>
+      <div class="sp-form-field">
+        <label>Cat2</label>
+        <input type="text" id="sp-in-cat2" readonly>
+      </div>
+      <div class="sp-form-field">
+        <label>Cat3 (Pillar)</label>
+        <input type="text" id="sp-in-cat3" readonly>
+      </div>
+      <div class="sp-form-field sp-form-span2">
+        <label>Cat4</label>
+        <select id="sp-in-cat4"><option value="">(blank)</option>{% for c in cat4_choices %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
+      </div>
+    </div>
+
+    <div class="sp-form-section-title sp-form-section-title-divider">Detail &amp; Tanggal</div>
+    <div class="sp-form-grid">
+      <div class="sp-form-field sp-form-span2">
+        <label>Lembaga/Perorangan</label>
+        <input type="text" id="sp-in-lembaga" list="sp-lembaga-datalist" autocomplete="off">
+        <datalist id="sp-lembaga-datalist"></datalist>
+      </div>
+      <div class="sp-form-field">
+        <label>Tanggal Form Sponsor</label>
+        <input type="date" id="sp-in-tanggal-form">
+      </div>
+      <div class="sp-form-field">
+        <label>Tanggal Payment</label>
+        <input type="date" id="sp-in-tanggal-payment">
+      </div>
+      <div class="sp-form-field sp-form-span2">
+        <label>Perihal</label>
+        <input type="text" id="sp-in-perihal">
+      </div>
+      <div class="sp-form-field">
+        <label>Amount Request</label>
+        <input type="number" id="sp-in-amount" min="0">
+      </div>
+      <div class="sp-form-field">
+        <label>Reff</label>
+        <input type="text" id="sp-in-reff">
+      </div>
+      <div class="sp-form-field sp-form-span2">
+        <label>Status</label>
+        <input type="text" id="sp-in-status">
+      </div>
+    </div>
+
+    <details class="sp-form-advanced">
+      <summary>Lanjutan (COA, CC Total, CC, Source)</summary>
+      <div class="sp-form-grid">
+        <div class="sp-form-field sp-form-span2">
+          <label>COA</label>
+          <input type="text" id="sp-in-coa" value="701078002">
+        </div>
+        <div class="sp-form-field sp-form-span2">
+          <label>CC Total</label>
+          <input type="text" id="sp-in-cc-total" value="SMT - Corporate Communication">
+        </div>
+        <div class="sp-form-field sp-form-span2">
+          <label>CC</label>
+          <input type="text" id="sp-in-cc" value="POSPON">
+        </div>
+        <div class="sp-form-field sp-form-span2">
+          <label>Source</label>
+          <input type="text" id="sp-in-source" value="Sponsor">
+        </div>
+      </div>
+    </details>
+  </form>
+  <div class="budget-toolbar">
+    <button class="budget-btn" onclick="sponsorshipInputSubmit()">Simpan</button>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/sponsorship.js') }}"></script>
+{% endblock %}
+

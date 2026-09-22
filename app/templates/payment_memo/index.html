@@ -248,7 +248,7 @@
         </div>
       </div>
     </div>
-    <div class="form-section tint-route" style="display:grid;grid-template-columns:200px 140px 1fr;gap:.75rem;margin-bottom:1rem;align-items:end;max-width:900px">
+    <div class="form-section tint-route" style="display:grid;grid-template-columns:200px 140px 1fr 200px;gap:.75rem;margin-bottom:1rem;align-items:end;max-width:1120px">
       <div class="form-group" style="margin:0">
         <label>Pillar</label>
         <input type="text" id="ipay-pillar" readonly placeholder="Auto dari vendor"
@@ -263,6 +263,10 @@
         <label>Catatan Payment <span style="font-size:.65rem;color:var(--text-muted);font-weight:400">(tampil di tab PAM)</span></label>
         <input type="text" id="ipay-catatan" placeholder="Opsional — muncul di kolom Catatan PAM tab"
                style="border:1px solid #93c5fd;background:#fafeff">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Lampiran</label>
+        <input type="file" id="ipay-attachment" multiple>
       </div>
     </div>
     {# ── Panel Beasiswa (existing) ── #}
@@ -537,6 +541,7 @@
             <th style="padding:8px 10px;text-align:left;white-space:nowrap;display:none">SLA5 (PD)</th>
             <th style="padding:8px 10px;text-align:left;white-space:nowrap">SLA LL</th>
             <th style="padding:8px 10px;text-align:left;white-space:nowrap;display:none">SLA7 (MSIG)</th>
+            <th style="padding:7px 8px;text-align:center">Lampiran</th>
             <th style="padding:8px 10px;text-align:left;">Aksi</th>
           </tr>
         </thead>
@@ -650,11 +655,12 @@
             <th style="padding:7px 8px;white-space:nowrap">App 2</th>
             <th style="padding:7px 8px;white-space:nowrap">App 3</th>
             <th style="padding:7px 8px;white-space:nowrap">Kirim</th>
+            <th style="padding:7px 8px;text-align:center">Lampiran</th>
             <th style="padding:7px 8px;">Aksi</th>
           </tr>
         </thead>
         <tbody id="fiori-tbody">
-          <tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Memuat data...</td></tr>
+          <tr><td colspan="27" style="text-align:center;padding:20px;color:var(--text-muted);">Memuat data...</td></tr>
         </tbody>
       </table>
     </div>
@@ -731,11 +737,12 @@
             <th style="padding:7px 8px;white-space:nowrap">App 2</th>
             <th style="padding:7px 8px;white-space:nowrap">App 3</th>
             <th style="padding:7px 8px;white-space:nowrap">Kirim</th>
+            <th style="padding:7px 8px;text-align:center">Lampiran</th>
             <th style="padding:7px 8px;">Aksi</th>
           </tr>
         </thead>
         <tbody id="sml-tbody">
-          <tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data LAND.</td></tr>
+          <tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data LAND.</td></tr>
         </tbody>
       </table>
     </div>
@@ -830,11 +837,12 @@
             <th style="padding:7px 8px;white-space:nowrap">A2 - S-YK</th>
             <th style="padding:7px 8px;white-space:nowrap">A3 - S-LL</th>
             <th style="padding:7px 8px;white-space:nowrap">A4 - A-LL</th>
+            <th style="padding:7px 8px;text-align:center">Lampiran</th>
             <th style="padding:7px 8px;">Aksi</th>
           </tr>
         </thead>
         <tbody id="smt-tbody">
-          <tr><td colspan="27" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>
+          <tr><td colspan="28" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>
         </tbody>
       </table>
     </div>
@@ -899,11 +907,12 @@
             <th style="padding:7px 8px;white-space:nowrap">A3 - S-LL</th>
             <th style="padding:7px 8px;white-space:nowrap">A4 - A-LL</th>
             <th style="padding:7px 8px;white-space:nowrap">Paid</th>
+            <th style="padding:7px 8px;text-align:center">Lampiran</th>
             <th style="padding:7px 8px;">Aksi</th>
           </tr>
         </thead>
         <tbody id="advance-tbody">
-          <tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>
+          <tr><td colspan="18" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>
         </tbody>
       </table>
     </div>
@@ -972,11 +981,12 @@
             <th style="padding:7px 8px;">Status</th>
             <th style="padding:7px 8px;white-space:nowrap">Tgl Bayar</th>
             <th style="padding:7px 8px;">Source</th>
+            <th style="padding:7px 8px;text-align:center">Lampiran</th>
             <th style="padding:7px 8px;">Aksi</th>
           </tr>
         </thead>
         <tbody id="setf-tbody">
-          <tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>
+          <tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1044,11 +1054,12 @@
             <th style="padding:7px 8px;">Status</th>
             <th style="padding:7px 8px;white-space:nowrap">Tgl Bayar</th>
             <th style="padding:7px 8px;">Source</th>
+            <th style="padding:7px 8px;text-align:center">Lampiran</th>
             <th style="padding:7px 8px;">Aksi</th>
           </tr>
         </thead>
         <tbody id="energy-tbody">
-          <tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data ENERGY.</td></tr>
+          <tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data ENERGY.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1110,7 +1121,7 @@
           </tr>
         </thead>
         <tbody id="pa-advance-tbody">
-          <tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>
+          <tr><td colspan="18" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1161,6 +1172,7 @@
             <th style="padding:7px 8px;">Nama</th>
             <th style="padding:7px 8px;white-space:nowrap">Pillar</th>
             <th style="padding:7px 8px;white-space:nowrap">Cost Center</th>
+            <th style="padding:7px 8px;text-align:center">Lampiran</th>
             <th style="padding:7px 8px;white-space:nowrap">Aksi</th>
           </tr>
         </thead>
@@ -1338,6 +1350,12 @@
       <div class="form-group">
         <label>Tanggal Paid</label>
         <input type="date" id="edit-pam-tanggal-bayar">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Lampiran</label>
+        <div id="edit-pam-existing-attachments" style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px"></div>
+        <input type="hidden" id="edit-pam-kept-attachments" value="">
+        <input type="file" id="edit-pam-attachment" multiple style="font-size:.8rem; padding:4px; width:100%">
       </div>
     </div>
     <div style="margin-bottom:.75rem" id="pam-app-section">
@@ -1978,7 +1996,7 @@ async function loadSML() {
   const data   = await res.json();
   const count  = document.getElementById('sml-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data LAND.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data LAND.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -2010,6 +2028,7 @@ async function loadSML() {
       ${_plDate(r.id,'LAND','tgl_approval_2',r.tgl_approval_2)}
       ${_plDate(r.id,'LAND','tgl_approval_3',r.tgl_approval_3)}
       ${_plDate(r.id,'LAND','tgl_kirim',r.tgl_kirim)}
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -2284,7 +2303,7 @@ async function loadSETF() {
   const data   = await res.json();
   const count  = document.getElementById('setf-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -2307,6 +2326,7 @@ async function loadSETF() {
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -2406,7 +2426,7 @@ async function loadENERGY() {
   const data   = await res.json();
   const count  = document.getElementById('energy-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data ENERGY.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data ENERGY.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -2429,6 +2449,7 @@ async function loadENERGY() {
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -2527,7 +2548,7 @@ async function loadPaAdvance() {
   const data = await res.json();
   const count = document.getElementById('pa-advance-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -2694,7 +2715,7 @@ async function loadSMT() {
   if (!data.ok || !data.rows.length) {
     _smtAllRows = [];
     _smtPage = 1;
-    tbody.innerHTML = '<tr><td colspan="27" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="28" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>';
     if (count) count.textContent = '';
     const pag = document.getElementById('smt-pagination');
     if (pag) pag.style.display = 'none';
@@ -2779,6 +2800,7 @@ function _smtRenderPage() {
       ${_plDate(r.id,'SMT','tgl_a2',r.tgl_a2)}
       ${_plDate(r.id,'SMT','tgl_a3',r.tgl_a3)}
       ${_plDate(r.id,'SMT','tgl_a4',r.tgl_a4)}
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -2986,7 +3008,7 @@ async function loadAdvance() {
   const data   = await res.json();
   const count  = document.getElementById('advance-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -3009,6 +3031,7 @@ async function loadAdvance() {
       ${_plDate(r.id,'ADVANCE','tgl_a3',r.tgl_a3)}
       ${_plDate(r.id,'ADVANCE','tgl_a4',r.tgl_a4)}
       ${_plDate(r.id,'ADVANCE','tgl_paid',r.tgl_paid)}
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -3036,7 +3059,7 @@ async function loadFIORI() {
   const count  = document.getElementById('fiori-count');
   fioriUpdateBulkBar();
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data APP.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="27" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data APP.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -3071,6 +3094,7 @@ async function loadFIORI() {
       ${_plDate(r.id,'APP','tgl_approval_2',r.tgl_approval_2)}
       ${_plDate(r.id,'APP','tgl_approval_3',r.tgl_approval_3)}
       ${_plDate(r.id,'APP','tgl_kirim',r.tgl_kirim)}
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `;
@@ -3472,6 +3496,16 @@ async function pamLineDateEdit(pamId, pillar, field, tdEl) {
   });
 }
 
+
+function _attachmentCell(r) {
+  if (!r.attachment_file_id) return '<td style="padding:6px 8px;text-align:center">-</td>';
+  const ids = r.attachment_file_id.split(',').filter(id => id.trim());
+  if (!ids.length) return '<td style="padding:6px 8px;text-align:center">-</td>';
+  return `<td style="padding:6px 8px;text-align:center;white-space:nowrap">
+    ${ids.map((id, idx) => `<a href="/etf-payment-application/attachment/${id}" target="_blank" style="color:#2563eb;text-decoration:underline;font-size:11px;margin-right:4px" onclick="event.stopPropagation()">View ${idx+1}</a>`).join('<br>')}
+  </td>`;
+}
+
 function _aksiCell(r) {
   const _btn = (label, cls, fn) =>
     `<button class="btn btn-sm ${cls}" onclick="${fn}">${label}</button>`;
@@ -3616,6 +3650,7 @@ function _agriRenderPage() {
       <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla5, r.sub_total)}</td>
       <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla6, r.sub_total)}</td>
       <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla7, r.sub_total)}</td>
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -3979,6 +4014,54 @@ async function openEditPAM(pamId) {
   document.getElementById('edit-pam-cc-display').textContent = 'Cost Center: ' + (r.cost_center || '—');
   const app = r.payment_application || {};
   document.getElementById('edit-pam-app-notes').value     = app.notes || '';
+  
+  const existingContainer = document.getElementById("edit-pam-existing-attachments");
+  existingContainer.innerHTML = "";
+  document.getElementById("edit-pam-attachment").value = "";
+  if (r.attachment_file_id) {
+    const ids = r.attachment_file_id.split(',').filter(id => id.trim());
+    const keptIds = [...ids];
+    ids.forEach(id => {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.background = "#f3f4f6";
+      row.style.padding = "2px 6px";
+      row.style.borderRadius = "4px";
+      
+      const link = document.createElement("a");
+      link.href = /etf-payment-application/attachment/;
+      link.target = "_blank";
+      link.style.fontSize = "0.75rem";
+      link.style.color = "#2563eb";
+      link.textContent = "View File";
+      
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "×";
+      delBtn.style.background = "none";
+      delBtn.style.border = "none";
+      delBtn.style.color = "#dc2626";
+      delBtn.style.cursor = "pointer";
+      delBtn.style.fontWeight = "bold";
+      delBtn.onclick = (e) => {
+        e.preventDefault();
+        const idx = keptIds.indexOf(id);
+        if (idx > -1) keptIds.splice(idx, 1);
+        const keptInput = document.getElementById("edit-pam-kept-attachments");
+        keptInput.value = keptIds.join(',');
+        row.remove();
+      };
+      
+      row.appendChild(link);
+      row.appendChild(delBtn);
+      existingContainer.appendChild(row);
+    });
+    document.getElementById("edit-pam-kept-attachments").value = keptIds.join(',');
+  } else {
+    document.getElementById("edit-pam-kept-attachments").value = "";
+  }
+  
   openModal('modal-edit-pam');
 }
 
@@ -5400,10 +5483,14 @@ async function ipaySavePa() {
   if (saveBtn2) saveBtn2.disabled = true;
   showLoading("Menyimpan PAM...");
   let res;
+  const _fd = new FormData();
+  _fd.append("data", JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows }));
+  const _files = document.getElementById("ipay-attachment")?.files;
+  if (_files) { for(let i=0; i<_files.length; i++) _fd.append("files", _files[i]); }
   try {
     res = await apiFetch("/payment-memo/ipay/save-pa", {
       method: "POST",
-      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
+      body: _fd
     });
   } finally {
     hideLoading();
@@ -5732,10 +5819,14 @@ async function ipaySaveKlaim() {
   if (btn) btn.disabled = true;
   showLoading("Menyimpan PAM Klaim Medis...");
   let res;
+  const _fd = new FormData();
+  _fd.append("data", JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows }));
+  const _files = document.getElementById("ipay-attachment")?.files;
+  if (_files) { for(let i=0; i<_files.length; i++) _fd.append("files", _files[i]); }
   try {
     res = await apiFetch("/payment-memo/ipay/save-klaim", {
       method: "POST",
-      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
+      body: _fd
     });
   } finally {
     hideLoading();
@@ -5793,13 +5884,17 @@ async function ipaySaveOthers() {
   if (btn) btn.disabled = true;
   showLoading("Menyimpan PAM...");
   let res;
+  const _fd = new FormData();
+  _fd.append("data", JSON.stringify({
+    tab: type, transaksi: tx, tanggal, pam_no,
+    keterangan, perusahaan, pillar, mata_uang, dpp, ppn, others
+  }));
+  const _files = document.getElementById("ipay-attachment")?.files;
+  if (_files) { for(let i=0; i<_files.length; i++) _fd.append("files", _files[i]); }
   try {
     res = await apiFetch("/payment-memo/ipay/save-others", {
       method: "POST",
-      body: JSON.stringify({
-        tab: type, transaksi: tx, tanggal, pam_no,
-        keterangan, perusahaan, pillar, mata_uang, dpp, ppn, others
-      })
+      body: _fd
     });
   } finally {
     hideLoading();
@@ -6046,10 +6141,14 @@ async function ipaySaveSmtLines() {
   if (btn) btn.disabled = true;
   showLoading("Menyimpan PAM...");
   let res;
+  const _fd = new FormData();
+  _fd.append("data", JSON.stringify({ tanggal, pam_no, perusahaan, cc, pillar, transaksi, rows, catatan }));
+  const _files = document.getElementById("ipay-attachment")?.files;
+  if (_files) { for(let i=0; i<_files.length; i++) _fd.append("files", _files[i]); }
   try {
     res = await apiFetch("/payment-memo/ipay/save-smt-lines", {
       method: "POST",
-      body: JSON.stringify({ tanggal, pam_no, perusahaan, cc, pillar, transaksi, rows, catatan })
+      body: _fd
     });
   } finally {
     hideLoading();

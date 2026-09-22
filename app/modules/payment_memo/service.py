@@ -658,11 +658,12 @@ def save_klaim_payment(company_id: int, company_code: str, data: dict) -> dict:
         conn.execute(
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
-                total_amount, dpp, pt, due_date, pillar, source, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                total_amount, dpp, pt, due_date, pillar, source, status, attachment_file_id, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (company_id, pam_no, tanggal,
              config.PAM_DEFAULT_REQUESTOR, keterangan,
-             grand_total, grand_total, perusahaan, due_date, pillar, "klaim_medis", "open", _ts())
+             grand_total, grand_total, perusahaan, due_date, pillar, "klaim_medis", "open",
+             data.get("attachment_file_id", ""), _ts())
         )
         conn.commit()
     except Exception as e:
@@ -705,12 +706,13 @@ def save_others_payment(company_id: int, company_code: str, data: dict) -> dict:
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
                 total_amount, due_date, pillar, source, pt,
-                mata_uang, dpp, ppn, others, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                mata_uang, dpp, ppn, others, status, attachment_file_id, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (company_id, pam_no, tanggal,
              config.PAM_DEFAULT_REQUESTOR, keterangan,
              total, due_date, pillar, transaksi, perusahaan,
-             mata_uang, dpp, ppn, others, "open", _ts())
+             mata_uang, dpp, ppn, others, "open",
+             data.get("attachment_file_id", ""), _ts())
         )
         conn.commit()
     except Exception as e:
@@ -783,12 +785,13 @@ def save_smt_pam_transaction(company_id: int, company_code: str, data: dict) -> 
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
                 total_amount, due_date, pillar, source, pt, cost_center,
-                mata_uang, dpp, ppn, others, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                mata_uang, dpp, ppn, others, status, attachment_file_id, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (company_id, pam_no, tanggal,
              config.PAM_DEFAULT_REQUESTOR, pam_keterangan,
              grand_total, due_date, pillar, transaksi, perusahaan, cc,
-             "IDR", grand_dpp, grand_ppn, grand_others, "open", _ts())
+             "IDR", grand_dpp, grand_ppn, grand_others, "open",
+             data.get("attachment_file_id", ""), _ts())
         )
         pam_id = cur.lastrowid
 
@@ -878,13 +881,14 @@ def save_pa_payment(company_id: int, company_code: str, data: dict) -> dict:
             """INSERT INTO pam_records
                (company_id, pam_no, pam_date, requestors_name, keterangan,
                 total_amount, dpp, ppn, due_date, pillar, source,
-                pt, cost_center, status, created_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'open',?)""",
+                pt, cost_center, status, attachment_file_id, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'open',?,?)""",
             (company_id, pam_no, tanggal,
              config.PAM_DEFAULT_REQUESTOR, keterangan,
              total, total, 0.0,
              due_date, pillar_for_pam, "beasiswa",
-             perusahaan, cost_center, _ts())
+             perusahaan, cost_center,
+             data.get("attachment_file_id", ""), _ts())
         )
 
         # 3. Link payment_beasiswa rows to user pam_no (pam_records now exists)
@@ -964,8 +968,8 @@ def create_pam_record(conn, company_id: int, company_code: str,
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, gl_account, cost_center, pt,
             requestors_name, keterangan, total_amount, dpp, ppn,
-            due_date, pillar, source, status, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'open',?)""",
+            due_date, pillar, source, status, attachment_file_id, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'open',?,?)""",
         (company_id, pam_no, pam_date,
          data.get("gl_account", config.PAM_DEFAULT_GL),
          cost_center, data.get("pt", ""),
@@ -973,7 +977,7 @@ def create_pam_record(conn, company_id: int, company_code: str,
          data.get("keterangan", ""),
          total, dpp, 0.0,
          due_date, data.get("pillar", ""), data.get("source", "beasiswa"),
-         _ts())
+         data.get("attachment_file_id", ""), _ts())
     )
     for pid in data.get("payment_ids", []):
         conn.execute(
@@ -1116,7 +1120,7 @@ def update_pam_record(pam_id: int, data: dict, company_id: int) -> dict:
     if not row:
         conn.close()
         return {"ok": False, "pesan": "PAM record tidak ditemukan."}
-    allowed_fields = ("keterangan", "requestors_name", "total_amount", "due_date", "pam_date", "tanggal_bayar")
+    allowed_fields = ("keterangan", "requestors_name", "total_amount", "due_date", "pam_date", "tanggal_bayar", "attachment_file_id")
     fields, params = [], []
     for key in allowed_fields:
         if key in data and data[key] is not None:

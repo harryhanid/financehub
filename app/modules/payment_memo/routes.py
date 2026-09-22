@@ -38,6 +38,39 @@ from modules.payment_memo.exports import (
 )
 from datetime import datetime
 import config, io
+def _handle_pam_attachment_upload(pam_no: str, result: dict):
+    from flask import request
+    if not result.get("ok"): return
+    files = request.files.getlist("files")
+    single_file = request.files.get("file")
+    if single_file and single_file not in files:
+        files.append(single_file)
+    valid_files = [f for f in files if f and f.filename]
+    if not valid_files: return
+
+    folder_name = pam_no.replace('/', '-')
+    from utils.gdrive_service import create_gdrive_folder, upload_file_to_gdrive
+    from database import get_conn
+    try:
+        folder_id = create_gdrive_folder(folder_name)
+        uploaded_ids = []
+        for f in valid_files:
+            file_id = upload_file_to_gdrive(f, f.filename, f.mimetype, folder_id)
+            if file_id: uploaded_ids.append(file_id)
+        if uploaded_ids:
+            conn = get_conn()
+            row = conn.execute("SELECT id, attachment_file_id FROM pam_records WHERE pam_no=?", (pam_no,)).fetchone()
+            if row:
+                pam_id = row[0]
+                existing = row[1]
+                new_val = ",".join(uploaded_ids)
+                if existing: new_val = existing + "," + new_val
+                conn.execute("UPDATE pam_records SET attachment_file_id=? WHERE id=?", (new_val, pam_id))
+                conn.commit()
+            conn.close()
+    except Exception as e:
+        result["pesan"] += f" (Upload GDrive gagal: {str(e)})"
+
 
 bp = Blueprint("payment_memo", __name__, url_prefix="/payment-memo")
 
@@ -242,11 +275,36 @@ def get_pam_transaction_lines_route_api(pam_id):
 @bp.route("/pam/<int:pam_id>/edit", methods=["POST"])
 @json_required
 def update_pam_record_route(pam_id):
-    data     = request.get_json(force=True) or {}
+    if request.is_json:
+        data = request.get_json(force=True) or {}
+    else:
+        import json
+        data = json.loads(request.form.get("data", "{}"))
     pam_data = data.get("pam", {})
     app_data = data.get("app", {})
     result   = update_pam_and_application(pam_id, pam_data, app_data, session.get("company_id", 0))
+    if result.get('ok'):
+        from database import get_conn
+        conn = get_conn()
+        row = conn.execute("SELECT pam_no, attachment_file_id FROM pam_records WHERE id=?", (pam_id,)).fetchone()
+        if row:
+            pam_no = row[0]
+            existing_attachment_file_id = row[1]
+            # Handle physical deletion of removed attachments
+            frontend_attachments = pam_data.get("attachment_file_id", "")
+            if existing_attachment_file_id:
+                old_ids = [fid.strip() for fid in existing_attachment_file_id.split(",")]
+                frontend_ids = [fid.strip() for fid in frontend_attachments.split(",")] if frontend_attachments else []
+                deleted_ids = [fid for fid in old_ids if fid and fid not in frontend_ids]
+                if deleted_ids:
+                    from utils.gdrive_service import delete_gdrive_file
+                    for did in deleted_ids:
+                        delete_gdrive_file(did)
+                        
+            _handle_pam_attachment_upload(pam_no, result)
+        conn.close()
     return jsonify(result)
+
 
 
 @bp.route("/drafts/<int:payment_id>")
@@ -261,7 +319,6 @@ def get_draft_detail_route(payment_id):
 @bp.route("/drafts/<int:payment_id>/edit", methods=["POST"])
 @json_required
 def update_draft_route(payment_id):
-    data     = request.get_json(force=True) or {}
     pb_data  = data.get("payment", {})
     pam_data = data.get("pam", {})
     app_data = data.get("app", {})
@@ -664,7 +721,6 @@ def create_agri_pam():
     """Buat PAM dari etf_pa yang dipilih → on_process + nomor_pam."""
     company_id   = session.get("company_id")
     company_code = session.get("company_code", "ETF")
-    data         = request.get_json(force=True) or {}
     pam_date     = data.get("pam_date", "")
     pa_ids       = data.get("pa_ids", [])
     keterangan   = data.get("keterangan", "")
@@ -676,7 +732,6 @@ def create_agri_pam():
 def set_paid_agri(pam_id):
     """Set tanggal_bayar di PAM AGRI → cascade complete ke etf_pa."""
     company_id   = session.get("company_id")
-    data         = request.get_json(force=True) or {}
     tanggal_bayar = data.get("tanggal_bayar", "")
     return jsonify(set_pam_complete_cascade(pam_id, tanggal_bayar, company_id))
 
@@ -707,10 +762,16 @@ def ipay_next_pam_no():
 @bp.route("/ipay/save-pa", methods=["POST"])
 @json_required
 def ipay_save_pa():
-    data         = request.get_json(force=True) or {}
+    if request.is_json:
+        data = request.get_json(force=True) or {}
+    else:
+        import json
+        data = json.loads(request.form.get("data", "{}"))
     company_id   = session.get("company_id", 0)
     company_code = session.get("company_code", "ETF")
     result = save_pa_payment(company_id, company_code, data)
+    if result.get('ok') and result.get('pam_no'):
+        _handle_pam_attachment_upload(result.get('pam_no'), result)
     return jsonify(result)
 
 
@@ -751,30 +812,48 @@ def ipay_siswa_medical():
 @bp.route("/ipay/save-klaim", methods=["POST"])
 @json_required
 def ipay_save_klaim():
-    data         = request.get_json(force=True) or {}
+    if request.is_json:
+        data = request.get_json(force=True) or {}
+    else:
+        import json
+        data = json.loads(request.form.get("data", "{}"))
     company_id   = session.get("company_id", 0)
     company_code = session.get("company_code", "ETF")
     result = save_klaim_payment(company_id, company_code, data)
+    if result.get('ok') and result.get('pam_no'):
+        _handle_pam_attachment_upload(result.get('pam_no'), result)
     return jsonify(result)
 
 
 @bp.route("/ipay/save-others", methods=["POST"])
 @json_required
 def ipay_save_others():
-    data         = request.get_json(force=True) or {}
+    if request.is_json:
+        data = request.get_json(force=True) or {}
+    else:
+        import json
+        data = json.loads(request.form.get("data", "{}"))
     company_id   = session.get("company_id", 0)
     company_code = session.get("company_code", "ETF")
     result = save_others_payment(company_id, company_code, data)
+    if result.get('ok') and result.get('pam_no'):
+        _handle_pam_attachment_upload(result.get('pam_no'), result)
     return jsonify(result)
 
 
 @bp.route("/ipay/save-smt-lines", methods=["POST"])
 @json_required
 def ipay_save_smt_lines():
-    data         = request.get_json(force=True) or {}
+    if request.is_json:
+        data = request.get_json(force=True) or {}
+    else:
+        import json
+        data = json.loads(request.form.get("data", "{}"))
     company_id   = session.get("company_id", 0)
     company_code = session.get("company_code", "SMT")
     result = save_smt_pam_transaction(company_id, company_code, data)
+    if result.get('ok') and result.get('pam_no'):
+        _handle_pam_attachment_upload(result.get('pam_no'), result)
     return jsonify(result)
 
 @bp.route("/open-pam/mark-complete", methods=["POST"])

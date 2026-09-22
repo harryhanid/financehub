@@ -1,0 +1,227 @@
+<div class="budget-page">
+  <div class="setf-print-header">Disajikan dalam jutaan Rupiah</div>
+
+  
+
+  <div class="setf-subtabs">
+    <button type="button" class="setf-subtab-btn active" data-subtab="dashboard">Dashboard</button>
+    <button type="button" class="setf-subtab-btn" data-subtab="laporan">Laporan</button>
+    <button type="button" class="setf-subtab-btn" data-subtab="detail">Detail Transaksi</button>
+  </div>
+
+  <div class="setf-subtab-panel active" id="setf-subtab-dashboard">
+
+  <details class="setf-accordion" open>
+    <summary>Ringkasan &amp; Alert</summary>
+    <div class="setf-accordion-body">
+      <div class="filter-bar beasiswa-dash-filterbar">
+        <div class="beasiswa-dash-filter-chip">
+          <span class="lbl">Tahun</span>
+          <span class="val">Semua</span>
+          <span class="caret">▾</span>
+          <div class="beasiswa-dash-filter-panel">
+            <div class="panel-head">
+              <button type="button" data-act="all">Semua</button>
+              <button type="button" data-act="none">Kosongkan</button>
+            </div>
+            <div class="panel-opts" id="setf-filter-tahun">
+              
+              <label><input type="checkbox" class="setf-year-cb" value="2024" checked> 2024</label>
+              
+            </div>
+          </div>
+        </div>
+
+        <div class="beasiswa-dash-filter-chip">
+          <span class="lbl">Pillar</span>
+          <span class="val">Semua</span>
+          <span class="caret">▾</span>
+          <div class="beasiswa-dash-filter-panel">
+            <div class="panel-head">
+              <button type="button" data-act="all">Semua</button>
+              <button type="button" data-act="none">Kosongkan</button>
+            </div>
+            <div class="panel-opts" id="setf-filter-pillar">
+              
+              <label><input type="checkbox" class="setf-pillar-cb" value="SETF" checked> SETF</label>
+              
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="budget-toolbar">
+        <a class="budget-btn" id="setf-export-summary" href="#">Export Ringkasan (CSV)</a>
+        <button type="button" class="budget-btn" id="setf-export-pdf" onclick="setfExportPdf()">Export PDF (Print)</button>
+      </div>
+
+      <div class="budget-summary-grid" id="setf-summary"></div>
+
+      <div class="budget-card" id="setf-alert-card" style="display:none">
+        <h3>Anggota Over-Budget</h3>
+        <ul id="setf-alert-list"></ul>
+      </div>
+    </div>
+  </details>
+
+  <details class="setf-accordion" id="setf-grafik-accordion" open>
+    <summary>Grafik</summary>
+    <div class="setf-accordion-body">
+      <div class="setf-grafik-grid">
+        <div class="budget-chart-card"><h3>Trend per Bulan</h3><canvas id="chart-bulanan"></canvas></div>
+        <div class="budget-chart-card"><h3>Trend per Tahun</h3><canvas id="chart-tahunan"></canvas></div>
+
+        <div class="budget-chart-card setf-compact-card">
+          <h3>Perbandingan Realisasi per Bulan per Tahun</h3>
+          <div class="setf-compact-scroll">
+            <table id="setf-monthly-table">
+              <thead><tr id="setf-monthly-thead-row"><th>Bulan</th></tr></thead>
+              <tbody><tr><td style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="budget-chart-card setf-compact-card">
+          <h3>Realisasi per Pillar</h3>
+          <div class="setf-compact-scroll">
+            <table id="setf-pillar-table">
+              <thead><tr><th>Pillar</th><th>Budget</th><th>Realisasi</th><th>Sisa</th></tr></thead>
+              <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="budget-chart-card"><h3>Realisasi per Sahabat</h3><canvas id="chart-keluarga"></canvas></div>
+        <div class="budget-chart-card setf-compact-card">
+          <h3>Realisasi per Sahabat (Tabel)</h3>
+          <div class="setf-compact-scroll">
+            <table id="setf-family-table">
+              <thead><tr><th>Sahabat</th><th>Nama</th><th>Kategori Realisasi</th><th class="num-right">Realisasi</th></tr></thead>
+              <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="budget-chart-card"><h3>Realisasi per Kategori</h3><canvas id="chart-kategori"></canvas></div>
+        <div class="budget-chart-card setf-compact-card">
+          <h3>Realisasi per Kategori (Tabel)</h3>
+          <div class="setf-compact-scroll">
+            <table id="setf-kategori-table">
+              <thead><tr><th>Kategori</th><th>Budget</th><th>Realisasi</th><th>Sisa</th></tr></thead>
+              <tbody><tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="budget-chart-card setf-compact-card" style="grid-column:1/3">
+          <h3>10 Transaksi Terakhir</h3>
+          <div id="setf-drilldown-chip" class="setf-drilldown-chip" style="display:none"></div>
+          <div class="setf-compact-scroll">
+            <table id="setf-latest-payments-table">
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Nama</th>
+                  <th>Kategori</th>
+                  <th>Kategori 2</th>
+                  <th class="num-right">Realisasi</th>
+                </tr>
+              </thead>
+              <tbody><tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <details class="setf-accordion" id="setf-detail-tabel" open>
+    <summary>Detail Tabel</summary>
+    <div class="setf-accordion-body">
+
+      <div class="table-wrap">
+        <h3>Rincian Budget vs Realisasi per Anggota</h3>
+        <table id="setf-table">
+          <thead>
+            <tr><th>Nama</th><th>Jenjang</th><th>Angkatan</th><th>Status</th>
+                <th>Budget</th><th>Klaim</th><th>Realisasi</th><th>Sisa</th></tr>
+          </thead>
+          <tbody><tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  </div>
+
+  <div class="setf-subtab-panel" id="setf-subtab-laporan">
+    <div class="filter-bar">
+      <div class="filter-field">
+        <label>Tahun Report</label>
+        <select id="setf-report-year">
+          
+          <option value="2024">2024</option>
+          
+        </select>
+      </div>
+    </div>
+    <div class="budget-toolbar">
+      <a class="budget-btn" id="setf-export-report" href="#">Export Laporan (Excel)</a>
+    </div>
+    <div id="setf-laporan-content">
+      <p style="color:var(--text-muted);text-align:center;padding:2rem">Memuat laporan...</p>
+    </div>
+  </div>
+
+  <div class="setf-subtab-panel" id="setf-subtab-detail">
+    <div class="filter-bar beasiswa-dash-filterbar">
+      <div class="beasiswa-dash-filter-chip">
+        <span class="lbl">Tahun</span>
+        <span class="val">Semua</span>
+        <span class="caret">▾</span>
+        <div class="beasiswa-dash-filter-panel">
+          <div class="panel-head">
+            <button type="button" data-act="all">Semua</button>
+            <button type="button" data-act="none">Kosongkan</button>
+          </div>
+          <div class="panel-opts" id="setf-detail-filter-tahun">
+            
+            <label><input type="checkbox" class="setf-detail-year-cb" value="2024" checked> 2024</label>
+            
+          </div>
+        </div>
+      </div>
+
+      <div class="beasiswa-dash-filter-chip">
+        <span class="lbl">Pillar</span>
+        <span class="val">Semua</span>
+        <span class="caret">▾</span>
+        <div class="beasiswa-dash-filter-panel">
+          <div class="panel-head">
+            <button type="button" data-act="all">Semua</button>
+            <button type="button" data-act="none">Kosongkan</button>
+          </div>
+          <div class="panel-opts" id="setf-detail-filter-pillar">
+            
+            <label><input type="checkbox" class="setf-detail-pillar-cb" value="SETF" checked> SETF</label>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; margin-bottom: 1.25rem;">
+      <a class="budget-btn" id="setf-export-detail" href="#">Export Detail Transaksi (Excel)</a>
+    </div>
+
+    <div class="table-wrap">
+      <table id="setf-detail-table">
+        <thead>
+          <tr><th>Sumber</th><th>Kode Siswa</th><th>Nama</th><th>Tanggal</th><th>Kategori 1</th><th>Kategori 2</th><th>Pillar</th><th class="num-right">Amount</th><th>Status</th></tr>
+        </thead>
+        <tbody><tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  
+</div>

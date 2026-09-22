@@ -1,0 +1,4740 @@
+
+const CAT1 = [];
+const CAT2 = [];
+const CAT1_BGT = [];
+const CAT2_SEM = [];
+const PAM_APPROVED_BY_1 = [];
+const PAM_APPROVED_BY_2 = [];
+const VENDOR_LIST = [];
+const PERUSAHAAN_LIST = [];
+const SISWA_LIST  = [];
+const COA_PAM_LIST = [];
+const BUDGET_ACTIVITIES = [];
+const SMT_PAM_COST_CENTERS = [
+  "POCCOM","POEAMR","POICOM","POITDC","POSPON","TFOPEX","POCFAD","POOFFM",
+  "POCPRO","POCSOS","POSMED","POITEC","POSENG","POSKHU - DF","POSKHU - JB",
+  "POSKHU - LS","POSKHU - YP","POEDIR","POMDIN","POMDEX","PORLIT","TFDPLA",
+  "TFECEM","TFEGGM","TFEDIR","TFEDUC","TFSCHO","TFSHSE","TFVOED","TFKHAR","TFFCON",
+];
+// ── Dynamic height for the AGRI/APP/LAND/SMT/Advance/SETF pillar tables ──────
+// Same rationale as ETF PA's sizeWrap(): a hardcoded max-height (the old
+// `calc(100vh - 220px)`) doesn't adapt to the now-much-shorter compact
+// toolbar, the filter panel opening/closing, or Full Screen mode — so
+// compute the remaining viewport space from each wrap's own current
+// position instead. Only one .pillar-table-wrap is visible at a time (the
+// active tab's), offsetParent is null while hidden so inactive ones are
+// skipped cheaply.
+function sizePillarWraps() {
+  requestAnimationFrame(() => {
+    const mainPadBottom = 0; // .main { padding: 1.75rem } → 1.75×16 = 28px
+    document.querySelectorAll('.pillar-table-wrap').forEach(wrap => {
+      if (!wrap.offsetParent) return;
+      wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top - mainPadBottom) + 'px';
+    });
+  });
+}
+window.addEventListener('load', sizePillarWraps);
+window.addEventListener('resize', sizePillarWraps);
+function openEditLineModal(lineId, pamId, nama, amount) {
+  document.getElementById('edit-line-id').value = lineId;
+  document.getElementById('edit-line-pam-id').value = pamId;
+  document.getElementById('edit-line-siswa-name').value = nama;
+  document.getElementById('edit-line-amount').value = amount ? parseInt(amount, 10).toLocaleString('en-US') : '0';
+  openModal('modal-edit-beasiswa-line');
+}
+
+async function submitEditBeasiswaLine() {
+  const lineId = parseInt(document.getElementById('edit-line-id').value);
+  const pamId = parseInt(document.getElementById('edit-line-pam-id').value);
+  const amount = parseFloat(document.getElementById('edit-line-amount').value.replace(/,/g, '')) || 0;
+  const res = await apiFetch('/payment-memo/beasiswa-line/' + lineId + '/amount', { method: 'POST', body: JSON.stringify({ amount }) });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    closeModal('modal-edit-beasiswa-line');
+    if (typeof _setfBeasiswaCache !== 'undefined') _setfBeasiswaCache[pamId] = null;
+    if (typeof _smlBeasiswaCache !== 'undefined') _smlBeasiswaCache[pamId] = null;
+    if (typeof _energyBeasiswaCache !== 'undefined') _energyBeasiswaCache[pamId] = null;
+    if (typeof _smtBeasiswaCache !== 'undefined') _smtBeasiswaCache[pamId] = null;
+    if (typeof _fioriBeasiswaCache !== 'undefined') _fioriBeasiswaCache[pamId] = null;
+    if (typeof _agriBeasiswaCache !== 'undefined') _agriBeasiswaCache[pamId] = null;
+    if (typeof loadSETFDebounced === 'function') loadSETFDebounced();
+    if (typeof loadSMLDebounced === 'function') loadSMLDebounced();
+    if (typeof loadEnergyDebounced === 'function') loadEnergyDebounced();
+    if (typeof loadSMTDebounced === 'function') loadSMTDebounced();
+    if (typeof loadFioriDebounced === 'function') loadFioriDebounced();
+    if (typeof loadAGRIDebounced === 'function') loadAGRIDebounced();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  sizePillarWraps();
+  // Watches the Filter/Full Screen toolbar (was .fh-page-header before the
+  // unified-header migration moved tabs into the navbar) — its collapse/
+  // expand no longer fires a window resize event, so pillar-table-wrap's
+  // height would otherwise go stale until the user resizes the window.
+  const ph = document.querySelector('.fh-content-toolbar');
+  if (ph && window.ResizeObserver) new ResizeObserver(sizePillarWraps).observe(ph);
+});
+
+const SMT_PAM_TIPE_DOKUMEN = [
+  "Downpayment to vendor",
+  "Invoice Payment – Non PO Invoice",
+  "Employee Advance / Reimbursement (Fund Transfer)",
+];
+const COMPANY_CODE = "[]";
+const CAT3_MEDICAL         = [];
+const KELAS_MEDICAL        = [];
+const SPESIALISASI_MEDICAL = [];
+const SPESIALISASI_LIST = SPESIALISASI_MEDICAL;
+const OPEN_PAM_DRAFTS = [];
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s ?? '');
+  return d.innerHTML;
+}
+
+function fmtDate(s) {
+  if (!s || s === '-') return '-';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return esc(s);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
+
+function toggleAllDrafts(cb) {
+  document.querySelectorAll('.pam-check').forEach(function(pc) {
+    pc.checked = cb.checked;
+    var key = pc.dataset.pamKey;
+    document.querySelectorAll('.draft-check[data-pam-group="' + key + '"]')
+      .forEach(function(c) { c.checked = cb.checked; });
+  });
+  updatePamMemoBar();
+}
+
+function pamCbChange(pamCb) {
+  var key = pamCb.dataset.pamKey;
+  document.querySelectorAll('.draft-check[data-pam-group="' + key + '"]')
+    .forEach(function(c) { c.checked = pamCb.checked; });
+  updatePamMemoBar();
+}
+
+function updatePamMemoBar() {
+  var bar = document.getElementById('pam-memo-bar');
+  if (!bar) return;
+  var checked = document.querySelectorAll('.pam-check:checked');
+  var countEl = bar.querySelector('.pam-memo-count');
+  if (checked.length > 0) {
+    bar.classList.add('visible');
+    if (countEl) countEl.textContent = checked.length + ' PAM dipilih';
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+async function submitOpenPamPaid() {
+  var tglInput = document.getElementById('open-pam-paid-date');
+  var tanggalBayar = tglInput ? tglInput.value : '';
+  if (!tanggalBayar) {
+    alert("Silakan isi Tanggal Paid terlebih dahulu.");
+    return;
+  }
+  
+  var checked = document.querySelectorAll('.pam-check:checked');
+  if (checked.length === 0) return;
+  
+  var pams = [];
+  checked.forEach(function(cb) {
+    var pamKey = cb.dataset.pamKey;
+    if (pamKey && pamKey !== '__unassigned__') {
+      pams.push(pamKey);
+    }
+  });
+  
+  if (pams.length === 0) {
+    alert("Hanya data yang memiliki nomor PAM yang dapat di-mark complete.");
+    return;
+  }
+
+  if (!await confirmModal("Mark " + pams.length + " PAM sebagai Complete dengan tanggal " + tanggalBayar + "?", { confirmText: "Mark Complete" })) return;
+
+  const resp = await apiFetch("/payment-memo/open-pam/mark-complete", {
+    method: "POST",
+    body: JSON.stringify({ pams: pams, tanggal_bayar: tanggalBayar })
+  });
+  
+  if (resp && resp.ok) {
+    window.location.reload();
+  }
+}
+
+async function rejectOpenPamGroups() {
+  var pamIds = [];
+  document.querySelectorAll('.pam-check:checked').forEach(function(cb) {
+    var pamKey = cb.dataset.pamKey;
+    if (pamKey && pamKey !== '__unassigned__') pamIds.push(pamKey);
+  });
+  if (pamIds.length === 0) {
+    alert("Pilih minimal 1 PAM group untuk di-reject (centang di kolom paling kiri).");
+    return;
+  }
+  if (!await confirmModal(
+    "Reject " + pamIds.length + " PAM group?\nData akan disimpan dengan status Rejected (tidak dihapus), dan PA terkait tidak bisa dipakai lagi.",
+    { type: 'danger', confirmText: 'Reject' }
+  )) return;
+  const reason = prompt('Alasan reject (opsional):');
+  if (reason === null) return;
+
+  showLoading("Merejek PAM...");
+  try {
+    var okCount = 0, msgs = [];
+    for (const pamKey of pamIds) {
+      const detailRow = document.querySelector('.pam-check[data-pam-key="' + CSS.escape(pamKey) + '"]');
+      const pamIdAttr = detailRow ? detailRow.closest('tr').dataset.pamRecordId : null;
+      if (!pamIdAttr) continue;
+      const res = await apiFetch('/payment-memo/pam/' + pamIdAttr + '/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason || null })
+      });
+      if (!res) continue;
+      const data = await res.json();
+      if (data.ok) okCount++;
+      msgs.push(data.pesan);
+    }
+    showToast(msgs.join(' | '), okCount > 0 ? 'success' : 'error');
+    if (okCount > 0) window.location.reload();
+  } finally {
+    hideLoading();
+  }
+}
+
+function groupDraftsByPAM(drafts) {
+  const groups = {};
+  const UNASSIGNED = '__unassigned__';
+  drafts.forEach(function(d) {
+    var key = (d.pam && d.pam !== '--') ? d.pam : UNASSIGNED;
+    if (!groups[key]) groups[key] = { pam: key, items: [], total: 0, minDate: d.tanggal, pillar: d.pillar || null, dueDate: d.due_date || null, pamRecordId: d.pam_record_id || null };
+    groups[key].items.push(d);
+    groups[key].total += d.amount;
+    if (d.tanggal < groups[key].minDate) groups[key].minDate = d.tanggal;
+    if (!groups[key].pillar && d.pillar) groups[key].pillar = d.pillar;
+    if (!groups[key].dueDate && d.due_date) groups[key].dueDate = d.due_date;
+    if (!groups[key].pamRecordId && d.pam_record_id) groups[key].pamRecordId = d.pam_record_id;
+  });
+  var keys = Object.keys(groups).filter(function(k) { return k !== UNASSIGNED; }).sort();
+  if (groups[UNASSIGNED]) keys.push(UNASSIGNED);
+  return keys.map(function(k) { return groups[k]; });
+}
+
+function buildKeterangan(items, max) {
+  max = max || 3;
+  var names = items.map(function(d) { return d.nama || d.siswa_code || '--'; });
+  if (names.length <= max) return names.join(', ');
+  return names.slice(0, max).join(', ') + ' (+' + (names.length - max) + ' lagi)';
+}
+
+function _pillarBadge(pillar) {
+  if (!pillar) return '<span style="color:var(--text-muted)">—</span>';
+  const map = {
+    AGRI:   'background:#fef3c7;color:#92400e;border:1px solid #d97706',
+    APP:    'background:#ede9fe;color:#4c1d95;border:1px solid #7c3aed',
+    LAND:   'background:#d1fae5;color:#064e3b;border:1px solid #059669',
+    ENERGY: 'background:#fce7f3;color:#9d174d;border:1px solid #be185d',
+    SETF:   'background:#cffafe;color:#164e63;border:1px solid #0891b2',
+    ENERGY: 'background:#fee2e2;color:#991b1b;border:1px solid #ef4444',
+    SSMT:   'background:#f3f4f6;color:#374151;border:1px solid #9ca3af',
+  };
+  const p = pillar.toUpperCase();
+  const style = map[p] || 'background:#f3f4f6;color:#374151;border:1px solid #9ca3af';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;${style}">${p}</span>`;
+}
+
+function _dueDateBadge(dueDate) {
+  if (!dueDate) return '<span style="color:var(--text-muted)">—</span>';
+  const today = new Date().toISOString().slice(0, 10);
+  const isOverdue = dueDate < today;
+  const style = isOverdue
+    ? 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5'
+    : 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${dueDate}</span>`;
+}
+
+function _workingDaysDiff(dueDate) {
+  if (!dueDate) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due = new Date(dueDate); due.setHours(0,0,0,0);
+  const sign = due >= today ? 1 : -1;
+  const start = sign === 1 ? today : due;
+  const end   = sign === 1 ? due   : today;
+  let days = 0, cur = new Date(start);
+  while (cur < end) {
+    cur.setDate(cur.getDate() + 1);
+    const dow = cur.getDay();
+    if (dow !== 0 && dow !== 6) days++;
+  }
+  return sign === 1 ? days : -days;
+}
+
+function _dueDaysBadge(dueDate) {
+  if (!dueDate) return '<span style="color:var(--text-muted)">—</span>';
+  const diff = _workingDaysDiff(dueDate);
+  if (diff === null) return '<span style="color:var(--text-muted)">—</span>';
+  if (diff < 0) {
+    const style = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5';
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${Math.abs(diff)} hari lewat</span>`;
+  }
+  if (diff === 0) {
+    const style = 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">Hari ini</span>`;
+  }
+  const style = 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${diff} hari lagi</span>`;
+}
+
+function togglePAMRow(key) {
+  var escaped = CSS.escape(key);
+  var detailRows = document.querySelectorAll('.pam-detail-row[data-pam-key="' + escaped + '"]');
+  var toggle = document.querySelector('.pam-toggle[data-pam-key="' + escaped + '"]');
+  var isOpen = detailRows.length > 0 && detailRows[0].classList.contains('expanded');
+  detailRows.forEach(function(r) { r.classList.toggle('expanded', !isOpen); });
+  if (toggle) toggle.textContent = isOpen ? '▶' : '▼';
+}
+
+function renderOpenPAM(drafts) {
+  var tbody = document.getElementById('open-pam-tbody');
+  if (!tbody) return;
+  if (!drafts || drafts.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">Tidak ada payment draft.</td></tr>'; // 10 cols: cb, toggle, pam, tgl, due, days, pillar, ket, jml, total
+    return;
+  }
+  var groups = groupDraftsByPAM(drafts);
+  var grandTotal = 0;
+  var html = '';
+
+  groups.forEach(function(g) {
+    var isUnassigned = g.pam === '__unassigned__';
+    var pamLabel = isUnassigned ? '— Belum di-assign —' : g.pam;
+    var badgeHtml = _pillarBadge(isUnassigned ? null : g.pillar);
+    var keterangan = buildKeterangan(g.items, 3);
+    var masterClass = isUnassigned ? 'pam-master-row pam-unassigned-row' : 'pam-master-row';
+    var pamKeyAttr = esc(g.pam);
+
+    // Hidden per-item checkboxes keep memo-creation data in DOM
+    var hiddenChecks = g.items.map(function(d) {
+      return '<input type="checkbox" class="draft-check" style="display:none"' +
+        ' data-id="' + d.id + '"' +
+        ' data-desc="' + esc((d.cat1 || '') + ' / ' + (d.cat2 || '') + ' -- ' + (d.siswa_code || '')) + '"' +
+        ' data-amount="' + d.amount + '"' +
+        ' data-vendor="' + esc(d.namarek || d.nama || '') + '"' +
+        ' data-bank="' + esc((d.bank || '') + ' ' + (d.norek || '')) + '"' +
+        ' data-pam-group="' + pamKeyAttr + '">';
+    }).join('');
+
+    html += '<tr class="' + masterClass + '"' +
+      ' data-pam-key="' + pamKeyAttr + '"' +
+      ' data-pam-record-id="' + (g.pamRecordId || '') + '"' +
+      ' onclick="togglePAMRow(this.dataset.pamKey)">' +
+      '<td>' +
+        '<input type="checkbox" class="pam-check"' +
+        ' data-pam-key="' + pamKeyAttr + '"' +
+        ' onclick="event.stopPropagation()" onchange="pamCbChange(this)">' +
+        hiddenChecks +
+      '</td>' +
+      '<td><span class="pam-toggle" data-pam-key="' + pamKeyAttr + '">▶</span></td>' +
+      '<td><code style="font-size:.8rem;color:var(--accent-text)">' + esc(pamLabel) + '</code></td>' +
+      '<td>' + esc(g.minDate || '--') + '</td>' +
+      '<td>' + _dueDateBadge(g.dueDate) + '</td>' +
+      '<td>' + _dueDaysBadge(g.dueDate) + '</td>' +
+      '<td>' + badgeHtml + '</td>' +
+      '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(buildKeterangan(g.items, 100)) + '">' + esc(keterangan) + '</td>' +
+      '<td style="text-align:center">' + g.items.length + '</td>' +
+      '<td class="num-right">' + fmtRupiah(g.total) + '</td>' +
+      '</tr>';
+    grandTotal += g.total;
+
+    // One detail row per item (hidden, expanded on toggle)
+    g.items.forEach(function(d) {
+      html += '<tr class="pam-detail-row" data-pam-key="' + pamKeyAttr + '">' +
+        '<td></td><td></td>' +
+        '<td><code style="font-size:.75rem">' + esc(d.siswa_code || '--') + '</code></td>' +
+        '<td>' + esc(d.nama || '--') + '</td>' +
+        '<td>' + esc((d.cat1 || '') + ' / ' + (d.cat2 || '')) + '</td>' +
+        '<td>' + esc(d.tanggal || '--') + '</td>' +
+        '<td></td>' +
+        '<td class="num-right">' + fmtRupiah(d.amount) + '</td>' +
+        '<td style="white-space:nowrap">' +
+          '<button class="btn btn-secondary btn-sm" onclick="openEditDraft(' + d.id + ');event.stopPropagation()">Edit</button> ' +
+          '<button class="btn btn-danger btn-sm" onclick="removeStudentFromPAM(' + d.id + ', ' + JSON.stringify(esc(d.nama || d.siswa_code || '')).replace(/"/g, '&quot;') + ');event.stopPropagation()">Hapus</button> ' +
+          '<button class="btn btn-danger btn-sm" style="background:#7c2d12" onclick="rejectStudentFromPAM(' + d.id + ', ' + JSON.stringify(esc(d.nama || d.siswa_code || '')).replace(/"/g, '&quot;') + ');event.stopPropagation()">Reject</button>' +
+        '</td>' +
+        '</tr>';
+    });
+  });
+
+  // Grand total row
+  html += '<tr style="background:#f1f5f9;font-weight:700">' +
+    '<td colspan="9" style="text-align:right;padding:.5rem .75rem">Grand Total</td>' +
+    '<td class="num-right" style="padding:.5rem .75rem">' + fmtRupiah(grandTotal) + '</td>' +
+    '</tr>';
+
+  tbody.innerHTML = html;
+}
+
+function filterOpenPAM() {
+  var q = (document.getElementById('open-pam-search').value || '').trim().toLowerCase();
+  if (!q) { renderOpenPAM(OPEN_PAM_DRAFTS); return; }
+  var filtered = OPEN_PAM_DRAFTS.filter(function(d) {
+    return (d.pam        && d.pam.toLowerCase().includes(q))
+        || (d.nama       && d.nama.toLowerCase().includes(q))
+        || (d.siswa_code && d.siswa_code.toLowerCase().includes(q))
+        || (d.cat1       && d.cat1.toLowerCase().includes(q))
+        || (d.cat2       && d.cat2.toLowerCase().includes(q));
+  });
+  renderOpenPAM(filtered);
+}
+
+async function changeStatus(memoId, newStatus) {
+  const label = { submitted: "Submit", on_process: "Submit / Proses", complete: "Mark as Complete" }[newStatus] || newStatus;
+  if (!await confirmModal(`${label} memo ini?`, { confirmText: label })) return;
+  const resp = await apiFetch(`/payment-memo/${memoId}/update-status`, {
+    method: "POST", body: JSON.stringify({ status: newStatus })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) setTimeout(() => location.reload(), 800);
+}
+
+async function submitMemoStatus(memoId) {
+  if (!await confirmModal("Submit memo ini ke status on_process?", { confirmText: "Submit" })) return;
+  const resp = await apiFetch(`/payment-memo/${memoId}/update-status`, {
+    method: "POST", body: JSON.stringify({ status: "on_process" })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) setTimeout(() => location.reload(), 800);
+}
+
+function openTanggalBayar(memoId, memoNumber) {
+  document.getElementById("tgl-bayar-memo-id").value = memoId;
+  document.getElementById("tgl-bayar-modal-title").textContent = "Simpan Tanggal Bayar — " + memoNumber;
+  document.getElementById("input-tgl-bayar").value = "";
+  openModal("modal-tanggal-bayar");
+}
+
+async function saveTanggalBayar() {
+  const memoId = document.getElementById("tgl-bayar-memo-id").value;
+  const tgl    = document.getElementById("input-tgl-bayar").value;
+  if (!tgl) { showToast("Pilih tanggal bayar dulu.", "error"); return; }
+  if (!await confirmModal(`Simpan tanggal bayar ${tgl}?`)) return;
+  const resp = await apiFetch(`/payment-memo/${memoId}/tanggal-bayar`, {
+    method: "POST", body: JSON.stringify({ tanggal_bayar: tgl })
+  });
+  const data = await resp.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) { closeModal("modal-tanggal-bayar"); setTimeout(() => location.reload(), 800); }
+}
+
+async function showMemoDetail(memoId) {
+  const resp = await apiFetch(`/payment-memo/${memoId}`);
+  const data = await resp.json();
+  if (!data.ok) { showToast("Gagal load detail.", "error"); return; }
+  const m = data.data;
+  document.getElementById("memo-detail-title").textContent = m.memo_number;
+  document.getElementById("memo-detail-body").innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-bottom:1rem; font-size:.875rem">
+      <div><strong>Tanggal:</strong> ${esc(m.tanggal) || '--'}</div>
+      <div><strong>Status:</strong> <span class="badge badge-${m.status==='complete'?'green':m.status==='on_process'?'yellow':'gray'}">${(m.status||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span></div>
+      <div><strong>Dibuat oleh:</strong> ${esc(m.created_by) || '--'}</div>
+      <div><strong>Disetujui oleh:</strong> ${esc(m.approved_by) || '--'}</div>
+      <div><strong>Catatan:</strong> ${esc(m.notes) || '--'}</div>
+      <div><strong>Total:</strong> Rp ${fmtRupiah(m.total_amount)}</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>No</th><th>Keterangan</th><th>Vendor</th><th>Rekening</th><th class="num-right">Amount</th></tr></thead>
+        <tbody>
+          ${m.items.map((item, i) => `<tr>
+            <td>${i+1}</td>
+            <td>${esc(item.description) || '--'}</td>
+            <td>${esc(item.vendor) || '--'}</td>
+            <td>${esc(item.bank_account) || '--'}</td>
+            <td class="num-right">Rp ${fmtRupiah(item.amount)}</td>
+          </tr>`).join("")}
+        </tbody>
+        <tfoot><tr><td colspan="4"><strong>Total</strong></td>
+          <td class="num-right"><strong>Rp ${fmtRupiah(m.total_amount)}</strong></td></tr></tfoot>
+      </table>
+    </div>`;
+  openModal("modal-memo-detail");
+}
+
+// ── SML ───────────────────────────────────────────────────────────────────────
+const _smlSelected     = new Set();
+const _smlSelectionMeta = new Map();  // id → { label, cat1 }
+let _smlDebounce;
+function loadSMLDebounced() { clearTimeout(_smlDebounce); _smlDebounce = setTimeout(loadSML, 300); }
+
+async function loadSML() {
+  const search  = (document.getElementById('sml-search')?.value || '').trim();
+  const bulan   = (document.getElementById('sml-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('sml-filter-tahun')?.value || '');
+  const status  = (document.getElementById('sml-filter-status')?.value || '');
+  const source  = (document.getElementById('sml-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('sml-tbody');
+  tbody.innerHTML = skeletonRows(25);
+  const res     = await apiFetch('/payment-memo/by-pillar/LAND?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  const count  = document.getElementById('sml-count');
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data LAND.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map((r, i) => `
+    <tr class="setf-row" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};"
+      ${r.source === 'beasiswa' ? `onclick="smlToggleExpand(this.querySelector('.sml-toggle'),${r.id})"` : ''}>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${r.source === 'beasiswa' ? `<span class="sml-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-right:4px" onclick="smlToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
+      <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
+      <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.no_vendor || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
+      ${_plDate(r.id,'LAND','tgl_terima_doc',r.tgl_terima_doc)}
+      ${_plDate(r.id,'LAND','tgl_proses',r.tgl_proses)}
+      ${_plDate(r.id,'LAND','tgl_verifikasi_tax',r.tgl_verifikasi_tax)}
+      ${_plDate(r.id,'LAND','tgl_approval_1',r.tgl_approval_1)}
+      ${_plDate(r.id,'LAND','tgl_approval_2',r.tgl_approval_2)}
+      ${_plDate(r.id,'LAND','tgl_approval_3',r.tgl_approval_3)}
+      ${_plDate(r.id,'LAND','tgl_kirim',r.tgl_kirim)}
+      <td style="padding:6px 8px">${_aksiCell(r)}</td>
+    </tr>
+  `).join('');
+  makeSortable('sml-table');
+}
+
+let _smlBeasiswaCache = {};
+
+function smlToggleExpand(toggleEl, pamId) {
+  const masterTr = toggleEl.closest('tr');
+  const existing = document.querySelectorAll(`.sml-detail-rows[data-pam-id="${pamId}"]`);
+  if (existing.length) {
+    const nowHidden = existing[0].style.display === 'none';
+    existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
+    toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
+    return;
+  }
+  smlFetchBeasiswaLines(masterTr, toggleEl, pamId);
+}
+
+async function smlFetchBeasiswaLines(masterTr, toggleEl, pamId) {
+  if (_smlBeasiswaCache[pamId] === 'loading') return;
+  _smlBeasiswaCache[pamId] = 'loading';
+
+  const loadingTr = document.createElement('tr');
+  loadingTr.classList.add('sml-detail-rows');
+  loadingTr.dataset.pamId = pamId;
+  loadingTr.innerHTML = '<td colspan="25" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  masterTr.insertAdjacentElement('afterend', loadingTr);
+
+  const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
+  loadingTr.remove();
+
+  if (!res) {
+    _smlBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('sml-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="25" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  const data = await res.json();
+  if (!data.ok) {
+    _smlBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('sml-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = `<td colspan="25" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  _smlBeasiswaCache[pamId] = data.rows;
+
+  if (!data.rows.length) {
+    const emptyTr = document.createElement('tr');
+    emptyTr.classList.add('sml-detail-rows');
+    emptyTr.dataset.pamId = pamId;
+    emptyTr.innerHTML = '<td colspan="25" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    masterTr.insertAdjacentElement('afterend', emptyTr);
+    toggleEl.innerHTML = '&#9660;';
+    return;
+  }
+
+  [...data.rows].reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.classList.add('sml-detail-rows');
+    tr.dataset.pamId = pamId;
+    tr.innerHTML =
+      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td colspan="21" style="padding:4px 8px;vertical-align:middle"></td>`;
+    masterTr.insertAdjacentElement('afterend', tr);
+  });
+
+  toggleEl.innerHTML = '&#9660;';
+}
+
+function smlToggleCb(cb) {
+  const id = parseInt(cb.dataset.id, 10);
+  const tr = cb.closest('tr');
+  if (cb.checked) {
+    _smlSelected.add(id);
+    if (tr) {
+      const label = tr.cells[1] ? tr.cells[1].textContent.trim() : '';
+      const cat1  = tr.cells[4] ? tr.cells[4].textContent.trim() : '';
+      _smlSelectionMeta.set(id, { label, cat1 });
+      tr.style.background = '#eff6ff';
+      if (tr.cells[5]) tr.cells[5].style.cssText = 'color:#1d4ed8;font-weight:600;padding:6px 8px';
+    }
+  } else {
+    _smlSelected.delete(id);
+    _smlSelectionMeta.delete(id);
+    if (tr) {
+      tr.style.background = '';
+      if (tr.cells[5]) tr.cells[5].style.cssText = 'padding:6px 8px';
+    }
+  }
+  smlUpdateBtn();
+  smlRenderChips();
+}
+
+function smlToggleSelectAll(masterCb) {
+  document.querySelectorAll('#sml-tbody .sml-row').forEach(row => {
+    const cb = row.querySelector('.sml-cb');
+    if (!cb) return;
+    cb.checked = masterCb.checked;
+    const id = parseInt(cb.dataset.id, 10);
+    if (masterCb.checked) {
+      _smlSelected.add(id);
+      const label = row.cells[1] ? row.cells[1].textContent.trim() : '';
+      const cat1  = row.cells[4] ? row.cells[4].textContent.trim() : '';
+      _smlSelectionMeta.set(id, { label, cat1 });
+      row.style.background = '#eff6ff';
+      if (row.cells[5]) row.cells[5].style.cssText = 'color:#1d4ed8;font-weight:600;padding:6px 8px';
+    } else {
+      _smlSelected.delete(id);
+      _smlSelectionMeta.delete(id);
+      row.style.background = '';
+      if (row.cells[5]) row.cells[5].style.cssText = 'padding:6px 8px';
+    }
+  });
+  smlUpdateBtn();
+  smlRenderChips();
+}
+
+function smlUpdateBtn() {
+  const btn = document.getElementById('sml-update-btn');
+  if (!btn) return;
+  const n = _smlSelected.size;
+  btn.textContent = `Update Terpilih (${n})`;
+  btn.disabled    = n === 0;
+  btn.style.opacity = n === 0 ? '0.5' : '1';
+}
+
+function smlRenderChips() {
+  const row = document.getElementById('sml-chips-row');
+  if (!row) return;
+  if (_smlSelected.size === 0) { row.style.display = 'none'; return; }
+  const ids   = [..._smlSelected];
+  const LIMIT = 5;
+  const hidden = ids.length > LIMIT + 1 ? ids.slice(LIMIT) : [];
+  const shown  = hidden.length ? ids.slice(0, LIMIT) : ids;
+  function chipHtml(id) {
+    const m = _smlSelectionMeta.get(id) || { label: String(id), cat1: '' };
+    const cat = m.cat1 ? `<span style="font-size:9px;opacity:.65;margin-left:3px">${m.cat1}</span>` : '';
+    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${m.label}${cat}<span onclick="smlRemoveChip(${id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+  }
+  let html = `<span style="font-size:10px;color:#1d4ed8;font-weight:700;white-space:nowrap;margin-right:2px">● Terpilih:</span>`;
+  html += shown.map(chipHtml).join('');
+  if (hidden.length) {
+    html += `<span id="sml-chips-expand" onclick="smlExpandChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
+    html += `<span id="sml-chips-hidden" style="display:none">` + hidden.map(chipHtml).join('') + `</span>`;
+  }
+  html += `<span onclick="smlClearAllChips()" style="font-size:10px;color:#dc2626;cursor:pointer;margin-left:6px;white-space:nowrap">Hapus semua</span>`;
+  row.innerHTML = html;
+  row.style.display = 'flex';
+}
+
+function smlExpandChips() {
+  const h = document.getElementById('sml-chips-hidden');
+  const b = document.getElementById('sml-chips-expand');
+  if (!h || !b) return;
+  const expanded = h.style.display !== 'none';
+  h.style.display = expanded ? 'none' : 'contents';
+  b.textContent = expanded ? `+${_smlSelected.size - 5} lagi ▾` : '▲ sembunyikan';
+}
+
+function smlRemoveChip(id) {
+  _smlSelected.delete(id);
+  _smlSelectionMeta.delete(id);
+  const cb = document.querySelector(`#sml-tbody .sml-cb[data-id="${id}"]`);
+  if (cb) {
+    cb.checked = false;
+    const tr = cb.closest('tr');
+    if (tr) { tr.style.background = ''; if (tr.cells[5]) tr.cells[5].style.cssText = 'padding:6px 8px'; }
+  }
+  smlUpdateBtn();
+  smlRenderChips();
+}
+
+function smlClearAllChips() {
+  _smlSelected.clear();
+  _smlSelectionMeta.clear();
+  document.querySelectorAll('#sml-tbody .sml-cb').forEach(cb => {
+    cb.checked = false;
+    const tr = cb.closest('tr');
+    if (tr) { tr.style.background = ''; if (tr.cells[5]) tr.cells[5].style.cssText = 'padding:6px 8px'; }
+  });
+  const sa = document.getElementById('sml-select-all');
+  if (sa) sa.checked = false;
+  smlUpdateBtn();
+  smlRenderChips();
+}
+
+function smlClearDates() {
+  ['sml-d-terima','sml-d-input','sml-d-verif',
+   'sml-d-app1','sml-d-app2','sml-d-kirim','sml-d-paid']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
+async function smlBulkUpdate() {
+  if (_smlSelected.size === 0) return;
+  if (!await confirmModal(`Update ${_smlSelected.size} record LAND terpilih?`, { confirmText: "Update" })) return;
+  const dates = {
+    terima_document: document.getElementById('sml-d-terima').value,
+    input_aspiro:    document.getElementById('sml-d-input').value,
+    verifikasi_tax:  document.getElementById('sml-d-verif').value,
+    approval_1:      document.getElementById('sml-d-app1').value,
+    approval_2:      document.getElementById('sml-d-app2').value,
+    kirim_aspiro:    document.getElementById('sml-d-kirim').value,
+    paid:            document.getElementById('sml-d-paid').value,
+  };
+  if (!Object.values(dates).some(v => v)) {
+    showToast('Isi minimal satu field tanggal.', 'error'); return;
+  }
+  const res = await apiFetch('/payment-memo/sml/bulk-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [..._smlSelected], dates })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    _smlSelected.clear();
+    _smlSelectionMeta.clear();
+    smlRenderChips();
+    setTimeout(() => loadSML(), 600);
+  }
+}
+
+async function smlUpdateStatus(id, status) {
+  const label = {approved:'Approve', open:'Revert ke Open', paid:'Mark Paid'}[status] || status;
+  if (!await confirmModal(`${label} record ini?`, { confirmText: label })) return;
+  const res = await apiFetch(`/payment-memo/sml/${id}/status`, {
+    method:'POST', body: JSON.stringify({status})
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadSML();
+}
+
+async function smlCancel(id) {
+  if (!await confirmModal('Hapus record ini permanen? Data tidak dapat dikembalikan.', { type: 'danger', confirmText: 'Hapus' })) return;
+  const res = await apiFetch(`/payment-memo/sml/${id}/cancel`, {method:'POST'});
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadSML();
+}
+
+// ── SETF ──────────────────────────────────────────────────────────────────────
+let _setfDebounce;
+function loadSETFDebounced() { clearTimeout(_setfDebounce); _setfDebounce = setTimeout(loadSETF, 300); }
+async function loadSETF() {
+  const search  = (document.getElementById('setf-search')?.value || '').trim();
+  const bulan   = (document.getElementById('setf-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('setf-filter-tahun')?.value || '');
+  const status  = (document.getElementById('setf-filter-status')?.value || '');
+  const source  = (document.getElementById('setf-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('setf-tbody');
+  tbody.innerHTML = skeletonRows(16);
+  const res     = await apiFetch('/payment-memo/by-pillar/SETF?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  const count  = document.getElementById('setf-count');
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map((r, i) => `
+    <tr class="sml-row" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};"
+      ${r.source === 'beasiswa' ? `onclick="setfToggleExpand(this.querySelector('.setf-toggle'),${r.id})"` : ''}>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${r.source === 'beasiswa' ? `<span class="setf-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-right:4px" onclick="setfToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
+      <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
+      <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      <td style="padding:6px 8px">${_aksiCell(r)}</td>
+    </tr>
+  `).join('');
+  makeSortable('setf-table');
+}
+
+let _setfBeasiswaCache = {};
+
+function setfToggleExpand(toggleEl, pamId) {
+  const masterTr = toggleEl.closest('tr');
+  const existing = document.querySelectorAll(`.setf-detail-rows[data-pam-id="${pamId}"]`);
+  if (existing.length) {
+    const nowHidden = existing[0].style.display === 'none';
+    existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
+    toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
+    return;
+  }
+  setfFetchBeasiswaLines(masterTr, toggleEl, pamId);
+}
+
+async function setfFetchBeasiswaLines(masterTr, toggleEl, pamId) {
+  if (_setfBeasiswaCache[pamId] === 'loading') return;
+  _setfBeasiswaCache[pamId] = 'loading';
+
+  const loadingTr = document.createElement('tr');
+  loadingTr.classList.add('setf-detail-rows');
+  loadingTr.dataset.pamId = pamId;
+  loadingTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  masterTr.insertAdjacentElement('afterend', loadingTr);
+
+  const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
+  loadingTr.remove();
+
+  if (!res) {
+    _setfBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('setf-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  const data = await res.json();
+  if (!data.ok) {
+    _setfBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('setf-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = `<td colspan="16" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  _setfBeasiswaCache[pamId] = data.rows;
+
+  if (!data.rows.length) {
+    const emptyTr = document.createElement('tr');
+    emptyTr.classList.add('setf-detail-rows');
+    emptyTr.dataset.pamId = pamId;
+    emptyTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    masterTr.insertAdjacentElement('afterend', emptyTr);
+    toggleEl.innerHTML = '&#9660;';
+    return;
+  }
+
+  [...data.rows].reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.classList.add('setf-detail-rows');
+    tr.dataset.pamId = pamId;
+    tr.innerHTML =
+      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td colspan="12" style="padding:4px 8px;vertical-align:middle;text-align:right"><button class="btn btn-sm" style="padding:2px 8px;font-size:10px" onclick="openEditLineModal(${r.id}, ${pamId}, '${esc(r.nama || r.siswa_code || '')}', ${r.amount})">Edit</button></td>`;
+    masterTr.insertAdjacentElement('afterend', tr);
+  });
+
+  toggleEl.innerHTML = '&#9660;';
+}
+
+// ── ENERGY ──────────────────────────────────────────────────────────────────────
+let _energyDebounce;
+function loadENERGYDebounced() { clearTimeout(_energyDebounce); _energyDebounce = setTimeout(loadENERGY, 300); }
+async function loadENERGY() {
+  const search  = (document.getElementById('energy-search')?.value || '').trim();
+  const bulan   = (document.getElementById('energy-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('energy-filter-tahun')?.value || '');
+  const status  = (document.getElementById('energy-filter-status')?.value || '');
+  const source  = (document.getElementById('energy-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('energy-tbody');
+  tbody.innerHTML = skeletonRows(16);
+  const res     = await apiFetch('/payment-memo/by-pillar/ENERGY?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  const count  = document.getElementById('energy-count');
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data ENERGY.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map((r, i) => `
+    <tr class="sml-row" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};"
+      ${r.source === 'beasiswa' ? `onclick="energyToggleExpand(this.querySelector('.energy-toggle'),${r.id})"` : ''}>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${r.source === 'beasiswa' ? `<span class="energy-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-right:4px" onclick="energyToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
+      <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
+      <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      <td style="padding:6px 8px">${_aksiCell(r)}</td>
+    </tr>
+  `).join('');
+  makeSortable('energy-table');
+}
+
+let _energyBeasiswaCache = {};
+
+function energyToggleExpand(toggleEl, pamId) {
+  const masterTr = toggleEl.closest('tr');
+  const existing = document.querySelectorAll(`.energy-detail-rows[data-pam-id="${pamId}"]`);
+  if (existing.length) {
+    const nowHidden = existing[0].style.display === 'none';
+    existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
+    toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
+    return;
+  }
+  energyFetchBeasiswaLines(masterTr, toggleEl, pamId);
+}
+
+async function energyFetchBeasiswaLines(masterTr, toggleEl, pamId) {
+  if (_energyBeasiswaCache[pamId] === 'loading') return;
+  _energyBeasiswaCache[pamId] = 'loading';
+
+  const loadingTr = document.createElement('tr');
+  loadingTr.classList.add('energy-detail-rows');
+  loadingTr.dataset.pamId = pamId;
+  loadingTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  masterTr.insertAdjacentElement('afterend', loadingTr);
+
+  const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
+  loadingTr.remove();
+
+  if (!res) {
+    _energyBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('energy-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  const data = await res.json();
+  if (!data.ok) {
+    _energyBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('energy-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = `<td colspan="16" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  _energyBeasiswaCache[pamId] = data.rows;
+
+  if (!data.rows.length) {
+    const emptyTr = document.createElement('tr');
+    emptyTr.classList.add('energy-detail-rows');
+    emptyTr.dataset.pamId = pamId;
+    emptyTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    masterTr.insertAdjacentElement('afterend', emptyTr);
+    toggleEl.innerHTML = '&#9660;';
+    return;
+  }
+
+  [...data.rows].reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.classList.add('energy-detail-rows');
+    tr.dataset.pamId = pamId;
+    tr.innerHTML =
+      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td colspan="12" style="padding:4px 8px;vertical-align:middle;text-align:right"><button class="btn btn-sm" style="padding:2px 8px;font-size:10px" onclick="openEditLineModal(${r.id}, ${pamId}, '${esc(r.nama || r.siswa_code || '')}', ${r.amount})">Edit</button></td>`;
+    masterTr.insertAdjacentElement('afterend', tr);
+  });
+
+  toggleEl.innerHTML = '&#9660;';
+}
+
+// ── PA Advance (ETF PA quarantine-until-realized route) ────────────────────────
+let _paAdvanceDebounce;
+function loadPaAdvanceDebounced() { clearTimeout(_paAdvanceDebounce); _paAdvanceDebounce = setTimeout(loadPaAdvance, 300); }
+async function loadPaAdvance() {
+  const status = (document.getElementById('pa-advance-filter-status')?.value || '');
+  const search = (document.getElementById('pa-advance-search')?.value || '').trim();
+  const bulan  = (document.getElementById('pa-advance-filter-bulan')?.value || '');
+  const tahun  = (document.getElementById('pa-advance-filter-tahun')?.value || '');
+  const params = new URLSearchParams({ status, search, bulan, tahun });
+  const tbody  = document.getElementById('pa-advance-tbody');
+  tbody.innerHTML = skeletonRows(17);
+  const res  = await apiFetch('/payment-memo/advance/list?' + params);
+  if (!res) return;
+  const data = await res.json();
+  const count = document.getElementById('pa-advance-count');
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map(r => `
+    <tr>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.pam)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || r.tanggal || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.perusahaan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.mata_uang || '-')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.amount)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.status)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.advance_amount)}</td>
+      <td style="padding:6px 8px;text-align:right">${r.realized_amount != null ? fmtRupiah(r.realized_amount) : '-'}</td>
+      <td style="padding:6px 8px">${r.status === 'paid'
+        ? `<button class="btn btn-sm btn-primary" onclick="openRealizeModal(${r.id}, ${r.advance_amount})">Realisasi</button>`
+        : '-'}</td>
+    </tr>`).join('');
+}
+
+let _vendorsDebounce;
+function loadVendorsDebounced() { clearTimeout(_vendorsDebounce); _vendorsDebounce = setTimeout(loadVendors, 300); }
+
+async function loadVendors() {
+  const search = (document.getElementById('vendors-search')?.value || '').trim();
+  const pillar = (document.getElementById('vendors-filter-pillar')?.value || '');
+  const tbody = document.getElementById('vendors-tbody');
+  tbody.innerHTML = skeletonRows(4);
+  const res = await apiFetch('/payment-memo/vendors?' + new URLSearchParams({ search }));
+  if (!res) return;
+  const data = await res.json();
+  const count = document.getElementById('vendors-count');
+  let rows = data.rows || [];
+  if (pillar) rows = rows.filter(r => r.pillar === pillar);
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);">Tidak ada vendor.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = rows.length + ' vendor';
+  tbody.innerHTML = rows.map((r, i) => `
+    <tr data-vendor-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">
+      <td style="padding:6px 8px" class="vendors-cell-name">${esc(r.name)}</td>
+      <td style="padding:6px 8px" class="vendors-cell-pillar">${esc(r.pillar)}</td>
+      <td style="padding:6px 8px" class="vendors-cell-cc">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px"><button class="btn btn-secondary btn-sm" onclick="vendorsStartEdit(${r.id})">Edit</button></td>
+    </tr>
+  `).join('');
+}
+
+async function addVendor() {
+  const name = document.getElementById('vendors-add-name').value.trim();
+  const pillar = document.getElementById('vendors-add-pillar').value;
+  const cost_center = document.getElementById('vendors-add-cc').value.trim();
+  if (!name) { showToast('Nama vendor wajib diisi.', 'error'); return; }
+  const res = await apiFetch('/payment-memo/vendors/add', { method: 'POST', body: JSON.stringify({ name, pillar, cost_center }) });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    document.getElementById('vendors-add-name').value = '';
+    document.getElementById('vendors-add-cc').value = '';
+    loadVendors();
+  }
+}
+
+function vendorsStartEdit(vendorId) {
+  const tr = document.querySelector(`#vendors-tbody tr[data-vendor-id="${vendorId}"]`);
+  if (!tr) return;
+  const nameCell = tr.querySelector('.vendors-cell-name');
+  const pillarCell = tr.querySelector('.vendors-cell-pillar');
+  const ccCell = tr.querySelector('.vendors-cell-cc');
+  const actionCell = tr.lastElementChild;
+  const currentName = nameCell.textContent;
+  const currentPillar = pillarCell.textContent;
+  const currentCc = ccCell.textContent === '-' ? '' : ccCell.textContent;
+  nameCell.innerHTML = `<input type="text" value="${esc(currentName)}" style="width:100%;font-size:12px" class="vendors-edit-name">`;
+  pillarCell.innerHTML = `<select style="font-size:12px" class="vendors-edit-pillar">` +
+    ['AGRI', 'APP', 'LAND', 'ENERGY', 'SETF'].map(p => `<option value="${p}" ${p === currentPillar ? 'selected' : ''}>${p}</option>`).join('') +
+    `</select>`;
+  ccCell.innerHTML = `<input type="text" value="${esc(currentCc)}" style="width:100%;font-size:12px" class="vendors-edit-cc">`;
+  actionCell.innerHTML = `<button class="btn btn-primary btn-sm" onclick="vendorsSaveEdit(${vendorId})">Simpan</button> <button class="btn btn-secondary btn-sm" onclick="loadVendors()">Batal</button>`;
+}
+
+async function vendorsSaveEdit(vendorId) {
+  const tr = document.querySelector(`#vendors-tbody tr[data-vendor-id="${vendorId}"]`);
+  if (!tr) return;
+  const name = tr.querySelector('.vendors-edit-name').value.trim();
+  const pillar = tr.querySelector('.vendors-edit-pillar').value;
+  const cost_center = tr.querySelector('.vendors-edit-cc').value.trim();
+  const res = await apiFetch(`/payment-memo/vendors/${vendorId}/edit`, { method: 'POST', body: JSON.stringify({ name, pillar, cost_center }) });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadVendors();
+}
+
+async function submitRealize(paymentId, realizedAmount, tglRealisasi) {
+  const res = await apiFetch(`/payment-memo/advance/${paymentId}/realize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ realized_amount: realizedAmount, tgl_realisasi: tglRealisasi }),
+  });
+  if (!res) return;
+  const data = await res.json();
+  if (!data.ok) { alert(data.pesan); return; }
+  alert(`Realisasi tersimpan. Selisih: ${fmtRupiah(data.selisih)}`);
+  loadPaAdvance();
+}
+
+function openRealizeModal(paymentId, advanceAmount) {
+  const realizedStr = prompt(`Advance amount: ${fmtRupiah(advanceAmount)}\nMasukkan realized amount:`);
+  if (realizedStr === null) return;
+  // Strip ALL non-digit characters (not just non-numeric) — Rupiah amounts
+  // are always whole numbers in this app, and users commonly type the same
+  // dot-thousands format this prompt just displayed to them (e.g. "5.000.000"),
+  // which parseFloat would otherwise misparse as 5.0 (stops at the 2nd '.').
+  const realizedAmount = parseFloat(realizedStr.replace(/[^0-9]/g, ''));
+  if (!realizedAmount || realizedAmount <= 0) { alert('Realized amount tidak valid.'); return; }
+  const tglRealisasi = prompt('Tanggal realisasi (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
+  if (!tglRealisasi) return;
+  submitRealize(paymentId, realizedAmount, tglRealisasi);
+}
+
+// ── SMT ────────────────────────────────────────────────────────────────────────
+function loadSMTDebounced() { clearTimeout(_smtDebounce); _smtDebounce = setTimeout(loadSMT, 300); }
+let _smtDebounce;
+// Large tables (SMT PAM List can run 500+ rows) are slow to lay out when
+// rendered all at once, especially with sticky columns — see investigation
+// notes. Fetch the full filtered result once, then paginate + sort entirely
+// client-side against the in-memory array instead of the DOM, so only one
+// page's worth of rows (_smtPageSize) is ever in the document at a time.
+let _smtAllRows = [];
+let _smtPage = 1;
+let _smtPageSize = 50;
+let _smtSortCol = -1, _smtSortAsc = true;
+let _smtSelectedIds = new Set();
+const _SMT_SORT_FIELDS = { 1: 'pam_date', 10: 'total_amount', 11: 'due_date' };
+
+async function loadSMT() {
+  const search  = (document.getElementById('smt-search')?.value || '').trim();
+  const bulan   = (document.getElementById('smt-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('smt-filter-tahun')?.value || '');
+  const status  = (document.getElementById('smt-filter-status')?.value || '');
+  const source  = (document.getElementById('smt-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('smt-tbody');
+  tbody.innerHTML = skeletonRows(25);
+  const res     = await apiFetch('/payment-memo/by-pillar/SMT?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  const count  = document.getElementById('smt-count');
+  _smtSelectedIds = new Set();
+  _smtSortCol = -1; _smtSortAsc = true;
+  document.querySelectorAll('#smt-table thead th[data-sort]').forEach(h => h.dataset.sortDir = '');
+  if (!data.ok || !data.rows.length) {
+    _smtAllRows = [];
+    _smtPage = 1;
+    tbody.innerHTML = '<tr><td colspan="27" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>';
+    if (count) count.textContent = '';
+    const pag = document.getElementById('smt-pagination');
+    if (pag) pag.style.display = 'none';
+    smtUpdateBulkBar();
+    return;
+  }
+  _smtAllRows = data.rows;
+  _smtPage = 1;
+  if (count) count.textContent = data.rows.length + ' baris';
+  const _smtCachedSize = getCachedPageSize('smt', window.innerHeight);
+  if (_smtCachedSize) _smtPageSize = _smtCachedSize;
+  _smtRenderPage();
+  if (_smtAllRows.length) {
+    const _smtComputed = computeDynamicPageSize({
+      scrollContainer: '#tab-smt .pillar-table-wrap',
+      rowSelector: '#smt-tbody tr',
+      defaultSize: 50,
+    });
+    setCachedPageSize('smt', _smtComputed, window.innerHeight);
+    if (_smtComputed !== _smtPageSize) {
+      _smtPageSize = _smtComputed;
+      _smtRenderPage();
+    }
+  }
+}
+
+function _smtSortClick(colIdx) {
+  const isNum = colIdx === 10;
+  if (_smtSortCol === colIdx) { _smtSortAsc = !_smtSortAsc; } else { _smtSortCol = colIdx; _smtSortAsc = true; }
+  document.querySelectorAll('#smt-table thead th[data-sort]').forEach(h => {
+    h.dataset.sortDir = parseInt(h.dataset.sort, 10) === _smtSortCol ? (_smtSortAsc ? 'asc' : 'desc') : '';
+  });
+  const field = _SMT_SORT_FIELDS[colIdx];
+  _smtAllRows.sort((a, b) => {
+    const va = a[field], vb = b[field];
+    const na = isNum ? (parseFloat(va) || 0) : String(va || '').toLowerCase();
+    const nb = isNum ? (parseFloat(vb) || 0) : String(vb || '').toLowerCase();
+    if (na === nb) return 0;
+    return _smtSortAsc ? (na > nb ? 1 : -1) : (na < nb ? 1 : -1);
+  });
+  _smtPage = 1;
+  _smtRenderPage();
+}
+
+function _smtGoToPage(p) {
+  const maxPage = Math.max(1, Math.ceil(_smtAllRows.length / _smtPageSize));
+  _smtPage = Math.min(Math.max(1, p), maxPage);
+  _smtRenderPage();
+}
+
+function _smtRenderPage() {
+  const tbody = document.getElementById('smt-tbody');
+  const start = (_smtPage - 1) * _smtPageSize;
+  const pageRows = _smtAllRows.slice(start, start + _smtPageSize);
+  tbody.innerHTML = pageRows.map((r, i) => `
+    <tr style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};cursor:pointer" onclick="smtToggleExpand(this.querySelector('.smt-toggle'),${r.id})">
+      <td class="smt-sc0" style="padding:6px 4px;text-align:center;background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">
+        <input type="checkbox" class="smt-cb" value="${r.id}" ${_smtSelectedIds.has(r.id) ? 'checked' : ''} onchange="_smtToggleSelect(${r.id}, this.checked)" onclick="event.stopPropagation()">
+        <span class="smt-toggle" style="font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:2px">&#9658;</span>
+      </td>
+      <td class="smt-sc1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">${esc(r.pam_no)}</td>
+      <td class="smt-sc2" style="padding:6px 8px;white-space:nowrap;background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">${esc(r.pam_date || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.aggregated_vendors||'')}">${esc(r.aggregated_vendors || '-')}</td>
+      <td style="padding:6px 8px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.aggregated_invoices||'')}">${esc(r.aggregated_invoices || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.others)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
+      <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
+      <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      ${_plDate(r.id,'SMT','tgl_received',r.tgl_received)}
+      ${_plDate(r.id,'SMT','tgl_a0',r.tgl_a0)}
+      ${_plDate(r.id,'SMT','tgl_a1',r.tgl_a1)}
+      ${_plDate(r.id,'SMT','tgl_a2',r.tgl_a2)}
+      ${_plDate(r.id,'SMT','tgl_a3',r.tgl_a3)}
+      ${_plDate(r.id,'SMT','tgl_a4',r.tgl_a4)}
+      <td style="padding:6px 8px">${_aksiCell(r)}</td>
+    </tr>
+  `).join('');
+
+  const maxPage = Math.max(1, Math.ceil(_smtAllRows.length / _smtPageSize));
+  const pag = document.getElementById('smt-pagination');
+  if (pag) {
+    pag.style.display = _smtAllRows.length > _smtPageSize ? 'flex' : 'none';
+    const info = document.getElementById('smt-page-info');
+    if (info) info.textContent =
+      `Menampilkan ${start + 1}-${Math.min(start + _smtPageSize, _smtAllRows.length)} dari ${_smtAllRows.length} baris (halaman ${_smtPage}/${maxPage})`;
+    const prevBtn = document.getElementById('smt-page-prev');
+    const nextBtn = document.getElementById('smt-page-next');
+    if (prevBtn) prevBtn.disabled = _smtPage <= 1;
+    if (nextBtn) nextBtn.disabled = _smtPage >= maxPage;
+  }
+  smtUpdateBulkBar();
+}
+
+function _smtToggleSelect(id, checked) {
+  if (checked) _smtSelectedIds.add(id); else _smtSelectedIds.delete(id);
+  smtUpdateBulkBar();
+}
+
+function smtUpdateBulkBar() {
+  const bar = document.getElementById('smt-bulk-bar');
+  const allCb = document.getElementById('smt-cb-all');
+  const count = _smtSelectedIds.size;
+  if (count > 0) {
+    if (bar) bar.style.display = 'flex';
+    const countEl = document.getElementById('smt-bulk-count');
+    if (countEl) countEl.textContent = `${count} baris dipilih:`;
+    const start = (_smtPage - 1) * _smtPageSize;
+    const pageIds = _smtAllRows.slice(start, start + _smtPageSize).map(r => r.id);
+    if (allCb) allCb.checked = pageIds.length > 0 && pageIds.every(id => _smtSelectedIds.has(id));
+  } else {
+    if (bar) bar.style.display = 'none';
+    if (allCb) allCb.checked = false;
+  }
+}
+
+// "Select all" applies to the current page only — selections on other pages
+// (tracked in _smtSelectedIds) are preserved when navigating between pages.
+function smtToggleAllBulk(checked) {
+  const start = (_smtPage - 1) * _smtPageSize;
+  const pageRows = _smtAllRows.slice(start, start + _smtPageSize);
+  pageRows.forEach(r => { if (checked) _smtSelectedIds.add(r.id); else _smtSelectedIds.delete(r.id); });
+  document.querySelectorAll('.smt-cb').forEach(cb => cb.checked = checked);
+  smtUpdateBulkBar();
+}
+
+async function smtDoBulk(isSet) {
+  const ids = Array.from(_smtSelectedIds);
+  if (!ids.length) return;
+  const field = document.getElementById('smt-bulk-field').value;
+  const date = isSet ? document.getElementById('smt-bulk-date').value : null;
+  if (isSet && !date) { showToast('Pilih tanggal dulu.', 'error'); return; }
+  
+  if (!await confirmModal(`${isSet ? 'Set' : 'Hapus'} tanggal pada ${ids.length} PAM?`)) return;
+  
+  const res = await apiFetch('/payment-memo/pam-lines/bulk-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pillar: 'SMT', ids, field, value: date })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadSMT();
+}
+
+let _smtLinesCache = {};
+
+function smtToggleExpand(toggleEl, pamId) {
+  if (!toggleEl) return;
+  const masterTr = toggleEl.closest('tr');
+  const existing = document.querySelectorAll('.smt-detail-rows[data-pam-id="' + pamId + '"]');
+  if (existing.length) {
+    const nowHidden = existing[0].style.display === 'none';
+    existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
+    toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
+    return;
+  }
+  smtFetchLines(masterTr, toggleEl, pamId);
+}
+
+async function smtFetchLines(masterTr, toggleEl, pamId) {
+  if (_smtLinesCache[pamId] === 'loading') return;
+  _smtLinesCache[pamId] = 'loading';
+
+  const loadingTr = document.createElement('tr');
+  loadingTr.classList.add('smt-detail-rows');
+  loadingTr.dataset.pamId = pamId;
+  loadingTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail...</td>';
+  masterTr.insertAdjacentElement('afterend', loadingTr);
+
+  const res = await apiFetch('/payment-memo/pam/' + pamId + '/transaction-lines');
+  loadingTr.remove();
+
+  if (!res) {
+    _smtLinesCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('smt-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail.</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+  const data = await res.json();
+  if (!data.ok) {
+    _smtLinesCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('smt-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">' + esc(data.pesan) + '</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  _smtLinesCache[pamId] = data.rows;
+  if (!data.rows.length) {
+    const emptyTr = document.createElement('tr');
+    emptyTr.classList.add('smt-detail-rows');
+    emptyTr.dataset.pamId = pamId;
+    emptyTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#64748b;background:#f8fafc;font-style:italic">Tidak ada baris.</td>';
+    masterTr.insertAdjacentElement('afterend', emptyTr);
+    toggleEl.innerHTML = '&#9660;';
+    return;
+  }
+
+  let html = `
+    <tr class="smt-detail-rows" data-pam-id="${pamId}" style="background:#f1f5f9;border-bottom:2px solid #cbd5e1">
+      <td colspan="27" style="padding:10px 40px">
+        <div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr style="background:#e2e8f0;color:#334155">
+                <th style="padding:6px;text-align:left">No</th>
+                <th style="padding:6px;text-align:left">GL Account</th>
+                <th style="padding:6px;text-align:left">Cost Center</th>
+                <th style="padding:6px;text-align:left">Budget Activity</th>
+                <th style="padding:6px;text-align:left">Vendor</th>
+                <th style="padding:6px;text-align:left">Invoice No</th>
+                <th style="padding:6px;text-align:left">Keterangan</th>
+                <th style="padding:6px;text-align:right">DPP</th>
+                <th style="padding:6px;text-align:right">PPN</th>
+                <th style="padding:6px;text-align:right">Others</th>
+                <th style="padding:6px;text-align:right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+  `;
+  let sumDPP = 0, sumPPN = 0, sumOthers = 0, sumTot = 0;
+  data.rows.forEach((r, idx) => {
+    sumDPP += r.dpp;
+    sumPPN += r.ppn;
+    sumOthers += r.others || 0;
+    sumTot += r.total_amount;
+    html += `
+      <tr style="border-bottom:1px solid #e2e8f0;background:${idx%2===0?'var(--card)':'var(--bg)'}">
+        <td style="padding:6px">${idx+1}</td>
+        <td style="padding:6px;font-family:monospace">${esc(r.gl_account || '-')}</td>
+        <td style="padding:6px;font-family:monospace">${esc(r.cost_center || '-')}</td>
+        <td style="padding:6px">${esc(r.budget_activity || '-')}</td>
+        <td style="padding:6px">${esc(r.vendor || '-')}</td>
+        <td style="padding:6px">${esc(r.no_invoice || '-')}</td>
+        <td style="padding:6px">${esc(r.keterangan || '-')}</td>
+        <td style="padding:6px;text-align:right">${fmtRupiah(r.dpp)}</td>
+        <td style="padding:6px;text-align:right">${fmtRupiah(r.ppn)}</td>
+        <td style="padding:6px;text-align:right">${fmtRupiah(r.others)}</td>
+        <td style="padding:6px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      </tr>
+    `;
+  });
+  html += `
+            <tr style="background:#f1f5f9;font-weight:700;color:#0f172a;border-top:2px solid #cbd5e1">
+              <td colspan="7" style="padding:6px;text-align:right">Total :</td>
+              <td style="padding:6px;text-align:right">${fmtRupiah(sumDPP)}</td>
+              <td style="padding:6px;text-align:right">${fmtRupiah(sumPPN)}</td>
+              <td style="padding:6px;text-align:right">${fmtRupiah(sumOthers)}</td>
+              <td style="padding:6px;text-align:right">${fmtRupiah(sumTot)}</td>
+            </tr>
+          </tbody></table>
+        </div>
+      </td>
+    </tr>
+  `;
+
+  masterTr.insertAdjacentHTML('afterend', html);
+  toggleEl.innerHTML = '&#9660;';
+}
+
+function loadAdvanceDebounced() { clearTimeout(_advanceDebounce); _advanceDebounce = setTimeout(loadAdvance, 300); }
+let _advanceDebounce;
+async function loadAdvance() {
+  const search  = (document.getElementById('advance-search')?.value || '').trim();
+  const bulan   = (document.getElementById('advance-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('advance-filter-tahun')?.value || '');
+  const status  = (document.getElementById('advance-filter-status')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status });
+  const tbody  = document.getElementById('advance-tbody');
+  tbody.innerHTML = skeletonRows(17);
+  const res     = await apiFetch('/payment-memo/by-pillar/ADVANCE?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  const count  = document.getElementById('advance-count');
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map((r, i) => `
+    <tr style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};">
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
+      <td style="padding:6px 8px">${esc(r.no_vendor || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
+      ${_plDate(r.id,'ADVANCE','tgl_received',r.tgl_received)}
+      ${_plDate(r.id,'ADVANCE','tgl_a0',r.tgl_a0)}
+      ${_plDate(r.id,'ADVANCE','tgl_a1',r.tgl_a1)}
+      ${_plDate(r.id,'ADVANCE','tgl_a2',r.tgl_a2)}
+      ${_plDate(r.id,'ADVANCE','tgl_a3',r.tgl_a3)}
+      ${_plDate(r.id,'ADVANCE','tgl_a4',r.tgl_a4)}
+      ${_plDate(r.id,'ADVANCE','tgl_paid',r.tgl_paid)}
+      <td style="padding:6px 8px">${_aksiCell(r)}</td>
+    </tr>
+  `).join('');
+  makeSortable('advance-table');
+}
+
+// ── FIORI (APP) ───────────────────────────────────────────────────────────────
+const _fioriSelected     = new Set();
+const _fioriSelectionMeta = new Map();  // id → { label, cat1 }
+let _fioriDebounce;
+function loadFIORIDebounced() { clearTimeout(_fioriDebounce); _fioriDebounce = setTimeout(loadFIORI, 300); }
+
+async function loadFIORI() {
+  const search  = (document.getElementById('fiori-search')?.value || '').trim();
+  const bulan   = (document.getElementById('fiori-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('fiori-filter-tahun')?.value || '');
+  const status  = (document.getElementById('fiori-filter-status')?.value || '');
+  const source  = (document.getElementById('fiori-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('fiori-tbody');
+  tbody.innerHTML = skeletonRows(26);
+  const res     = await apiFetch('/payment-memo/by-pillar/APP?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  const count  = document.getElementById('fiori-count');
+  fioriUpdateBulkBar();
+  if (!data.ok || !data.rows.length) {
+    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data APP.</td></tr>';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (count) count.textContent = data.rows.length + ' baris';
+  tbody.innerHTML = data.rows.map((r, i) => {
+    const isSel = _fioriSelected.has(r.id);
+    return `
+    <tr class="fiori-row" data-pam-id="${r.id}" style="background:${isSel ? '#eff6ff' : (i % 2 === 0 ? 'var(--card)' : 'var(--bg)')};"
+      ${r.source === 'beasiswa' ? `onclick="fioriToggleExpand(this.querySelector('.fiori-toggle'),${r.id})"` : ''}>
+      <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="fiori-cb" data-id="${r.id}" ${isSel ? 'checked' : ''} style="cursor:pointer;vertical-align:middle" onclick="event.stopPropagation()" onchange="fioriToggleCb(this)">${r.source === 'beasiswa' ? `<span class="fiori-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:4px" onclick="fioriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}</td>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
+      <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
+      <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.no_vendor || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.nama_vendor || '-')}</td>
+      ${_plDate(r.id,'APP','tgl_terima_doc',r.tgl_terima_doc)}
+      ${_plDate(r.id,'APP','tgl_proses',r.tgl_proses)}
+      ${_plDate(r.id,'APP','tgl_verifikasi_tax',r.tgl_verifikasi_tax)}
+      ${_plDate(r.id,'APP','tgl_approval_1',r.tgl_approval_1)}
+      ${_plDate(r.id,'APP','tgl_approval_2',r.tgl_approval_2)}
+      ${_plDate(r.id,'APP','tgl_approval_3',r.tgl_approval_3)}
+      ${_plDate(r.id,'APP','tgl_kirim',r.tgl_kirim)}
+      <td style="padding:6px 8px">${_aksiCell(r)}</td>
+    </tr>
+  `;
+  }).join('');
+  makeSortable('fiori-table');
+}
+
+let _fioriBeasiswaCache = {};
+
+function fioriToggleExpand(toggleEl, pamId) {
+  const masterTr = toggleEl.closest('tr');
+  const existing = document.querySelectorAll(`.fiori-detail-rows[data-pam-id="${pamId}"]`);
+  if (existing.length) {
+    const nowHidden = existing[0].style.display === 'none';
+    existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
+    toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
+    return;
+  }
+  fioriFetchBeasiswaLines(masterTr, toggleEl, pamId);
+}
+
+async function fioriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
+  if (_fioriBeasiswaCache[pamId] === 'loading') return;
+  _fioriBeasiswaCache[pamId] = 'loading';
+
+  const loadingTr = document.createElement('tr');
+  loadingTr.classList.add('fiori-detail-rows');
+  loadingTr.dataset.pamId = pamId;
+  loadingTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  masterTr.insertAdjacentElement('afterend', loadingTr);
+
+  const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
+  loadingTr.remove();
+
+  if (!res) {
+    _fioriBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('fiori-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  const data = await res.json();
+  if (!data.ok) {
+    _fioriBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('fiori-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = `<td colspan="26" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  _fioriBeasiswaCache[pamId] = data.rows;
+
+  if (!data.rows.length) {
+    const emptyTr = document.createElement('tr');
+    emptyTr.classList.add('fiori-detail-rows');
+    emptyTr.dataset.pamId = pamId;
+    emptyTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    masterTr.insertAdjacentElement('afterend', emptyTr);
+    toggleEl.innerHTML = '&#9660;';
+    return;
+  }
+
+  [...data.rows].reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.classList.add('fiori-detail-rows');
+    tr.dataset.pamId = pamId;
+    tr.innerHTML =
+      `<td style="padding:4px 8px;vertical-align:middle"></td>` +
+      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td colspan="21" style="padding:4px 8px;vertical-align:middle"></td>`;
+    masterTr.insertAdjacentElement('afterend', tr);
+  });
+
+  toggleEl.innerHTML = '&#9660;';
+}
+
+async function openEditFiori(id) {
+  const res = await apiFetch(`/payment-memo/fiori/${id}/detail`);
+  if (!res) return;
+  const data = await res.json();
+  if (!data.ok) { showToast('Gagal memuat data.', 'error'); return; }
+  const r = data.data;
+  document.getElementById('edit-fiori-id').value          = r.id;
+  document.getElementById('edit-fiori-title').textContent = 'Edit APP — ' + r.no_pa;
+  document.getElementById('edit-fiori-no-pa').value       = r.no_pa || '';
+  document.getElementById('edit-fiori-category').value    = r.category || '';
+  document.getElementById('edit-fiori-categori1').value   = r.categori_1 || '';
+  document.getElementById('edit-fiori-keterangan').value  = r.keterangan || '';
+  document.getElementById('edit-fiori-nomor-vendor').value = r.nomor_vendor || '';
+  document.getElementById('edit-fiori-nama-vendor').value  = r.nama_vendor || '';
+  document.getElementById('edit-fiori-mata-uang').value   = r.mata_uang || 'IDR';
+  document.getElementById('edit-fiori-dpp').value = r.dpp ? parseInt(r.dpp, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-fiori-ppn').value = r.ppn ? parseInt(r.ppn, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-fiori-total').value = r.total ? parseInt(r.total, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-fiori-terima-doc').value      = r.terima_document || '';
+  document.getElementById('edit-fiori-input-aspiro').value    = r.input_aspiro || '';
+  document.getElementById('edit-fiori-verifikasi-tax').value  = r.verifikasi_tax || '';
+  document.getElementById('edit-fiori-approval1').value       = r.approval_1 || '';
+  document.getElementById('edit-fiori-approval2').value       = r.approval_2 || '';
+  document.getElementById('edit-fiori-approval3').value       = r.approval_3 || '';
+  document.getElementById('edit-fiori-kirim-aspiro').value    = r.kirim_aspiro || '';
+  document.getElementById('edit-fiori-paid').value            = r.paid || '';
+  openModal('modal-edit-fiori');
+}
+
+async function submitEditFiori() {
+  if (!await confirmModal("Simpan perubahan data Fiori ini?")) return;
+  const id = parseInt(document.getElementById('edit-fiori-id').value);
+  const payload = {
+    no_pa:        document.getElementById('edit-fiori-no-pa').value.trim(),
+    category:     document.getElementById('edit-fiori-category').value.trim(),
+    categori_1:   document.getElementById('edit-fiori-categori1').value.trim(),
+    keterangan:   document.getElementById('edit-fiori-keterangan').value.trim(),
+    nomor_vendor: document.getElementById('edit-fiori-nomor-vendor').value.trim(),
+    nama_vendor:  document.getElementById('edit-fiori-nama-vendor').value.trim(),
+    mata_uang:    document.getElementById('edit-fiori-mata-uang').value.trim() || 'IDR',
+    dpp:              parseFloat(document.getElementById('edit-fiori-dpp').value.replace(/,/g, '')) || 0,
+    ppn:              parseFloat(document.getElementById('edit-fiori-ppn').value.replace(/,/g, '')) || 0,
+    total:            parseFloat(document.getElementById('edit-fiori-total').value.replace(/,/g, '')) || 0,
+    terima_document:  document.getElementById('edit-fiori-terima-doc').value || null,
+    input_aspiro:     document.getElementById('edit-fiori-input-aspiro').value || null,
+    verifikasi_tax:   document.getElementById('edit-fiori-verifikasi-tax').value || null,
+    approval_1:       document.getElementById('edit-fiori-approval1').value || null,
+    approval_2:       document.getElementById('edit-fiori-approval2').value || null,
+    approval_3:       document.getElementById('edit-fiori-approval3').value || null,
+    kirim_aspiro:     document.getElementById('edit-fiori-kirim-aspiro').value || null,
+    paid:             document.getElementById('edit-fiori-paid').value || null,
+  };
+  const res = await apiFetch(`/payment-memo/fiori/${id}/edit`, {
+    method: 'POST', body: JSON.stringify(payload)
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) { closeModal('modal-edit-fiori'); loadFIORI(); }
+}
+
+async function fioriUpdateStatus(id, status) {
+  const label = {approved:'Approve', open:'Revert ke Open', paid:'Mark Paid'}[status] || status;
+  if (!await confirmModal(`${label} record ini?`, { confirmText: label })) return;
+  const res = await apiFetch(`/payment-memo/fiori/${id}/status`, {
+    method:'POST', body: JSON.stringify({status})
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadFIORI();
+}
+
+async function fioriCancel(id) {
+  if (!await confirmModal('Hapus record ini permanen? Data tidak dapat dikembalikan.', { type: 'danger', confirmText: 'Hapus' })) return;
+  const res = await apiFetch(`/payment-memo/fiori/${id}/cancel`, {method:'POST'});
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadFIORI();
+}
+
+function fioriToggleCb(cb) {
+  const id = parseInt(cb.dataset.id, 10);
+  const tr = cb.closest('tr');
+  if (cb.checked) {
+    _fioriSelected.add(id);
+    if (tr) {
+      const label = tr.cells[1] ? tr.cells[1].textContent.trim() : String(id);
+      _fioriSelectionMeta.set(id, { label });
+      tr.style.background = '#eff6ff';
+    }
+  } else {
+    _fioriSelected.delete(id);
+    _fioriSelectionMeta.delete(id);
+    if (tr) tr.style.background = '';
+  }
+  fioriUpdateBulkBar();
+}
+
+function fioriToggleSelectAll(masterCb) {
+  document.querySelectorAll('#fiori-tbody .fiori-row').forEach(row => {
+    const cb = row.querySelector('.fiori-cb');
+    if (!cb) return;
+    cb.checked = masterCb.checked;
+    const id = parseInt(cb.dataset.id, 10);
+    if (masterCb.checked) {
+      _fioriSelected.add(id);
+      const label = row.cells[1] ? row.cells[1].textContent.trim() : String(id);
+      _fioriSelectionMeta.set(id, { label });
+      row.style.background = '#eff6ff';
+    } else {
+      _fioriSelected.delete(id);
+      _fioriSelectionMeta.delete(id);
+      row.style.background = '';
+    }
+  });
+  fioriUpdateBulkBar();
+}
+
+function fioriUpdateBulkBar() {
+  const bar = document.getElementById('fiori-bulk-bar');
+  if (!bar) return;
+  const n = _fioriSelected.size;
+  if (n === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const count = document.getElementById('fiori-bulk-count');
+  if (count) count.textContent = `${n} PAM dipilih:`;
+  const chips = document.getElementById('fiori-chips-row');
+  if (chips) chips.innerHTML = _fioriAllChipsHtml();
+}
+
+function _fioriAllChipsHtml() {
+  const ids   = [..._fioriSelected];
+  const LIMIT = 5;
+  const hidden = ids.length > LIMIT + 1 ? ids.slice(LIMIT) : [];
+  const shown  = hidden.length ? ids.slice(0, LIMIT) : ids;
+  function chipHtml(id) {
+    const m = _fioriSelectionMeta.get(id) || { label: String(id) };
+    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${esc(m.label)}<span onclick="fioriRemoveChip(${id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+  }
+  let html = shown.map(chipHtml).join('');
+  if (hidden.length) {
+    html += `<span id="fiori-chips-expand" onclick="fioriExpandChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
+    html += `<span id="fiori-chips-hidden" style="display:none">` + hidden.map(chipHtml).join('') + `</span>`;
+  }
+  return html;
+}
+
+function fioriExpandChips() {
+  const h = document.getElementById('fiori-chips-hidden');
+  const b = document.getElementById('fiori-chips-expand');
+  if (!h || !b) return;
+  const expanded = h.style.display !== 'none';
+  h.style.display = expanded ? 'none' : 'contents';
+  b.textContent = expanded ? `+${_fioriSelected.size - 5} lagi ▾` : '▲ sembunyikan';
+}
+
+function fioriRemoveChip(id) {
+  _fioriSelected.delete(id);
+  _fioriSelectionMeta.delete(id);
+  const cb = document.querySelector(`#fiori-tbody .fiori-cb[data-id="${id}"]`);
+  if (cb) {
+    cb.checked = false;
+    const tr = cb.closest('tr');
+    if (tr) tr.style.background = '';
+  }
+  fioriUpdateBulkBar();
+}
+
+function fioriClearAllSelection() {
+  _fioriSelected.clear();
+  _fioriSelectionMeta.clear();
+  document.querySelectorAll('#fiori-tbody .fiori-cb').forEach(cb => {
+    cb.checked = false;
+    const tr = cb.closest('tr');
+    if (tr) tr.style.background = '';
+  });
+  const sa = document.getElementById('fiori-select-all');
+  if (sa) sa.checked = false;
+  fioriUpdateBulkBar();
+}
+
+async function fioriIsiTanggal() {
+  const field = document.getElementById('fiori-bulk-field')?.value;
+  const date  = document.getElementById('fiori-bulk-date')?.value;
+  if (!date) { showToast('Pilih tanggal terlebih dahulu.', 'error'); return; }
+  await _fioriDoBulkUpdate(field, date);
+}
+
+async function fioriHapusTanggal() {
+  const field = document.getElementById('fiori-bulk-field')?.value;
+  await _fioriDoBulkUpdate(field, null);
+}
+
+async function _fioriDoBulkUpdate(field, date) {
+  const ids = [..._fioriSelected];
+  if (!ids.length) return;
+  const res = await apiFetch('/payment-memo/pam-lines/bulk-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pillar: 'APP', ids, field, value: date }),
+  });
+  if (!res) { showToast('Gagal: network error.', 'error'); return; }
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) setTimeout(() => loadFIORI(), 400);
+}
+
+// ── PAM Records ──────────────────────────────────────────────────────────────
+let _coaOptions = [];
+let _pamCache   = {};
+
+async function loadCOA() {
+  if (_coaOptions.length) return;
+  const res  = await apiFetch('/payment-memo/coa');
+  if (!res) return;
+  const data = await res.json();
+  if (data.ok) _coaOptions = data.coa;
+}
+
+function buildGLDropdown(pamId, currentGl) {
+  const select = document.createElement('select');
+  select.style.cssText = 'width:100%;font-size:12px;padding:3px 4px;border:1px solid #d1d5db;border-radius:4px;';
+  _coaOptions.forEach(opt => {
+    const o = document.createElement('option');
+    o.value = opt.gl_code;
+    o.textContent = opt.gl_code + ' — ' + opt.gl_name;
+    if (opt.gl_code === currentGl) o.selected = true;
+    select.appendChild(o);
+  });
+  select.onchange = () => updateGL(pamId, select.value);
+  return select;
+}
+
+async function updateGL(pamId, glAccount) {
+  const cell = document.getElementById('gl-cell-' + pamId);
+  const sel  = cell ? cell.querySelector('select') : null;
+  if (sel) sel.disabled = true;
+  try {
+    const res  = await apiFetch('/payment-memo/pam/' + pamId + '/gl-account', {
+      method: 'POST',
+      body: JSON.stringify({ gl_account: glAccount }),
+    });
+    if (!res) return;
+    const data = await res.json();
+    if (!data.ok) showToast('Gagal update GL: ' + esc(data.pesan), 'error');
+    else showToast('GL Account diperbarui.', 'success');
+  } finally {
+    if (sel) sel.disabled = false;
+  }
+}
+
+function _slaDot(count, total) {
+  if (!total) return '<span style="color:#cbd5e1">—</span>';
+  const c = count || 0;
+  if (c >= total) return `<span title="Semua terisi (${c}/${total})" style="color:#16a34a;font-size:13px;line-height:1">●</span>`;
+  if (c > 0)      return `<span title="Sebagian terisi (${c}/${total})" style="color:#f59e0b;font-size:13px;line-height:1">●</span>`;
+  return `<span title="Belum terisi (0/${total})" style="color:#e5e7eb;font-size:13px;line-height:1">○</span>`;
+}
+
+function _statusBadge(status) {
+  const styles = {
+    open:       'background:#fef3c7;color:#92400e;border:1px solid #d97706',
+    on_process: 'background:#dbeafe;color:#1e40af;border:1px solid #3b82f6',
+    complete:   'background:#d1fae5;color:#065f46;border:1px solid #059669',
+    rejected:   'background:#fef2f2;color:#991b1b;border:1px solid #fecaca',
+  };
+  const st = styles[status] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${st}">${esc(status || '-')}</span>`;
+}
+
+// Inline-editable date cell for {pillar}_pam_lines
+function _plDate(pamId, pillar, field, val) {
+  const v = val || '';
+  return `<td style="padding:6px 8px;cursor:pointer;white-space:nowrap;color:${v ? 'var(--text)' : 'var(--text-muted)'}" data-val="${esc(v)}" onclick="pamLineDateEdit(${pamId},'${pillar}','${field}',this)" title="Klik untuk edit">${esc(v || '-')}</td>`;
+}
+
+async function pamLineDateEdit(pamId, pillar, field, tdEl) {
+  const oldVal = tdEl.dataset.val || '';
+  const inp = document.createElement('input');
+  inp.type = 'date';
+  inp.value = oldVal;
+  inp.style.cssText = 'border:1px solid #3b82f6;border-radius:3px;font-size:11px;padding:1px 3px;width:118px;cursor:text';
+  tdEl.textContent = '';
+  tdEl.appendChild(inp);
+  inp.focus();
+  let saved = false;
+  async function _save() {
+    if (saved) return;
+    saved = true;
+    const newVal = inp.value;
+    tdEl.textContent = oldVal || '-';
+    tdEl.dataset.val = oldVal;
+    tdEl.style.color = oldVal ? '#374151' : '#9ca3af';
+    if (newVal === oldVal) return;
+    const res = await apiFetch(`/payment-memo/pam/${pamId}/lines`, {
+      method: 'PATCH', body: JSON.stringify({ pillar, [field]: newVal || null })
+    });
+    if (!res) return;
+    const d = await res.json();
+    if (d.ok) {
+      tdEl.textContent = newVal || '-';
+      tdEl.dataset.val = newVal;
+      tdEl.style.color = newVal ? '#374151' : '#9ca3af';
+      showToast('Tersimpan', 'success');
+    } else {
+      showToast(d.pesan || 'Gagal simpan', 'error');
+    }
+  }
+  inp.addEventListener('blur', _save);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') inp.blur();
+    if (e.key === 'Escape') { inp.value = oldVal; inp.blur(); }
+  });
+}
+
+function _aksiCell(r) {
+  const _btn = (label, cls, fn) =>
+    `<button class="btn btn-sm ${cls}" onclick="${fn}">${label}</button>`;
+  return `<div style="display:flex;gap:4px;align-items:center;">
+    ${_btn('Edit', 'btn-primary', `openEditPAM(${r.id})`)}
+    ${_btn('Cancel', 'btn-danger', `cancelPAM(${r.id})`)}
+  </div>`;
+}
+
+// ── PAM AGRI: Set Paid cascade ────────────────────────────────────────────────
+async function pamSetPaidAgri(pamId) {
+  const inp = document.getElementById('paid-date-' + pamId);
+  const tgl = inp ? inp.value : '';
+  if (!tgl) { showToast('Pilih tanggal paid.', 'error'); return; }
+  if (!await confirmModal(`Set Tgl Paid ${tgl} untuk PAM ini? Akan cascade ke Payment Application AGRI.`, { confirmText: "Set Paid" })) return;
+  const res  = await apiFetch(`/payment-memo/pam/${pamId}/set-paid-agri`, {
+    method: 'POST', body: JSON.stringify({ tanggal_bayar: tgl })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadPAM();
+}
+
+
+// Same rationale as SMT PAM List: fetch the full filtered AGRI result once,
+// then paginate + sort client-side against the in-memory array rather than
+// the DOM. AGRI rows are more expensive than SMT's (each also builds a GL
+// Account <select> via buildGLDropdown) so this matters even at ~180 rows.
+let _agriAllRows = [];
+let _agriPage = 1;
+let _agriPageSize = 50;
+let _agriSortCol = -1, _agriSortAsc = true;
+const _AGRI_SORT_FIELDS = { 2: 'pam_date', 11: 'total_amount', 12: 'due_date' };
+
+let _pamDebounce;
+function loadPAMDebounced() { clearTimeout(_pamDebounce); _pamDebounce = setTimeout(loadPAM, 300); }
+async function loadPAM() {
+  await loadCOA();
+  const search  = (document.getElementById('pam-search')?.value || '').trim();
+  const bulan   = (document.getElementById('pam-filter-bulan')?.value || '');
+  const tahun   = (document.getElementById('pam-filter-tahun')?.value || '');
+  const status  = (document.getElementById('pam-filter-status')?.value || '');
+  const source  = (document.getElementById('pam-filter-source')?.value || '');
+  const params  = new URLSearchParams({ search, bulan, tahun, status, source });
+  const tbody  = document.getElementById('pam-tbody');
+  tbody.innerHTML = skeletonRows(28);
+  const res     = await apiFetch('/payment-memo/by-pillar/AGRI?' + params);
+  if (!res) return;
+  const data   = await res.json();
+  _pamCache = {};
+  _pamBeasiswaCache = {};
+  _pamPendingSelectAll = {};
+  agriUpdateBulkBar();
+  _agriSortCol = -1; _agriSortAsc = true;
+  document.querySelectorAll('#pam-table thead th[data-sort]').forEach(h => h.dataset.sortDir = '');
+  if (!data.ok || !data.rows.length) {
+    _agriAllRows = [];
+    _agriPage = 1;
+    tbody.innerHTML = '<tr><td colspan="28" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada PAM record AGRI.</td></tr>';
+    const pag = document.getElementById('pam-pagination');
+    if (pag) pag.style.display = 'none';
+    return;
+  }
+  data.rows.forEach(r => { _pamCache[r.id] = r; });
+  _agriAllRows = data.rows;
+  _agriPage = 1;
+  const _agriCachedSize = getCachedPageSize('agri', window.innerHeight);
+  if (_agriCachedSize) _agriPageSize = _agriCachedSize;
+  _agriRenderPage();
+  if (_agriAllRows.length) {
+    const _agriComputed = computeDynamicPageSize({
+      scrollContainer: '#tab-pam .pillar-table-wrap',
+      rowSelector: '#pam-tbody tr',
+      defaultSize: 50,
+    });
+    setCachedPageSize('agri', _agriComputed, window.innerHeight);
+    if (_agriComputed !== _agriPageSize) {
+      _agriPageSize = _agriComputed;
+      _agriRenderPage();
+    }
+  }
+}
+
+function _agriSortClick(colIdx) {
+  const isNum = colIdx === 11;
+  if (_agriSortCol === colIdx) { _agriSortAsc = !_agriSortAsc; } else { _agriSortCol = colIdx; _agriSortAsc = true; }
+  document.querySelectorAll('#pam-table thead th[data-sort]').forEach(h => {
+    h.dataset.sortDir = parseInt(h.dataset.sort, 10) === _agriSortCol ? (_agriSortAsc ? 'asc' : 'desc') : '';
+  });
+  const field = _AGRI_SORT_FIELDS[colIdx];
+  _agriAllRows.sort((a, b) => {
+    const va = a[field], vb = b[field];
+    const na = isNum ? (parseFloat(va) || 0) : String(va || '').toLowerCase();
+    const nb = isNum ? (parseFloat(vb) || 0) : String(vb || '').toLowerCase();
+    if (na === nb) return 0;
+    return _agriSortAsc ? (na > nb ? 1 : -1) : (na < nb ? 1 : -1);
+  });
+  _agriPage = 1;
+  _agriRenderPage();
+}
+
+function _agriGoToPage(p) {
+  const maxPage = Math.max(1, Math.ceil(_agriAllRows.length / _agriPageSize));
+  _agriPage = Math.min(Math.max(1, p), maxPage);
+  _agriRenderPage();
+}
+
+function _agriRenderPage() {
+  const tbody = document.getElementById('pam-tbody');
+  const start = (_agriPage - 1) * _agriPageSize;
+  const pageRows = _agriAllRows.slice(start, start + _agriPageSize);
+  tbody.innerHTML = pageRows.map((r, i) => `
+    <tr class="${r.source === 'beasiswa' ? 'pam-master-row' : ''}" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};"
+      ${r.source === 'beasiswa' ? `onclick="agriToggleExpand(this.querySelector('.pam-toggle'),${r.id})"` : ''}>
+      ${r.source === 'beasiswa'
+        ? `<td class="s0" style="padding:4px 2px;text-align:center;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}"><input type="checkbox" id="pam-cb-${r.id}" style="cursor:pointer;vertical-align:middle" onclick="event.stopPropagation()" onchange="agriTogglePamSelect(${r.id},this.checked)"><span class="pam-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:4px" onclick="agriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span></td>`
+        : `<td class="s0" style="text-align:center;color:#cbd5e1;font-size:11px;padding:4px;background:${i%2===0?'var(--card)':'var(--bg)'}">&#8212;</td>`}
+      <td class="s1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pam_no)}</td>
+      <td class="s2" style="padding:6px 8px;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pam_date || '-')}</td>
+      <td class="s3" style="padding:6px 8px;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pt || '-')}</td>
+      <td class="s4" style="padding:6px 8px;font-family:monospace;font-size:11px;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px" id="gl-cell-${r.id}"></td>
+      <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
+      <td style="padding:6px 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
+      <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.dpp)}</td>
+      <td style="padding:6px 8px;text-align:right">${fmtRupiah(r.ppn)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">${fmtRupiah(r.total_amount)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${esc(r.due_date || '-')}</td>
+      <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
+      <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_pengajuan, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_receive,   r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_pa,        r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_tgl_final,     r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla1, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla2, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla3, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla4, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla5, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla6, r.sub_total)}</td>
+      <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla7, r.sub_total)}</td>
+      <td style="padding:6px 8px">${_aksiCell(r)}</td>
+    </tr>
+  `).join('');
+
+  pageRows.forEach(r => {
+    const cell = document.getElementById('gl-cell-' + r.id);
+    if (cell) cell.appendChild(buildGLDropdown(r.id, r.gl_account));
+  });
+  // A PAM whose beasiswa lines were partially selected before this search
+  // shows its own checkbox as indeterminate even before being expanded —
+  // full checked-vs-indeterminate resolution against real sub-rows still
+  // only happens once expanded (_syncPamCheckbox()).
+  pageRows.forEach(r => {
+    if (r.source === 'beasiswa' && _pamBeasiswaSelected[r.id] && _pamBeasiswaSelected[r.id].size > 0) {
+      const cb = document.getElementById('pam-cb-' + r.id);
+      if (cb) cb.indeterminate = true;
+    }
+  });
+
+  const maxPage = Math.max(1, Math.ceil(_agriAllRows.length / _agriPageSize));
+  const pag = document.getElementById('pam-pagination');
+  if (pag) {
+    pag.style.display = _agriAllRows.length > _agriPageSize ? 'flex' : 'none';
+    const info = document.getElementById('pam-page-info');
+    if (info) info.textContent =
+      `Menampilkan ${start + 1}-${Math.min(start + _agriPageSize, _agriAllRows.length)} dari ${_agriAllRows.length} baris (halaman ${_agriPage}/${maxPage})`;
+    const prevBtn = document.getElementById('pam-page-prev');
+    const nextBtn = document.getElementById('pam-page-next');
+    if (prevBtn) prevBtn.disabled = _agriPage <= 1;
+    if (nextBtn) nextBtn.disabled = _agriPage >= maxPage;
+  }
+}
+
+let _pamBeasiswaCache = {};
+let _pamBeasiswaSelected = {}; // { pamId: Set<pbId> }
+let _pamPendingSelectAll = {}; // { pamId: true } saat PAM checkbox diklik sebelum expand
+// Cache-independent name lookup for chips — _pamBeasiswaCache is legitimately
+// cleared on every search (see loadPAM()), but a selected line's chip must
+// keep showing its name even after the user searches away from its PAM.
+// Populated at the moment a checkbox is checked, from that PAM's just-fetched
+// beasiswa-lines data (still present at that moment even if cleared later).
+let _pamBeasiswaSelectionMeta = new Map(); // pbId -> { pamId, nama }
+
+function agriToggleExpand(toggleEl, pamId) {
+  const masterTr = toggleEl.closest('tr');
+  const existing = document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"]`);
+  if (existing.length) {
+    const nowHidden = existing[0].style.display === 'none';
+    existing.forEach(tr => { tr.style.display = nowHidden ? '' : 'none'; });
+    toggleEl.innerHTML = nowHidden ? '&#9660;' : '&#9658;';
+    return;
+  }
+  agriFetchBeasiswaLines(masterTr, toggleEl, pamId);
+}
+
+async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
+  if (_pamBeasiswaCache[pamId] === 'loading') return;
+  _pamBeasiswaCache[pamId] = 'loading';
+
+  const loadingTr = document.createElement('tr');
+  loadingTr.classList.add('agri-detail-rows');
+  loadingTr.dataset.pamId = pamId;
+  loadingTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  masterTr.insertAdjacentElement('afterend', loadingTr);
+
+  const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
+  loadingTr.remove();
+
+  if (!res) {
+    _pamBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('agri-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  const data = await res.json();
+  if (!data.ok) {
+    _pamBeasiswaCache[pamId] = null;
+    const errTr = document.createElement('tr');
+    errTr.classList.add('agri-detail-rows');
+    errTr.dataset.pamId = pamId;
+    errTr.innerHTML = `<td colspan="28" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    masterTr.insertAdjacentElement('afterend', errTr);
+    return;
+  }
+
+  _pamBeasiswaCache[pamId] = data.rows;
+
+  if (!data.rows.length) {
+    const emptyTr = document.createElement('tr');
+    emptyTr.classList.add('agri-detail-rows');
+    emptyTr.dataset.pamId = pamId;
+    emptyTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    masterTr.insertAdjacentElement('afterend', emptyTr);
+    toggleEl.innerHTML = '&#9660;';
+    return;
+  }
+
+  const d = v => v
+    ? `<span style="color:var(--text)">${esc(String(v))}</span>`
+    : '<span style="color:var(--text-muted)">—</span>';
+
+  [...data.rows].reverse().forEach(r => {
+    const tr = document.createElement('tr');
+    tr.classList.add('agri-detail-rows');
+    tr.dataset.pamId = pamId;
+    tr.innerHTML =
+      `<td class="s0" style="padding:4px 2px;text-align:center;vertical-align:middle">` +
+        `<input type="checkbox" data-pb-id="${r.id}" style="cursor:pointer"` +
+        ` onchange="agriToggleCheckbox(${pamId}, ${r.id}, this.checked)">` +
+      `</td>` +
+      `<td class="s1" style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td class="s2" style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td class="s3" style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td class="s4" style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td colspan="11" style="padding:4px 8px;vertical-align:middle"></td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pengajuan)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_receive)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pa)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_final)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_1_LL)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_2_HT)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_3_YK)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_4_AK)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_5_PD)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_6_C2)}</td>` +
+      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_7_MSIG)}</td>` +
+      `<td></td>`;
+    masterTr.insertAdjacentElement('afterend', tr);
+    // A normal (not "select all children") partial selection made in a
+    // previous search carries over — restore this row's checked state.
+    if (_pamBeasiswaSelected[pamId] && _pamBeasiswaSelected[pamId].has(r.id)) {
+      const cb = tr.querySelector('input[type=checkbox]');
+      if (cb) cb.checked = true;
+    }
+  });
+
+  toggleEl.innerHTML = '&#9660;';
+  if (_pamPendingSelectAll[pamId]) {
+    delete _pamPendingSelectAll[pamId];
+    if (!_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId] = new Set();
+    document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`)
+      .forEach(cb => {
+        cb.checked = true;
+        const pbId = parseInt(cb.dataset.pbId);
+        _pamBeasiswaSelected[pamId].add(pbId);
+        const row = data.rows.find(x => x.id === pbId);
+        _pamBeasiswaSelectionMeta.set(pbId, { pamId, nama: row ? (row.nama || row.siswa_code || String(pbId)) : String(pbId) });
+      });
+    agriUpdateBulkBar();
+    _syncPamCheckbox(pamId);
+  }
+}
+
+function agriToggleCheckbox(pamId, pbId, checked) {
+  if (!_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId] = new Set();
+  if (checked) {
+    _pamBeasiswaSelected[pamId].add(pbId);
+    const cached = _pamBeasiswaCache[pamId];
+    const row = Array.isArray(cached) ? cached.find(r => r.id === pbId) : null;
+    _pamBeasiswaSelectionMeta.set(pbId, { pamId, nama: row ? (row.nama || row.siswa_code || String(pbId)) : String(pbId) });
+  } else {
+    _pamBeasiswaSelected[pamId].delete(pbId);
+    _pamBeasiswaSelectionMeta.delete(pbId);
+  }
+  agriUpdateBulkBar();
+  _syncPamCheckbox(pamId);
+}
+
+const _AGRI_SLA_OPTIONS = [
+  { value: 'SLA_Date_2_HT',   label: 'SLA HT' },
+  { value: 'SLA_Date_3_YK',   label: 'SLA A2' },
+  { value: 'SLA_Date_6_C2',   label: 'SLA LL' },
+];
+// td index (0-based) per SLA field di sub-row
+const _AGRI_SLA_COL = {
+  SLA_Date_1_LL: 10, SLA_Date_2_HT: 11, SLA_Date_3_YK: 12,
+  SLA_Date_4_AK: 13, SLA_Date_5_PD: 14, SLA_Date_6_C2: 15,
+  SLA_Date_7_MSIG: 16,
+};
+// td index (0-based) per field di master row (untuk update dot badge)
+const _AGRI_MASTER_DOT_COL = {
+  tgl_pengajuan: 16, tgl_receive: 17, tgl_pa: 18, tgl_final: 19,
+  SLA_Date_1_LL: 20, SLA_Date_2_HT: 21, SLA_Date_3_YK: 22,
+  SLA_Date_4_AK: 23, SLA_Date_5_PD: 24, SLA_Date_6_C2: 25,
+  SLA_Date_7_MSIG: 26,
+};
+
+function _agriUpdateMasterDot(pamId, field) {
+  const cached = _pamBeasiswaCache[pamId];
+  if (!Array.isArray(cached) || !cached.length) return;
+  const total    = cached.length;
+  const count    = cached.filter(r => r[field]).length;
+  const masterTr = document.querySelector(`#pam-tbody tr[data-pam-id="${pamId}"]:not(.agri-detail-rows)`);
+  if (!masterTr) return;
+  const dotCol = _AGRI_MASTER_DOT_COL[field];
+  if (dotCol === undefined) return;
+  const tds = masterTr.querySelectorAll('td');
+  if (tds[dotCol]) tds[dotCol].innerHTML = _slaDot(count, total);
+}
+
+function _agriAllChipsHtml() {
+  let html = '';
+  for (const [pbId, meta] of _pamBeasiswaSelectionMeta.entries()) {
+    html += `<span style="background:#f59e0b;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;` +
+            `display:inline-flex;align-items:center;gap:3px;white-space:nowrap">` +
+            `${esc(meta.nama)}<span onclick="agriRemovePaChip(${meta.pamId},${pbId})" ` +
+            `style="cursor:pointer;margin-left:3px;opacity:.85;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+  }
+  return html;
+}
+
+function _agriTotalSelected() {
+  let n = 0;
+  for (const sel of Object.values(_pamBeasiswaSelected)) { if (sel) n += sel.size; }
+  return n;
+}
+
+function agriUpdateBulkBar() {
+  const bar = document.getElementById('agri-bulk-bar');
+  if (!bar) return;
+  const n = _agriTotalSelected();
+  if (n === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('agri-bulk-count').textContent = `${n} siswa dipilih:`;
+  document.getElementById('agri-chips-row').innerHTML = _agriAllChipsHtml();
+}
+
+async function agriIsiTanggal() {
+  const field = document.getElementById('agri-bulk-field')?.value;
+  const date  = document.getElementById('agri-bulk-date')?.value;
+  if (!date) { showToast('Pilih tanggal terlebih dahulu.', 'error'); return; }
+  await _agriDoBulkUpdate(field, date);
+}
+
+async function agriHapusTanggal() {
+  const field = document.getElementById('agri-bulk-field')?.value;
+  await _agriDoBulkUpdate(field, null);
+}
+
+async function _agriDoBulkUpdate(field, date) {
+  const allIds = [];
+  for (const sel of Object.values(_pamBeasiswaSelected)) { if (sel) allIds.push(...sel); }
+  if (!allIds.length) return;
+  const res = await apiFetch('/payment-memo/days-of-pam/bulk-update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: allIds, dates: { [field]: date } }),
+  });
+  if (!res) { showToast('Gagal: network error.', 'error'); return; }
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (!data.ok) return;
+
+  const colIdx = _AGRI_SLA_COL[field];
+  for (const [pamIdStr, sel] of Object.entries(_pamBeasiswaSelected)) {
+    if (!sel || sel.size === 0) continue;
+    const pamId = parseInt(pamIdStr);
+    if (colIdx !== undefined) {
+      sel.forEach(pbId => {
+        const cb = document.querySelector(`.agri-detail-rows[data-pam-id="${pamId}"] input[data-pb-id="${pbId}"]`);
+        if (!cb) return;
+        const tds = cb.closest('tr')?.querySelectorAll('td');
+        if (tds && tds[colIdx]) tds[colIdx].innerHTML = date
+          ? `<span style="color:#1e293b">${date}</span>`
+          : `<span style="color:#94a3b8">—</span>`;
+      });
+    }
+    const cached = _pamBeasiswaCache[pamId];
+    if (Array.isArray(cached)) {
+      cached.forEach(r => { if (sel.has(r.id)) r[field] = date; });
+      _agriUpdateMasterDot(pamId, field);
+    }
+  }
+}
+
+function agriRemovePaChip(pamId, pbId) {
+  const cb = document.querySelector(`.agri-detail-rows[data-pam-id="${pamId}"] input[data-pb-id="${pbId}"]`);
+  if (cb) cb.checked = false;
+  agriToggleCheckbox(pamId, pbId, false);
+}
+
+function agriClearAll() {
+  for (const [pamIdStr, sel] of Object.entries(_pamBeasiswaSelected)) {
+    if (!sel || sel.size === 0) continue;
+    const pamId = parseInt(pamIdStr);
+    sel.clear();
+    document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`)
+      .forEach(cb => { cb.checked = false; });
+    _syncPamCheckbox(pamId);
+  }
+  _pamBeasiswaSelectionMeta.clear();
+  agriUpdateBulkBar();
+}
+
+function agriTogglePamSelect(pamId, checked) {
+  const subCbs = document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`);
+  if (subCbs.length > 0) {
+    if (!_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId] = new Set();
+    subCbs.forEach(cb => {
+      cb.checked = checked;
+      const pbId = parseInt(cb.dataset.pbId);
+      if (checked) _pamBeasiswaSelected[pamId].add(pbId);
+      else _pamBeasiswaSelected[pamId].delete(pbId);
+    });
+    agriUpdateBulkBar();
+  } else if (checked) {
+    _pamPendingSelectAll[pamId] = true;
+  } else {
+    delete _pamPendingSelectAll[pamId];
+    if (_pamBeasiswaSelected[pamId]) _pamBeasiswaSelected[pamId].clear();
+    agriUpdateBulkBar();
+  }
+}
+
+function _syncPamCheckbox(pamId) {
+  const pamCb = document.getElementById(`pam-cb-${pamId}`);
+  if (!pamCb) return;
+  const subCbs = [...document.querySelectorAll(`.agri-detail-rows[data-pam-id="${pamId}"] input[type=checkbox]`)];
+  const n = subCbs.length, checked = subCbs.filter(cb => cb.checked).length;
+  pamCb.indeterminate = checked > 0 && checked < n;
+  pamCb.checked = n > 0 && checked === n;
+}
+
+async function updatePAMStatus(pamId, newStatus) {
+  const label = { approved: 'Approve', draft: 'Revert ke Draft', paid: 'Mark Paid' }[newStatus] || newStatus;
+  if (!await confirmModal(`${label} PAM ini?`, { confirmText: label })) return;
+  const res  = await apiFetch(`/payment-memo/pam/${pamId}/status`, {
+    method: 'POST', body: JSON.stringify({ status: newStatus })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadPAM();
+}
+
+async function openEditPAM(pamId) {
+  const res = await apiFetch(`/payment-memo/pam/${pamId}/detail`);
+  if (!res) return;
+  const data = await res.json();
+  if (!data.ok) { showToast('Gagal memuat detail PAM.', 'error'); return; }
+  const r = data.data;
+  document.getElementById('edit-pam-id').value            = r.id;
+  document.getElementById('edit-pam-title').textContent   = 'Edit PAM — ' + r.pam_no;
+  document.getElementById('edit-pam-no').value            = r.pam_no || '';
+  document.getElementById('edit-pam-keterangan').value    = r.keterangan || '';
+  document.getElementById('edit-pam-requestor').value     = r.requestors_name || '';
+  document.getElementById('edit-pam-date').value          = r.pam_date || '';
+  document.getElementById('edit-pam-due').value           = r.due_date || '';
+  document.getElementById('edit-pam-tanggal-bayar').value = r.tanggal_bayar || '';
+  document.getElementById('edit-pam-dpp').value = r.dpp ? parseInt(r.dpp, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-pam-ppn').value = r.ppn ? parseInt(r.ppn, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-pam-others').value = r.others ? parseInt(r.others, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-pam-amount').value = r.total_amount ? parseInt(r.total_amount, 10).toLocaleString('en-US') : '';
+  document.getElementById('edit-pam-pt-search').value     = r.pt || '';
+  document.getElementById('edit-pam-pt').value             = r.pt || '';
+  document.getElementById('edit-pam-cost-center').value    = r.cost_center || '';
+  document.getElementById('edit-pam-cc-display').textContent = 'Cost Center: ' + (r.cost_center || '—');
+  const app = r.payment_application || {};
+  document.getElementById('edit-pam-app-notes').value     = app.notes || '';
+  openModal('modal-edit-pam');
+}
+
+function editPamCalcTotal() {
+  const dpp = parseFloat(document.getElementById('edit-pam-dpp').value.replace(/,/g, '')) || 0;
+  const ppn = parseFloat(document.getElementById('edit-pam-ppn').value.replace(/,/g, '')) || 0;
+  const others = parseFloat(document.getElementById('edit-pam-others').value.replace(/,/g, '')) || 0;
+  const total = dpp + ppn + others;
+  document.getElementById('edit-pam-amount').value = total ? total.toLocaleString('en-US') : '0';
+}
+
+async function submitEditPAM() {
+  if (!await confirmModal("Simpan perubahan data PAM ini?")) return;
+  const pamId   = parseInt(document.getElementById('edit-pam-id').value);
+  const payload = {
+    pam: {
+      pam_no:          document.getElementById('edit-pam-no').value.trim() || null,
+      keterangan:      document.getElementById('edit-pam-keterangan').value.trim(),
+      requestors_name: document.getElementById('edit-pam-requestor').value.trim(),
+      pam_date:        document.getElementById('edit-pam-date').value,
+      due_date:        document.getElementById('edit-pam-due').value,
+      dpp: parseFloat(document.getElementById('edit-pam-dpp').value.replace(/,/g, '')) || 0,
+      ppn: parseFloat(document.getElementById('edit-pam-ppn').value.replace(/,/g, '')) || 0,
+      others: parseFloat(document.getElementById('edit-pam-others').value.replace(/,/g, '')) || 0,
+      total_amount: parseFloat(document.getElementById('edit-pam-amount').value.replace(/,/g, '')) || 0,
+      tanggal_bayar:   document.getElementById('edit-pam-tanggal-bayar').value || null,
+      pt:              document.getElementById('edit-pam-pt').value.trim() || null,
+      cost_center:     document.getElementById('edit-pam-cost-center').value.trim() || null,
+    },
+    app: {
+      notes: document.getElementById('edit-pam-app-notes').value.trim() || null,
+    },
+  };
+  const res  = await apiFetch(`/payment-memo/pam/${pamId}/edit`, {
+    method: 'POST', body: JSON.stringify(payload)
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) { closeModal('modal-edit-pam'); loadPAM(); }
+}
+
+// ── Cat2 searchable dropdown ──────────────────────────────────────────────────
+function draftCat2Toggle() {
+  const panel = document.getElementById('edit-draft-cat2-panel');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  if (open) { draftCat2Filter(); document.getElementById('edit-draft-cat2-search').focus(); }
+}
+
+function draftCat2Filter() {
+  const q    = (document.getElementById('edit-draft-cat2-search').value || '').toLowerCase();
+  const opts = CAT2.filter(c => c.toLowerCase().includes(q));
+  document.getElementById('edit-draft-cat2-opts').innerHTML = opts.length
+    ? opts.map(c => `<div onclick="draftCat2Select('${c.replace(/'/g,"\\'")}' )"
+        style="padding:6px 10px;font-size:.8125rem;cursor:pointer;"
+        onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background=''">${esc(c)}</div>`).join('')
+    : '<div style="padding:8px 10px;font-size:.8rem;color:#9ca3af">Tidak ditemukan</div>';
+}
+
+function draftCat2Select(val) {
+  document.getElementById('edit-draft-cat2').value       = val;
+  document.getElementById('edit-draft-cat2-text').textContent  = val;
+  document.getElementById('edit-draft-cat2-text').style.color  = '#111827';
+  document.getElementById('edit-draft-cat2-panel').style.display = 'none';
+  document.getElementById('edit-draft-cat2-search').value = '';
+}
+
+function draftCat2Set(val) {
+  document.getElementById('edit-draft-cat2').value = val;
+  const el = document.getElementById('edit-draft-cat2-text');
+  el.textContent = val || 'Pilih kategori...';
+  el.style.color = val ? '#111827' : '#9ca3af';
+}
+
+// ── Draft Payment edit / delete ───────────────────────────────────────────────
+async function openEditDraft(paymentId) {
+  const res = await apiFetch(`/payment-memo/drafts/${paymentId}`);
+  if (!res) return;
+  const data = await res.json();
+  if (!data.ok) { showToast('Gagal memuat detail payment.', 'error'); return; }
+  const d = data.data;
+  document.getElementById('edit-draft-id').value           = d.id;
+  document.getElementById('edit-draft-title').textContent  = 'Edit Draft — ' + d.siswa_code;
+  // Read-only info
+  document.getElementById('edit-draft-ro-code').textContent  = d.siswa_code || '--';
+  document.getElementById('edit-draft-ro-nama').textContent  = d.nama || '--';
+  document.getElementById('edit-draft-ro-tgl').textContent   = d.tanggal || '--';
+  document.getElementById('edit-draft-ro-peru').textContent  = d.perusahaan || '--';
+  document.getElementById('edit-draft-ro-pam').textContent   = d.pam || '--';
+  document.getElementById('edit-draft-ro-status').textContent = d.status || '--';
+  // cat1 select
+  const cat1Sel = document.getElementById('edit-draft-cat1');
+  cat1Sel.innerHTML = CAT1.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  cat1Sel.value = d.cat1 || CAT1[0];
+  // cat2 dropdown
+  draftCat2Set(d.cat2 || '');
+  // amount
+  document.getElementById('edit-draft-amount').value = d.amount ? parseInt(d.amount, 10).toLocaleString('en-US') : '';
+  openModal('modal-edit-draft');
+}
+
+async function submitEditDraft() {
+  const paymentId = parseInt(document.getElementById('edit-draft-id').value);
+  const cat2val   = document.getElementById('edit-draft-cat2').value.trim();
+  if (!cat2val) { showToast('Kategori 2 wajib dipilih.', 'error'); return; }
+  if (!await confirmModal("Simpan perubahan draft payment ini?")) return;
+  const payload = {
+    payment: {
+      cat1:   document.getElementById('edit-draft-cat1').value,
+      cat2:   cat2val,
+      amount: parseFloat(document.getElementById('edit-draft-amount').value.replace(/,/g, '')) || 0,
+    },
+    pam: {}, app: {},
+  };
+  const res  = await apiFetch(`/payment-memo/drafts/${paymentId}/edit`, {
+    method: 'POST', body: JSON.stringify(payload)
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) { closeModal('modal-edit-draft'); setTimeout(() => location.reload(), 800); }
+}
+
+async function deleteDraft(paymentId) {
+  if (!await confirmModal('Hapus payment ini? Data tidak dapat dikembalikan.', { type: 'danger', confirmText: 'Hapus' })) return;
+  const res  = await apiFetch(`/payment-memo/drafts/${paymentId}/delete`, { method: 'POST' });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) setTimeout(() => location.reload(), 800);
+}
+
+// ── PAM cancel ────────────────────────────────────────────────────────────────
+async function cancelPAM(pamId) {
+  if (!await confirmModal('Cancel PAM ini? Semua data PAM dan payment terkait akan dihapus permanen.', { type: 'danger', title: 'Konfirmasi Cancel PAM', confirmText: 'Cancel PAM' })) return;
+  const res  = await apiFetch(`/payment-memo/pam/${pamId}/cancel`, { method: 'POST' });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) loadPAM();
+}
+
+// ── Remove student from Open PAM ──────────────────────────────────────────────
+async function removeStudentFromPAM(paymentBeasiswaId, namaLabel) {
+  const label = namaLabel || 'siswa ini';
+  if (!await confirmModal(
+    'Hapus ' + label + ' dari PAM ini?\nData siswa ini akan dikeluarkan dan PA-nya dikembalikan ke Open.',
+    { type: 'danger', confirmText: 'Hapus Siswa' }
+  )) return;
+  const res = await apiFetch('/payment-memo/pam/remove-student', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payment_beasiswa_id: paymentBeasiswaId })
+  });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    if (typeof loadOpenPAM === 'function') {
+      loadOpenPAM();
+    } else {
+      setTimeout(() => location.reload(), 800);
+    }
+  }
+}
+
+// ── Reject student from Open PAM ──────────────────────────────────────────────
+async function rejectStudentFromPAM(paymentBeasiswaId, namaLabel) {
+  const label = namaLabel || 'siswa ini';
+  if (!await confirmModal(
+    'Reject ' + label + ' dari PAM ini?\nData akan disimpan dengan status Rejected (tidak dihapus), dan PA terkait tidak bisa dipakai lagi.',
+    { type: 'danger', confirmText: 'Reject' }
+  )) return;
+  const reason = prompt('Alasan reject (opsional):');
+  if (reason === null) return;
+  showLoading("Merejek dari PAM...");
+  try {
+    const res = await apiFetch('/payment-memo/pam/reject-student', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payment_beasiswa_id: paymentBeasiswaId, reason: reason || null })
+    });
+    if (!res) return;
+    const data = await res.json();
+    showToast(data.pesan, data.ok ? 'success' : 'error');
+    if (data.ok) {
+      setTimeout(() => location.reload(), 800);
+    }
+  } finally {
+    hideLoading();
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+function openEditLineModal(lineId, pamId, nama, amount) {
+  document.getElementById('edit-line-id').value = lineId;
+  document.getElementById('edit-line-pam-id').value = pamId;
+  document.getElementById('edit-line-siswa-name').value = nama;
+  document.getElementById('edit-line-amount').value = amount ? parseInt(amount, 10).toLocaleString('en-US') : '0';
+  openModal('modal-edit-beasiswa-line');
+}
+
+async function submitEditBeasiswaLine() {
+  const lineId = parseInt(document.getElementById('edit-line-id').value);
+  const pamId = parseInt(document.getElementById('edit-line-pam-id').value);
+  const amount = parseFloat(document.getElementById('edit-line-amount').value.replace(/,/g, '')) || 0;
+  const res = await apiFetch('/payment-memo/beasiswa-line/' + lineId + '/amount', { method: 'POST', body: JSON.stringify({ amount }) });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    closeModal('modal-edit-beasiswa-line');
+    if (typeof _setfBeasiswaCache !== 'undefined') _setfBeasiswaCache[pamId] = null;
+    if (typeof _smlBeasiswaCache !== 'undefined') _smlBeasiswaCache[pamId] = null;
+    if (typeof _energyBeasiswaCache !== 'undefined') _energyBeasiswaCache[pamId] = null;
+    if (typeof _smtBeasiswaCache !== 'undefined') _smtBeasiswaCache[pamId] = null;
+    if (typeof _fioriBeasiswaCache !== 'undefined') _fioriBeasiswaCache[pamId] = null;
+    if (typeof _agriBeasiswaCache !== 'undefined') _agriBeasiswaCache[pamId] = null;
+    if (typeof loadSETFDebounced === 'function') loadSETFDebounced();
+    if (typeof loadSMLDebounced === 'function') loadSMLDebounced();
+    if (typeof loadEnergyDebounced === 'function') loadEnergyDebounced();
+    if (typeof loadSMTDebounced === 'function') loadSMTDebounced();
+    if (typeof loadFioriDebounced === 'function') loadFioriDebounced();
+    if (typeof loadAGRIDebounced === 'function') loadAGRIDebounced();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const pamBtn = document.querySelector('[data-tab="tab-pam"]');
+  if (pamBtn) pamBtn.addEventListener('click', loadPAM);
+  // Close cat2 panel on outside click
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#edit-draft-cat2-display') && !e.target.closest('#edit-draft-cat2-panel')) {
+      const p = document.getElementById('edit-draft-cat2-panel');
+      if (p) p.style.display = 'none';
+    }
+  });
+});
+
+// ── Draft Memo Tab ────────────────────────────────────────────────────────
+let _dmPamId = null;
+let _dmSearchTimer = null;
+let _dmPayments = [];
+let _dmTransactionLines = [];
+let _dmLampiranOpen = false;
+
+function collectDmFields() {
+  const g = id => document.getElementById(id);
+  return {
+    pam_no:            g('dm-f-pam-no').value.trim(),
+    pam_date:          g('dm-f-date').value,
+    requestors_name:   g('dm-f-requestor').value.trim(),
+    department:        g('dm-f-dept').value.trim(),
+    cost_center:       g('dm-f-cc').value.trim(),
+    gl_account:        g('dm-f-gl').value.trim(),
+    so_sc:             g('dm-f-sosc').value.trim(),
+    pt:                g('dm-f-company').value.trim(),
+    bu_upstream:       g('dm-f-bu-upstream').checked,
+    bu_downstream:     g('dm-f-bu-downstream').checked,
+    bu_corporate:      g('dm-f-bu-corporate').checked,
+    type_downpayment:  g('dm-f-type-dp').checked,
+    type_invoice:      g('dm-f-type-inv').checked,
+    type_advance:      g('dm-f-type-adv').checked,
+    vendor_name:       g('dm-f-vendor').value.trim(),
+    invoice_memo_no:   g('dm-f-inv-no').value.trim(),
+    total_amount:      parseFloat(g('dm-f-amount').value) || 0,
+    due_date:          g('dm-f-due').value,
+    bank_account_name: g('dm-f-bank-name').value.trim(),
+    bank_name:         g('dm-f-bank').value.trim(),
+    bank_account_no:   g('dm-f-bank-no').value.trim(),
+    approved_by_1:     g('dm-f-ab1').value.trim(),
+    approved_by_2:     g('dm-f-ab2').value.trim(),
+  };
+}
+
+function dmSearchDebounced() {
+  clearTimeout(_dmSearchTimer);
+  _dmSearchTimer = setTimeout(dmSearch, 300);
+}
+
+async function dmSearch() {
+  const q = document.getElementById('dm-pam-search').value.trim();
+  const dd = document.getElementById('dm-pam-dropdown');
+  if (!q) { dd.style.display = 'none'; return; }
+  const resp = await apiFetch(`/payment-memo/pam?search=${encodeURIComponent(q)}`);
+  if (!resp) return;
+  const data = await resp.json();
+  if (!data.ok || !data.rows.length) { dd.style.display = 'none'; return; }
+  dd.innerHTML = data.rows.slice(0, 10).map(r =>
+    `<div onclick="dmSelectPAM(${r.id}, '${esc(r.pam_no)}')"
+          style="padding:7px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid #f1f5f9"
+          onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
+      <strong style="color:#1d4ed8">${esc(r.pam_no)}</strong>
+      <span style="color:var(--text-muted);margin-left:6px">${esc(r.pt)}</span>
+      <span style="float:right;color:var(--text);font-weight:600">Rp ${fmtRupiah(r.total_amount)}</span>
+    </div>`
+  ).join('');
+  dd.style.display = 'block';
+}
+
+async function dmSelectPAM(pamId, pamNo) {
+  document.getElementById('dm-pam-search').value = pamNo;
+  document.getElementById('dm-pam-dropdown').style.display = 'none';
+  _dmPamId = pamId;
+
+  const resp = await apiFetch(`/payment-memo/pam/${pamId}/detail`);
+  if (!resp) return;
+  const data = await resp.json();
+  if (!data.ok) { showToast('Gagal memuat PAM detail.', 'error'); return; }
+
+  const p = data.data;
+  _dmPayments = p.payments || [];
+  _dmTransactionLines = p.transaction_lines || [];
+  _dmLampiranOpen = false;
+
+  document.getElementById('dm-export-btns').style.display = 'flex';
+  document.getElementById('dm-form-preview').innerHTML = dmRenderForm(p);
+
+  const lampWrap = document.getElementById('dm-lampiran-wrap');
+  if (lampWrap) {
+    lampWrap.style.display = 'block';
+    document.getElementById('dm-lampiran-body').style.display = 'none';
+    document.getElementById('dm-lampiran-toggle').textContent = '▶ Rangkuman PAM';
+  }
+}
+
+function _dmTipeDokumenConsensus(p) {
+  const lines = p.transaction_lines || [];
+  const values = [...new Set(lines.map(l => l.tipe_dokumen).filter(Boolean))];
+  return values.length === 1 ? values[0] : null;
+}
+
+function dmRenderForm(p) {
+  const inp = (id, val, type, extra) => {
+    type  = type  || 'text';
+    extra = extra || '';
+    const v = (val === null || val === undefined) ? '' : val;
+    return `<input class="dm-inp" type="${type}" id="${id}" value="${esc(String(v))}" ${extra}>`;
+  };
+
+  const field = (lbl, inputHtml) =>
+    `<div style="display:flex;align-items:stretch;border-bottom:1px solid #f1f5f9">
+      <div style="background:#f8fafc;padding:5px 8px;font-weight:700;font-size:11px;color:#374151;min-width:140px;border-right:1px solid #e2e8f0;display:flex;align-items:center">${esc(lbl)}</div>
+      <div style="padding:4px 8px;font-size:11px;color:#1e293b;flex:1;display:flex;align-items:center">
+        <span style="color:#94a3b8;margin-right:4px">:</span>${inputHtml}
+      </div>
+    </div>`;
+
+  const sectionH = t =>
+    `<div style="background:#e2e8f0;padding:4px 8px;font-weight:700;font-size:10px;color:#374151;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #d1d5db">${t}</div>`;
+
+  const cbRow = (id, label, checked) =>
+    `<div style="padding:4px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;align-items:center">
+      <input type="checkbox" id="${id}" class="dm-cb" ${checked ? 'checked' : ''}>
+      <label for="${id}" style="cursor:pointer;margin-left:4px;color:#374151">${label}</label>
+    </div>`;
+
+  const dateVal = s => (s || '').slice(0, 10);
+
+  const vendorNames = [...new Set(
+    (_dmPayments.length ? _dmPayments.map(pb => pb.nama || pb.siswa_code) : 
+     (p.transaction_lines || []).map(l => l.vendor))
+    .map(v => (v || '').trim()).filter(Boolean)
+  )].join(', ') || 'Terlampir';
+
+  const invoiceNos = [...new Set(
+    (_dmPayments.length ? [] : 
+     (p.transaction_lines || []).map(l => l.no_invoice))
+    .map(v => (v || '').trim()).filter(Boolean)
+  )].join(', ') || '-';
+
+  const bankAccountNames = [...new Set(
+    (_dmPayments.length ? _dmPayments.map(pb => pb.namarek) : 
+     (p.transaction_lines || []).map(l => l.Bank_Account_Name))
+    .map(v => (v || '').trim()).filter(Boolean)
+  )].join(', ') || 'Terlampir';
+
+  const bankNames = [...new Set(
+    (_dmPayments.length ? _dmPayments.map(pb => pb.bank) : 
+     (p.transaction_lines || []).map(l => l.Bank_Name))
+    .map(v => (v || '').trim()).filter(Boolean)
+  )].join(', ') || 'Terlampir';
+
+  const bankAccountNos = [...new Set(
+    (_dmPayments.length ? _dmPayments.map(pb => pb.norek) : 
+     (p.transaction_lines || []).map(l => l.Bank_Account_Number))
+    .map(v => (v || '').trim()).filter(Boolean)
+  )].join(', ') || 'Terlampir';
+
+  return `
+  <div style="border:1px solid #94a3b8;border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;max-width:860px">
+    <div style="background:#1e3a5f;color:#fff;text-align:center;font-size:14px;font-weight:900;padding:10px;letter-spacing:2px;border-bottom:3px solid #f59e0b">PAYMENT APPROVAL MEMO</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e2e8f0">
+      <div style="border-right:1px solid #e2e8f0">
+        ${field('PAM No.', inp('dm-f-pam-no', p.pam_no))}
+        ${field('Date', inp('dm-f-date', dateVal(p.pam_date), 'date'))}
+        ${field("Requestor's Name", inp('dm-f-requestor', p.requestors_name))}
+        ${field('Department', inp('dm-f-dept', '-'))}
+      </div>
+      <div>
+        ${field('Cost Center', inp('dm-f-cc', p.cost_center))}
+        ${field('GL Account', inp('dm-f-gl', p.gl_account))}
+        ${field('SO / SC', inp('dm-f-sosc', ''))}
+        ${field('Company', inp('dm-f-company', p.pt))}
+      </div>
+    </div>
+    ${sectionH('Business Unit')}
+    <div style="padding:5px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;gap:20px;align-items:center">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151"><input type="checkbox" id="dm-f-bu-upstream"   class="dm-cb"> Upstream</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151"><input type="checkbox" id="dm-f-bu-downstream" class="dm-cb"> Downstream</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151"><input type="checkbox" id="dm-f-bu-corporate"  class="dm-cb" checked> Corporate</label>
+    </div>
+    ${sectionH('Type of Request')}
+    ${cbRow('dm-f-type-dp',  'Downpayment to vendor', _dmTipeDokumenConsensus(p) === 'Downpayment to vendor')}
+    ${cbRow('dm-f-type-inv', 'Invoice Payment – Non PO Invoice', _dmTipeDokumenConsensus(p) === 'Invoice Payment – Non PO Invoice')}
+    ${cbRow('dm-f-type-adv', 'Employee Advance / Reimbursement (Fund Transfer)', _dmTipeDokumenConsensus(p) === 'Employee Advance / Reimbursement (Fund Transfer)')}
+    ${sectionH('Invoice Information')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e2e8f0">
+      <div style="border-right:1px solid #e2e8f0">
+        ${field('Vendor Name', inp('dm-f-vendor', vendorNames))}
+        ${field('Invoice Amount', inp('dm-f-amount', p.total_amount || 0, 'number', 'step="1" min="0"'))}
+      </div>
+      <div>
+        ${field('Invoice / Memo No', inp('dm-f-inv-no', invoiceNos))}
+        ${field('Expected Due Date', inp('dm-f-due', dateVal(p.due_date), 'date'))}
+      </div>
+    </div>
+    ${sectionH('Vendor Bank Account Details')}
+    ${field('Bank Account Name',   inp('dm-f-bank-name', bankAccountNames))}
+    ${field('Bank Name',           inp('dm-f-bank',      bankNames))}
+    ${field('Bank Account Number', inp('dm-f-bank-no',   bankAccountNos))}
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #e2e8f0">
+      <div style="padding:8px 10px;border-right:1px solid #e2e8f0">
+        <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Request by</div>
+        <span style="font-size:11px;color:#1e293b;border-bottom:1px dashed #94a3b8;display:block;padding:2px 0;min-height:18px">&nbsp;</span>
+      </div>
+      <div style="padding:8px 10px">
+        <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Approved by</div>
+        <div style="display:flex;gap:8px">
+          ${inp('dm-f-ab1', PAM_APPROVED_BY_1)}
+          ${inp('dm-f-ab2', PAM_APPROVED_BY_2)}
+        </div>
+      </div>
+    </div>
+    <div style="padding:6px 10px;font-weight:700;font-size:10px;color:#374151;background:#f8fafc;border-top:1px solid #e2e8f0">Checked by (QA)</div>
+    <div style="height:36px;border-top:1px solid #e2e8f0"></div>
+  </div>`;
+}
+
+async function dmExportPDF() {
+  if (!_dmPamId) { showToast('Pilih PAM No terlebih dahulu.', 'error'); return; }
+  const payload = collectDmFields();
+  const resp = await apiFetch(`/payment-memo/pam/${_dmPamId}/export/pdf-custom`, {
+    method: 'POST', body: JSON.stringify(payload),
+  });
+  if (!resp) return;
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    showToast(err.pesan || 'Export gagal.', 'error');
+    return;
+  }
+  const blob = await resp.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${payload.pam_no || 'PAM'}.pdf`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function dmExportExcel() {
+  if (!_dmPamId) { showToast('Pilih PAM No terlebih dahulu.', 'error'); return; }
+  const payload = collectDmFields();
+  const resp = await apiFetch(`/payment-memo/pam/${_dmPamId}/export/excel-custom`, {
+    method: 'POST', body: JSON.stringify(payload),
+  });
+  if (!resp) return;
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    showToast(err.pesan || 'Export gagal.', 'error');
+    return;
+  }
+  const blob = await resp.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${payload.pam_no || 'PAM'}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function toggleLampiran() {
+  _dmLampiranOpen = !_dmLampiranOpen;
+  const body   = document.getElementById('dm-lampiran-body');
+  const toggle = document.getElementById('dm-lampiran-toggle');
+  if (_dmLampiranOpen) {
+    body.innerHTML = dmRenderLampiran(_dmPayments, _dmTransactionLines);
+    body.style.display = 'block';
+    toggle.textContent = toggle.textContent.replace('▶', '▼');
+  } else {
+    body.style.display = 'none';
+    toggle.textContent = toggle.textContent.replace('▼', '▶');
+  }
+}
+
+function dmRenderLampiran(payments, lines) {
+  if ((!payments || !payments.length) && (!lines || !lines.length))
+    return '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">Tidak ada data pembayaran dalam PAM ini.</div>';
+
+  if (!payments || !payments.length) {
+    // SMT Logic
+    const groupMap = {};
+    const order = [];
+    lines.forEach(l => {
+      const v = l.vendor || '';
+      const b = l.Bank_Name || '';
+      const nr = l.Bank_Account_Number || '';
+      const gl = l.gl_account || '';
+      const k = `${v}|${b}|${nr}|${gl}`;
+      if (!groupMap[k]) {
+        groupMap[k] = { v, b, nr, gl, lines: [], tot: 0 };
+        order.push(k);
+      }
+      groupMap[k].lines.push(l);
+      groupMap[k].tot += parseFloat(l.total_amount || 0);
+    });
+
+    const hdrs = ['NO', 'Nama Karyawan', 'Invoice #', 'Bank', 'No. Rekening', 'GL Account', 'Invoice Amount'];
+    const thRow = hdrs.map((h, i) =>
+      `<th style="padding:7px 8px;background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;text-align:${i===6?'right':'left'};white-space:nowrap">${h}</th>`
+    ).join('');
+
+    let total = 0;
+    let rowsHtml = '';
+    order.forEach((k, idx) => {
+      const grp = groupMap[k];
+      const rowspan = grp.lines.length;
+      total += grp.tot;
+      const bg = idx % 2 === 0 ? '#fff' : '#f8fafc';
+      grp.lines.forEach((l, j) => {
+        const amt = parseFloat(l.total_amount || 0);
+        rowsHtml += `<tr style="background:${bg}">`;
+        if (j === 0) {
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;text-align:center;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${idx+1}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.v)}</td>`;
+          rowsHtml += `<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(l.no_invoice)}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.b)}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0;font-family:monospace">${esc(grp.nr)}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.gl)}</td>`;
+          rowsHtml += `<td style="padding:6px 8px;font-size:11px;text-align:right;border-bottom:1px solid #e2e8f0">${fmtRupiah(amt)}</td>`;
+        } else {
+          rowsHtml += `<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(l.no_invoice)}</td>`;
+          rowsHtml += `<td style="padding:6px 8px;font-size:11px;text-align:right;border-bottom:1px solid #e2e8f0">${fmtRupiah(amt)}</td>`;
+        }
+        rowsHtml += `</tr>`;
+      });
+    });
+
+    return `<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0">
+      <thead><tr>${thRow}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot>
+        <tr style="background:#e8f0fe;font-weight:700">
+          <td colspan="6" style="padding:6px 8px;font-size:11px;text-align:right">TOTAL</td>
+          <td style="padding:6px 8px;font-size:11px;text-align:right">${fmtRupiah(total)}</td>
+        </tr>
+      </tfoot>
+    </table>`;
+  }
+
+  // Original Logic for Beasiswa
+  const groupMap = {};
+  const order = [];
+  payments.forEach(pb => {
+    const key = pb.siswa_code || pb.nama || '';
+    if (!groupMap[key]) {
+      groupMap[key] = { nama: pb.namarek || pb.nama || pb.siswa_code || '', bank: pb.bank || '', norek: pb.norek || '', amount: 0 };
+      order.push(key);
+    }
+    groupMap[key].amount += parseFloat(pb.amount || 0);
+  });
+  const grouped = order.map(k => groupMap[k]);
+
+  const hdrs = ['No','Nama Siswa','Bank','No. Rekening','Amount (Rp)'];
+  const thRow = hdrs.map((h, i) =>
+    `<th style="padding:7px 8px;background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;text-align:${i===4?'right':'left'};white-space:nowrap">${h}</th>`
+  ).join('');
+
+  let total = 0;
+  const rows = grouped.map((pb, i) => {
+    const amt = pb.amount;
+    total += amt;
+    const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+    return `<tr style="background:${bg}">
+      <td style="padding:6px 8px;text-align:center;font-size:11px">${i+1}</td>
+      <td style="padding:6px 8px;font-size:11px">${esc(pb.nama)}</td>
+      <td style="padding:6px 8px;font-size:11px">${esc(pb.bank)}</td>
+      <td style="padding:6px 8px;font-size:11px;font-family:monospace">${esc(pb.norek)}</td>
+      <td style="padding:6px 8px;font-size:11px;text-align:right">${fmtRupiah(amt)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<table style="width:100%;border-collapse:collapse">
+    <thead><tr>${thRow}</tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr style="background:#e8f0fe;font-weight:700">
+        <td colspan="4" style="padding:6px 8px;font-size:11px;text-align:right">TOTAL</td>
+        <td style="padding:6px 8px;font-size:11px;text-align:right">${fmtRupiah(total)}</td>
+      </tr>
+    </tfoot>
+  </table>`;
+}
+
+
+document.addEventListener('click', e => {
+  const dd = document.getElementById('dm-pam-dropdown');
+  if (dd && !e.target.closest('#dm-pam-search') && !e.target.closest('#dm-pam-dropdown')) {
+    dd.style.display = 'none';
+  }
+});
+
+// ── Vendor search helpers (shared by Input Payment & Klaim) ───────────────────
+function _vendorSuggRender(hits, suggEl, onSelect) {
+  suggEl.innerHTML = "";
+  hits.forEach(v => {
+    const d = document.createElement("div");
+    d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
+    const cc = v.cost_center ? `<span style="font-size:.68rem;color:#9ca3af;margin-left:4px">${v.cost_center}</span>` : "";
+    d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">
+      <span style="flex:1">${v.name}${cc}</span>
+      <span style="font-size:.72rem;color:#6b7280;background:#f3f4f6;padding:1px 7px;border-radius:99px;white-space:nowrap">${v.pillar}</span>
+    </div>`;
+    d.addEventListener("mousedown", () => onSelect(v));
+    d.addEventListener("mouseover", () => { d.style.background = "#eff6ff"; });
+    d.addEventListener("mouseout",  () => { d.style.background = ""; });
+    suggEl.appendChild(d);
+  });
+}
+
+function _vendorPos(inputEl, suggEl) {
+  const r = inputEl.getBoundingClientRect();
+  suggEl.style.top   = (r.bottom + 2) + "px";
+  suggEl.style.left  = r.left + "px";
+  suggEl.style.width = r.width + "px";
+}
+
+function ipayPerusahaanSearch() {
+  const inp  = document.getElementById("ipay-perusahaan-search");
+  const sugg = document.getElementById("ipay-perusahaan-sugg");
+  const q    = inp.value.toLowerCase().trim();
+  if (!q) {
+    sugg.style.display="none";
+    document.getElementById("ipay-perusahaan").value="";
+    if (COMPANY_CODE !== "SMT") document.getElementById("ipay-pillar").value="";
+    return;
+  }
+  
+  const hits = VENDOR_LIST.filter(v => v.name.toLowerCase().includes(q)).slice(0,15);
+  if (!hits.length) { sugg.style.display="none"; return; }
+  
+  _vendorSuggRender(hits, sugg, v => {
+    document.getElementById("ipay-perusahaan-search").value = v.name;
+    document.getElementById("ipay-perusahaan").value = v.name;
+    document.getElementById("ipay-cc").value = v.cost_center || "";
+    // SMT/Advance and Beasiswa: pillar stays whatever Tipe PAM set it to —
+    // no vendor is reliably tagged with the right pillar (in particular,
+    // zero vendors are ever tagged pillar=LAND), so letting a vendor pick
+    // silently overwrite it here breaks Beasiswa PAMs saved as LAND.
+    const _ipayTx = document.getElementById("ipay-tx")?.value;
+    if (COMPANY_CODE !== "SMT" && _ipayTx !== "beasiswa") document.getElementById("ipay-pillar").value = v.pillar;
+    sugg.style.display = "none";
+  });
+  _vendorPos(inp, sugg); sugg.style.display = "block";
+}
+
+function editPamPtSearch() {
+  const inp  = document.getElementById("edit-pam-pt-search");
+  const sugg = document.getElementById("edit-pam-pt-sugg");
+  const q    = inp.value.toLowerCase().trim();
+  if (!q) { sugg.style.display = "none"; return; }
+  const hits = VENDOR_LIST.filter(v => v.name.toLowerCase().includes(q)).slice(0, 15);
+  if (!hits.length) { sugg.style.display = "none"; return; }
+  _vendorSuggRender(hits, sugg, v => {
+    document.getElementById("edit-pam-pt-search").value = v.name;
+    document.getElementById("edit-pam-pt").value = v.name;
+    document.getElementById("edit-pam-cost-center").value = v.cost_center || "";
+    document.getElementById("edit-pam-cc-display").textContent = "Cost Center: " + (v.cost_center || "—");
+    sugg.style.display = "none";
+  });
+  _vendorPos(inp, sugg); sugg.style.display = "block";
+}
+
+function iklaimVendorSearch() {
+  const inp  = document.getElementById("iklaim-perusahaan-search");
+  const sugg = document.getElementById("iklaim-vendor-sugg");
+  const q    = inp.value.toLowerCase().trim();
+  if (!q) { sugg.style.display="none"; document.getElementById("iklaim-perusahaan").value=""; document.getElementById("iklaim-pillar").value=""; return; }
+  const hits = VENDOR_LIST.filter(v => v.name.toLowerCase().includes(q)).slice(0,15);
+  if (!hits.length) { sugg.style.display="none"; return; }
+  _vendorSuggRender(hits, sugg, v => {
+    document.getElementById("iklaim-perusahaan-search").value = v.name;
+    document.getElementById("iklaim-perusahaan").value = v.name;
+    document.getElementById("iklaim-pillar").value = v.pillar;
+    sugg.style.display = "none";
+  });
+  _vendorPos(inp, sugg); sugg.style.display = "block";
+}
+
+// ── Cat2 dropdown helper ──────────────────────────────────────────────────────
+function _mkDrop(opts, ph) {
+  const w   = document.createElement("div"); w.style.position = "relative";
+  const hid = document.createElement("input"); hid.type = "hidden";
+  const dsp = document.createElement("div");
+  dsp.style.cssText = "border:1px solid #d1d5db;border-radius:.375rem;padding:.45rem .75rem;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:38px";
+  const lbl = document.createElement("span");
+  lbl.textContent = ph; lbl.style.cssText = "color:#9ca3af;font-size:.875rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+  const arr = document.createElement("span");
+  arr.textContent = "▾"; arr.style.cssText = "color:#6b7280;font-size:.7rem;flex-shrink:0;margin-left:4px";
+  dsp.appendChild(lbl); dsp.appendChild(arr);
+  const pan = document.createElement("div");
+  pan.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12)";
+  const sw = document.createElement("div"); sw.style.padding = "6px";
+  const si = document.createElement("input"); si.type = "text"; si.placeholder = "Cari...";
+  si.style.cssText = "width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:.25rem;padding:.3rem .6rem;font-size:.875rem";
+  sw.appendChild(si);
+  const lst = document.createElement("div"); lst.style.cssText = "max-height:200px;overflow-y:auto";
+  pan.appendChild(sw); pan.appendChild(lst);
+  document.body.appendChild(pan);
+  function _posPan() {
+    const r = dsp.getBoundingClientRect();
+    pan.style.top = (r.bottom + 2) + "px"; pan.style.left = r.left + "px"; pan.style.width = r.width + "px";
+  }
+  function render(q) {
+    lst.innerHTML = "";
+    opts.filter(c => c.toLowerCase().includes(q.toLowerCase())).forEach(c => {
+      const d = document.createElement("div");
+      d.textContent = c;
+      d.style.cssText = "padding:7px 10px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f8fafc";
+      d.addEventListener("mousedown", () => {
+        hid.value = c; lbl.textContent = c; lbl.style.color = "#111827"; pan.style.display = "none";
+        hid.dispatchEvent(new Event("change"));
+      });
+      d.addEventListener("mouseover", () => { d.style.background = "#eff6ff"; });
+      d.addEventListener("mouseout",  () => { d.style.background = ""; });
+      lst.appendChild(d);
+    });
+  }
+  dsp.addEventListener("click", () => {
+    if (pan.style.display === "none") { render(""); _posPan(); pan.style.display = "block"; si.focus(); } else pan.style.display = "none";
+  });
+  si.addEventListener("input", () => render(si.value));
+  document.addEventListener("mousedown", e => { if (!w.contains(e.target) && !pan.contains(e.target)) pan.style.display = "none"; }, true);
+  w._hid = hid; w._pan = pan;
+  w.appendChild(hid); w.appendChild(dsp);
+  w.setOpts = function(newOpts, autoSelect) {
+    opts = newOpts;
+    hid.value = autoSelect || "";
+    lbl.textContent = autoSelect || ph;
+    lbl.style.color = autoSelect ? "#111827" : "#9ca3af";
+    pan.style.display = "none";
+    if (autoSelect) hid.dispatchEvent(new Event("change"));
+  };
+  return w;
+}
+
+function _ipayResetAutoFill(tr) {
+  tr._hidEtfLineId.value = "";
+  tr._amtInp.value = ""; tr._amtInp.readOnly = false;
+  tr._tgls.forEach(i => { i.value = ""; i.readOnly = false; });
+}
+
+function _ipayFillLine(tr, line) {
+  tr._hidEtfLineId.value = line.line_id;
+  tr._amtInp.value = line.jumlah_pembayaran ? parseInt(line.jumlah_pembayaran, 10).toLocaleString('en-US') : ""; tr._amtInp.readOnly = true;
+  tr._tgls[0].value = line.tgl_surat_pengajuan || "";
+  tr._tgls[1].value = line.doc_received_by_educ || "";
+  tr._tgls[2].value = line.tgl_payment_application || "";
+  tr._tgls[0].readOnly = tr._tgls[1].readOnly = tr._tgls[2].readOnly = true;
+  ipayUpdateTotal(); _ipayUpdateSisaCell(tr);
+}
+
+function _ipayBuildPickerRow(tr, candidates) {
+  const pr = document.createElement("tr");
+  pr.className = "ipay-pa-picker-row";
+  const td = document.createElement("td");
+  td.colSpan = 10;
+  td.style.cssText = "padding:4px 8px 10px 24px;background:#eff6ff;border-top:1px solid #bfdbfe";
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px";
+  title.textContent = candidates.length + " PA ditemukan — pilih salah satu:";
+  const tbl = document.createElement("table");
+  tbl.style.cssText = "border-collapse:collapse;font-size:.8rem";
+  tbl.innerHTML = `<thead><tr style="background:#dbeafe">
+    <th style="padding:4px 10px;text-align:left;font-weight:700;color:#1e40af;border:1px solid #bfdbfe">No PA</th>
+    <th style="padding:4px 10px;text-align:right;font-weight:700;color:#1e40af;border:1px solid #bfdbfe">Amount (Rp)</th>
+  </tr></thead>`;
+  const tbody = document.createElement("tbody");
+  candidates.forEach((line, i) => {
+    const row = document.createElement("tr");
+    const bg0 = i % 2 === 0 ? "#fff" : "#f8fafc";
+    row.style.cssText = "cursor:pointer;background:" + bg0;
+    row.innerHTML = `
+      <td style="padding:5px 10px;border:1px solid #e2e8f0;font-family:monospace;font-size:.78rem;color:#1d4ed8">${line.pa_number}</td>
+      <td style="padding:5px 10px;border:1px solid #e2e8f0;text-align:right;font-weight:600">Rp ${new Intl.NumberFormat('id-ID').format(line.jumlah_pembayaran||0)}</td>`;
+    row.addEventListener("mouseover", () => { row.style.background = "#eff6ff"; });
+    row.addEventListener("mouseout",  () => { row.style.background = bg0; });
+    row.addEventListener("click", () => { _ipayFillLine(tr, line); pr.remove(); tr._paPickerRow = null; });
+    tbody.appendChild(row);
+  });
+  tbl.appendChild(tbody);
+  td.appendChild(title); td.appendChild(tbl); pr.appendChild(td);
+  return pr;
+}
+
+// ── Input Payment tab ─────────────────────────────────────────────────────────
+let _ipayRowId = 0;
+
+function ipayReset() {
+  const txEl = document.getElementById("ipay-tx");
+  // SMT offers "gl"/"advance" in the Transaksi dropdown (see the Jinja
+  // branch above) — "beasiswa" isn't a valid option there, so resetting to
+  // it would leave the select on no option and show the wrong panel via
+  // ipayOnTxChange()'s "|| 'beasiswa'" fallback.
+  if (txEl) { txEl.value = (COMPANY_CODE === "SMT") ? "gl" : "beasiswa"; ipayOnTxChange(); }
+  document.querySelectorAll("[data-ipaysugg]").forEach(el => el.remove());
+  document.getElementById("ipay-tgl").value = new Date().toISOString().slice(0, 10);
+  ipayUpdateDueDate();
+  document.getElementById("ipay-pam-full").value = "";
+  document.getElementById("ipay-perusahaan-search").value = "";
+  document.getElementById("ipay-perusahaan").value = "";
+  document.getElementById("ipay-cc").value = "";
+  // SMT/Advance: pillar is driven directly by the Tipe PAM selection (no
+  // per-vendor pillar tagging concept there), so re-derive it here instead
+  // of blanking it — otherwise this reset (called at the end of
+  // ipayOnTypeChange()) would immediately wipe out the pillar it just set.
+  // Beasiswa: same reasoning — no vendor in the vendors table is ever tagged
+  // pillar=LAND (or reliably tagged at all), so leaving this blank meant a
+  // LAND-type Beasiswa PAM could never actually be saved with pillar=LAND.
+  // Tipe PAM is the authoritative source here too.
+  document.getElementById("ipay-pillar").value = (COMPANY_CODE === "SMT")
+    ? (document.getElementById("ipay-type")?.value || "").toUpperCase()
+    : (_IPAY_LABEL[document.getElementById("ipay-type")?.value] || "");
+  document.getElementById("ipay-perusahaan-sugg").style.display = "none";
+  const catatanEl = document.getElementById("ipay-catatan");
+  if (catatanEl) catatanEl.value = "";
+  document.getElementById("ipay-tbody").innerHTML =
+    `<tr id="ipay-empty-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
+  const el = document.getElementById("ipay-total-amt");
+  if (el) el.textContent = "Rp 0";
+  _ipayRowId = 0;
+  if (typeof klaimReset === "function") klaimReset();
+  if (typeof othersReset === "function") othersReset();
+  if (typeof smtLinesReset === "function") smtLinesReset();
+  ipayFetchNextPamNo();
+}
+
+function ipayUpdateTotal() {
+  let total = 0;
+  document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]").forEach(tr => { total += parseFloat(tr._amtInp?.value.replace(/,/g, '')) || 0; });
+  const el = document.getElementById("ipay-total-amt");
+  if (el) el.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(total);
+}
+
+function _ipayUpdateSisaCell(tr) {
+  const cat1 = tr._cat1Select?.value;
+  const amt  = parseFloat(tr._amtInp?.value.replace(/,/g, '')) || 0;
+  if (!cat1 || !tr.dataset.siswaCode || !tr._sisaBudget || !Object.keys(tr._sisaBudget).length) { tr._sisaCell.textContent = "—"; tr._sisaCell.style.color = "#6b7280"; return; }
+  const sisa = tr._sisaBudget[cat1];
+  if (sisa === undefined) { tr._sisaCell.textContent = "Tdk ada budget"; tr._sisaCell.style.color = "#d97706"; return; }
+  tr._sisaCell.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(sisa);
+  tr._sisaCell.style.color = amt > sisa ? "var(--danger)" : "#15803d";
+}
+
+const _PAM_RE = /^PAM-\d{3}-(ETF|APP|LAND|ENERGY|SETF|SMT)-\d{2}-\d{4}$/;
+
+function _ipayResetPamState() {
+  const pamEl = document.getElementById("ipay-pam-full");
+  const badge = document.getElementById("ipay-pam-manual-badge");
+  const hint  = document.getElementById("ipay-pam-hint");
+  const btn   = document.getElementById("ipay-save-btn");
+  if (pamEl)  pamEl.style.borderColor = "#93c5fd";
+  if (badge)  badge.style.display = "none";
+  if (hint)  { hint.style.display = "none"; hint.textContent = ""; }
+  if (btn)    btn.disabled = false;
+}
+
+function ipayValidatePamNo() {
+  const pamEl = document.getElementById("ipay-pam-full");
+  const badge = document.getElementById("ipay-pam-manual-badge");
+  const hint  = document.getElementById("ipay-pam-hint");
+  const btn   = document.getElementById("ipay-save-btn");
+  if (!pamEl) return;
+  const val = pamEl.value.trim();
+  if (badge) badge.style.display = "inline";
+  if (_PAM_RE.test(val)) {
+    pamEl.style.borderColor = "#f59e0b";
+    if (hint) { hint.style.display = "none"; hint.textContent = ""; }
+    if (btn) btn.disabled = false;
+  } else {
+    pamEl.style.borderColor = "#dc2626";
+    if (hint) { hint.style.display = "block"; hint.textContent = "Format: PAM-054-ETF-06-2026"; }
+    if (btn) btn.disabled = true;
+  }
+}
+
+async function ipayCheckPamCollision() {
+  const pamEl = document.getElementById("ipay-pam-full");
+  const badge = document.getElementById("ipay-pam-manual-badge");
+  if (!pamEl || !badge || badge.style.display === "none") return;
+  const val = pamEl.value.trim();
+  if (!_PAM_RE.test(val)) return;
+  try {
+    const res = await apiFetch(`/payment-memo/pam/check?pam_no=${encodeURIComponent(val)}`);
+    if (!res) return;
+    const data = await res.json();
+    const hint = document.getElementById("ipay-pam-hint");
+    const btn  = document.getElementById("ipay-save-btn");
+    if (data.exists) {
+      pamEl.style.borderColor = "#dc2626";
+      if (hint) { hint.style.display = "block"; hint.textContent = "PAM ini sudah terdaftar"; }
+      if (btn) btn.disabled = true;
+    } else {
+      pamEl.style.borderColor = "#22c55e";
+      if (hint) { hint.style.display = "none"; hint.textContent = ""; }
+      if (btn) btn.disabled = false;
+    }
+  } catch { /* ignore */ }
+}
+
+const _IPAY_LABEL = { agri: 'AGRI', app: 'APP', sml: 'LAND', energy: 'EFIN', setf: 'SETF', smt: 'SMT', advance: 'Advance' };
+function ipayOnTypeChange() {
+  const type  = document.getElementById("ipay-type")?.value || "agri";
+  const lbl   = _IPAY_LABEL[type] || type.toUpperCase();
+  const badge = document.getElementById("ipay-pam-type-badge");
+  if (badge) badge.textContent = `(auto ${lbl})`;
+  const saveBtn = document.getElementById("ipay-save-btn");
+  if (saveBtn) saveBtn.textContent = `\u{1F4BE} Simpan PAM ${lbl}`;
+  // SMT/Advance pillar wiring (no per-vendor pillar tagging there) is
+  // handled inside ipayReset() below, since it must win over that
+  // function's own field-clearing — see ipayReset()'s comment.
+  ipayReset();
+}
+
+function _smtSyncTypeFromTx() {
+  const tx     = document.getElementById("ipay-tx")?.value || "gl";
+  const typeEl = document.getElementById("ipay-type");
+  const type   = (tx === "advance") ? "advance" : "smt";
+  if (typeEl) typeEl.value = type;
+  const lbl = _IPAY_LABEL[type] || type.toUpperCase();
+  const badge = document.getElementById("ipay-pam-type-badge");
+  if (badge) badge.textContent = `(auto ${lbl})`;
+  const pillarEl = document.getElementById("ipay-pillar");
+  if (pillarEl) pillarEl.value = type.toUpperCase();
+  ipayFetchNextPamNo();
+  if (typeof smtLinesRecalcGlAccounts === "function") smtLinesRecalcGlAccounts();
+}
+
+function ipayOnTxChange() {
+  const tx = document.getElementById("ipay-tx")?.value || "beasiswa";
+  if (COMPANY_CODE === "SMT") _smtSyncTypeFromTx();
+  const panels = {
+    "beasiswa":    "#ipay-panel-beasiswa",
+    "klaim_medis": "#ipay-panel-klaim",
+    "tagihan":     "#ipay-panel-others",
+    "etf":         "#ipay-panel-others",
+    "sponsor":     "#ipay-panel-others",
+    "others":      "#ipay-panel-others",
+    "gl":          "#ipay-panel-smt-lines",
+    "advance":     "#ipay-panel-smt-lines",
+  };
+  ["#ipay-panel-beasiswa","#ipay-panel-klaim","#ipay-panel-others","#ipay-panel-smt-lines"].forEach(id => {
+    const el = document.querySelector(id);
+    if (el) el.style.display = "none";
+  });
+  const target = panels[tx] || "#ipay-panel-beasiswa";
+  const el = document.querySelector(target);
+  if (el) el.style.display = "";
+}
+
+async function ipayFetchNextPamNo() {
+  const type = document.getElementById("ipay-type")?.value || "agri";
+  const tgl  = document.getElementById("ipay-tgl")?.value || new Date().toISOString().slice(0, 10);
+  const pamEl = document.getElementById("ipay-pam-full");
+  if (!pamEl) return;
+  pamEl.value = "Memuat...";
+  try {
+    const res = await apiFetch(`/payment-memo/ipay/next-pam-no?tab=${encodeURIComponent(type)}&date=${encodeURIComponent(tgl)}`);
+    if (!res) { pamEl.value = "ERR: Redirected or no response"; return; }
+    
+    // Check if it's an HTML response (e.g. redirect to login)
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text);
+      if (data.ok) {
+        pamEl.value = data.pam_no || "";
+      } else {
+        pamEl.value = "ERR: " + (data.pam_no || "Backend failed");
+      }
+    } catch (e) {
+      console.error("Gagal parse JSON:", text);
+      pamEl.value = "ERR: Invalid JSON response";
+    }
+  } catch (err) {
+    console.error("Fetch next PAM no error:", err);
+    pamEl.value = "ERR: " + err.message;
+  }
+  _ipayResetPamState();
+}
+
+function _isMedical(cat1, cat2) {
+  return cat1 === "By Medical" && (cat2 === "Rawat Jalan" || cat2 === "Rawat Inap");
+}
+
+function _buildMedisRow(tr) {
+  const medisRow = document.createElement("tr");
+  medisRow.className = "ipay-medis-row";
+  medisRow.style.display = "none";
+  const td = document.createElement("td");
+  td.colSpan = 10;
+  td.style.cssText = "padding:0 8px 10px 24px;background:#fffbeb";
+
+  function mkSel(opts, placeholder) {
+    const s = document.createElement("select");
+    s.style.cssText = "width:100%;border:1px solid #fcd34d;border-radius:4px;padding:5px 6px;font-size:12px;background:#fff;box-sizing:border-box";
+    s.innerHTML = `<option value="">${placeholder}</option>` +
+      opts.map(o => `<option value="${o}">${o}</option>`).join("");
+    return s;
+  }
+  function mkInp(placeholder) {
+    const i = document.createElement("input");
+    i.type = "text"; i.placeholder = placeholder;
+    i.style.cssText = "width:100%;box-sizing:border-box;border:1px solid #fcd34d;border-radius:4px;padding:5px 6px;font-size:12px;background:#fff";
+    return i;
+  }
+  function lbl(text, required) {
+    const d = document.createElement("div");
+    d.style.cssText = "font-size:10px;color:#6b7280;margin-bottom:3px";
+    d.innerHTML = text + (required ? ' <span style="color:#ef4444">*</span>' : "");
+    return d;
+  }
+
+  const selKelas        = mkSel(KELAS_MEDICAL, "— Pilih Kelas —");
+  const inpRS           = mkInp("Rumah Sakit");
+  const inpDiagnosa     = mkInp("Diagnosa");
+  const selSpesialisasi = mkSel(SPESIALISASI_LIST, "— Spesialisasi —");
+  const inpCatatan      = mkInp("Catatan (opsional)");
+
+  const warnBar = document.createElement("div");
+  warnBar.style.cssText = "display:none;background:#fef2f2;border:1px dashed #fca5a5;border-radius:4px;padding:6px 10px;font-size:12px;color:#b91c1c;margin-bottom:4px";
+  warnBar.textContent = "⚠️ Data Medis belum diisi — klik ▲ untuk expand dan isi data";
+  tr._medisWarn = warnBar;
+
+  const grid = document.createElement("div");
+  grid.style.cssText = "display:grid;grid-template-columns:1fr 1.5fr 1.5fr 1.5fr;gap:8px;margin-bottom:8px";
+
+  function field(labelText, el, required) {
+    const w = document.createElement("div");
+    w.appendChild(lbl(labelText, required)); w.appendChild(el); return w;
+  }
+  grid.appendChild(field("Kelas", selKelas, true));
+  grid.appendChild(field("Rumah Sakit", inpRS, true));
+  grid.appendChild(field("Diagnosa", inpDiagnosa, true));
+  grid.appendChild(field("Spesialisasi", selSpesialisasi, true));
+
+  const catRow = document.createElement("div");
+  catRow.appendChild(lbl("Catatan", false)); catRow.appendChild(inpCatatan);
+
+  const inner = document.createElement("div");
+  inner.style.cssText = "background:#fff8ed;border:1px dashed #f59e0b;border-radius:6px;padding:10px 12px";
+  const title = document.createElement("div");
+  title.style.cssText = "font-size:10px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px";
+  title.textContent = "📋 Data Medis — Wajib diisi";
+  inner.appendChild(title); inner.appendChild(grid); inner.appendChild(catRow);
+  td.appendChild(warnBar); td.appendChild(inner);
+  medisRow.appendChild(td);
+
+  tr._medisRow             = medisRow;
+  tr._medisSelKelas        = selKelas;
+  tr._medisInpRS           = inpRS;
+  tr._medisInpDiagnosa     = inpDiagnosa;
+  tr._medisSelSpesialisasi = selSpesialisasi;
+  tr._medisInpCatatan      = inpCatatan;
+
+  tr._getMedisData = () => ({
+    kelas:        selKelas.value,
+    rumah_sakit:  inpRS.value.trim(),
+    diagnosa:     inpDiagnosa.value.trim(),
+    spesialisasi: selSpesialisasi.value,
+    catatan:      inpCatatan.value.trim(),
+  });
+
+  tr._medisComplete = () => {
+    const m = tr._getMedisData();
+    return !!(m.kelas && m.rumah_sakit && m.diagnosa && m.spesialisasi);
+  };
+
+  return medisRow;
+}
+
+function ipayAddRow() {
+  const empty = document.getElementById("ipay-empty-row");
+  if (empty) empty.remove();
+  const rid = ++_ipayRowId;
+  const tr = document.createElement("tr");
+  tr.dataset.rid = rid; tr.dataset.siswaCode = ""; tr._sisaBudget = {};
+  const tdSisa = document.createElement("td");
+  tdSisa.style.cssText = "white-space:nowrap;font-size:.8rem;color:var(--text-muted);min-width:140px";
+  tdSisa.textContent = "—"; tr._sisaCell = tdSisa;
+
+  function tdInput(type, placeholder, extra) {
+    const td = document.createElement("td"), inp = document.createElement("input");
+    inp.type = type === "number" ? "text" : type; 
+    inp.placeholder = placeholder || "";
+    if (extra) Object.assign(inp, extra);
+    inp.style.cssText = "width:100%;box-sizing:border-box";
+    if (type === "number") {
+      inp.addEventListener("input", function() {
+        let v = this.value.replace(/[^0-9]/g, '');
+        this.value = v ? parseInt(v, 10).toLocaleString('en-US') : '';
+      });
+    }
+    td.appendChild(inp); return { td, inp };
+  }
+
+  const tdSiswa = document.createElement("td");
+  const siswaInp = document.createElement("input");
+  siswaInp.type = "text"; siswaInp.placeholder = "Cari siswa..."; siswaInp.autocomplete = "off";
+  siswaInp.style.cssText = "width:100%;box-sizing:border-box";
+  const sugg = document.createElement("div");
+  sugg.dataset.ipaysugg = "1";
+  sugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  document.body.appendChild(sugg);
+  function _posSugg() { const r = siswaInp.getBoundingClientRect(); sugg.style.top=(r.bottom+2)+"px"; sugg.style.left=r.left+"px"; sugg.style.width=r.width+"px"; }
+
+  siswaInp.addEventListener("input", () => {
+    const q = siswaInp.value.trim();
+    sugg.innerHTML = "";
+    if (!q) { sugg.style.display="none"; tr.dataset.siswaCode=""; tr._hidEtfLineId.value=""; sCat1.innerHTML=`<option value="">— Pilih siswa dulu —</option>`; sCat1.disabled=true; tr._sisaBudget={}; tr._sisaCell.textContent="—"; return; }
+    const _type = document.getElementById("ipay-type")?.value || "agri";
+    apiFetch(`/etf-payment-application/draft-siswa?q=${encodeURIComponent(q)}&tab=${encodeURIComponent(_type)}`)
+      .then(r => { if (!r||r.status===401) { sugg.innerHTML=`<div style="padding:10px 12px;font-size:.875rem;color:#dc2626">Sesi habis. Refresh halaman.</div>`; _posSugg(); sugg.style.display="block"; return Promise.reject(); } return r.json(); })
+      .then(hits => {
+        if (!hits) return;
+        if (!hits.length) { sugg.innerHTML=`<div style="padding:10px 12px;font-size:.875rem;color:#6b7280">Tidak ditemukan. Pastikan PA sudah dibuat dengan status Draft (tipe ${_type.toUpperCase()}).</div>`; _posSugg(); sugg.style.display="block"; return; }
+        sugg.innerHTML = "";
+        hits.forEach(s => {
+          const d = document.createElement("div");
+          d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:.5rem";
+          d.innerHTML = `<span style="font-weight:600;color:#1a56db;min-width:72px">${s.code}</span><span style="color:#374151">${s.nama}</span>`;
+          d.addEventListener("mousedown", () => {
+            siswaInp.value = `${s.code} — ${s.nama}`; tr.dataset.siswaCode=s.code; tr.dataset.etfSiswaId=s.id; sugg.style.display="none";
+            tr._allLines=[]; tr._hidEtfLineId.value="";
+            sCat1.innerHTML=`<option value="">Memuat...</option>`; sCat1.disabled=true;
+            cat2Drop.setOpts([]); _ipayResetAutoFill(tr); ipayUpdateTotal();
+            const _lineType = document.getElementById("ipay-type")?.value || "agri";
+            apiFetch(`/etf-payment-application/draft-lines?siswa_id=${s.id}&tab=${encodeURIComponent(_lineType)}`).then(r=>r.json()).then(lines => {
+              tr._allLines = lines;
+              const cat1s = [...new Set(lines.map(l => l.jenis_pembayaran).filter(Boolean))];
+              sCat1.innerHTML=`<option value="">— Pilih Kategori 1 —</option>`+cat1s.map(c=>`<option value="${c}">${c}</option>`).join("");
+              sCat1.disabled=false;
+            }).catch(()=>{sCat1.innerHTML=`<option value="">Gagal memuat.</option>`;sCat1.disabled=false;});
+            tr._sisaBudget={}; tr._sisaCell.textContent="Memuat..."; tr._sisaCell.style.color="#6b7280";
+            apiFetch(`/beasiswa/siswa/${s.code}/sisa-budget`).then(r=>r.json()).then(data=>{tr._sisaBudget=data.sisa||{};_ipayUpdateSisaCell(tr);}).catch(()=>{tr._sisaCell.textContent="—";});
+            apiFetch(`/beasiswa/siswa/${s.code}`).then(r=>r.json()).then(d=>{if(d.ok)_pamUpdateIpkStrip(tr,d.data);}).catch(()=>{});
+          });
+          d.addEventListener("mouseover",()=>{d.style.background="#eff6ff";}); d.addEventListener("mouseout",()=>{d.style.background="";});
+          sugg.appendChild(d);
+        });
+        _posSugg(); sugg.style.display="block";
+      });
+  });
+  siswaInp.addEventListener("focus", ()=>{if(sugg.children.length)_posSugg();});
+  siswaInp.addEventListener("blur",  ()=>setTimeout(()=>{sugg.style.display="none";},200));
+  tdSiswa.appendChild(siswaInp);
+  // IPK strip + quick-edit button (revealed after siswa is picked)
+  const ipkStrip = document.createElement("div");
+  ipkStrip.style.cssText = "display:none;align-items:center;gap:4px;margin-top:3px;flex-wrap:wrap";
+  const ipkBadge = document.createElement("span");
+  ipkBadge.style.cssText = "background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:1px 7px;font-size:.67rem;font-weight:700";
+  const btnEditSiswa = document.createElement("button");
+  btnEditSiswa.type = "button"; btnEditSiswa.className = "btn btn-sm";
+  btnEditSiswa.style.cssText = "padding:1px 7px;font-size:.67rem;background:#f0fdf4;color:#15803d;border:1px solid #86efac;line-height:1.5;white-space:nowrap";
+  btnEditSiswa.textContent = "✏ Edit Siswa";
+  btnEditSiswa.addEventListener("click", () => {
+    const code = tr.dataset.siswaCode;
+    if (!code) return;
+    pamOpenEditSiswa(code, s => _pamUpdateIpkStrip(tr, s));
+  });
+  ipkStrip.appendChild(ipkBadge);
+  ipkStrip.appendChild(btnEditSiswa);
+  tr._ipkBadge = ipkBadge; tr._ipkStrip = ipkStrip;
+  tdSiswa.appendChild(ipkStrip);
+  const hidEtfLineId = document.createElement("input"); hidEtfLineId.type="hidden"; hidEtfLineId.value=""; tr._hidEtfLineId=hidEtfLineId; tdSiswa.appendChild(hidEtfLineId);
+
+  const tdCat1 = document.createElement("td");
+  const sCat1 = document.createElement("select"); sCat1.style.width="100%"; sCat1.innerHTML=`<option value="">— Pilih Kategori 1 —</option>`; sCat1.disabled=true;
+  sCat1.addEventListener("change", () => {
+    const selectedCat1 = sCat1.value;
+    // Reset Cat2, auto-fill, and picker whenever Cat1 changes
+    tr._paPickerRow?.remove(); tr._paPickerRow = null;
+    cat2Drop.setOpts([]);
+    _ipayResetAutoFill(tr);
+    ipayUpdateTotal(); _ipayUpdateSisaCell(tr);
+    if (selectedCat1) {
+      const matching = (tr._allLines||[]).filter(l => l.jenis_pembayaran === selectedCat1);
+      if (matching.length > 0) {
+        const sems = [...new Set(matching.map(l => l.semester).filter(Boolean))];
+        if (sems.length === 0) {
+          // No semester field — use tahun_ajaran as cat2 options, wait for user selection
+          const years = [...new Set(matching.map(l => l.tahun_ajaran).filter(Boolean))];
+          cat2Drop.setOpts(years.length ? years : ['—']);
+        } else if (sems.length === 1) {
+          // One semester — show it but wait for user to select before filling
+          cat2Drop.setOpts(sems);
+        } else {
+          // Multiple semesters — present them for user to pick
+          cat2Drop.setOpts(sems);
+        }
+      }
+    }
+    const isMed = _isMedical(selectedCat1, cat2Drop._hid.value);
+    medisRow.style.display = isMed ? "" : "none";
+    btnToggle.style.display = isMed ? "" : "none";
+    btnToggle.textContent = "▲";
+    if (!isMed) {
+      tr._medisSelKelas.value = "";
+      tr._medisInpRS.value = "";
+      tr._medisInpDiagnosa.value = "";
+      tr._medisSelSpesialisasi.value = "";
+      tr._medisInpCatatan.value = "";
+      tr._medisWarn.style.display = "none";
+    }
+  });
+  tdCat1.appendChild(sCat1);
+
+  const tdCat2 = document.createElement("td");
+  const cat2Drop = _mkDrop(CAT2_SEM, "Pilih kat 2..."); cat2Drop.style.width="100%"; tdCat2.appendChild(cat2Drop);
+
+  cat2Drop._hid.addEventListener("change", () => {
+    const selectedCat1 = sCat1.value;
+    const selectedCat2 = cat2Drop._hid.value;
+    // Remove existing picker before rebuilding
+    tr._paPickerRow?.remove(); tr._paPickerRow = null;
+    if (selectedCat1 && selectedCat2) {
+      const candidates = (tr._allLines||[]).filter(l =>
+        l.jenis_pembayaran === selectedCat1 && (
+          l.semester === selectedCat2 ||
+          l.tahun_ajaran === selectedCat2 ||
+          selectedCat2 === '—'
+        )
+      );
+      if (candidates.length === 1) {
+        _ipayFillLine(tr, candidates[0]);
+      } else if (candidates.length > 1) {
+        _ipayResetAutoFill(tr);
+        const pr = _ipayBuildPickerRow(tr, candidates);
+        tr._paPickerRow = pr;
+        medisRow.parentNode.insertBefore(pr, medisRow.nextSibling);
+      }
+    }
+    const isMed = _isMedical(selectedCat1, selectedCat2);
+    medisRow.style.display = isMed ? "" : "none";
+    btnToggle.style.display = isMed ? "" : "none";
+    btnToggle.textContent = "▲";
+    if (!isMed) {
+      tr._medisSelKelas.value = "";
+      tr._medisInpRS.value = "";
+      tr._medisInpDiagnosa.value = "";
+      tr._medisSelSpesialisasi.value = "";
+      tr._medisInpCatatan.value = "";
+      tr._medisWarn.style.display = "none";
+    }
+  });
+
+  const { td: tdAmt, inp: amtInp } = tdInput("number","0",{min:"0"}); amtInp.addEventListener("input",()=>{ipayUpdateTotal();_ipayUpdateSisaCell(tr);});
+  const { td: tdTglPengajuan, inp: inpTglPengajuan } = tdInput("date","");
+  const { td: tdTglReceive,   inp: inpTglReceive   } = tdInput("date","");
+  const { td: tdTglPa,        inp: inpTglPa        } = tdInput("date","");
+  const { td: tdTglFinal,     inp: inpTglFinal     } = tdInput("date","");
+  const tdDel = document.createElement("td");
+  const btnDel = document.createElement("button"); btnDel.className="btn btn-sm"; btnDel.style.cssText="background:#ef4444;color:#fff;padding:2px 8px"; btnDel.textContent="✕";
+  btnDel.addEventListener("click",()=>{sugg.remove();cat2Drop._pan?.remove();tr._paPickerRow?.remove();tr.remove();medisRow.remove();ipayUpdateTotal();if(!document.getElementById("ipay-tbody").querySelector("tr[data-rid]")){document.getElementById("ipay-tbody").innerHTML=`<tr id="ipay-empty-row"><td colspan="10" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;}});
+  tdDel.appendChild(btnDel);
+
+  tr._cat2Drop=cat2Drop; tr._amtInp=amtInp; tr._tgls=[inpTglPengajuan,inpTglReceive,inpTglPa,inpTglFinal]; tr._cat1Select=sCat1;
+
+  // Build medis sub-row
+  const medisRow = _buildMedisRow(tr);
+
+  // Toggle button
+  const btnToggle = document.createElement("button");
+  btnToggle.className = "btn btn-sm";
+  btnToggle.style.cssText = "background:#f59e0b;color:#fff;padding:2px 7px;display:none";
+  btnToggle.textContent = "▲";
+  btnToggle.title = "Toggle Data Medis";
+  btnToggle.addEventListener("click", () => {
+    const expanded = medisRow.style.display !== "none";
+    medisRow.style.display = expanded ? "none" : "";
+    btnToggle.textContent = expanded ? "▼" : "▲";
+    if (expanded && !tr._medisComplete()) {
+      tr._medisWarn.style.display = "block";
+    } else {
+      tr._medisWarn.style.display = "none";
+    }
+  });
+  tr._medisBtnToggle = btnToggle;
+  tdDel.insertBefore(btnToggle, btnDel);
+
+  [tdSiswa,tdCat1,tdCat2,tdAmt,tdSisa,tdTglPengajuan,tdTglReceive,tdTglPa,tdTglFinal,tdDel].forEach(td=>tr.appendChild(td));
+  document.getElementById("ipay-tbody").appendChild(tr);
+  document.getElementById("ipay-tbody").insertBefore(medisRow, tr.nextSibling);
+}
+
+async function ipaySave() {
+  const tanggal=document.getElementById("ipay-tgl").value, pillar=document.getElementById("ipay-pillar").value, perusahaan=document.getElementById("ipay-perusahaan").value, pam=document.getElementById("ipay-pam-full").value;
+  if (!tanggal||!pillar||!perusahaan) { showToast("Tanggal, Pillar, dan Perusahaan wajib diisi.","error"); return; }
+  const allTrs=[...document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]")];
+  const over=allTrs.filter(tr=>{const amt=parseFloat(tr._amtInp?.value.replace(/,/g, ''))||0;if(amt<=0)return false;const cat1=tr._cat1Select?.value;if(!cat1||!tr._sisaBudget||!Object.keys(tr._sisaBudget).length)return false;const sisa=tr._sisaBudget[cat1];return sisa!==undefined&&amt>sisa;});
+  if (over.length) { showToast(`${over.length} baris melebihi sisa budget.`,"error"); return; }
+  const incompleteMedis = allTrs.filter(tr => {
+    const cat1 = tr._cat1Select?.value;
+    const cat2 = tr._cat2Drop?._hid?.value;
+    const amt  = parseFloat(tr._amtInp?.value.replace(/,/g, '')) || 0;
+    return amt > 0 && _isMedical(cat1, cat2) && !tr._medisComplete();
+  });
+  if (incompleteMedis.length) {
+    incompleteMedis.forEach(tr => {
+      if (tr._medisRow) {
+        tr._medisRow.style.display = "";
+        tr._medisBtnToggle.textContent = "▲";
+      }
+      if (tr._medisWarn) tr._medisWarn.style.display = "block";
+    });
+    showToast(`${incompleteMedis.length} row By Medical belum mengisi Data Medis.`, "error");
+    return;
+  }
+  const rows=allTrs.map(tr => {
+    const cat1 = tr._cat1Select.value;
+    const cat2 = tr._cat2Drop._hid.value;
+    const row = {
+      siswa_code:     tr.dataset.siswaCode||"",
+      cat1,
+      cat2,
+      amount:         parseFloat(tr._amtInp.value.replace(/,/g, ''))||0,
+      tgl_pengajuan:  tr._tgls[0].value,
+      tgl_receive:    tr._tgls[1].value,
+      tgl_pa:         tr._tgls[2].value,
+      tgl_final:      tr._tgls[3].value,
+      etf_pa_line_id: tr._hidEtfLineId?.value?parseInt(tr._hidEtfLineId.value):null,
+    };
+    if (_isMedical(cat1, cat2)) {
+      row.rekam_medis = tr._getMedisData();
+    }
+    return row;
+  }).filter(r=>r.amount>0);
+  if (!rows.length) { showToast("Minimal 1 baris dengan amount > 0.","error"); return; }
+  if (rows.some(r=>!r.siswa_code)) { showToast("Semua baris harus memilih siswa.","error"); return; }
+  const d=await(await apiFetch("/beasiswa/payment/tambah-multi",{method:"POST",body:JSON.stringify({tanggal,pillar,perusahaan,pam,rows})})).json();
+  showToast(d.pesan,d.ok?"success":"error");
+  if (d.ok) ipayReset();
+}
+
+async function ipaySavePa() {
+  if (!await confirmModal("Simpan PAM baru ini?")) return;
+  const type       = document.getElementById("ipay-type")?.value || "agri";
+  const tanggal    = document.getElementById("ipay-tgl").value;
+  const pam_no     = document.getElementById("ipay-pam-full").value.trim();
+  const keterangan = document.getElementById("ipay-catatan")?.value.trim() || "";
+  const pillar     = document.getElementById("ipay-pillar").value;
+  const perusahaan = document.getElementById("ipay-perusahaan").value;
+
+  if (!tanggal || !pam_no || pam_no === "Memuat...") {
+    showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
+  }
+  if (!_PAM_RE.test(pam_no)) {
+    showToast("No. PAM tidak valid. Format: PAM-054-ETF-06-2026", "error"); return;
+  }
+  const badge = document.getElementById("ipay-pam-manual-badge");
+  if (badge && badge.style.display !== "none") {
+    const saveBtn = document.getElementById("ipay-save-btn");
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+      const chkRes = await apiFetch(`/payment-memo/pam/check?pam_no=${encodeURIComponent(pam_no)}`);
+      if (chkRes) {
+        const chk = await chkRes.json();
+        if (chk.exists) {
+          const hint  = document.getElementById("ipay-pam-hint");
+          const pamEl = document.getElementById("ipay-pam-full");
+          if (pamEl) pamEl.style.borderColor = "#dc2626";
+          if (hint)  { hint.style.display = "block"; hint.textContent = "PAM ini sudah terdaftar"; }
+          if (saveBtn) saveBtn.disabled = true;
+          showToast("No. PAM sudah terdaftar.", "error"); return;
+        }
+      }
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  }
+  if (!perusahaan) { showToast("Perusahaan wajib diisi.", "error"); return; }
+
+  const allTrs = [...document.getElementById("ipay-tbody").querySelectorAll("tr[data-rid]")];
+  const rows = allTrs.map(tr => ({
+    siswa_code:     tr.dataset.siswaCode || "",
+    etf_pa_line_id: tr._hidEtfLineId?.value ? parseInt(tr._hidEtfLineId.value) : null,
+    cat1:           tr._cat1Select?.value || "",
+    cat2:           tr._cat2Drop?._hid?.value || "",
+    amount:         parseFloat(tr._amtInp?.value.replace(/,/g, '')) || 0,
+    tgl_pengajuan:  tr._tgls?.[0]?.value || "",
+    tgl_receive:    tr._tgls?.[1]?.value || "",
+    tgl_pa:         tr._tgls?.[2]?.value || "",
+    tgl_final:      tr._tgls?.[3]?.value || "",
+  })).filter(r => r.amount > 0);
+
+  if (!rows.length) { showToast("Minimal 1 baris dengan amount > 0.", "error"); return; }
+  if (rows.some(r => !r.siswa_code)) { showToast("Semua baris harus memilih siswa.", "error"); return; }
+
+  const saveBtn2 = document.getElementById("ipay-save-btn");
+  if (saveBtn2) saveBtn2.disabled = true;
+  showLoading("Menyimpan PAM...");
+  let res;
+  try {
+    res = await apiFetch("/payment-memo/ipay/save-pa", {
+      method: "POST",
+      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
+    });
+  } finally {
+    hideLoading();
+    if (saveBtn2) saveBtn2.disabled = false;
+  }
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) {
+    ipayReset();
+    const filterEl = document.getElementById('pam-filter-source');
+    if (filterEl) filterEl.value = type;
+    document.querySelector('[data-tab="tab-pam"]')?.click();
+  }
+}
+
+// ── Klaim Medis Panel ──────────────────────────────────────────────────────
+let _klaimRid = 0;
+
+function _klaimMkSelect(opts, placeholder) {
+  const sel = document.createElement("select");
+  sel.style.cssText = "font-size:10px;width:100%;border:1px solid #d1d5db;border-radius:3px;padding:2px 4px";
+  if (placeholder) {
+    const ph = document.createElement("option");
+    ph.value = ""; ph.textContent = placeholder; ph.disabled = true; ph.selected = true;
+    sel.appendChild(ph);
+  }
+  opts.forEach(o => {
+    const opt = document.createElement("option");
+    opt.value = o; opt.textContent = o;
+    sel.appendChild(opt);
+  });
+  return sel;
+}
+
+function _klaimMkInput(type, placeholder) {
+  const inp = document.createElement("input");
+  inp.type = type; inp.placeholder = placeholder || "";
+  inp.className = "dm-inp";
+  if (type === "number") inp.min = "0";
+  return inp;
+}
+
+function _klaimUpdateTotal() {
+  const tbody = document.getElementById("klaim-tbody");
+  let total = 0;
+  tbody.querySelectorAll("input.klaim-amt").forEach(inp => {
+    total += parseFloat(inp.value) || 0;
+  });
+  document.getElementById("klaim-total-amt").textContent =
+    "Rp " + total.toLocaleString("id-ID");
+}
+
+async function _klaimFetchSiswabudget(code) {
+  try {
+    const res = await apiFetch(`/payment-memo/ipay/siswa-medical?search=${encodeURIComponent(code)}`);
+    if (!res) return null;
+    const data = await res.json();
+    const found = (data.rows || []).find(r => r.code === code);
+    if (!found) return null;
+    return (found.medical_budget || 0) - (found.spent_amount || 0);
+  } catch { return null; }
+}
+
+function klaimAddSiswa() {
+  const tbody = document.getElementById("klaim-tbody");
+  const emptyRow = document.getElementById("klaim-empty-row");
+  if (emptyRow) emptyRow.remove();
+
+  const rid = ++_klaimRid;
+
+  const tr = document.createElement("tr");
+  tr.dataset.klaimRid = rid;
+  tr.dataset.klaimType = "siswa";
+  tr.style.cssText = "background:#fff;border-bottom:1px solid #e2e8f0";
+
+  // Siswa autocomplete
+  const tdSiswa = document.createElement("td");
+  tdSiswa.style.cssText = "padding:4px 7px;position:relative";
+  const inpSiswaSearch = document.createElement("input");
+  inpSiswaSearch.type = "text"; inpSiswaSearch.placeholder = "Cari siswa...";
+  inpSiswaSearch.className = "dm-inp";
+  const inpSiswaCode = document.createElement("input"); inpSiswaCode.type = "hidden";
+  const sugg = document.createElement("div");
+  sugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)";
+
+  inpSiswaSearch.oninput = async function() {
+    const q = this.value.trim();
+    if (q.length < 1) { sugg.style.display = "none"; return; }
+    const res = await apiFetch(`/payment-memo/ipay/siswa-medical?search=${encodeURIComponent(q)}`);
+    if (!res) return;
+    const data = await res.json();
+    sugg.innerHTML = "";
+    (data.rows || []).forEach(s => {
+      const d = document.createElement("div");
+      d.style.cssText = "padding:5px 8px;cursor:pointer;font-size:11px;border-bottom:1px solid #f3f4f6";
+      d.textContent = `${s.nama} (${s.code})`;
+      d.onmousedown = async () => {
+        inpSiswaSearch.value = `${s.nama} / ${s.code}`;
+        inpSiswaCode.value = s.code;
+        tr.dataset.siswaCode = s.code;
+        sugg.style.display = "none";
+        const sisa = await _klaimFetchSiswabudget(s.code);
+        const budgetEl = tr.querySelector(".klaim-budget");
+        if (budgetEl) {
+          budgetEl.textContent = sisa !== null ? "Rp " + sisa.toLocaleString("id-ID") : "-";
+        }
+      };
+      sugg.appendChild(d);
+    });
+    sugg.style.display = data.rows?.length ? "block" : "none";
+    const rect = inpSiswaSearch.getBoundingClientRect();
+    sugg.style.left  = rect.left + "px";
+    sugg.style.top   = (rect.bottom + 2) + "px";
+    sugg.style.width = Math.max(200, rect.width) + "px";
+  };
+  inpSiswaSearch.onblur = () => setTimeout(() => { sugg.style.display = "none"; }, 200);
+  tdSiswa.appendChild(inpSiswaSearch);
+  tdSiswa.appendChild(inpSiswaCode);
+  document.body.appendChild(sugg);
+  tr._siswaCode = inpSiswaCode;
+  tr._siswaSugg = sugg;
+
+  const tdCat2 = document.createElement("td"); tdCat2.style.padding = "4px 7px";
+  const selCat2 = _klaimMkSelect(["Rawat Inap","Rawat Jalan"], "Pilih...");
+  tdCat2.appendChild(selCat2); tr._cat2 = selCat2;
+
+  const tdKelas = document.createElement("td"); tdKelas.style.padding = "4px 7px";
+  const selKelas = _klaimMkSelect(KELAS_MEDICAL, "Kelas...");
+  tdKelas.appendChild(selKelas); tr._kelas = selKelas;
+
+  const tdRS = document.createElement("td"); tdRS.style.padding = "4px 7px";
+  const inpRS = _klaimMkInput("text", "Rumah Sakit...");
+  tdRS.appendChild(inpRS); tr._rs = inpRS;
+
+  const tdDx = document.createElement("td"); tdDx.style.padding = "4px 7px";
+  const inpDx = _klaimMkInput("text", "Diagnosa...");
+  tdDx.appendChild(inpDx); tr._dx = inpDx;
+
+  const tdSpes = document.createElement("td"); tdSpes.style.padding = "4px 7px";
+  const selSpes = _klaimMkSelect(SPESIALISASI_MEDICAL, "Spesialisasi...");
+  tdSpes.appendChild(selSpes); tr._spes = selSpes;
+
+  const tdCat3 = document.createElement("td"); tdCat3.style.padding = "4px 7px";
+  const selCat3 = _klaimMkSelect(CAT3_MEDICAL, "Cat3...");
+  tdCat3.appendChild(selCat3); tr._cat3 = selCat3;
+
+  const tdAmt = document.createElement("td"); tdAmt.style.padding = "4px 7px";
+  const inpAmt = _klaimMkInput("number", "0");
+  inpAmt.className += " klaim-amt"; inpAmt.oninput = _klaimUpdateTotal;
+  tdAmt.appendChild(inpAmt); tr._amt = inpAmt;
+
+  const tdBudget = document.createElement("td");
+  tdBudget.style.cssText = "padding:4px 7px;text-align:right;color:#10b981;font-size:10px;font-weight:600";
+  tdBudget.className = "klaim-budget"; tdBudget.textContent = "-";
+
+  const tdTgl = document.createElement("td"); tdTgl.style.padding = "4px 7px";
+  const inpTgl = _klaimMkInput("date", "");
+  inpTgl.value = document.getElementById("ipay-tgl")?.value || "";
+  tdTgl.appendChild(inpTgl); tr._tgl = inpTgl;
+
+  const tdDel = document.createElement("td"); tdDel.style.cssText = "padding:4px 7px;text-align:center";
+  const btnDel = document.createElement("button");
+  btnDel.textContent = "✕"; btnDel.className = "btn btn-danger btn-sm";
+  btnDel.onclick = () => klaimRemoveSiswaGroup(rid);
+  tdDel.appendChild(btnDel);
+
+  tr.append(tdSiswa, tdCat2, tdKelas, tdRS, tdDx, tdSpes, tdCat3, tdAmt, tdBudget, tdTgl, tdDel);
+  tbody.appendChild(tr);
+
+  // Add Cat3 button row
+  const trBtn = document.createElement("tr");
+  trBtn.dataset.klaimRid = rid; trBtn.dataset.klaimType = "addcat3";
+  trBtn.style.cssText = "background:#f0fdf4;border-bottom:2px solid #6ee7b7";
+  const tdBtn = document.createElement("td"); tdBtn.colSpan = 11; tdBtn.style.padding = "3px 7px";
+  const btnAddCat3 = document.createElement("button");
+  btnAddCat3.className = "btn btn-secondary btn-sm";
+  btnAddCat3.style.cssText = "border:1px dashed #10b981;color:#059669;background:none;font-size:9px";
+  btnAddCat3.textContent = "+ cat3 tambahan";
+  btnAddCat3.onclick = () => klaimAddCat3Row(rid, tr);
+  tdBtn.appendChild(btnAddCat3); trBtn.appendChild(tdBtn);
+  tbody.appendChild(trBtn);
+}
+
+function klaimAddCat3Row(rid, siswaRow) {
+  const tbody = document.getElementById("klaim-tbody");
+  const btnRow = tbody.querySelector(`tr[data-klaim-rid="${rid}"][data-klaim-type="addcat3"]`);
+
+  const tr = document.createElement("tr");
+  tr.dataset.klaimRid = rid; tr.dataset.klaimType = "cat3";
+  tr.style.cssText = "background:#eff6ff;border-bottom:1px solid #dbeafe";
+
+  const tdLabel = document.createElement("td");
+  tdLabel.colSpan = 6; tdLabel.style.cssText = "padding:4px 7px;color:#94a3b8;font-size:9px;font-style:italic";
+  tdLabel.textContent = "↳ cat3 tambahan";
+
+  const tdCat3 = document.createElement("td"); tdCat3.style.padding = "4px 7px";
+  const selCat3 = _klaimMkSelect(CAT3_MEDICAL, "Cat3...");
+  tdCat3.appendChild(selCat3); tr._cat3 = selCat3;
+
+  const tdAmt = document.createElement("td"); tdAmt.style.padding = "4px 7px";
+  const inpAmt = _klaimMkInput("number", "0");
+  inpAmt.className += " klaim-amt"; inpAmt.oninput = _klaimUpdateTotal;
+  tdAmt.appendChild(inpAmt); tr._amt = inpAmt;
+
+  const tdBudget = document.createElement("td"); tdBudget.style.padding = "4px 7px";
+
+  const tdTgl = document.createElement("td"); tdTgl.style.padding = "4px 7px";
+  const inpTgl = _klaimMkInput("date", "");
+  inpTgl.value = document.getElementById("ipay-tgl")?.value || "";
+  tdTgl.appendChild(inpTgl); tr._tgl = inpTgl;
+
+  const tdDel = document.createElement("td"); tdDel.style.cssText = "padding:4px 7px;text-align:center";
+  const btnDel = document.createElement("button");
+  btnDel.textContent = "✕"; btnDel.className = "btn btn-danger btn-sm";
+  btnDel.onclick = () => { tr.remove(); _klaimUpdateTotal(); };
+  tdDel.appendChild(btnDel);
+
+  tr.append(tdLabel, tdCat3, tdAmt, tdBudget, tdTgl, tdDel);
+  tbody.insertBefore(tr, btnRow);
+}
+
+function klaimRemoveSiswaGroup(rid) {
+  document.querySelectorAll(`tr[data-klaim-rid="${rid}"]`).forEach(r => r.remove());
+  _klaimUpdateTotal();
+  if (!document.getElementById("klaim-tbody").querySelector("tr[data-klaim-rid]")) {
+    const empty = document.createElement("tr");
+    empty.id = "klaim-empty-row";
+    empty.innerHTML = '<td colspan="11" style="text-align:center;color:var(--text-muted)">Klik + Tambah Siswa untuk mulai input.</td>';
+    document.getElementById("klaim-tbody").appendChild(empty);
+  }
+}
+
+function klaimReset() {
+  const tbody = document.getElementById("klaim-tbody");
+  tbody.innerHTML = '<tr id="klaim-empty-row"><td colspan="11" style="text-align:center;color:var(--text-muted)">Klik + Tambah Siswa untuk mulai input.</td></tr>';
+  _klaimRid = 0;
+  _klaimUpdateTotal();
+}
+
+async function ipaySaveKlaim() {
+  if (!await confirmModal("Simpan PAM Klaim Medis ini?")) return;
+
+  const type       = document.getElementById("ipay-type")?.value || "agri";
+  const tanggal    = document.getElementById("ipay-tgl").value;
+  const pam_no     = document.getElementById("ipay-pam-full").value.trim();
+  const keterangan = document.getElementById("ipay-catatan")?.value.trim() || "";
+  const pillar     = document.getElementById("ipay-pillar").value;
+  const perusahaan = document.getElementById("ipay-perusahaan").value;
+
+  if (!tanggal || !pam_no || pam_no === "Memuat...") {
+    showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
+  }
+  if (!perusahaan) { showToast("Perusahaan wajib diisi.", "error"); return; }
+
+  const tbody = document.getElementById("klaim-tbody");
+  const siswaRows = [...tbody.querySelectorAll("tr[data-klaim-type='siswa']")];
+  if (!siswaRows.length) { showToast("Minimal 1 siswa.", "error"); return; }
+
+  const rows = [];
+  for (const siswaRow of siswaRows) {
+    const siswa_code = siswaRow.dataset.siswaCode || siswaRow._siswaCode?.value || "";
+    if (!siswa_code) { showToast("Semua baris harus memilih siswa.", "error"); return; }
+
+    const rid = siswaRow.dataset.klaimRid;
+    const cat3Items = [];
+    const firstAmt = parseFloat(siswaRow._amt?.value) || 0;
+    if (firstAmt > 0) {
+      cat3Items.push({
+        cat3:    siswaRow._cat3?.value || "",
+        amount:  firstAmt,
+        tanggal: siswaRow._tgl?.value || tanggal,
+      });
+    }
+    tbody.querySelectorAll(`tr[data-klaim-rid="${rid}"][data-klaim-type="cat3"]`).forEach(sub => {
+      const amt = parseFloat(sub._amt?.value) || 0;
+      if (amt > 0) {
+        cat3Items.push({
+          cat3:    sub._cat3?.value || "",
+          amount:  amt,
+          tanggal: sub._tgl?.value || tanggal,
+        });
+      }
+    });
+    if (!cat3Items.length) { showToast(`Siswa ${siswa_code} harus ada minimal 1 cat3 dengan amount > 0.`, "error"); return; }
+
+    rows.push({
+      siswa_code,
+      cat2:         siswaRow._cat2?.value || "",
+      kelas:        siswaRow._kelas?.value || "",
+      rumah_sakit:  siswaRow._rs?.value || "",
+      diagnosa:     siswaRow._dx?.value || "",
+      spesialisasi: siswaRow._spes?.value || "",
+      cat3_items:   cat3Items,
+    });
+  }
+
+  const btn = document.getElementById("klaim-save-btn");
+  if (btn) btn.disabled = true;
+  showLoading("Menyimpan PAM Klaim Medis...");
+  let res;
+  try {
+    res = await apiFetch("/payment-memo/ipay/save-klaim", {
+      method: "POST",
+      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
+    });
+  } finally {
+    hideLoading();
+    if (btn) btn.disabled = false;
+  }
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) { klaimReset(); ipayReset(); document.querySelector('[data-tab="tab-pam"]')?.click(); }
+}
+
+// ── Others Panel ──────────────────────────────────────────────────────────
+function othersCalcTotal() {
+  const dpp    = parseFloat(document.getElementById("others-dpp")?.value.replace(/,/g, '')) || 0;
+  const ppn    = parseFloat(document.getElementById("others-ppn")?.value.replace(/,/g, '')) || 0;
+  const others = parseFloat(document.getElementById("others-others")?.value.replace(/,/g, '')) || 0;
+  const total  = dpp + ppn + others;
+  const el = document.getElementById("others-total");
+  if (el) el.textContent = "Rp " + total.toLocaleString("id-ID");
+}
+
+function othersReset() {
+  ["others-keterangan","others-dpp","others-ppn","others-others"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  const total = document.getElementById("others-total");
+  if (total) total.textContent = "Rp 0";
+  const mu = document.getElementById("others-mataUang");
+  if (mu) mu.value = "IDR";
+}
+
+async function ipaySaveOthers() {
+  if (!await confirmModal("Simpan PAM ini?")) return;
+
+  const type       = document.getElementById("ipay-type")?.value || "agri";
+  const tx         = document.getElementById("ipay-tx")?.value || "tagihan";
+  const tanggal    = document.getElementById("ipay-tgl").value;
+  const pam_no     = document.getElementById("ipay-pam-full").value.trim();
+  const keterangan = document.getElementById("others-keterangan")?.value.trim() || "";
+  const pillar     = document.getElementById("ipay-pillar").value;
+  const perusahaan = document.getElementById("ipay-perusahaan").value;
+  const mata_uang  = document.getElementById("others-mataUang")?.value || "IDR";
+  const dpp        = parseFloat(document.getElementById("others-dpp")?.value.replace(/,/g, '')) || 0;
+  const ppn        = parseFloat(document.getElementById("others-ppn")?.value.replace(/,/g, '')) || 0;
+  const others     = parseFloat(document.getElementById("others-others")?.value.replace(/,/g, '')) || 0;
+
+  if (!tanggal || !pam_no || pam_no === "Memuat...") {
+    showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
+  }
+  if (!keterangan) { showToast("Keterangan wajib diisi.", "error"); return; }
+  if (dpp <= 0)    { showToast("DPP harus lebih dari 0.", "error"); return; }
+
+  const btn = document.getElementById("others-save-btn");
+  if (btn) btn.disabled = true;
+  showLoading("Menyimpan PAM...");
+  let res;
+  try {
+    res = await apiFetch("/payment-memo/ipay/save-others", {
+      method: "POST",
+      body: JSON.stringify({
+        tab: type, transaksi: tx, tanggal, pam_no,
+        keterangan, perusahaan, pillar, mata_uang, dpp, ppn, others
+      })
+    });
+  } finally {
+    hideLoading();
+    if (btn) btn.disabled = false;
+  }
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) {
+    othersReset();
+    ipayReset();
+    // SMT/Advance don't have a #tab-pam panel — land on whichever of the
+    // two SMT tabs matches what was just saved instead.
+    const landTab = (type === "smt") ? "tab-smt" : (type === "advance") ? "tab-advance" : "tab-pam";
+    document.querySelector(`[data-tab="${landTab}"]`)?.click();
+  }
+}
+
+// ── Input SMT Lines (GL/Advance itemized) tab ────────────────────────────
+let _smtLinesRowId = 0;
+
+function smtLinesReset() {
+  document.getElementById("smt-lines-tbody").innerHTML =
+    `<tr id="smt-lines-empty-row"><td colspan="15" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input.</td></tr>`;
+  const el = document.getElementById("smt-lines-total-amt");
+  if (el) el.textContent = "Rp 0";
+  _smtLinesRowId = 0;
+}
+
+function smtLinesUpdateTotal() {
+  let total = 0;
+  document.getElementById("smt-lines-tbody").querySelectorAll("tr[data-rid]").forEach(tr => {
+    total += (parseFloat(tr._inpDpp.value) || 0) + (parseFloat(tr._inpPpn.value) || 0) + (parseFloat(tr._inpOthers.value) || 0);
+  });
+  const el = document.getElementById("smt-lines-total-amt");
+  if (el) el.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(total);
+}
+
+async function ipayUpdateDueDate() {
+  const tgl = document.getElementById("ipay-tgl")?.value;
+  const dueField = document.getElementById("ipay-due-date");
+  if (!dueField) return;
+  if (!tgl) { dueField.value = ""; return; }
+  try {
+    const res = await apiFetch(`/payment-memo/api/due-date?tanggal=${tgl}`);
+    const data = res ? await res.json() : null;
+    dueField.value = (data && data.ok) ? data.due_date : "-";
+  } catch (e) {
+    dueField.value = "-";
+  }
+  document.querySelectorAll(".smt-due-cell").forEach(el => el.textContent = dueField.value);
+}
+
+function _smtLinesUpdateRowTotal(tr) {
+  const dpp    = parseFloat(tr._inpDpp.value) || 0;
+  const ppn    = parseFloat(tr._inpPpn.value) || 0;
+  const others = parseFloat(tr._inpOthers.value) || 0;
+  tr._totalCell.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(dpp + ppn + others);
+  smtLinesUpdateTotal();
+}
+
+function _smtLinesGlAccountFor(coaRow) {
+  const tx = document.getElementById("ipay-tx")?.value || "gl";
+  if (!coaRow) return "";
+  return (tx === "advance") ? (coaRow.coa_advance || "") : (coaRow.coa_expense || "");
+}
+
+function smtLinesRecalcGlAccounts() {
+  document.getElementById("smt-lines-tbody").querySelectorAll("tr[data-rid]").forEach(tr => {
+    if (!tr.dataset.coaPamId) return;
+    const coaRow = COA_PAM_LIST.find(c => String(c.id) === tr.dataset.coaPamId);
+    tr._inpGl.value = _smtLinesGlAccountFor(coaRow);
+  });
+}
+
+function smtLinesAddRow() {
+  const empty = document.getElementById("smt-lines-empty-row");
+  if (empty) empty.remove();
+  const rid = ++_smtLinesRowId;
+  const tr = document.createElement("tr");
+  tr.dataset.rid = rid;
+
+  function td(child) { const d = document.createElement("td"); d.appendChild(child); return d; }
+  function textInp(placeholder) {
+    const i = document.createElement("input");
+    i.type = "text"; i.placeholder = placeholder || "";
+    i.style.cssText = "width:100%;box-sizing:border-box";
+    return i;
+  }
+  function numInp() {
+    const i = document.createElement("input");
+    i.type = "number"; i.min = "0"; i.placeholder = "0";
+    i.style.cssText = "width:100%;box-sizing:border-box;text-align:right";
+    return i;
+  }
+  function selInp(options, placeholder) {
+    const s = document.createElement("select");
+    s.style.cssText = "width:100%;box-sizing:border-box";
+    s.innerHTML = `<option value="">${placeholder}</option>` +
+      options.map(o => `<option value="${o}">${o}</option>`).join("");
+    return s;
+  }
+
+  // Jenis Biaya (SR) — search input + suggestion list
+  const srWrap = document.createElement("div");
+  srWrap.style.cssText = "position:relative";
+  const srInp = textInp("Cari jenis biaya...");
+  srInp.autocomplete = "off";
+  const srSugg = document.createElement("div");
+  srSugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:240px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  document.body.appendChild(srSugg);
+  srInp.addEventListener("input", () => {
+    const q = srInp.value.toLowerCase().trim();
+    tr.dataset.coaPamId = "";
+    if (!q) { srSugg.style.display = "none"; return; }
+    const hits = COA_PAM_LIST.filter(c => c.klasifikasi_sr.toLowerCase().includes(q)).slice(0, 15);
+    if (!hits.length) { srSugg.style.display = "none"; return; }
+    srSugg.innerHTML = "";
+    hits.forEach(c => {
+      const d = document.createElement("div");
+      d.style.cssText = "padding:6px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid #f3f4f6";
+      d.textContent = c.klasifikasi_sr;
+      d.addEventListener("mousedown", () => {
+        srInp.value = c.klasifikasi_sr;
+        tr.dataset.coaPamId = String(c.id);
+        tr._inpMr.value = c.klasifikasi_mr;
+        tr._inpGl.value = _smtLinesGlAccountFor(c);
+        srSugg.style.display = "none";
+      });
+      srSugg.appendChild(d);
+    });
+    const r = srInp.getBoundingClientRect();
+    srSugg.style.top = (r.bottom + 2) + "px"; srSugg.style.left = r.left + "px"; srSugg.style.width = r.width + "px";
+    srSugg.style.display = "block";
+  });
+  srInp.addEventListener("blur", () => setTimeout(() => { srSugg.style.display = "none"; }, 200));
+  srWrap.appendChild(srInp);
+
+  const mrInp = textInp("(auto)");
+  const glInp = textInp("(auto)"); glInp.readOnly = true; glInp.style.background = "#f3f4f6";
+  const tipeSel = selInp(SMT_PAM_TIPE_DOKUMEN, "— Tipe Dokumen —");
+  const invInp = textInp("No. Invoice");
+  const dppInp = numInp();
+  const ppnInp = numInp();
+  const othersInp = numInp();
+  const totalCell = document.createElement("div");
+  totalCell.style.cssText = "text-align:right;font-weight:700;color:#1a56db;white-space:nowrap";
+  totalCell.textContent = "Rp 0";
+  
+  const dueCell = document.createElement("div");
+  dueCell.className = "smt-due-cell";
+  dueCell.style.cssText = "font-family:monospace;font-size:11px;color:#4b5563;white-space:nowrap;padding-top:6px;text-align:center";
+  dueCell.textContent = document.getElementById("ipay-due-date")?.value || "-";
+
+  const ccSel = selInp(SMT_PAM_COST_CENTERS, "— Cost Center —");
+  const activityInp = selInp(BUDGET_ACTIVITIES, "— Budget Activity —");
+
+  const vendorWrap = document.createElement("div"); vendorWrap.style.position = "relative";
+  const vendorInp = textInp("Cari vendor..."); vendorInp.autocomplete = "off";
+  const vendorSugg = document.createElement("div");
+  vendorSugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  document.body.appendChild(vendorSugg);
+  
+  vendorInp.addEventListener("input", () => {
+    const q = vendorInp.value.toLowerCase().trim();
+    if (!q) { vendorSugg.style.display = "none"; return; }
+    const hits = VENDOR_LIST.filter(v => v.name.toLowerCase().includes(q)).slice(0, 15);
+    if (!hits.length) { vendorSugg.style.display = "none"; return; }
+    _vendorSuggRender(hits, vendorSugg, v => {
+      vendorInp.value = v.name;
+      vendorSugg.style.display = "none";
+    });
+    const r = vendorInp.getBoundingClientRect();
+    vendorSugg.style.top = (r.bottom + 2) + "px"; vendorSugg.style.left = r.left + "px"; vendorSugg.style.width = r.width + "px";
+    vendorSugg.style.display = "block";
+  });
+  vendorInp.addEventListener("blur", () => setTimeout(() => { vendorSugg.style.display = "none"; }, 200));
+  vendorWrap.appendChild(vendorInp);
+
+  const ketInp = textInp("Keterangan");
+
+  dppInp.addEventListener("input", () => _smtLinesUpdateRowTotal(tr));
+  ppnInp.addEventListener("input", () => _smtLinesUpdateRowTotal(tr));
+  othersInp.addEventListener("input", () => _smtLinesUpdateRowTotal(tr));
+
+  const delBtn = document.createElement("button");
+  delBtn.className = "btn btn-sm"; delBtn.style.cssText = "background:#ef4444;color:#fff;padding:2px 8px";
+  delBtn.textContent = "✕";
+  delBtn.addEventListener("click", () => {
+    srSugg.remove(); vendorSugg.remove(); tr.remove();
+    if (!document.getElementById("smt-lines-tbody").querySelector("tr[data-rid]")) smtLinesReset();
+    smtLinesUpdateTotal();
+  });
+
+  tr._inpSr = srInp; tr._inpMr = mrInp; tr._inpGl = glInp; tr._inpDpp = dppInp; tr._inpPpn = ppnInp; tr._inpOthers = othersInp; tr._totalCell = totalCell;
+  const totalTd = document.createElement("td"); totalTd.appendChild(totalCell);
+  const dueTd = document.createElement("td"); dueTd.appendChild(dueCell);
+  [td(srWrap), td(mrInp), td(glInp), td(tipeSel), td(invInp), td(dppInp), td(ppnInp), td(othersInp),
+   totalTd, dueTd, td(ccSel), td(activityInp), td(vendorWrap), td(ketInp), td(delBtn)]
+    .forEach(cell => tr.appendChild(cell));
+
+  tr._selTipe = tipeSel; tr._inpInv = invInp; tr._selCc = ccSel; tr._inpActivity = activityInp; tr._inpVendor = vendorInp; tr._inpKet = ketInp;
+  document.getElementById("smt-lines-tbody").appendChild(tr);
+}
+
+async function ipaySaveSmtLines() {
+  if (!await confirmModal("Simpan PAM ini?")) return;
+
+  const tanggal    = document.getElementById("ipay-tgl").value;
+  const pam_no     = document.getElementById("ipay-pam-full").value.trim();
+  const perusahaan = document.getElementById("ipay-perusahaan").value;
+  const cc         = document.getElementById("ipay-cc").value;
+  const pillar     = document.getElementById("ipay-pillar").value;
+  const transaksi  = document.getElementById("ipay-tx")?.value || "gl";
+  const catatan    = document.getElementById("ipay-catatan")?.value.trim() || "";
+
+  if (!tanggal || !pam_no || pam_no === "Memuat...") {
+    showToast("Tanggal dan No. PAM wajib ada.", "error"); return;
+  }
+
+  const rows = [...document.getElementById("smt-lines-tbody").querySelectorAll("tr[data-rid]")].map(tr => ({
+    coa_pam_id:      tr.dataset.coaPamId ? parseInt(tr.dataset.coaPamId, 10) : null,
+    klasifikasi_sr:  tr._inpSr.value,
+    klasifikasi_mr:  tr._inpMr.value,
+    gl_account:      tr._inpGl.value,
+    tipe_dokumen:    tr._selTipe.value,
+    no_invoice:      tr._inpInv.value,
+    dpp:             parseFloat(tr._inpDpp.value) || 0,
+    ppn:             parseFloat(tr._inpPpn.value) || 0,
+    others:          parseFloat(tr._inpOthers.value) || 0,
+    cost_center:     tr._selCc.value,
+    budget_activity: tr._inpActivity.value,
+    vendor:          tr._inpVendor ? tr._inpVendor.value.trim() : "",
+    keterangan:      tr._inpKet.value,
+  }));
+
+  if (!rows.length) { showToast("Minimal 1 baris transaksi.", "error"); return; }
+  if (rows.some(r => !r.klasifikasi_sr)) { showToast("Setiap baris wajib memilih Jenis Biaya.", "error"); return; }
+  if (rows.some(r => r.dpp <= 0)) { showToast("Setiap baris wajib DPP lebih dari 0.", "error"); return; }
+  if (rows.some(r => !r.keterangan.trim())) { showToast("Setiap baris wajib diisi Keterangan.", "error"); return; }
+  if (rows.some(r => !r.gl_account)) { showToast("Jenis Biaya yang dipilih tidak punya kode GL untuk Advance — pilih jenis biaya lain atau ganti Transaksi ke GL.", "error"); return; }
+
+  const btn = document.getElementById("smt-lines-save-btn");
+  if (btn) btn.disabled = true;
+  showLoading("Menyimpan PAM...");
+  let res;
+  try {
+    res = await apiFetch("/payment-memo/ipay/save-smt-lines", {
+      method: "POST",
+      body: JSON.stringify({ tanggal, pam_no, perusahaan, cc, pillar, transaksi, rows, catatan })
+    });
+  } finally {
+    hideLoading();
+    if (btn) btn.disabled = false;
+  }
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? "success" : "error");
+  if (data.ok) {
+    smtLinesReset();
+    ipayReset();
+    // Mirror ipaySaveOthers()'s landing logic: GL saves land on the PAM
+    // List tab (pillar SMT), Advance saves land on the Advance tab
+    // (pillar ADVANCE) — the two pillars are shown in different tabs.
+    const landTab = (transaksi === "advance") ? "tab-advance" : "tab-smt";
+    document.querySelector(`[data-tab="${landTab}"]`)?.click();
+  }
+}
+
+// ── Input Klaim tab ────────────────────────────────────────────────────────────
+const PERAWATAN_LIST = ["Rawat Inap","Rawat Jalan"];
+let _iklaimRowId = 0;
+
+function iklaimReset() {
+  document.querySelectorAll("[data-iklaimsugg]").forEach(el=>el.remove());
+  document.getElementById("iklaim-pam-seq").value=""; document.getElementById("iklaim-pam-preview").textContent=""; document.getElementById("iklaim-pam-full").value="";
+  document.getElementById("iklaim-perusahaan-search").value=""; document.getElementById("iklaim-perusahaan").value=""; document.getElementById("iklaim-pillar").value="";
+  document.getElementById("iklaim-vendor-sugg").style.display="none";
+  document.getElementById("iklaim-tbody").innerHTML=`<tr id="iklaim-empty-row"><td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input klaim.</td></tr>`;
+  _iklaimRowId=0;
+}
+
+function iklaimUpdatePAM() {
+  const seq=document.getElementById("iklaim-pam-seq").value.trim(), now=new Date();
+  const datePart=`-${COMPANY_CODE}-${String(now.getMonth()+1).padStart(2,"0")}-${now.getFullYear()}`;
+  document.getElementById("iklaim-pam-full").value=seq?`PAM-${seq}${datePart}`:"";
+  document.getElementById("iklaim-pam-preview").textContent=seq?datePart:"";
+}
+
+function iklaimAddRow() {
+  const empty=document.getElementById("iklaim-empty-row"); if(empty)empty.remove();
+  const rid=++_iklaimRowId, tr=document.createElement("tr"); tr.dataset.rid=rid; tr.dataset.siswaCode="";
+  function tdInp(type,ph,extra){const td=document.createElement("td"),inp=document.createElement("input");inp.type=type;inp.placeholder=ph||"";if(extra)Object.assign(inp,extra);inp.style.cssText="width:100%;box-sizing:border-box";td.appendChild(inp);return{td,inp};}
+  const tdSiswa=document.createElement("td"), siswaInp=document.createElement("input");
+  siswaInp.type="text"; siswaInp.placeholder="Cari siswa..."; siswaInp.autocomplete="off"; siswaInp.style.cssText="width:100%;box-sizing:border-box";
+  const sugg=document.createElement("div"); sugg.dataset.iklaimsugg="1";
+  sugg.style.cssText="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #f9a8d4;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  document.body.appendChild(sugg);
+  function _posSugg(){const r=siswaInp.getBoundingClientRect();sugg.style.top=(r.bottom+2)+"px";sugg.style.left=r.left+"px";sugg.style.width=r.width+"px";}
+  siswaInp.addEventListener("input",()=>{const q=siswaInp.value.toLowerCase().trim();if(!q){sugg.style.display="none";return;}const hits=SISWA_LIST.filter(s=>(s.nama&&s.nama.toLowerCase().includes(q))||(s.code&&String(s.code).toLowerCase().includes(q))).slice(0,10);if(!hits.length){sugg.style.display="none";return;}sugg.innerHTML="";hits.forEach(s=>{const d=document.createElement("div");d.style.cssText="padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:.5rem";d.innerHTML=`<span style="font-weight:600;color:#db2777;min-width:72px">${s.code}</span><span style="color:#374151">${s.nama}</span>`;d.addEventListener("mousedown",()=>{siswaInp.value=`${s.code} — ${s.nama}`;tr.dataset.siswaCode=s.code;sugg.style.display="none";});d.addEventListener("mouseover",()=>{d.style.background="#fdf2f8";});d.addEventListener("mouseout",()=>{d.style.background="";});sugg.appendChild(d);});_posSugg();sugg.style.display="block";});
+  siswaInp.addEventListener("focus",()=>{if(sugg.children.length)_posSugg();});
+  siswaInp.addEventListener("blur",()=>setTimeout(()=>{sugg.style.display="none";},200));
+  tdSiswa.appendChild(siswaInp);
+  const {td:tdTgl,inp:inpTgl}=tdInp("date","");
+  const {td:tdAmt,inp:inpAmt}=tdInp("number","0",{min:"0"});
+  const tdPerawatan=document.createElement("td"),selPerawatan=document.createElement("select");
+  selPerawatan.style.width="100%"; selPerawatan.innerHTML=`<option value="">— Perawatan —</option>`+PERAWATAN_LIST.map(p=>`<option value="${p}">${p}</option>`).join(""); tdPerawatan.appendChild(selPerawatan);
+  const {td:tdKelas,inp:inpKelas}=tdInp("text","Kelas...");
+  const {td:tdRS,inp:inpRS}=tdInp("text","Rumah Sakit...");
+  const {td:tdDiagnosa,inp:inpDiagnosa}=tdInp("text","Diagnosa...");
+  const {td:tdSpesialisasi,inp:inpSpesialisasi}=tdInp("text","Spesialisasi...");
+  const tdDel=document.createElement("td"),btnDel=document.createElement("button");
+  btnDel.className="btn btn-sm"; btnDel.style.cssText="background:#ef4444;color:#fff;padding:2px 8px"; btnDel.textContent="✕";
+  btnDel.addEventListener("click",()=>{sugg.remove();tr.remove();if(!document.getElementById("iklaim-tbody").querySelector("tr[data-rid]")){document.getElementById("iklaim-tbody").innerHTML=`<tr id="iklaim-empty-row"><td colspan="9" style="text-align:center;color:var(--text-muted)">Klik + Tambah Baris untuk mulai input klaim.</td></tr>`;}});
+  tdDel.appendChild(btnDel);
+  tr._inpTgl=inpTgl;tr._inpAmt=inpAmt;tr._selPerawatan=selPerawatan;tr._inpKelas=inpKelas;tr._inpRS=inpRS;tr._inpDiagnosa=inpDiagnosa;tr._inpSpesialisasi=inpSpesialisasi;
+  [tdSiswa,tdTgl,tdAmt,tdPerawatan,tdKelas,tdRS,tdDiagnosa,tdSpesialisasi,tdDel].forEach(td=>tr.appendChild(td));
+  document.getElementById("iklaim-tbody").appendChild(tr);
+}
+
+async function iklaimSave() {
+  const pam=document.getElementById("iklaim-pam-full").value, pillar=document.getElementById("iklaim-pillar").value, perusahaan=document.getElementById("iklaim-perusahaan").value;
+  if (!pillar||!perusahaan) { showToast("Pillar dan Perusahaan wajib diisi.","error"); return; }
+  const rows=[...document.getElementById("iklaim-tbody").querySelectorAll("tr[data-rid]")].map(tr=>({siswa_code:tr.dataset.siswaCode||"",tanggal:tr._inpTgl.value,amount:parseFloat(tr._inpAmt.value)||0,perawatan:tr._selPerawatan.value,kelas:tr._inpKelas.value,rumah_sakit:tr._inpRS.value,diagnosa:tr._inpDiagnosa.value,spesialisasi:tr._inpSpesialisasi.value})).filter(r=>r.amount>0);
+  if (!rows.length) { showToast("Minimal 1 baris dengan amount > 0.","error"); return; }
+  if (rows.some(r=>!r.siswa_code)) { showToast("Semua baris harus memilih siswa.","error"); return; }
+  if (rows.some(r=>!r.tanggal)) { showToast("Semua baris harus mengisi tanggal.","error"); return; }
+  const d=await(await apiFetch("/beasiswa/klaim/tambah-multi",{method:"POST",body:JSON.stringify({pam,pillar,perusahaan,rows})})).json();
+  showToast(d.pesan,d.ok?"success":"error");
+  if (d.ok) iklaimReset();
+}
+
+// ── PAM Quick-Edit Siswa helpers ─────────────────────────────────────────────
+function _pamGetLastIpk(s) {
+  for (let i = 10; i >= 1; i--) {
+    const v = parseFloat(s[`ipk_sem${i}`]);
+    if (v > 0) return { label: `IPK Sem ${i}`, value: v };
+  }
+  for (let i = 3; i >= 1; i--) {
+    const v = parseFloat(s[`ipk_pen${i}`]);
+    if (v > 0) return { label: `IPK Pen ${i}`, value: v };
+  }
+  return null;
+}
+
+function _pamUpdateIpkStrip(tr, s) {
+  const ipk = _pamGetLastIpk(s);
+  tr._ipkBadge.textContent = ipk ? `${ipk.label}: ${ipk.value.toFixed(2)}` : 'IPK: —';
+  tr._ipkStrip.style.display = 'flex';
+}
+
+let _pamEditCode = '', _pamEditCallback = null;
+
+async function pamOpenEditSiswa(code, onSaved) {
+  const res = await apiFetch(`/beasiswa/siswa/${code}`);
+  if (!res) return;
+  const d = await res.json();
+  if (!d.ok) { showToast('Gagal memuat data siswa.', 'error'); return; }
+  const s = d.data;
+  _pamEditCode = code;
+  _pamEditCallback = onSaved || null;
+  document.getElementById('pam-esiswa-title').textContent = `Update Data Siswa — ${code}`;
+  ['code','nama','jenjang','angkatan','program','status','prodi','angkatan_kuliah',
+   'fakultas','universitas','bank','norek','namarek','catatan','catatan_payment'].forEach(k => {
+    const el = document.getElementById(`pam-esiswa-${k}`);
+    if (el) el.value = s[k] ?? '';
+  });
+  for (let i = 1; i <= 10; i++) {
+    const el = document.getElementById(`pam-esiswa-ipk-sem${i}`);
+    if (el) el.value = s[`ipk_sem${i}`] || '';
+  }
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`pam-esiswa-ipk-pen${i}`);
+    if (el) el.value = s[`ipk_pen${i}`] || '';
+  }
+  openModal('modal-pam-edit-siswa');
+}
+
+async function pamSimpanSiswa() {
+  if (!await confirmModal(`Update data siswa ${_pamEditCode}?`, { confirmText: 'Update' })) return;
+  const payload = {};
+  ['nama','jenjang','angkatan','program','status','prodi','angkatan_kuliah',
+   'fakultas','universitas','bank','norek','namarek','catatan','catatan_payment'].forEach(k => {
+    const el = document.getElementById(`pam-esiswa-${k}`);
+    if (el) payload[k] = k === 'angkatan' ? (parseInt(el.value) || null) : el.value;
+  });
+  for (let i = 1; i <= 10; i++) {
+    const el = document.getElementById(`pam-esiswa-ipk-sem${i}`);
+    payload[`ipk_sem${i}`] = el ? (parseFloat(el.value) || 0) : 0;
+  }
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`pam-esiswa-ipk-pen${i}`);
+    payload[`ipk_pen${i}`] = el ? (parseFloat(el.value) || 0) : 0;
+  }
+  const res = await apiFetch(`/beasiswa/siswa/${_pamEditCode}/update`, { method: 'POST', body: JSON.stringify(payload) });
+  if (!res) return;
+  const data = await res.json();
+  showToast(data.pesan, data.ok ? 'success' : 'error');
+  if (data.ok) {
+    closeModal('modal-pam-edit-siswa');
+    if (_pamEditCallback) _pamEditCallback({ ...payload, code: _pamEditCode });
+  }
+}
+
+document.addEventListener("DOMContentLoaded",()=>{
+  const tglEl=document.getElementById("ipay-tgl");
+  if(tglEl) tglEl.addEventListener("change",ipayFetchNextPamNo);
+  // set today as default date on load
+  if(tglEl && !tglEl.value) tglEl.value = new Date().toISOString().slice(0,10);
+});
+
+function exportPillarExcel(pillar) {
+  const prefix = { AGRI: 'pam', APP: 'fiori', LAND: 'sml', ENERGY: 'energy', SETF: 'setf', SMT: 'smt', ADVANCE: 'advance' }[pillar] || 'pam';
+  const url    = new URL('/payment-memo/export/pam', window.location.origin);
+  url.searchParams.set('pillar', pillar);
+  const search = (document.getElementById(prefix + '-search')?.value || '').trim();
+  const bulan  = document.getElementById(prefix + '-filter-bulan')?.value || '';
+  const tahun  = document.getElementById(prefix + '-filter-tahun')?.value || '';
+  const status = document.getElementById(prefix + '-filter-status')?.value || '';
+  const source = document.getElementById(prefix + '-filter-source')?.value || '';
+  if (search) url.searchParams.set('search', search);
+  if (bulan)  url.searchParams.set('bulan',  bulan);
+  if (tahun)  url.searchParams.set('tahun',  tahun);
+  if (status) url.searchParams.set('status', status);
+  if (source) url.searchParams.set('source', source);
+  window.location.href = url.toString();
+}
+
+// Render Open PAM accordion on page load
+renderOpenPAM(OPEN_PAM_DRAFTS);
+
+/* Deep link from dashboard: ?pam_pillar=AGRI&pam_no=... lands on the pillar
+   tab with the search pre-filtered to that memo's rows (inline-editable). */
+document.addEventListener('DOMContentLoaded', function () {
+  const params = new URLSearchParams(window.location.search);
+  const pillar = (params.get('pam_pillar') || '').toUpperCase();
+  if (!pillar) return;
+  const cfg = {
+    AGRI: ['tab-pam',   'pam-search'],
+    APP:  ['tab-fiori', 'fiori-search'],
+    LAND: ['tab-sml',   'sml-search'],
+    ENERGY: ['tab-energy', 'energy-search'],
+    SETF: ['tab-setf',  'setf-search'],
+    ADVANCE: ['tab-pa-advance', 'pa-advance-search'],
+  }[pillar];
+  if (!cfg) return;
+  const pamNo = params.get('pam_no') || '';
+  const inp = document.getElementById(cfg[1]);
+  if (inp && pamNo) inp.value = pamNo;
+  document.querySelector(`[data-tab="${cfg[0]}"]`)?.click();
+});

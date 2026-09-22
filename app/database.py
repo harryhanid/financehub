@@ -1196,12 +1196,14 @@ def migrate_db():
             pass
 
     # pam_records — add standardization columns (mata_uang, dpp, ppn, others, pillar)
+    # also add attachment_file_id (2026-09)
     for col_def in [
         "mata_uang TEXT DEFAULT 'IDR'",
-        "dpp       INTEGER DEFAULT 0",
-        "ppn       INTEGER DEFAULT 0",
-        "others    INTEGER DEFAULT 0",
-        "pillar    TEXT",
+        "dpp REAL DEFAULT 0",
+        "ppn REAL DEFAULT 0",
+        "others REAL DEFAULT 0",
+        "pillar TEXT",
+        "attachment_file_id TEXT"
     ]:
         try:
             conn.execute(f"ALTER TABLE pam_records ADD COLUMN {col_def}")

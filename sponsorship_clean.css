@@ -1,0 +1,159 @@
+/* static/css/sponsorship.css — Sponsorship module, reuses global tokens only */
+
+.sp-autocomplete-results {
+  position: relative;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--card);
+  display: none;
+}
+
+.sp-autocomplete-results.open {
+  display: block;
+}
+
+.sp-autocomplete-item {
+  padding: .5rem .75rem;
+  cursor: pointer;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.sp-autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.sp-autocomplete-item:hover,
+.sp-autocomplete-item.highlighted {
+  background: var(--bg-muted);
+}
+
+.sp-autocomplete-empty {
+  padding: .5rem .75rem;
+  color: var(--text-muted);
+  font-size: .85rem;
+}
+
+.budget-toolbar .budget-btn.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.sp-report-table { margin-bottom: 1.5rem; }
+
+.sp-report-section-band td {
+  background: #fef9c3;
+  color: #854d0e;
+  font-weight: 700;
+  padding: .4rem .6rem;
+}
+
+.sp-report-subtotal-row td {
+  background: #fef9c3;
+  color: #854d0e;
+  font-weight: 700;
+}
+
+.sp-report-grandtotal-row td {
+  background: #1e3a5f;
+  color: #fff;
+  font-weight: 700;
+}
+
+/* .budget-table tr:hover td is (0,2,2) — one class + :hover + 2 elements (tr, td).
+   A bare .sp-report-*-row:hover td is only (0,2,1) and loses that fight, so these
+   repeat the tr element to match its shape and win on the class count instead. */
+.budget-table tr.sp-report-grandtotal-row:hover td { background: #1e3a5f; }
+.budget-table tr.sp-report-subtotal-row:hover td,
+.budget-table tr.sp-report-section-band:hover td { background: #fef9c3; }
+
+.sp-report-pct-row td {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Input / Edit form redesign ──────────────────────────────────────────── */
+.sp-form-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+}
+.sp-form-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+.sp-form-section-title.sp-form-section-title-divider {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+.sp-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+.sp-form-field {
+  margin-bottom: 0.7rem;
+}
+.sp-form-field.sp-form-span2 {
+  grid-column: span 2;
+}
+.sp-form-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+.sp-form-field input,
+.sp-form-field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+.sp-form-field input[readonly] {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+/* Lanjutan (COA/CC Total/CC/Source) disclosure */
+.sp-form-advanced {
+  margin-top: 0.75rem;
+}
+.sp-form-advanced > summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  list-style: none;
+}
+.sp-form-advanced > summary::-webkit-details-marker { display: none; }
+.sp-form-advanced > summary::before {
+  content: "▸ ";
+}
+.sp-form-advanced[open] > summary::before {
+  content: "▾ ";
+}
+.sp-form-advanced .sp-form-grid {
+  grid-template-columns: 1fr;
+  margin-top: 0.6rem;
+}
+
+/* -- Full-height table wrapper  Data/Outstanding tabs --------------------- */
+/* Overrides .budget-table-container's stale max-height (budget.css) with a
+   JS-driven height instead, matching Payment Application's #pa-scroll-wrap
+   technique (etf_payment_application/index.html). An id selector already
+   outranks the class rule, so no !important is needed. */
+#sp-table-wrap { max-height: none; }
