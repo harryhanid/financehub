@@ -2807,7 +2807,7 @@ function searchTree() {
   function adjustSpacing(delta) {
       if (!window.currentTreeData) return;
       window.treeSpacingMultiplier += delta;
-      if (window.treeSpacingMultiplier < 0.3) window.treeSpacingMultiplier = 0.3;
+      if (window.treeSpacingMultiplier < 1.0) window.treeSpacingMultiplier = 1.0;
       if (window.treeSpacingMultiplier > 5.0) window.treeSpacingMultiplier = 5.0;
       
       renderTree(window.currentTreeData);
