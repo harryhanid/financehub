@@ -2512,8 +2512,8 @@ function renderTree(data) {
     let baseH = wrapper ? wrapper.clientHeight : 800;
     if (baseH < 600) baseH = 600;
     
-    let newWidth = Math.max(baseW, leaves * 180);
-    let newHeight = Math.max(baseH, (maxDepth + 1) * 260);
+    let newWidth = Math.max(baseW, leaves * 140);
+    let newHeight = Math.max(baseH, (maxDepth + 1) * 320);
     
     let chartDiv = document.getElementById("tree-chart");
     if (chartDiv) {
@@ -2665,8 +2665,8 @@ function renderTree(data) {
             let baseW = wrap ? wrap.clientWidth : 1200;
             let baseH = wrap ? wrap.clientHeight : 800;
             if (baseH < 600) baseH = 600;
-            let newWidth = Math.max(baseW, leaves * 180);
-            let newHeight = Math.max(baseH, (maxDepth + 1) * 260);
+            let newWidth = Math.max(baseW, leaves * 140);
+            let newHeight = Math.max(baseH, (maxDepth + 1) * 320);
             let cDiv = document.getElementById('tree-chart');
             
             if (cDiv.style.width !== newWidth + 'px' || cDiv.style.height !== newHeight + 'px') {
