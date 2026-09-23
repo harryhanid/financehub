@@ -2504,14 +2504,23 @@ async function initTreeQuery() {
 }
 
 function renderTree(data) {
-  window.currentTreeData = data;
-  let leaves = countVisibleLeaves(data[0]);
-  let newWidth = Math.max(1200, leaves * 180);
-  let chartDiv = document.getElementById("tree-chart");
-  if (chartDiv) {
-      chartDiv.style.width = newWidth + "px";
-      if (treeChartInstance) treeChartInstance.resize();
-  }
+    window.currentTreeData = data;
+    let leaves = countVisibleLeaves(data[0]);
+    let maxDepth = getVisibleDepth(data[0], 0);
+    let wrapper = document.getElementById("tree-wrapper");
+    let baseW = wrapper ? wrapper.clientWidth : 1200;
+    let baseH = wrapper ? wrapper.clientHeight : 800;
+    if (baseH < 600) baseH = 600;
+    
+    let newWidth = Math.max(baseW, leaves * 180);
+    let newHeight = Math.max(baseH, (maxDepth + 1) * 260);
+    
+    let chartDiv = document.getElementById("tree-chart");
+    if (chartDiv) {
+        chartDiv.style.width = newWidth + "px";
+        chartDiv.style.height = newHeight + "px";
+        if (treeChartInstance) treeChartInstance.resize();
+    }
   const option = {
     tooltip: { 
       trigger: 'item', 
@@ -2652,8 +2661,12 @@ function renderTree(data) {
         if (toggleNode(window.currentTreeData[0], e.data._uid)) {
             let leaves = countVisibleLeaves(window.currentTreeData[0]);
             let maxDepth = getVisibleDepth(window.currentTreeData[0], 0);
-            let newWidth = Math.max(1200, leaves * 180);
-            let newHeight = Math.max(800, (maxDepth + 1) * 260);
+            let wrap = document.getElementById("tree-wrapper");
+            let baseW = wrap ? wrap.clientWidth : 1200;
+            let baseH = wrap ? wrap.clientHeight : 800;
+            if (baseH < 600) baseH = 600;
+            let newWidth = Math.max(baseW, leaves * 180);
+            let newHeight = Math.max(baseH, (maxDepth + 1) * 260);
             let cDiv = document.getElementById('tree-chart');
             
             if (cDiv.style.width !== newWidth + 'px' || cDiv.style.height !== newHeight + 'px') {
