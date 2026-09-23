@@ -2473,6 +2473,33 @@ async function initTreeQuery() {
   if (!chartDom) return;
   
   treeChartInstance = echarts.init(chartDom);
+  const slider = document.getElementById("tree-wrapper");
+  if (slider) {
+      let isDown = false;
+      let startX, startY, scrollLeft, scrollTop;
+      slider.style.cursor = 'grab';
+      slider.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return;
+          isDown = true;
+          slider.style.cursor = 'grabbing';
+          startX = e.pageX - slider.offsetLeft;
+          startY = e.pageY - slider.offsetTop;
+          scrollLeft = slider.scrollLeft;
+          scrollTop = slider.scrollTop;
+      });
+      window.addEventListener('mouseup', () => {
+          isDown = false;
+          if(slider) slider.style.cursor = 'grab';
+      });
+      slider.addEventListener('mousemove', (e) => {
+          if (!isDown) return;
+          e.preventDefault();
+          const x = e.pageX - slider.offsetLeft;
+          const y = e.pageY - slider.offsetTop;
+          slider.scrollLeft = scrollLeft - (x - startX);
+          slider.scrollTop = scrollTop - (y - startY);
+      });
+  }
   const searchInput = document.getElementById('tree-search-input');
   if (searchInput) {
     searchInput.addEventListener('keydown', (e) => {
@@ -2581,7 +2608,7 @@ function renderTree(data) {
         data: data,
         top: paddingY, left: paddingX, bottom: paddingY, right: paddingX,
         symbolSize: 7 * window.textZoomMultiplier,
-        roam: 'move',
+        roam: false,
           expandAndCollapse: false,
           zoom: 1,
         label: {
