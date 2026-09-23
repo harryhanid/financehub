@@ -2643,22 +2643,50 @@ function renderTree(data) {
     treeChartInstance.on('click', function(e) {
         if (!e.data || !e.data._uid) return;
         
-        function toggleNode(n, targetUid) {
-            if (n._uid === targetUid) {
-                if (n.children && n.children.length > 0) {
-                    n.collapsed = !n.collapsed;
+        function applyAccordion(root, targetUid) {
+            let path = [];
+            function findPath(node, target) {
+                if (node._uid === target) {
+                    path.push(node);
+                    return true;
                 }
-                return true;
-            }
-            if (n.children) {
-                for (let c of n.children) {
-                    if (toggleNode(c, targetUid)) return true;
+                if (node.children) {
+                    for (let c of node.children) {
+                        if (findPath(c, target)) {
+                            path.unshift(node);
+                            return true;
+                        }
+                    }
                 }
+                return false;
             }
-            return false;
+            
+            if (!findPath(root, targetUid)) return false;
+            
+            let targetNode = path[path.length - 1];
+            if (!targetNode || !targetNode.children || targetNode.children.length === 0) return true;
+            
+            let isExpanding = targetNode.collapsed;
+            
+            if (isExpanding) {
+                function collapseAll(n) {
+                    if (n.children && n.children.length > 0) {
+                        n.collapsed = true;
+                        n.children.forEach(collapseAll);
+                    }
+                }
+                collapseAll(root);
+                
+                path.forEach(n => {
+                    n.collapsed = false;
+                });
+            } else {
+                targetNode.collapsed = true;
+            }
+            return true;
         }
         
-        if (toggleNode(window.currentTreeData[0], e.data._uid)) {
+        if (applyAccordion(window.currentTreeData[0], e.data._uid)) {
             let leaves = countVisibleLeaves(window.currentTreeData[0]);
             let maxDepth = getVisibleDepth(window.currentTreeData[0], 0);
             let wrap = document.getElementById("tree-wrapper");
