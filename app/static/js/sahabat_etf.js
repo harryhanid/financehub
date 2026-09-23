@@ -6,9 +6,26 @@ document.addEventListener("DOMContentLoaded", function() {
         let chartDiv = document.getElementById("tree-chart");
         if (chartDiv) {
             clearInterval(checkExist);
-            chartDiv.addEventListener("wheel", function(e) {
+                        chartDiv.addEventListener("wheel", function(e) {
                 if (!window.currentTreeData) return;
                 e.preventDefault();
+                
+                let wrap = document.getElementById("tree-wrapper");
+                if (!wrap) return;
+
+                let rect = wrap.getBoundingClientRect();
+                let mouseX = e.clientX - rect.left;
+                let mouseY = e.clientY - rect.top;
+                
+                let scrollLeft = wrap.scrollLeft;
+                let scrollTop = wrap.scrollTop;
+                
+                let oldWidth = chartDiv.clientWidth;
+                let oldHeight = chartDiv.clientHeight;
+                
+                let ratioX = (mouseX + scrollLeft) / oldWidth;
+                let ratioY = (mouseY + scrollTop) / oldHeight;
+
                 let delta = e.deltaY > 0 ? -0.15 : 0.15;
                 window.treeSpacingMultiplier += delta;
                 if (window.treeSpacingMultiplier < 0.3) window.treeSpacingMultiplier = 0.3;
@@ -17,20 +34,25 @@ document.addEventListener("DOMContentLoaded", function() {
                 let leaves = countVisibleLeaves(window.currentTreeData[0]);
                 let maxDepth = getVisibleDepth(window.currentTreeData[0], 0);
                 
-                let wrap = document.getElementById("tree-wrapper");
-                let baseW = wrap ? wrap.clientWidth : 1200;
-                let baseH = wrap ? wrap.clientHeight : 800;
+                let baseW = wrap.clientWidth;
+                let baseH = wrap.clientHeight;
                 if (baseH < 600) baseH = 600;
                 
-                let newWidth = Math.max(baseW, leaves * 140 * (window.treeSpacingMultiplier || 1.0) * window.treeSpacingMultiplier);
-                let newHeight = Math.max(baseH, (maxDepth + 1) * 320 * (window.treeSpacingMultiplier || 1.0) * window.treeSpacingMultiplier);
+                let newWidth = Math.max(baseW, leaves * 140 * window.treeSpacingMultiplier);
+                let newHeight = Math.max(baseH, (maxDepth + 1) * 320 * window.treeSpacingMultiplier);
                 
                 chartDiv.style.width = newWidth + "px";
                 chartDiv.style.height = newHeight + "px";
                 
-                if (treeChartInstance) {
-                    treeChartInstance.resize();
-                }
+                wrap.scrollLeft = (ratioX * newWidth) - mouseX;
+                wrap.scrollTop = (ratioY * newHeight) - mouseY;
+
+                if (window.resizeTicking) return;
+                window.resizeTicking = true;
+                requestAnimationFrame(() => {
+                    if (treeChartInstance) treeChartInstance.resize();
+                    window.resizeTicking = false;
+                });
             }, { passive: false });
         }
     }, 100);
@@ -2848,10 +2870,15 @@ function searchTree() {
 
 function zoomTreeQuery(ratio) {
       if (treeChartInstance) {
-          treeChartInstance.dispatchAction({
-              type: 'treeRoam',
-              zoom: ratio
-          });
+        let opt = treeChartInstance.getOption();
+        let currentZoom = 1;
+        if (opt && opt.series && opt.series.length > 0) {
+           currentZoom = opt.series[0].zoom || 1;
+        }
+        opt.series[0].zoom = currentZoom * ratio;
+        treeChartInstance.setOption({
+            series: [{ zoom: opt.series[0].zoom }]
+        });
       }
     }
   function foldChildren(node, depth) {
