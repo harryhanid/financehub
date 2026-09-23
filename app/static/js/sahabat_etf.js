@@ -2526,7 +2526,7 @@ function renderTree(data) {
     let tz = window.textZoomMultiplier || 1.0;
     let ts = window.treeSpacingMultiplier || 1.0;
     // Box is ~160px at tz=1.0. Fixed 90px horizontal whitespace.
-    let reqW = leaves * (160 * tz + 90) * ts;
+    let reqW = leaves * (260 * tz + 120) * ts;
     // Vertical distance fixed at 450px base, completely unaffected by text zoom
     let reqH = (maxDepth + 1) * 450 * ts;
     
@@ -2580,6 +2580,7 @@ function renderTree(data) {
         top: paddingY, left: paddingX, bottom: paddingY, right: paddingX,
         symbolSize: 7 * window.textZoomMultiplier,
         roam: 'move',
+          expandAndCollapse: false,
           zoom: 1,
         label: {
           position: 'top',
