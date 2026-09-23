@@ -18,6 +18,20 @@
       }
   }
 
+  
+  function getVisibleDepth(node, currentDepth) {
+      if (!node) return currentDepth;
+      if (node.collapsed || !node.children || node.children.length === 0) {
+          return currentDepth;
+      }
+      let maxD = currentDepth;
+      node.children.forEach(c => {
+          let d = getVisibleDepth(c, currentDepth + 1);
+          if (d > maxD) maxD = d;
+      });
+      return maxD;
+  }
+
   function countVisibleLeaves(node) {
       if (!node) return 1;
       if (node.collapsed || !node.children || node.children.length === 0) {
@@ -2637,11 +2651,14 @@ function renderTree(data) {
         
         if (toggleNode(window.currentTreeData[0], e.data._uid)) {
             let leaves = countVisibleLeaves(window.currentTreeData[0]);
+            let maxDepth = getVisibleDepth(window.currentTreeData[0], 0);
             let newWidth = Math.max(1200, leaves * 180);
+            let newHeight = Math.max(800, (maxDepth + 1) * 260);
             let cDiv = document.getElementById('tree-chart');
             
-            if (cDiv.style.width !== newWidth + 'px') {
+            if (cDiv.style.width !== newWidth + 'px' || cDiv.style.height !== newHeight + 'px') {
                 cDiv.style.width = newWidth + 'px';
+                cDiv.style.height = newHeight + 'px';
                 treeChartInstance.resize();
             }
             
