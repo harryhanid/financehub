@@ -2523,8 +2523,8 @@ function renderTree(data) {
     let baseH = wrapper ? wrapper.clientHeight : 800;
     if (baseH < 600) baseH = 600;
     
-    let reqW = leaves * 140 * (window.treeSpacingMultiplier || 1.0);
-    let reqH = (maxDepth + 1) * 450 * (window.treeSpacingMultiplier || 1.0);
+    let reqW = leaves * 250 * (window.treeSpacingMultiplier || 1.0) * (window.textZoomMultiplier || 1.0);
+    let reqH = (maxDepth + 1) * 450 * (window.treeSpacingMultiplier || 1.0) * (window.textZoomMultiplier || 1.0);
     
     let newWidth = Math.max(baseW, reqW);
     let newHeight = Math.max(baseH, reqH);
