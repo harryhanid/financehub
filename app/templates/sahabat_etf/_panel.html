@@ -430,8 +430,10 @@
       <button class="btn btn-primary" onclick="searchTree()">Cari</button>
       <button class="btn btn-outline-secondary" onclick="resetTreeQuery()">Reset</button>
       <div style="display: flex; gap: 5px; margin-left: 20px;">
-        <button class="btn btn-outline-secondary" onclick="zoomTreeQuery(1.2)" title="Zoom In" style="font-weight:bold;">+</button>
-        <button class="btn btn-outline-secondary" onclick="zoomTreeQuery(0.8)" title="Zoom Out" style="font-weight:bold;">-</button>
+        <button class="btn btn-outline-secondary" onclick="zoomTreeQuery(1.2)" title="Perbesar Teks" style="font-weight:bold;">🔍+</button>
+        <button class="btn btn-outline-secondary" onclick="zoomTreeQuery(0.8)" title="Perkecil Teks" style="font-weight:bold;">🔍-</button>
+        <button class="btn btn-outline-info" onclick="adjustSpacing(0.2)" title="Perenggang Jarak Node" style="font-weight:bold;">↔️+</button>
+        <button class="btn btn-outline-info" onclick="adjustSpacing(-0.2)" title="Perapat Jarak Node" style="font-weight:bold;">↔️-</button>
         <button class="btn btn-outline-danger" onclick="exportTreePDF()" title="Export to PDF" style="margin-left: 10px;">Export PDF</button>
       </div>
     </div>
