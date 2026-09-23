@@ -1,4 +1,42 @@
 
+window.treeSpacingMultiplier = 1.0;
+document.addEventListener("DOMContentLoaded", function() {
+    // Add wheel listener to tree-chart
+    let checkExist = setInterval(function() {
+        let chartDiv = document.getElementById("tree-chart");
+        if (chartDiv) {
+            clearInterval(checkExist);
+            chartDiv.addEventListener("wheel", function(e) {
+                if (!window.currentTreeData) return;
+                e.preventDefault();
+                let delta = e.deltaY > 0 ? -0.15 : 0.15;
+                window.treeSpacingMultiplier += delta;
+                if (window.treeSpacingMultiplier < 0.3) window.treeSpacingMultiplier = 0.3;
+                if (window.treeSpacingMultiplier > 5.0) window.treeSpacingMultiplier = 5.0;
+                
+                let leaves = countVisibleLeaves(window.currentTreeData[0]);
+                let maxDepth = getVisibleDepth(window.currentTreeData[0], 0);
+                
+                let wrap = document.getElementById("tree-wrapper");
+                let baseW = wrap ? wrap.clientWidth : 1200;
+                let baseH = wrap ? wrap.clientHeight : 800;
+                if (baseH < 600) baseH = 600;
+                
+                let newWidth = Math.max(baseW, leaves * 140 * (window.treeSpacingMultiplier || 1.0) * window.treeSpacingMultiplier);
+                let newHeight = Math.max(baseH, (maxDepth + 1) * 320 * (window.treeSpacingMultiplier || 1.0) * window.treeSpacingMultiplier);
+                
+                chartDiv.style.width = newWidth + "px";
+                chartDiv.style.height = newHeight + "px";
+                
+                if (treeChartInstance) {
+                    treeChartInstance.resize();
+                }
+            }, { passive: false });
+        }
+    }, 100);
+});
+
+
   let uidCounter = 0;
   function assignUID(node) {
       if (!node) return;
@@ -2514,8 +2552,8 @@ function renderTree(data) {
     let baseH = wrapper ? wrapper.clientHeight : 800;
     if (baseH < 600) baseH = 600;
     
-    let newWidth = Math.max(baseW, leaves * 140);
-    let newHeight = Math.max(baseH, (maxDepth + 1) * 320);
+    let newWidth = Math.max(baseW, leaves * 140 * (window.treeSpacingMultiplier || 1.0));
+    let newHeight = Math.max(baseH, (maxDepth + 1) * 320 * (window.treeSpacingMultiplier || 1.0));
     
     let chartDiv = document.getElementById("tree-chart");
     if (chartDiv) {
@@ -2560,7 +2598,7 @@ function renderTree(data) {
         data: data,
         top: 80, left: 20, bottom: 80, right: 20,
         symbolSize: 7,
-        roam: true,
+        roam: 'move',
         label: {
           position: 'top',
           verticalAlign: 'middle',
@@ -2706,8 +2744,8 @@ function renderTree(data) {
             let baseH = wrap ? wrap.clientHeight : 800;
             if (baseH < 600) baseH = 600;
             
-            let newWidth = Math.max(baseW, leaves * 140);
-            let newHeight = Math.max(baseH, (maxDepth + 1) * 320);
+            let newWidth = Math.max(baseW, leaves * 140 * (window.treeSpacingMultiplier || 1.0));
+            let newHeight = Math.max(baseH, (maxDepth + 1) * 320 * (window.treeSpacingMultiplier || 1.0));
             
             let cDiv = document.getElementById('tree-chart');
             if (cDiv.style.width !== newWidth + 'px' || cDiv.style.height !== newHeight + 'px') {
@@ -2809,16 +2847,13 @@ function searchTree() {
   }
 
 function zoomTreeQuery(ratio) {
-    if (treeChartInstance) {
-      let opt = treeChartInstance.getOption();
-      let currentZoom = 1;
-      if (opt && opt.series && opt.series.length > 0) {
-         currentZoom = opt.series[0].zoom || 1;
+      if (treeChartInstance) {
+          treeChartInstance.dispatchAction({
+              type: 'treeRoam',
+              zoom: ratio
+          });
       }
-      opt.series[0].zoom = currentZoom * ratio;
-      treeChartInstance.setOption(opt, true);
     }
-  }
   function foldChildren(node, depth) {
     // If it's Depth 2 (Wives) and it's not part of an expanded search path
     if (depth === 2 && node.collapsed !== false && node.children && node.children.length > 0) {
@@ -2831,6 +2866,7 @@ function zoomTreeQuery(ratio) {
   }
 
   function resetTreeQuery() {
+    window.treeSpacingMultiplier = 1.0;
     window.currentDrillTargetUid = null;
     const input = document.getElementById("tree-search-input");
     if (input) input.value = "";
