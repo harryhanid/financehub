@@ -2664,12 +2664,10 @@ function renderTree(data) {
             if (ps && ps.length > 0) {
                 lines.push('{sep|---------------}');
                 ps.forEach(p => {
-                    let pCode = p.id ? p.id.split('.').pop() : '';
+                    let pCode = p.id ? p.id.split('.').pop().toUpperCase() : '';
                     let pName = p.name || '';
-                    if (pCode && pCode !== 'A' && pCode !== 'B') {
-                        pName = pName + ' (' + pCode + ')';
-                    }
-                    pName = pName + ' (Partner)';
+                    let partnerSuffix = pCode ? 'Partner ' + pCode : 'Partner';
+                    pName = pName + ' (' + partnerSuffix + ')';
                     let wrappedPartner = wrapText(pName, 20);
                     wrappedPartner.forEach(w => {
                         lines.push(`{partner|${w}}`); 
