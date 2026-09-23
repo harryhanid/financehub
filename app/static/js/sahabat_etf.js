@@ -1,15 +1,5 @@
 
-document.addEventListener("DOMContentLoaded", function() {
-    let checkExist = setInterval(function() {
-        let chartDiv = document.getElementById("tree-chart");
-        if (chartDiv) {
-            clearInterval(checkExist);
-            chartDiv.addEventListener("wheel", function(e) {
-                e.stopPropagation();
-            }, { capture: true });
-        }
-    }, 100);
-});
+
 
 
 window.treeSpacingMultiplier = 1.0;
@@ -2585,7 +2575,8 @@ function renderTree(data) {
         data: data,
         top: paddingY, left: paddingX, bottom: paddingY, right: paddingX,
         symbolSize: 7 * window.textZoomMultiplier,
-        roam: true,
+        roam: 'move',
+          zoom: 1,
         label: {
           position: 'top',
           verticalAlign: 'middle',
