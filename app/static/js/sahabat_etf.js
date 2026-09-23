@@ -1,4 +1,34 @@
 
+  let uidCounter = 0;
+  function assignUID(node) {
+      if (!node) return;
+      node._uid = ++uidCounter;
+      if (node.children) node.children.forEach(assignUID);
+  }
+
+  function applyInitialDepth(node, currentDepth, maxDepth) {
+      if (!node) return;
+      if (currentDepth >= maxDepth && node.children && node.children.length > 0) {
+          node.collapsed = true;
+      } else {
+          node.collapsed = false;
+      }
+      if (node.children) {
+          node.children.forEach(c => applyInitialDepth(c, currentDepth + 1, maxDepth));
+      }
+  }
+
+  function countVisibleLeaves(node) {
+      if (!node) return 1;
+      if (node.collapsed || !node.children || node.children.length === 0) {
+          return 1;
+      }
+      let sum = 0;
+      node.children.forEach(c => sum += countVisibleLeaves(c));
+      return sum;
+  }
+
+
 function setfRenderKategoriChartCustom(canvasId, kategoriRows) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
@@ -2460,6 +2490,14 @@ async function initTreeQuery() {
 }
 
 function renderTree(data) {
+  window.currentTreeData = data;
+  let leaves = countVisibleLeaves(data[0]);
+  let newWidth = Math.max(1200, leaves * 180);
+  let chartDiv = document.getElementById("tree-chart");
+  if (chartDiv) {
+      chartDiv.style.width = newWidth + "px";
+      if (treeChartInstance) treeChartInstance.resize();
+  }
   const option = {
     tooltip: { 
       trigger: 'item', 
@@ -2577,13 +2615,49 @@ function renderTree(data) {
     ]
   };
   treeChartInstance.setOption(option);
+    
+    treeChartInstance.off('click');
+    treeChartInstance.on('click', function(e) {
+        if (!e.data || !e.data._uid) return;
+        
+        function toggleNode(n, targetUid) {
+            if (n._uid === targetUid) {
+                if (n.children && n.children.length > 0) {
+                    n.collapsed = !n.collapsed;
+                }
+                return true;
+            }
+            if (n.children) {
+                for (let c of n.children) {
+                    if (toggleNode(c, targetUid)) return true;
+                }
+            }
+            return false;
+        }
+        
+        if (toggleNode(window.currentTreeData[0], e.data._uid)) {
+            let leaves = countVisibleLeaves(window.currentTreeData[0]);
+            let newWidth = Math.max(1200, leaves * 180);
+            let cDiv = document.getElementById('tree-chart');
+            
+            if (cDiv.style.width !== newWidth + 'px') {
+                cDiv.style.width = newWidth + 'px';
+                treeChartInstance.resize();
+            }
+            
+            treeChartInstance.setOption({
+                series: [{ data: window.currentTreeData }]
+            });
+        }
+    });
+
     setTimeout(() => {
         const wrapper = document.getElementById("tree-wrapper");
         if (wrapper) {
             wrapper.scrollLeft = (wrapper.scrollWidth - wrapper.clientWidth) / 2;
         }
     }, 100);
-}
+  }
 
 function expandPathToName(node, searchName) {
   let found = false;
