@@ -2645,6 +2645,30 @@ function renderTree(data) {
         if (!e.data || !e.data._uid) return;
         
         let targetUid = e.data._uid;
+        
+        function findParentUid(node, targetId, parentId) {
+            if (node._uid === targetId) return parentId;
+            if (node.children) {
+                for (let i = 0; i < node.children.length; i++) {
+                    let pid = findParentUid(node.children[i], targetId, node._uid);
+                    if (pid) return pid;
+                }
+            }
+            return null;
+        }
+        
+        if (window.currentDrillTargetUid === targetUid) {
+            let parentUid = findParentUid(window.treeRawDataPristine, targetUid, null);
+            if (parentUid) {
+                targetUid = parentUid;
+            } else {
+                resetTreeQuery();
+                window.currentDrillTargetUid = null;
+                return;
+            }
+        }
+        window.currentDrillTargetUid = targetUid;
+        
         let dataCopy = JSON.parse(JSON.stringify(window.treeRawDataPristine));
         
         function drillDownToUid(node, targetId) {
@@ -2766,6 +2790,7 @@ function expandPathToName(node, searchName) {
 }
 
 function searchTree() {
+    window.currentDrillTargetUid = null;
     const input = document.getElementById("tree-search-input");
     const q = input ? input.value.toLowerCase() : "";
     let dataCopy = JSON.parse(JSON.stringify(window.treeRawDataPristine));
@@ -2806,6 +2831,7 @@ function zoomTreeQuery(ratio) {
   }
 
   function resetTreeQuery() {
+    window.currentDrillTargetUid = null;
     const input = document.getElementById("tree-search-input");
     if (input) input.value = "";
     searchTree();
