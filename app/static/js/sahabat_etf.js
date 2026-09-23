@@ -2559,8 +2559,7 @@ function renderTree(data) {
                 });
             }
             
-            return lines.join('
-');
+            return lines.join('\n');
           },
           rich: {
             main: { fontWeight: 'bold', fontSize: 13, padding: [4,0,4,0] },
