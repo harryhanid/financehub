@@ -2663,7 +2663,7 @@ function zoomTreeQuery(ratio) {
 
   async function exportTreePDF() {
     if (!treeChartInstance) return;
-    showToast("Mengekspor Diagram Tree ke PDF...", "info");
+    showToast("Mempersiapkan PDF... Memotong area kosong agar maksimal.", "info");
     
     if (typeof html2pdf === 'undefined') {
         await new Promise((resolve, reject) => {
@@ -2675,16 +2675,81 @@ function zoomTreeQuery(ratio) {
         });
     }
 
-    let imgData = treeChartInstance.getDataURL({
+    let rawImgData = treeChartInstance.getDataURL({
         type: 'png',
         pixelRatio: 2,
         backgroundColor: '#fff'
     });
     
+    // Helper to crop whitespace
+    function cropWhitespace(dataUrl) {
+        return new Promise((resolve) => {
+            let img = new Image();
+            img.onload = () => {
+                let canvas = document.createElement('canvas');
+                let ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                
+                let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                let data = imgData.data;
+                
+                let top = null, bottom = null, left = null, right = null;
+                
+                for (let y = 0; y < canvas.height; y++) {
+                    for (let x = 0; x < canvas.width; x++) {
+                        let alpha = data[(y * canvas.width + x) * 4 + 3];
+                        let r = data[(y * canvas.width + x) * 4];
+                        let g = data[(y * canvas.width + x) * 4 + 1];
+                        let b = data[(y * canvas.width + x) * 4 + 2];
+                        
+                        // Check if pixel is NOT white (#ffffff)
+                        if (alpha > 0 && (r < 254 || g < 254 || b < 254)) {
+                            if (top === null) top = y;
+                            bottom = y;
+                            if (left === null || x < left) left = x;
+                            if (right === null || x > right) right = x;
+                        }
+                    }
+                }
+                
+                if (top === null) {
+                    resolve(dataUrl);
+                    return;
+                }
+                
+                // 40px padding
+                let padding = 40;
+                top = Math.max(0, top - padding);
+                bottom = Math.min(canvas.height, bottom + padding);
+                left = Math.max(0, left - padding);
+                right = Math.min(canvas.width, right + padding);
+                
+                let width = right - left;
+                let height = bottom - top;
+                
+                let cropCanvas = document.createElement('canvas');
+                cropCanvas.width = width;
+                cropCanvas.height = height;
+                let cropCtx = cropCanvas.getContext('2d');
+                
+                cropCtx.fillStyle = '#ffffff';
+                cropCtx.fillRect(0, 0, width, height);
+                cropCtx.drawImage(canvas, left, top, width, height, 0, 0, width, height);
+                
+                resolve(cropCanvas.toDataURL('image/jpeg', 1.0));
+            };
+            img.src = dataUrl;
+        });
+    }
+
+    let imgData = await cropWhitespace(rawImgData);
+
     let opt = {
         margin:       10,
         filename:     'Sahabat_ETF_Tree.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
+        image:        { type: 'jpeg', quality: 1.0 },
         html2canvas:  { scale: 2 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
     };
@@ -2705,7 +2770,7 @@ function zoomTreeQuery(ratio) {
         container.appendChild(pdfImg);
         
         html2pdf().set(opt).from(container).save().then(() => {
-            // Success silently
+            showToast("PDF berhasil diunduh!", "success");
         });
     };
     img.src = imgData;
