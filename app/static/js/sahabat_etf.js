@@ -2482,6 +2482,8 @@ async function initTreeQuery() {
       children: json.data
     };
     assignGenerations(treeRawData, 0);
+      assignUID(treeRawData);
+      applyInitialDepth(treeRawData, 0, 2);
       window.treeRawDataPristine = JSON.parse(JSON.stringify(treeRawData));
       
     const dl = document.getElementById("tree-search-list");
