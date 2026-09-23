@@ -2533,8 +2533,14 @@ function renderTree(data) {
     let baseH = wrapper ? wrapper.clientHeight : 800;
     if (baseH < 600) baseH = 600;
     
-    let newWidth = Math.max(baseW, leaves * 140) * (window.treeSpacingMultiplier || 1.0);
-    let newHeight = Math.max(baseH, (maxDepth + 1) * 320) * (window.treeSpacingMultiplier || 1.0);
+    let reqW = leaves * 140 * (window.treeSpacingMultiplier || 1.0);
+    let reqH = (maxDepth + 1) * 320 * (window.treeSpacingMultiplier || 1.0);
+    
+    let newWidth = Math.max(baseW, reqW);
+    let newHeight = Math.max(baseH, reqH);
+    
+    let paddingX = Math.max(20, (newWidth - reqW) / 2);
+    let paddingY = Math.max(80, (newHeight - reqH) / 2);
     
     let chartDiv = document.getElementById("tree-chart");
     if (chartDiv) {
@@ -2577,7 +2583,7 @@ function renderTree(data) {
         orient: 'TB',
         edgeShape: 'polyline',
         data: data,
-        top: 80, left: 20, bottom: 80, right: 20,
+        top: paddingY, left: paddingX, bottom: paddingY, right: paddingX,
         symbolSize: 7 * window.textZoomMultiplier,
         roam: true,
         label: {
@@ -2725,8 +2731,10 @@ function renderTree(data) {
             let baseH = wrap ? wrap.clientHeight : 800;
             if (baseH < 600) baseH = 600;
             
-            let newWidth = Math.max(baseW, leaves * 140) * (window.treeSpacingMultiplier || 1.0);
-            let newHeight = Math.max(baseH, (maxDepth + 1) * 320) * (window.treeSpacingMultiplier || 1.0);
+            let reqW = leaves * 140 * (window.treeSpacingMultiplier || 1.0);
+              let reqH = (maxDepth + 1) * 320 * (window.treeSpacingMultiplier || 1.0);
+              let newWidth = Math.max(baseW, reqW);
+              let newHeight = Math.max(baseH, reqH);
             
             let cDiv = document.getElementById('tree-chart');
             if (cDiv.style.width !== newWidth + 'px' || cDiv.style.height !== newHeight + 'px') {
@@ -2834,25 +2842,7 @@ function searchTree() {
       if (window.treeSpacingMultiplier < 0.3) window.treeSpacingMultiplier = 0.3;
       if (window.treeSpacingMultiplier > 5.0) window.treeSpacingMultiplier = 5.0;
       
-      let leaves = countVisibleLeaves(window.currentTreeData[0]);
-      let maxDepth = getVisibleDepth(window.currentTreeData[0], 0);
-      
-      let wrap = document.getElementById("tree-wrapper");
-      let baseW = wrap ? wrap.clientWidth : 1200;
-      let baseH = wrap ? wrap.clientHeight : 800;
-      if (baseH < 600) baseH = 600;
-      
-      let newWidth = Math.max(baseW, leaves * 140) * window.treeSpacingMultiplier;
-      let newHeight = Math.max(baseH, (maxDepth + 1) * 320) * window.treeSpacingMultiplier;
-      
-      let chartDiv = document.getElementById("tree-chart");
-      if (chartDiv) {
-          chartDiv.style.width = newWidth + "px";
-          chartDiv.style.height = newHeight + "px";
-      }
-      if (treeChartInstance) {
-          treeChartInstance.resize();
-      }
+      renderTree(window.currentTreeData);
   }
 
 function zoomTreeQuery(ratio) {
