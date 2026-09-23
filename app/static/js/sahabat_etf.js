@@ -2575,8 +2575,8 @@ function renderTree(data) {
     if (chartDiv) {
         chartDiv.style.width = newWidth + "px";
         chartDiv.style.height = newHeight + "px";
-        if (treeChartInstance) treeChartInstance.resize();
-    }
+        }
+
   const option = {
     tooltip: { 
       trigger: 'item', 
@@ -2615,6 +2615,7 @@ function renderTree(data) {
         top: paddingY, left: paddingX, bottom: paddingY, right: paddingX,
         symbolSize: 7 * window.textZoomMultiplier,
         roam: false,
+          animation: false,
           expandAndCollapse: false,
           zoom: 1,
         label: {
