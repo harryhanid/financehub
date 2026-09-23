@@ -2643,10 +2643,10 @@ function renderTree(data) {
             return lines.join('\n');
           },
           rich: {
-            main: { fontWeight: 'bold', fontSize: 13, padding: [4,0,4,0] },
+            main: { fontWeight: 'bold', fontSize: Math.round(13 * window.textZoomMultiplier), padding: [Math.round(4 * window.textZoomMultiplier), 0, Math.round(4 * window.textZoomMultiplier), 0] },
             gen: { fontSize: Math.round(11 * window.textZoomMultiplier), color: '#3b82f6', fontWeight: 'bold' },
-            sep: { color: '#ccc', height: 2 },
-            partner: { fontSize: Math.round(11 * window.textZoomMultiplier), color: '#666', padding: [2,0,2,0] }
+            sep: { color: '#ccc', height: Math.max(1, Math.round(2 * window.textZoomMultiplier)) },
+            partner: { fontSize: Math.round(11 * window.textZoomMultiplier), color: '#666', padding: [Math.round(2 * window.textZoomMultiplier), 0, Math.round(2 * window.textZoomMultiplier), 0] }
           }
         },
         leaves: { label: { position: 'bottom', verticalAlign: 'middle', align: 'center' } },
