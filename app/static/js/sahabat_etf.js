@@ -13,6 +13,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
 window.treeSpacingMultiplier = 1.0;
+    window.textZoomMultiplier = 1.0;
+window.textZoomMultiplier = 1.0;
 
 
 
@@ -2576,13 +2578,13 @@ function renderTree(data) {
         edgeShape: 'polyline',
         data: data,
         top: 80, left: 20, bottom: 80, right: 20,
-        symbolSize: 7,
+        symbolSize: 7 * window.textZoomMultiplier,
         roam: true,
         label: {
           position: 'top',
           verticalAlign: 'middle',
           align: 'center',
-          fontSize: 12,
+          fontSize: Math.round(12 * window.textZoomMultiplier),
           backgroundColor: '#f8f9fa',
           borderColor: '#d1d5db',
           borderWidth: 1,
@@ -2642,9 +2644,9 @@ function renderTree(data) {
           },
           rich: {
             main: { fontWeight: 'bold', fontSize: 13, padding: [4,0,4,0] },
-            gen: { fontSize: 11, color: '#3b82f6', fontWeight: 'bold' },
+            gen: { fontSize: Math.round(11 * window.textZoomMultiplier), color: '#3b82f6', fontWeight: 'bold' },
             sep: { color: '#ccc', height: 2 },
-            partner: { fontSize: 11, color: '#666', padding: [2,0,2,0] }
+            partner: { fontSize: Math.round(11 * window.textZoomMultiplier), color: '#666', padding: [2,0,2,0] }
           }
         },
         leaves: { label: { position: 'bottom', verticalAlign: 'middle', align: 'center' } },
@@ -2854,13 +2856,17 @@ function searchTree() {
   }
 
 function zoomTreeQuery(ratio) {
-      if (treeChartInstance) {
-          treeChartInstance.dispatchAction({
-              type: 'roam',
-              zoom: ratio
-          });
+      if (!window.currentTreeData) return;
+      if (ratio > 1) {
+          window.textZoomMultiplier += 0.2;
+      } else {
+          window.textZoomMultiplier -= 0.2;
       }
-    }
+      if (window.textZoomMultiplier < 0.4) window.textZoomMultiplier = 0.4;
+      if (window.textZoomMultiplier > 3.0) window.textZoomMultiplier = 3.0;
+      
+      renderTree(window.currentTreeData);
+  }
   function foldChildren(node, depth) {
     // If it's Depth 2 (Wives) and it's not part of an expanded search path
     if (depth === 2 && node.collapsed !== false && node.children && node.children.length > 0) {
@@ -2874,6 +2880,8 @@ function zoomTreeQuery(ratio) {
 
   function resetTreeQuery() {
     window.treeSpacingMultiplier = 1.0;
+    window.textZoomMultiplier = 1.0;
+window.textZoomMultiplier = 1.0;
     window.currentDrillTargetUid = null;
     const input = document.getElementById("tree-search-input");
     if (input) input.value = "";
