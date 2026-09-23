@@ -2523,8 +2523,12 @@ function renderTree(data) {
     let baseH = wrapper ? wrapper.clientHeight : 800;
     if (baseH < 600) baseH = 600;
     
-    let reqW = leaves * 250 * (window.treeSpacingMultiplier || 1.0) * (window.textZoomMultiplier || 1.0);
-    let reqH = (maxDepth + 1) * 450 * (window.treeSpacingMultiplier || 1.0) * (window.textZoomMultiplier || 1.0);
+    let tz = window.textZoomMultiplier || 1.0;
+    let ts = window.treeSpacingMultiplier || 1.0;
+    // Box is ~160px at tz=1.0. Fixed 90px horizontal whitespace.
+    let reqW = leaves * (160 * tz + 90) * ts;
+    // Vertical distance fixed at 450px base, completely unaffected by text zoom
+    let reqH = (maxDepth + 1) * 450 * ts;
     
     let newWidth = Math.max(baseW, reqW);
     let newHeight = Math.max(baseH, reqH);
