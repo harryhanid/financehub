@@ -2509,7 +2509,9 @@ function renderTree(data) {
           borderWidth: 1,
           borderRadius: 4,
           padding: 6,
-                              formatter: function(params) {
+          width: 120,
+          overflow: 'break',
+          formatter: function(params) {
             let n = params.data.name;
             let lastCode = params.data.id ? params.data.id.split('.').pop() : '';
             if (lastCode && lastCode !== 'A' && lastCode !== 'B') {
@@ -2534,10 +2536,10 @@ function renderTree(data) {
               return lines.join('\n');
           },
           rich: {
-            main: { fontWeight: 'bold', fontSize: 13, padding: [4,0,4,0] },
+            main: { fontWeight: 'bold', fontSize: 13, padding: [4,0,4,0], width: 120, overflow: 'break' },
             gen: { fontSize: 11, color: '#3b82f6', fontWeight: 'bold' },
             sep: { color: '#ccc', height: 2 },
-            partner: { fontSize: 11, color: '#666', padding: [2,0,2,0] }
+            partner: { fontSize: 11, color: '#666', padding: [2,0,2,0], width: 120, overflow: 'break' }
           }
         },
         leaves: { label: { position: 'bottom', verticalAlign: 'middle', align: 'center' } },
@@ -2611,39 +2613,34 @@ function expandPathToName(node, searchName) {
 }
 
 function searchTree() {
-  const q = document.getElementById("tree-search-input").value.toLowerCase();
-  if (!q) {
-    renderTree([treeRawData]);
-    return;
+    const input = document.getElementById("tree-search-input");
+    const q = input ? input.value.toLowerCase() : "";
+    let dataCopy = JSON.parse(JSON.stringify(window.treeRawDataPristine));
+    
+    if (!q) {
+        renderTree([dataCopy]);
+        return;
+    }
+    
+    expandPathToName(dataCopy, q);
+    if (dataCopy.children && dataCopy.children.length === 1) {
+        renderTree([dataCopy.children[0]]);
+    } else {
+        renderTree([dataCopy]);
+    }
   }
-  let dataCopy;
-  if (!q) {
-      dataCopy = JSON.parse(JSON.stringify(window.treeRawDataPristine));
-      
-  } else {
-      dataCopy = JSON.parse(JSON.stringify(window.treeRawDataPristine));
-  }
-  expandPathToName(dataCopy, q);
-  
-  if (dataCopy.children && dataCopy.children.length === 1) {
-      renderTree([dataCopy.children[0]]);
-  } else {
-      renderTree([dataCopy]);
-  }
-}
 
 function zoomTreeQuery(ratio) {
-  if (treeChartInstance) {
-    let opt = treeChartInstance.getOption();
-    let currentZoom = 1;
-    if (opt && opt.series && opt.series.length > 0) {
-       currentZoom = opt.series[0].zoom || 1;
+    if (treeChartInstance) {
+      let opt = treeChartInstance.getOption();
+      let currentZoom = 1;
+      if (opt && opt.series && opt.series.length > 0) {
+         currentZoom = opt.series[0].zoom || 1;
+      }
+      opt.series[0].zoom = currentZoom * ratio;
+      treeChartInstance.setOption(opt, true);
     }
-    treeChartInstance.setOption({
-      series: [{ zoom: currentZoom * ratio }]
-    });
   }
-}
   function foldChildren(node, depth) {
     // If it's Depth 2 (Wives) and it's not part of an expanded search path
     if (depth === 2 && node.collapsed !== false && node.children && node.children.length > 0) {
