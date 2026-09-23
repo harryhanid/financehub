@@ -2526,9 +2526,9 @@ function renderTree(data) {
     let tz = window.textZoomMultiplier || 1.0;
     let ts = window.treeSpacingMultiplier || 1.0;
     // Box is ~160px at tz=1.0. Fixed 90px horizontal whitespace.
-    let reqW = leaves * (260 * tz + 120) * ts;
+    let reqW = leaves * (260 * tz + 120 * ts);
     // Vertical distance fixed at 450px base, completely unaffected by text zoom
-    let reqH = (maxDepth + 1) * 450 * ts;
+    let reqH = (maxDepth + 1) * (160 * tz + 290 * ts);
     
     let newWidth = Math.max(baseW, reqW);
     let newHeight = Math.max(baseH, reqH);
@@ -2812,7 +2812,7 @@ function searchTree() {
   function adjustSpacing(delta) {
       if (!window.currentTreeData) return;
       window.treeSpacingMultiplier += delta;
-      if (window.treeSpacingMultiplier < 0.3) window.treeSpacingMultiplier = 0.3;
+      if (window.treeSpacingMultiplier < 0.0) window.treeSpacingMultiplier = 0.0;
       if (window.treeSpacingMultiplier > 5.0) window.treeSpacingMultiplier = 5.0;
       
       renderTree(window.currentTreeData);
