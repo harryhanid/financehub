@@ -2577,6 +2577,12 @@ function renderTree(data) {
     ]
   };
   treeChartInstance.setOption(option);
+    setTimeout(() => {
+        const wrapper = document.getElementById("tree-wrapper");
+        if (wrapper) {
+            wrapper.scrollLeft = (wrapper.scrollWidth - wrapper.clientWidth) / 2;
+        }
+    }, 100);
 }
 
 function expandPathToName(node, searchName) {
