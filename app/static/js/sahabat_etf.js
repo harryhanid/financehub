@@ -2558,7 +2558,6 @@ function renderTree(data) {
         data: data,
         top: 80, left: 20, bottom: 80, right: 20,
         symbolSize: 7,
-        initialTreeDepth: 2,
         roam: true,
         label: {
           position: 'top',
@@ -2643,60 +2642,48 @@ function renderTree(data) {
     treeChartInstance.on('click', function(e) {
         if (!e.data || !e.data._uid) return;
         
-        function applyAccordion(root, targetUid) {
-            let path = [];
-            function findPath(node, target) {
-                if (node._uid === target) {
-                    path.push(node);
-                    return true;
-                }
-                if (node.children) {
-                    for (let c of node.children) {
-                        if (findPath(c, target)) {
-                            path.unshift(node);
-                            return true;
-                        }
-                    }
-                }
-                return false;
+        let targetUid = e.data._uid;
+        let dataCopy = JSON.parse(JSON.stringify(window.treeRawDataPristine));
+        
+        function drillDownToUid(node, targetId) {
+            if (node._uid === targetId) {
+                node.collapsed = false;
+                return true;
             }
             
-            if (!findPath(root, targetUid)) return false;
-            
-            let targetNode = path[path.length - 1];
-            if (!targetNode || !targetNode.children || targetNode.children.length === 0) return true;
-            
-            let isExpanding = targetNode.collapsed;
-            
-            if (isExpanding) {
-                function collapseAll(n) {
-                    if (n.children && n.children.length > 0) {
-                        n.collapsed = true;
-                        n.children.forEach(collapseAll);
+            let foundChild = null;
+            if (node.children) {
+                for (let i = 0; i < node.children.length; i++) {
+                    let c = node.children[i];
+                    if (drillDownToUid(c, targetId)) {
+                        foundChild = c;
+                        break;
                     }
                 }
-                collapseAll(root);
-                
-                path.forEach(n => {
-                    n.collapsed = false;
-                });
-            } else {
-                targetNode.collapsed = true;
             }
-            return true;
+            
+            if (foundChild) {
+                node.children = [foundChild];
+                node.collapsed = false;
+                return true;
+            }
+            return false;
         }
         
-        if (applyAccordion(window.currentTreeData[0], e.data._uid)) {
+        if (drillDownToUid(dataCopy, targetUid)) {
+            window.currentTreeData = [dataCopy];
             let leaves = countVisibleLeaves(window.currentTreeData[0]);
             let maxDepth = getVisibleDepth(window.currentTreeData[0], 0);
+            
             let wrap = document.getElementById("tree-wrapper");
             let baseW = wrap ? wrap.clientWidth : 1200;
             let baseH = wrap ? wrap.clientHeight : 800;
             if (baseH < 600) baseH = 600;
+            
             let newWidth = Math.max(baseW, leaves * 140);
             let newHeight = Math.max(baseH, (maxDepth + 1) * 320);
-            let cDiv = document.getElementById('tree-chart');
             
+            let cDiv = document.getElementById('tree-chart');
             if (cDiv.style.width !== newWidth + 'px' || cDiv.style.height !== newHeight + 'px') {
                 cDiv.style.width = newWidth + 'px';
                 cDiv.style.height = newHeight + 'px';
