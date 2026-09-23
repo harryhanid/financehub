@@ -2890,10 +2890,10 @@ window.textZoomMultiplier = 1.0;
     if (!treeChartInstance) return;
     showToast("Mempersiapkan PDF... Memotong area kosong agar maksimal.", "info");
     
-    if (typeof html2pdf === 'undefined') {
+    if (typeof window.jspdf === 'undefined') {
         await new Promise((resolve, reject) => {
             const script = document.createElement("script");
-            script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
             script.onload = resolve;
             script.onerror = reject;
             document.head.appendChild(script);
@@ -2971,32 +2971,33 @@ window.textZoomMultiplier = 1.0;
 
     let imgData = await cropWhitespace(rawImgData);
 
-    let opt = {
-        margin:       10,
-        filename:     'Sahabat_ETF_Tree.pdf',
-        image:        { type: 'jpeg', quality: 1.0 },
-        html2canvas:  { scale: 2 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    };
-    
     let img = new Image();
     img.onload = function() {
-        if (img.height > img.width) {
-            opt.jsPDF.orientation = 'portrait';
-        }
-        
-        let container = document.createElement('div');
-        container.style.width = '100%';
-        container.style.textAlign = 'center';
-        
-        let pdfImg = document.createElement('img');
-        pdfImg.src = imgData;
-        pdfImg.style.maxWidth = '100%';
-        container.appendChild(pdfImg);
-        
-        html2pdf().set(opt).from(container).save().then(() => {
-            showToast("PDF berhasil diunduh!", "success");
+        const { jsPDF } = window.jspdf;
+        let orientation = img.height > img.width ? 'portrait' : 'landscape';
+        let doc = new jsPDF({
+            orientation: orientation,
+            unit: 'mm',
+            format: 'a4'
         });
+        
+        let pdfW = doc.internal.pageSize.getWidth();
+        let pdfH = doc.internal.pageSize.getHeight();
+        let margin = 10; // 10mm margin
+        let maxW = pdfW - (margin * 2);
+        let maxH = pdfH - (margin * 2);
+        
+        let ratio = Math.min(maxW / img.width, maxH / img.height);
+        let finalW = img.width * ratio;
+        let finalH = img.height * ratio;
+        
+        let x = (pdfW - finalW) / 2;
+        let y = (pdfH - finalH) / 2;
+        
+        doc.addImage(imgData, 'JPEG', x, y, finalW, finalH);
+        doc.save('Sahabat_ETF_Tree.pdf');
+        
+        showToast("PDF berhasil diunduh!", "success");
     };
     img.src = imgData;
   }
