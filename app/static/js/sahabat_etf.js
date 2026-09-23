@@ -2647,9 +2647,9 @@ function renderTree(data) {
             }
 
             let n = params.data.name || '';
-            let lastCode = params.data.id ? params.data.id.split('.').pop() : '';
-            if (lastCode && lastCode !== 'A' && lastCode !== 'B') {
-                n = n + ' (' + lastCode + ')';
+            let fullCode = params.data.id ? params.data.id : '';
+            if (fullCode && fullCode !== 'A' && fullCode !== 'B') {
+                n = n + ' (' + fullCode + ')';
             }
             
             let gen = params.data.genLabel ? `{gen|[${params.data.genLabel}]} ` : '';
@@ -2745,6 +2745,20 @@ function renderTree(data) {
             if (foundChild) {
                 node.children = [foundChild];
                 node.collapsed = false;
+                
+                // If this node has multiple partners, only keep the partner that is in the lineage of the drilled-down child.
+                if (node.partners && node.partners.length > 0) {
+                    let childId = foundChild.id || '';
+                    node.partners = node.partners.filter(p => {
+                        let partnerId = p.id || '';
+                        // E.g., partnerId is 'A3.4.B', childId is 'A3.4.B.2'
+                        if (partnerId && childId.startsWith(partnerId + '.')) {
+                            return true;
+                        }
+                        return false;
+                    });
+                }
+                
                 return true;
             }
             return false;
