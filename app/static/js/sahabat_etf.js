@@ -2856,7 +2856,7 @@ function searchTree() {
 function zoomTreeQuery(ratio) {
       if (treeChartInstance) {
           treeChartInstance.dispatchAction({
-              type: 'treeRoam',
+              type: 'roam',
               zoom: ratio
           });
       }
