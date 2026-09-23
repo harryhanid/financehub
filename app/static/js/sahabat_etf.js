@@ -2509,37 +2509,64 @@ function renderTree(data) {
           borderWidth: 1,
           borderRadius: 4,
           padding: 6,
-          width: 120,
-          overflow: 'break',
-          formatter: function(params) {
-            let n = params.data.name;
+          
+                    formatter: function(params) {
+            function wrapText(str, maxLen) {
+                if (!str) return [''];
+                let words = str.split(' ');
+                let outLines = [];
+                let currentLine = '';
+                for (let word of words) {
+                    if (currentLine.length + word.length > maxLen && currentLine.length > 0) {
+                        outLines.push(currentLine.trim());
+                        currentLine = word + ' ';
+                    } else {
+                        currentLine += word + ' ';
+                    }
+                }
+                if (currentLine.trim()) outLines.push(currentLine.trim());
+                return outLines.length > 0 ? outLines : [''];
+            }
+
+            let n = params.data.name || '';
             let lastCode = params.data.id ? params.data.id.split('.').pop() : '';
             if (lastCode && lastCode !== 'A' && lastCode !== 'B') {
                 n = n + ' (' + lastCode + ')';
             }
+            
             let gen = params.data.genLabel ? `{gen|[${params.data.genLabel}]} ` : '';
-            let lines = [`${gen}{main|${n}}`];
-                          let ps = params.data.partners;
-              if (ps && ps.length > 0) {
+            let lines = [];
+            let wrappedMain = wrapText(n, 15);
+            wrappedMain.forEach((w, idx) => {
+                if (idx === 0) lines.push(`${gen}{main|${w}}`);
+                else lines.push(`{main|${w}}`);
+            });
+            
+            let ps = params.data.partners;
+            if (ps && ps.length > 0) {
                 lines.push('{sep|---------------}');
                 ps.forEach(p => {
                     let pCode = p.id ? p.id.split('.').pop() : '';
-                    let pName = p.name;
+                    let pName = p.name || '';
                     if (pCode && pCode !== 'A' && pCode !== 'B') {
                         pName = pName + ' (' + pCode + ')';
                     }
-                    lines.push(`{partner|${pName} (Partner)}`); 
+                    pName = pName + ' (Partner)';
+                    let wrappedPartner = wrapText(pName, 20);
+                    wrappedPartner.forEach(w => {
+                        lines.push(`{partner|${w}}`); 
+                    });
                 });
-              }
-
-
-              return lines.join('\n');
+            }
+            
+            return lines.join('
+');
           },
           rich: {
-            main: { fontWeight: 'bold', fontSize: 13, padding: [4,0,4,0], width: 120, overflow: 'break' },
+            main: { fontWeight: 'bold', fontSize: 13, padding: [4,0,4,0] },
             gen: { fontSize: 11, color: '#3b82f6', fontWeight: 'bold' },
             sep: { color: '#ccc', height: 2 },
-            partner: { fontSize: 11, color: '#666', padding: [2,0,2,0], width: 120, overflow: 'break' }
+            partner: { fontSize: 11, color: '#666', padding: [2,0,2,0] }
           }
         },
         leaves: { label: { position: 'bottom', verticalAlign: 'middle', align: 'center' } },
