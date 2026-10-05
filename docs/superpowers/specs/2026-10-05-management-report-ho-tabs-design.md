@@ -53,7 +53,8 @@ Content:
 1. Aggregate the active snapshot by COA (SUM bgt, pta, act) with the same filters as Report (CC, YY, MM; no COA filter).
 2. Amount per account = aggregate x 1000; accounts without data = 0.
 3. Group total = sum of its accounts; section grand total = sum of group totals; summary row = sum of its `codes`; summary total = sum of rows.
-4. `unmapped`: COAs present in the filtered data that are in no template account: `[{"coa", "bgt", "pta", "act"}]` x 1000.
+4. `unmapped`: COAs with non-zero data that do not contribute to the Capex or Opex grand total, i.e. either absent from the template (e.g. `71000110`, `70004112`) or listed in it but outside every group total (`70101300`, `70114949`): `[{"coa", "label", "bgt", "pta", "act"}]` x 1000.
+5. `summary_missing`: accounts that count in the Opex grand total but in no summary row, with non-zero data (Excel template gap: account `70102114` "NS BPJT TK (JKK & JKM) Allowance" is in no summary row, so for CCs with data there the Excel summary total is lower than the Opex grand total, e.g. POOFFM: 12,745,300 vs 12,733,300 BGT). Flow reproduces Excel exactly and warns.
 Return shape:
 ```
 {"title": ..., "period_label": "s/d Aug", "year": 2026,
@@ -61,24 +62,24 @@ Return shape:
  "opex":  {same}, "summary": {"rows": [{"nomor","label","bgt","pta","act"}], "total": {...}},
  "unmapped": [...], "has_data": bool}
 ```
-Invariants (tested): opex grand == summary total; opex grand + capex grand + unmapped == Report grand x 1000 (per CC and for All).
+Invariants (tested, per CC and for All): capex grand + opex grand + unmapped == Report grand x 1000; opex grand == summary total + summary_missing. Verified against Excel: for TFKHAR all 241 computed rows equal the sheet; for POOFFM Excel itself shows opex 12,745,300 / summary 12,733,300.
 
 ## 3. Sync metadata
 At sync, besides sheet Append1, read:
 - Report!U10:V100 -> CC description map `{cc: description}` (blank rows skipped);
 - Parameter!B2 -> report period (date, stored as ISO date; label `s/d <Mon>` derived);
-- HO!A1 -> organisation name for titles.
+Organisation name and location come from the HO template (extracted once), not from sync.
 Stored as JSON in new column `meta` of `mr_upload` (auto-migrated like `content_hash`). `meta` is part of the content hash, so a changed description or period counts as a change; the change summary notes "metadata berubah". A missing sheet/cell does not fail the sync: that field is left empty and titles fall back to the CC code.
 
 ## 4. UI
 - Tabs "Data Sync | Report | HO Report" using the app's existing tab pattern; deep link `?tab=sync|report|ho`, default `report` (or `sync` when no data yet).
 - Shared filter bar (CC incl. All Cost Center, YY, MM; COA on the Report tab only) with the existing live refresh; the HO tab fetches `/management-report/ho-table` (HTML fragment).
-- HO tab shows the three sections as in Excel (all template rows, zeros as "-", Rp 000), the period label, and a warning box when `unmapped` is not empty ("COA di luar template HO tidak ikut dihitung: ...").
+- HO tab shows the three sections as in Excel (all template rows, zeros as "-", negatives in parentheses, Rp 000), the period label, and a warning box when `unmapped` or `summary_missing` is not empty.
 - Report title uses the CC description (`President Office & ETF – <description>`; "All" for All Cost Center).
 
 ## 5. Export
 Workbook per CC, sheets in this order: `Report` (existing layout, title now with CC description), `HO Report`.
-`HO Report` layout (values only, Arial 11): A1 organisation (16 bold, blue), A2 location, A4 `Division/Dept.: <CC description>`, then each section: section title, two-row header (`GL Account | Description | | Budget | PTA | Actual`, second row `s/d <Mon>`), group header rows, account rows (code shown `000-00-000`, name, amounts), group total rows, section grand total. Columns A 16.5, B 51, C 8.5, D 15, E 9, F 13.5, G 1 (notes in G overflow). Fills: header light yellow `FFFF99`, amount cells light cyan `CCFFFF`, totals bold blue `0000FF` with bottom border. Number format `#,##0;(#,##0);"-"`. Footnote under each Grand Total when `unmapped` is not empty. Freeze panes below the first header.
+`HO Report` layout (values only, Arial 11): A1 organisation (16 bold, blue), A2 location, A4 `Division/Dept.: <CC description>`, then each section: section title, two-row header (`GL Account | Description | | Budget | PTA | Actual`, second row `s/d <Mon>`), group header rows, account rows (code shown `000-00-000`, name, amounts), group total rows, section grand total. Columns A 16.5, B 51, C 8.5, D 15, E 9, F 13.5, G 1 (notes in G overflow). Fills: header light yellow `FFFF99`, amount cells light cyan `CCFFFF`, totals bold blue `0000FF` with bottom border. Number format `#,##0;(#,##0);"-"`. Footnote under the Opex Grand Total when `unmapped` is not empty, and under the Summary total when `summary_missing` is not empty. No freeze panes (three sections are stacked).
 ZIP: one `<CC>.xlsx` per CC with data (empty CCs skipped), unchanged naming rules.
 `build_cc_workbook(report, filters, ho_report)` gains the HO data; callers build both.
 
