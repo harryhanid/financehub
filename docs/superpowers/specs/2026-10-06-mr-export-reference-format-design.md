@@ -83,3 +83,12 @@ Unchanged.
 
 ## Out of scope
 On-screen tab styling; formulas in exported cells; the Remarks column content; changes to Append data or sync.
+
+## Adjustments agreed while planning (override the text above where they differ)
+- **Period default:** the `mm` filter if set; otherwise the snapshot's report period (`Parameter!B2`, stored in the sync metadata) when it is in the chosen year; otherwise the latest month that has ACT; otherwise 12. ("Latest month with data" is not usable because budget lines exist for every month.)
+- **YTD month of a line** is `mm1`, falling back to `mm`; a line without a month counts as within YTD.
+- **CAPEX** is decided by COA starting with `27` (not by lookup in the HO template), everything else is OPEX.
+- **Header cell D7** reads `Budget Full Year` (the reference text `Budget YTD` is wrong for that column).
+- **Sheet 1 body** starts at row 10 (row 9 stays empty, as the reference helper row `fltr` is not reproduced). Category names drop their `NN - ` prefix.
+- **Sheet 2:** the `Note : ... sheet Consol` cell F1 is not written (that sheet does not exist in our export). Columns E and F are kept at 14 and 16 wide (instead of 9.8 / 10.8) so Rp 000 amounts do not show `#####`. G2 = period date, G3 = CC code (`All` for All Cost Center).
+- **Legacy callers:** `build_cc_workbook` without the new `bgt` argument still produces the old `Report` first sheet.
