@@ -1,106 +1,135 @@
 {% extends "base.html" %}
-{% block title %}General Ledger - FLOW{% endblock %}
+{% block title %}General Ledger - {{ ent.label }}{% endblock %}
+
+{% block head %}
+<style>
+.gl-table { border-collapse:collapse; width:100%; font-size:.8125rem; white-space:nowrap; }
+.gl-table th, .gl-table td { padding:.3rem .5rem; border-bottom:1px solid var(--sl-200); }
+.gl-table th { text-align:left; background:var(--sl-50); position:sticky; top:0; }
+.gl-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.gl-wrap { overflow:auto; max-height:65vh; }
+.gl-muted { color:var(--sl-500); font-size:.8125rem; }
+.gl-cards { display:flex; gap:1rem; flex-wrap:wrap; margin:.5rem 0 1rem; }
+.gl-card { padding:.6rem .9rem; border:1px solid var(--sl-200); border-radius:8px; min-width:150px; }
+.gl-card b { display:block; font-size:1.05rem; font-variant-numeric:tabular-nums; }
+.gl-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:.75rem; }
+.gl-filter label { display:flex; flex-direction:column; font-size:.75rem; }
+.gl-pager { display:flex; align-items:center; gap:.75rem; margin:.6rem 0; }
+</style>
+{% endblock %}
+
+{% block module_tabs %}
+<div class="tabs" style="margin-bottom:0">
+  {% for key, e in entities.items() %}
+  <a class="tab-btn{{ ' active' if key == entity else '' }}" href="{{ url_for('general_ledger.entity_page', entity=key) }}">{{ e.label }}</a>
+  {% endfor %}
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="row mb-4 align-items-center">
-    <div class="col">
-        <h2 class="h4 mb-0 text-white"><i class="fas fa-file-invoice-dollar me-2"></i> General Ledger Sync</h2>
-        <p class="text-muted mb-0 mt-1">Sinkronisasi data Excel GL (GL - MASTER) yang sedang terbuka ke Database FLOW</p>
-    </div>
-    <div class="col-auto">
-        <button id="btnSyncGL" class="btn btn-primary shadow-sm" onclick="syncGL()">
-            <i class="fas fa-sync-alt me-2"></i> Tarik Data GL Excel Aktif
-        </button>
-    </div>
+{% set diff = result.sum_debit - result.sum_credit %}
+<div class="card" style="margin-bottom:1rem">
+  <strong>Sinkronisasi Excel · {{ ent.label }}</strong>
+  <div class="gl-muted" style="margin:.25rem 0">
+    {% if last %}Terakhir sync: {{ last.synced_at }} · {{ last.synced_by }} · {{ last.filename }} · {{ last.rows_after }} baris
+    {% else %}Belum pernah sync.{% endif %}
+  </div>
+  {% if can_manage %}
+  <div style="margin:.5rem 0">
+    <input type="file" id="gl-file" accept=".xlsb">
+    <button class="btn btn-primary btn-sm" id="gl-sync-btn" onclick="glSync()">Upload &amp; Sync .xlsb</button>
+    <span id="gl-sync-msg" class="gl-muted"></span>
+  </div>
+  <div class="gl-muted">Pilih file <code>GL - MASTER.xlsb</code>; hanya sheet <b>{{ ent.sheet }}</b> yang diproses.</div>
+  {% endif %}
 </div>
 
-<div class="card shadow-sm border-0 mb-4 bg-dark">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="card-title text-white mb-0">Preview Data GL <span class="text-warning">({{ active_company }})</span></h5>
-            <span class="badge bg-info text-dark px-3 py-2">Total: {{ count }} baris di tabel {{ target_table }}</span>
-        </div>
-        
-        <div class="alert alert-secondary bg-dark border-secondary text-light">
-            <i class="fas fa-info-circle text-primary me-2"></i> 
-            <strong>Petunjuk:</strong> Buka file Excel bernama <code>GL - MASTER</code> sebelum menekan tombol tarik data.
-        </div>
-        
-        <div class="table-responsive mt-3" style="max-height: 600px;">
-            <table class="table table-dark table-hover table-bordered table-sm" style="font-size: 0.85rem;">
-                <thead class="table-secondary sticky-top">
-                    <tr>
-                        {% for col in columns %}
-                            <th class="text-nowrap">{{ col }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if rows %}
-                        {% for row in rows %}
-                        <tr>
-                            {% for cell in row %}
-                                <td class="text-nowrap">{{ cell }}</td>
-                            {% endfor %}
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="100%" class="text-center text-muted py-4">
-                                Belum ada data di tabel <strong>{{ target_table }}</strong>. Silakan tekan tombol "Tarik Data GL Excel Aktif".
-                            </td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+{% if not last and result.total == 0 and not filters.values() | select | list %}
+<div class="card">Belum ada data {{ ent.label }}. Upload file GL - MASTER.xlsb untuk memulai.</div>
+{% else %}
+<div class="gl-cards">
+  <div class="gl-card">Baris<b>{{ result.total | gl_num }}</b></div>
+  <div class="gl-card">Total Debit<b>{{ result.sum_debit | gl_num }}</b></div>
+  <div class="gl-card">Total Credit<b>{{ result.sum_credit | gl_num }}</b></div>
+  <div class="gl-card">Selisih<b>{{ diff | gl_num }}</b></div>
 </div>
 
+<form class="gl-filter" method="get">
+  <label>Dari tanggal<input type="date" name="date_from" value="{{ filters.date_from }}"></label>
+  <label>Sampai tanggal<input type="date" name="date_to" value="{{ filters.date_to }}"></label>
+  <label>Akun<input type="text" name="acc" value="{{ filters.acc }}" placeholder="kode / nama akun"></label>
+  <label>Job Name<input type="text" name="job" value="{{ filters.job }}"></label>
+  <label>Memo / ID#<input type="text" name="q" value="{{ filters.q }}"></label>
+  <button class="btn btn-primary btn-sm" type="submit">Terapkan</button>
+  <a class="btn btn-sm" href="{{ url_for('general_ledger.entity_page', entity=entity) }}">Reset</a>
+</form>
+
+<div class="gl-wrap">
+<table class="gl-table">
+  <thead><tr>
+    <th>No</th><th>Tipe</th><th>Acc Statutory</th><th>Deskripsi Statutory</th><th>Acc Management</th>
+    <th>ID#</th><th>Tanggal</th><th>Memo</th><th class="num">Debit</th><th class="num">Credit</th>
+    <th>Job Name</th><th>Budget Activity</th><th>Customer/Vendor</th><th>Allocation Memo</th>
+    <th>Event</th><th>Ket 1</th><th>Ket 2</th>
+  </tr></thead>
+  <tbody>
+  {% for r in result.rows %}
+  <tr>
+    <td>{{ r.entry_no if r.entry_no is not none else '' }}</td><td>{{ r.source_type }}</td>
+    <td>{{ r.acc_statutory }}</td><td>{{ r.acc_statutory_desc }}</td><td>{{ r.acc_management }}</td>
+    <td>{{ r.id_no }}</td><td>{{ r.tgl or '' }}</td><td>{{ r.memo }}</td>
+    <td class="num">{{ r.debit | gl_num }}</td><td class="num">{{ r.credit | gl_num }}</td>
+    <td>{{ r.job_name }}</td><td>{{ r.budget_activity }}</td><td>{{ r.customer_vendor }}</td>
+    <td>{{ r.allocation_memo }}</td><td>{{ r.event }}</td><td>{{ r.ket1 }}</td><td>{{ r.ket2 }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="17" class="gl-muted">Tidak ada baris yang cocok dengan filter.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="gl-pager">
+  {% set qs = request.args.to_dict() %}{% set _ = qs.pop('page', none) %}
+  {% if result.page > 1 %}<a class="btn btn-sm" href="?{{ (qs | urlencode) ~ ('&' if qs else '') }}page={{ result.page - 1 }}">&laquo; Sebelumnya</a>{% endif %}
+  <span class="gl-muted">Halaman {{ result.page }} dari {{ result.pages }}</span>
+  {% if result.page < result.pages %}<a class="btn btn-sm" href="?{{ (qs | urlencode) ~ ('&' if qs else '') }}page={{ result.page + 1 }}">Berikutnya &raquo;</a>{% endif %}
+</div>
+
+{% if syncs %}
+<details style="margin-top:1rem">
+  <summary>Riwayat sync terakhir ({{ syncs | length }})</summary>
+  <table class="gl-table" style="max-width:820px; margin-top:.3rem">
+    <thead><tr><th>Waktu</th><th>User</th><th>File</th><th class="num">Baris</th><th class="num">Baru</th><th class="num">Dihapus</th><th class="num">Berubah</th></tr></thead>
+    <tbody>
+    {% for s in syncs %}
+    <tr><td>{{ s.synced_at }}</td><td>{{ s.synced_by }}</td><td>{{ s.filename }}</td>
+      <td class="num">{{ s.rows_before | gl_num }} → {{ s.rows_after | gl_num }}</td>
+      <td class="num">{{ s.summary.added }}</td><td class="num">{{ s.summary.removed }}</td><td class="num">{{ s.summary.changed }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
 <script>
-function syncGL() {
-    const btn = document.getElementById('btnSyncGL');
-    const originalHtml = btn.innerHTML;
-    
-    // UI Loading state
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Sinkronisasi...';
-    btn.disabled = true;
-    
-    apiFetch('{{ url_for("general_ledger.sync_data") }}', {
-        method: 'POST'
-    })
-    .then(data => {
-        if (data.ok) {
-            Swal.fire({
-                icon: 'success',
-                title: 'Sinkronisasi Selesai',
-                text: data.pesan,
-                background: '#1F2937', color: '#fff', confirmButtonColor: '#3B82F6'
-            }).then(() => {
-                window.location.reload();
-            });
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Gagal Sinkronisasi',
-                text: data.pesan,
-                background: '#1F2937', color: '#fff', confirmButtonColor: '#3B82F6'
-            });
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        }
-    })
-    .catch(err => {
-        console.error(err);
-        Swal.fire({
-            icon: 'error',
-            title: 'Kesalahan Sistem',
-            text: 'Terjadi kesalahan jaringan atau server saat sinkronisasi.',
-            background: '#1F2937', color: '#fff', confirmButtonColor: '#3B82F6'
-        });
-        btn.innerHTML = originalHtml;
-        btn.disabled = false;
-    });
+async function glSync() {
+  const f = document.getElementById('gl-file').files[0];
+  const msg = document.getElementById('gl-sync-msg');
+  if (!f) { msg.textContent = 'Pilih file GL - MASTER.xlsb dulu.'; return; }
+  const btn = document.getElementById('gl-sync-btn');
+  btn.disabled = true; msg.textContent = 'Menyinkronkan...';
+  const fd = new FormData(); fd.append('file', f);
+  try {
+    const r = await fetch('/general-ledger/{{ entity }}/sync', {method: 'POST', body: fd, credentials: 'same-origin'});
+    const j = await r.json();
+    msg.textContent = j.pesan || (r.ok ? 'Selesai.' : 'Gagal.');
+    if (j.ok && j.changed) setTimeout(() => location.reload(), 1200);
+  } catch (e) { msg.textContent = 'Gagal sync: ' + e; }
+  btn.disabled = false;
 }
 </script>
 {% endblock %}
