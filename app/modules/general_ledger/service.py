@@ -1,0 +1,121 @@
+# modules/general_ledger/service.py
+"""General Ledger: table storage, sync log and viewer queries."""
+import json
+from datetime import datetime
+
+from database import get_conn
+from modules.general_ledger.parser import COLUMNS
+
+ENTITIES = {
+    "smt":  {"sheet": "GL SMT",  "table": "GLSMT",  "label": "GL SMT"},
+    "etf":  {"sheet": "GL ETF",  "table": "GLETF",  "label": "GL ETF"},
+    "setf": {"sheet": "GL SETF", "table": "GLSETF", "label": "GL SETF"},
+}
+
+_REAL = {"debit", "credit", "qty_awal", "qty_akhir", "harga_satuan"}
+_INT = {"entry_no"}
+
+
+def _col_type(c):
+    return "REAL" if c in _REAL else "INTEGER" if c in _INT else "TEXT"
+
+
+def _table_ddl(table):
+    cols = ",\n    ".join(f"{c} {_col_type(c)}" for c in COLUMNS)
+    return (f"CREATE TABLE IF NOT EXISTS {table} (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    {cols}\n);\n"
+            f"CREATE INDEX IF NOT EXISTS idx_{table}_tgl ON {table}(tgl);\n"
+            f"CREATE INDEX IF NOT EXISTS idx_{table}_acc ON {table}(acc_statutory);")
+
+
+_LOG_DDL = """
+CREATE TABLE IF NOT EXISTS gl_sync_log (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity       TEXT NOT NULL,
+    synced_at    TEXT,
+    synced_by    TEXT,
+    filename     TEXT,
+    content_hash TEXT,
+    rows_before  INTEGER DEFAULT 0,
+    rows_after   INTEGER DEFAULT 0,
+    total_debit  REAL DEFAULT 0,
+    total_credit REAL DEFAULT 0,
+    dropped      INTEGER DEFAULT 0,
+    summary      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_gl_sync_log_entity ON gl_sync_log(entity, id);
+"""
+
+
+def ensure_schema(conn) -> None:
+    expected = {"id", *COLUMNS}
+    for ent in ENTITIES.values():
+        table = ent["table"]
+        existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if existing and existing != expected:
+            # Left over from the old pandas to_sql sync with other columns; data is re-synced anyway.
+            conn.execute(f"DROP TABLE {table}")
+        conn.executescript(_table_ddl(table))
+    conn.executescript(_LOG_DDL)
+    conn.commit()
+
+
+def _ts() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def replace_all(entity, rows, log) -> None:
+    table = ENTITIES[entity]["table"]
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        try:
+            conn.execute(f"DELETE FROM {table}")
+            marks = ",".join("?" * len(COLUMNS))
+            conn.executemany(
+                f"INSERT INTO {table} ({','.join(COLUMNS)}) VALUES ({marks})",
+                [tuple(r[c] for c in COLUMNS) for r in rows])
+            conn.execute(
+                "INSERT INTO gl_sync_log (entity, synced_at, synced_by, filename, content_hash, "
+                "rows_before, rows_after, total_debit, total_credit, dropped, summary) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (entity, _ts(), log["synced_by"], log["filename"], log["content_hash"],
+                 log["rows_before"], log["rows_after"], log["total_debit"], log["total_credit"],
+                 log["dropped"], json.dumps(log["summary"], ensure_ascii=False)))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    finally:
+        conn.close()
+
+
+def load_rows(entity) -> list:
+    table = ENTITIES[entity]["table"]
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        return [dict(r) for r in conn.execute(f"SELECT {','.join(COLUMNS)} FROM {table}")]
+    finally:
+        conn.close()
+
+
+def _log_row(r):
+    d = dict(r)
+    d["summary"] = json.loads(d["summary"]) if d.get("summary") else {}
+    return d
+
+
+def list_syncs(entity, limit=10) -> list:
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        cur = conn.execute("SELECT * FROM gl_sync_log WHERE entity=? ORDER BY id DESC LIMIT ?",
+                           (entity, limit))
+        return [_log_row(r) for r in cur]
+    finally:
+        conn.close()
+
+
+def last_sync(entity):
+    rows = list_syncs(entity, 1)
+    return rows[0] if rows else None

@@ -1,0 +1,67 @@
+# modules/general_ledger/sync.py
+"""General Ledger: sync parsed sheet rows into Flow, with change detection."""
+import hashlib
+import json
+
+from modules.general_ledger import service
+from modules.general_ledger.parser import COLUMNS
+
+_KEY = ("id_no", "acc_statutory", "acc_management", "job_name", "memo", "tgl")
+_EPS = 1e-6
+_BALANCE_TOLERANCE = 1.0
+
+
+def _norm(v):
+    return round(v, 6) if isinstance(v, float) else v
+
+
+def compute_hash(rows: list) -> str:
+    """Order-independent content hash of parsed rows (floats rounded to 6 decimals)."""
+    lines = sorted(json.dumps([_norm(r[c]) for c in COLUMNS], ensure_ascii=False) for r in rows)
+    h = hashlib.sha256()
+    for line in lines:
+        h.update(line.encode("utf-8"))
+        h.update(b"\n")
+    return h.hexdigest()
+
+
+def _aggregate(rows):
+    out = {}
+    for r in rows:
+        acc = out.setdefault(tuple(r[k] for k in _KEY), [0.0, 0.0])
+        acc[0] += r["debit"]
+        acc[1] += r["credit"]
+    return out
+
+
+def summarize_changes(old_rows: list, new_rows: list) -> dict:
+    """Entries added / removed / changed (debit or credit differs), keyed on _KEY."""
+    old, new = _aggregate(old_rows), _aggregate(new_rows)
+    return {
+        "added": sum(1 for k in new if k not in old),
+        "removed": sum(1 for k in old if k not in new),
+        "changed": sum(1 for k in new if k in old
+                       and any(abs(a - b) > _EPS for a, b in zip(new[k], old[k]))),
+    }
+
+
+def sync_rows(entity, filename, user, rows, dropped=0) -> dict:
+    """Replace the entity's table with `rows` unless the content is identical to the last sync."""
+    content_hash = compute_hash(rows)
+    total_debit = sum(r["debit"] for r in rows)
+    total_credit = sum(r["credit"] for r in rows)
+    base = {"rows": len(rows), "total_debit": total_debit, "total_credit": total_credit,
+            "balanced": abs(total_debit - total_credit) <= _BALANCE_TOLERANCE}
+
+    last = service.last_sync(entity)
+    if last and last["content_hash"] == content_hash:
+        return {"changed": False, "summary": last["summary"], **base}
+
+    old = service.load_rows(entity)
+    summary = summarize_changes(old, rows)
+    service.replace_all(entity, rows, {
+        "synced_by": user, "filename": filename, "content_hash": content_hash,
+        "rows_before": len(old), "rows_after": len(rows),
+        "total_debit": total_debit, "total_credit": total_credit,
+        "dropped": dropped, "summary": summary})
+    return {"changed": True, "summary": summary, **base}
