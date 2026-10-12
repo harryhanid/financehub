@@ -116,3 +116,32 @@ def test_sync_unknown_entity_is_404(client):
     r = client.post("/general-ledger/xyz/sync", data={"file": (io.BytesIO(b"x"), "m.xlsb")},
                     content_type="multipart/form-data")
     assert r.status_code == 404
+
+
+def test_database_error_during_sync_returns_json_500(client, monkeypatch):
+    login(client)
+
+    def boom(*a, **k):
+        raise RuntimeError("database is locked")
+    monkeypatch.setattr(gl_routes.gl_sync, "sync_rows", boom)
+    r = _sync(client, monkeypatch, [mkrow()])
+    assert r.status_code == 500 and r.get_json()["ok"] is False
+    assert "database is locked" in r.get_json()["pesan"]
+
+
+def test_non_admin_can_view_but_not_sync(client, monkeypatch):
+    import bcrypt
+    import database
+    pw_hash = bcrypt.hashpw(b"Req@12345", bcrypt.gensalt(4)).decode()
+    conn = database.get_conn()
+    conn.execute("INSERT INTO users (username, password_hash, role, must_change_pw) "
+                 "VALUES (?, ?, 'requester', 0)", ("req1", pw_hash))
+    conn.commit()
+    conn.close()
+    assert client.post("/auth/login", json={"username": "req1", "password": "Req@12345"}).status_code == 200
+    client.post("/select-company", data={"company_id": "2"})
+    assert client.get("/general-ledger/smt").status_code == 200
+    assert b"gl-sync-btn" not in client.get("/general-ledger/smt").data
+    r = _sync(client, monkeypatch, [mkrow()])
+    assert r.status_code == 403
+    assert svc.query_rows("smt", {})["total"] == 0

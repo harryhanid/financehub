@@ -118,3 +118,23 @@ def test_entities_are_independent():
     glsync.sync_rows("smt", "m.xlsb", "admin", rows_a())
     assert glsync.sync_rows("etf", "m.xlsb", "admin", rows_a())["changed"] is True
     assert table_count("GLETF") == 3 and table_count("GLSETF") == 0
+
+
+def test_reading_never_destroys_a_legacy_table():
+    conn = get_conn()
+    conn.execute("CREATE TABLE GLSMT (account_statutory TEXT, junk TEXT)")
+    conn.execute("INSERT INTO GLSMT VALUES ('a','b')")
+    conn.commit()
+    conn.close()
+    assert svc.query_rows("smt", {})["total"] == 0          # a plain page view, no sync
+    assert table_count("GLSMT_legacy") == 1                  # old data kept aside, not dropped
+
+
+def test_resync_same_file_after_table_was_emptied_refills_it():
+    glsync.sync_rows("smt", "m.xlsb", "admin", rows_a())
+    conn = get_conn()
+    conn.execute("DELETE FROM GLSMT")
+    conn.commit()
+    conn.close()
+    out = glsync.sync_rows("smt", "m.xlsb", "admin", rows_a())
+    assert out["changed"] is True and table_count("GLSMT") == 3

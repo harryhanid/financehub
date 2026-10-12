@@ -54,7 +54,8 @@ def sync_rows(entity, filename, user, rows, dropped=0) -> dict:
             "balanced": abs(total_debit - total_credit) <= _BALANCE_TOLERANCE}
 
     last = service.last_sync(entity)
-    if last and last["content_hash"] == content_hash:
+    if (last and last["content_hash"] == content_hash
+            and service.row_count(entity) == last["rows_after"]):     # table must still hold that sync
         return {"changed": False, "summary": last["summary"], **base}
 
     old = service.load_rows(entity)

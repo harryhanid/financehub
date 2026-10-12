@@ -107,7 +107,8 @@ def normalise_rows(header, raw_rows) -> ParseResult:
                 row[col] = _date(v)
             else:
                 row[col] = _text(v)
-        if not (row["id_no"] or row["acc_statutory"] or row["acc_management"]):
+        if not (row["id_no"] or row["acc_statutory"] or row["acc_management"]
+                or row["debit"] or row["credit"]):          # formula-only residue carries no amount
             dropped += 1
             continue
         rows.append(row)

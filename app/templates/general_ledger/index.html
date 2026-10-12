@@ -115,6 +115,7 @@
 {% endblock %}
 
 {% block scripts %}
+{% if can_manage %}
 <script>
 async function glSync() {
   const f = document.getElementById('gl-file').files[0];
@@ -132,4 +133,5 @@ async function glSync() {
   btn.disabled = false;
 }
 </script>
+{% endif %}
 {% endblock %}

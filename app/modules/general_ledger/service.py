@@ -52,8 +52,12 @@ def ensure_schema(conn) -> None:
         table = ent["table"]
         existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         if existing and existing != expected:
-            # Left over from the old pandas to_sql sync with other columns; data is re-synced anyway.
-            conn.execute(f"DROP TABLE {table}")
+            # Old pandas to_sql layout (or an older COLUMNS set): keep the data aside, never drop it.
+            legacy = f"{table}_legacy"
+            conn.execute(f"DROP TABLE IF EXISTS {legacy}")
+            conn.execute(f"DROP INDEX IF EXISTS idx_{table}_tgl")
+            conn.execute(f"DROP INDEX IF EXISTS idx_{table}_acc")
+            conn.execute(f"ALTER TABLE {table} RENAME TO {legacy}")
         conn.executescript(_table_ddl(table))
     conn.executescript(_LOG_DDL)
     conn.commit()
@@ -85,6 +89,16 @@ def replace_all(entity, rows, log) -> None:
         except Exception:
             conn.rollback()
             raise
+    finally:
+        conn.close()
+
+
+def row_count(entity) -> int:
+    table = ENTITIES[entity]["table"]
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
     finally:
         conn.close()
 

@@ -79,8 +79,11 @@ def sync_excel(entity):
             raise ParseError(f"Tidak ada baris data yang valid di sheet {ent['sheet']}.")
     except ParseError as e:
         return jsonify({"ok": False, "pesan": str(e)}), 400
-    out = gl_sync.sync_rows(entity, f.filename, get_jwt().get("username", ""),
-                            result.rows, result.dropped)
+    try:
+        out = gl_sync.sync_rows(entity, f.filename, get_jwt().get("username", ""),
+                                result.rows, result.dropped)
+    except Exception as e:
+        return jsonify({"ok": False, "pesan": f"Sync gagal, data lama tidak berubah: {e}"}), 500
     if not out["changed"]:
         pesan = f"Sudah sinkron: tidak ada perubahan sejak sync terakhir ({out['rows']} baris)."
     else:

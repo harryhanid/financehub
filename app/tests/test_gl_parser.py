@@ -69,3 +69,8 @@ def test_missing_required_header_raises():
     bad = [h for h in HEADER if h != "Debit"]
     with pytest.raises(p.ParseError, match="Debit"):
         p.normalise_rows(bad, [])
+
+
+def test_row_with_amount_but_no_id_or_account_is_kept():
+    res = p.normalise_rows(HEADER, [raw(memo="orphan", debit=500.0)])
+    assert len(res.rows) == 1 and res.dropped == 0 and res.rows[0]["debit"] == 500.0
