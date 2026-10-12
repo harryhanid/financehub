@@ -1,0 +1,70 @@
+# tests/test_gl_service.py
+from modules.general_ledger import service as svc
+from tests.test_gl_sync import mkrow
+
+
+def seed():
+    rows = [
+        mkrow(entry_no=1, id_no="GJ-1", tgl="2026-01-02", debit=100.0, credit=0.0,
+              acc_statutory="6-1810", job_name="POCFAD", memo="Zoom"),
+        mkrow(entry_no=2, id_no="GJ-1", tgl="2026-01-02", debit=0.0, credit=100.0,
+              acc_statutory="2-1110", job_name="POCFAD", memo="Zoom"),
+        mkrow(entry_no=3, id_no="BK-7", tgl="2026-03-10", debit=50.0, credit=0.0,
+              acc_statutory="6-2190", job_name="POITEC", memo="100% diskon_promo"),
+    ]
+    for r in rows:
+        r["acc_management"] = r["acc_statutory"]
+    svc.replace_all("smt", rows, dict(synced_by="u", filename="f", content_hash="h", rows_before=0,
+                                      rows_after=3, total_debit=150.0, total_credit=100.0,
+                                      dropped=0, summary={}))
+
+
+def q(**f):
+    return svc.query_rows("smt", f)
+
+
+def test_no_filter_returns_all_ordered_with_totals():
+    seed()
+    r = q()
+    assert r["total"] == 3 and [x["entry_no"] for x in r["rows"]] == [1, 2, 3]
+    assert r["sum_debit"] == 150.0 and r["sum_credit"] == 100.0
+    assert r["page"] == 1 and r["pages"] == 1
+
+
+def test_filters():
+    seed()
+    assert q(date_from="2026-02-01")["total"] == 1
+    assert q(date_to="2026-01-31")["total"] == 2
+    assert q(acc="2-1110")["total"] == 1
+    assert q(job="poit")["total"] == 1
+    assert q(q="GJ-1")["total"] == 2
+    assert q(q="zoom", job="POCFAD", acc="6-1810")["total"] == 1
+
+
+def test_filtered_totals_follow_the_filter():
+    seed()
+    r = q(job="POCFAD")
+    assert r["sum_debit"] == 100.0 and r["sum_credit"] == 100.0
+
+
+def test_like_wildcards_are_literal():
+    seed()
+    assert q(q="%")["total"] == 1            # only the memo containing a literal '%'
+    assert q(q="_")["total"] == 1            # only the memo containing a literal '_'
+    assert q(q="no-such-text")["total"] == 0
+
+
+def test_pagination_and_clamping():
+    svc.replace_all("smt", [mkrow(entry_no=i, id_no=f"X-{i}") for i in range(1, 251)],
+                    dict(synced_by="u", filename="f", content_hash="h", rows_before=0,
+                         rows_after=250, total_debit=0, total_credit=0, dropped=0, summary={}))
+    p1 = svc.query_rows("smt", {}, page=1)
+    assert p1["pages"] == 3 and len(p1["rows"]) == 100
+    assert len(svc.query_rows("smt", {}, page=3)["rows"]) == 50
+    assert svc.query_rows("smt", {}, page=999)["page"] == 3
+    assert svc.query_rows("smt", {}, page=0)["page"] == 1
+
+
+def test_empty_table():
+    r = svc.query_rows("etf", {})
+    assert r["total"] == 0 and r["rows"] == [] and r["pages"] == 1 and r["sum_debit"] == 0

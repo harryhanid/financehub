@@ -119,3 +119,49 @@ def list_syncs(entity, limit=10) -> list:
 def last_sync(entity):
     rows = list_syncs(entity, 1)
     return rows[0] if rows else None
+
+
+def _like(text: str) -> str:
+    esc = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{esc}%"
+
+
+def _where(filters: dict):
+    clauses, params = [], []
+    if filters.get("date_from"):
+        clauses.append("tgl >= ?")
+        params.append(filters["date_from"])
+    if filters.get("date_to"):
+        clauses.append("tgl <= ?")
+        params.append(filters["date_to"])
+    if filters.get("acc"):
+        clauses.append("(acc_statutory LIKE ? ESCAPE '\\' OR acc_management LIKE ? ESCAPE '\\' "
+                       "OR acc_statutory_desc LIKE ? ESCAPE '\\' OR acc_management_desc LIKE ? ESCAPE '\\')")
+        params += [_like(filters["acc"])] * 4
+    if filters.get("job"):
+        clauses.append("job_name LIKE ? ESCAPE '\\'")
+        params.append(_like(filters["job"]))
+    if filters.get("q"):
+        clauses.append("(memo LIKE ? ESCAPE '\\' OR id_no LIKE ? ESCAPE '\\')")
+        params += [_like(filters["q"])] * 2
+    return (" WHERE " + " AND ".join(clauses)) if clauses else "", params
+
+
+def query_rows(entity, filters, page=1, per_page=100) -> dict:
+    table = ENTITIES[entity]["table"]
+    where, params = _where(filters or {})
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        total, sum_debit, sum_credit = conn.execute(
+            f"SELECT COUNT(*), COALESCE(SUM(debit),0), COALESCE(SUM(credit),0) FROM {table}{where}",
+            params).fetchone()
+        pages = max(1, -(-total // per_page))
+        page = min(max(1, page), pages)
+        rows = [dict(r) for r in conn.execute(
+            f"SELECT {','.join(COLUMNS)} FROM {table}{where} "
+            f"ORDER BY entry_no, id LIMIT ? OFFSET ?", params + [per_page, (page - 1) * per_page])]
+    finally:
+        conn.close()
+    return {"rows": rows, "total": total, "sum_debit": sum_debit, "sum_credit": sum_credit,
+            "page": page, "pages": pages, "per_page": per_page}

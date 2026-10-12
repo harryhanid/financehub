@@ -675,6 +675,8 @@ def seed():
         mkrow(entry_no=3, id_no="BK-7", tgl="2026-03-10", debit=50.0, credit=0.0,
               acc_statutory="6-2190", job_name="POITEC", memo="100% diskon_promo"),
     ]
+    for r in rows:
+        r["acc_management"] = r["acc_statutory"]
     svc.replace_all("smt", rows, dict(synced_by="u", filename="f", content_hash="h", rows_before=0,
                                       rows_after=3, total_debit=150.0, total_credit=100.0,
                                       dropped=0, summary={}))
