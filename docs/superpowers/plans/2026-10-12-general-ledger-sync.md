@@ -81,7 +81,7 @@ def test_maps_columns_and_converts_values():
     assert set(r) == set(p.COLUMNS)
     assert r["entry_no"] == 1 and r["source_type"] == "GJ - Acrue"
     assert r["acc_statutory"] == "2-1110" and r["id_no"] == "GJ-00168"
-    assert r["tgl"] == "2026-01-02"          # Excel serial 46023
+    assert r["tgl"] == "2026-01-01"          # Excel serial 46023
     assert r["debit"] == 918367069.0 and r["credit"] == 0.0
     assert r["ket1"] == "k1" and r["ket2"] == ""
 
