@@ -67,23 +67,18 @@
 <div class="gl-wrap">
 <table class="gl-table">
   <thead><tr>
-    <th>No</th><th>Tipe</th><th>Acc Statutory</th><th>Deskripsi Statutory</th><th>Acc Management</th>
-    <th>ID#</th><th>Tanggal</th><th>Memo</th><th class="num">Debit</th><th class="num">Credit</th>
-    <th>Job Name</th><th>Budget Activity</th><th>Customer/Vendor</th><th>Allocation Memo</th>
-    <th>Event</th><th>Ket 1</th><th>Ket 2</th>
+    {% for col, label in columns %}<th class="text-nowrap{{ ' num' if col in numeric else '' }}">{{ label }}</th>{% endfor %}
   </tr></thead>
   <tbody>
   {% for r in result.rows %}
   <tr>
-    <td>{{ r.entry_no if r.entry_no is not none else '' }}</td><td>{{ r.source_type }}</td>
-    <td>{{ r.acc_statutory }}</td><td>{{ r.acc_statutory_desc }}</td><td>{{ r.acc_management }}</td>
-    <td>{{ r.id_no }}</td><td>{{ r.tgl or '' }}</td><td>{{ r.memo }}</td>
-    <td class="num">{{ r.debit | gl_num }}</td><td class="num">{{ r.credit | gl_num }}</td>
-    <td>{{ r.job_name }}</td><td>{{ r.budget_activity }}</td><td>{{ r.customer_vendor }}</td>
-    <td>{{ r.allocation_memo }}</td><td>{{ r.event }}</td><td>{{ r.ket1 }}</td><td>{{ r.ket2 }}</td>
+    {% for col, label in columns %}
+    {% set v = r[col] %}
+    <td{% if col in numeric %} class="num"{% endif %}>{% if col in numeric %}{{ v | gl_num }}{% elif v is not none %}{{ v }}{% endif %}</td>
+    {% endfor %}
   </tr>
   {% else %}
-  <tr><td colspan="17" class="gl-muted">Tidak ada baris yang cocok dengan filter.</td></tr>
+  <tr><td colspan="{{ columns | length }}" class="gl-muted">Tidak ada baris yang cocok dengan filter.</td></tr>
   {% endfor %}
   </tbody>
 </table>

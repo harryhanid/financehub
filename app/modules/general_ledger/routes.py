@@ -7,7 +7,7 @@ from flask_jwt_extended import get_jwt
 from auth.middleware import is_admin, json_admin_required, jwt_html_required
 from modules.general_ledger import service
 from modules.general_ledger import sync as gl_sync
-from modules.general_ledger.parser import ParseError, read_gl_sheet
+from modules.general_ledger.parser import COLUMNS, LABELS, ParseError, read_gl_sheet
 
 bp = Blueprint("general_ledger", __name__, url_prefix="/general-ledger")
 
@@ -23,6 +23,7 @@ def _gl_num(value) -> str:
 bp.add_app_template_filter(_gl_num, "gl_num")
 
 _FILTER_KEYS = ("date_from", "date_to", "acc", "job", "q")
+_NUMERIC = {"debit", "credit", "qty_awal", "qty_akhir", "harga_satuan", "debit_credit"}
 
 
 def _entity_or_404(entity):
@@ -57,6 +58,7 @@ def entity_page(entity):
     return render_template(
         "general_ledger/index.html",
         entity=entity, ent=ent, entities=service.ENTITIES, filters=filters, result=result,
+        columns=[(c, LABELS[c]) for c in COLUMNS], numeric=_NUMERIC,
         last=service.last_sync(entity), syncs=service.list_syncs(entity, 5),
         can_manage=can_manage, active_page="general_ledger", use_unified_header=True,
     )

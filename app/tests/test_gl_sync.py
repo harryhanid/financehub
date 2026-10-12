@@ -12,7 +12,9 @@ def mkrow(**kw):
                 tgl="2026-01-02", memo="m", debit=10.0, credit=0.0, job_name="POCFAD",
                 job_desc="", budget_activity="", customer_vendor="", allocation_memo="",
                 event="", qty_awal=0.0, qty_akhir=0.0, uom="", nama_item="",
-                harga_satuan=0.0, ket1="", ket2="")
+                harga_satuan=0.0, ket1="", ket2="", pph_non_pph="", debit_credit=0.0, period="",
+                category_expense="", category_lk="", category_spt="", accrual_actual="", pph="",
+                sub_category="", **{f"ket{i}": "" for i in range(3, 21)})
     base.update(kw)
     return base
 

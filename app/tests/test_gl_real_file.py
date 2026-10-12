@@ -33,6 +33,9 @@ def test_real_sheet_matches_excel_control_row(local_copy, entity):
     sheet = svc.ENTITIES[entity]["sheet"]
     res = read_gl_sheet(local_copy, sheet)
     assert len(res.rows) > 100
+    assert all(r["debit"] or r["credit"] for r in res.rows)             # zero/blank rows are not synced
+    assert any(r["accrual_actual"] for r in res.rows)                    # the extra columns are really read
+    assert any(r["category_lk"] for r in res.rows)
     ctl_debit, ctl_credit = control_totals(local_copy, sheet)
     assert abs(sum(r["debit"] for r in res.rows) - ctl_debit) < 1.0
     assert abs(sum(r["credit"] for r in res.rows) - ctl_credit) < 1.0

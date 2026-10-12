@@ -12,7 +12,7 @@ ENTITIES = {
     "setf": {"sheet": "GL SETF", "table": "GLSETF", "label": "GL SETF"},
 }
 
-_REAL = {"debit", "credit", "qty_awal", "qty_akhir", "harga_satuan"}
+_REAL = {"debit", "credit", "qty_awal", "qty_akhir", "harga_satuan", "debit_credit"}
 _INT = {"entry_no"}
 
 

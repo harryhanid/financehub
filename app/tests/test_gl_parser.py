@@ -41,8 +41,8 @@ def test_maps_columns_and_converts_values():
 
 
 def test_missing_cells_become_zero_and_empty_text():
-    r = p.normalise_rows(HEADER, [raw(acc_statutory="1-1", id_no="X-1", tgl=46023.0)]).rows[0]
-    assert r["debit"] == 0.0 and r["credit"] == 0.0 and r["memo"] == ""
+    r = p.normalise_rows(HEADER, [raw(acc_statutory="1-1", id_no="X-1", tgl=46023.0, credit=2.0)]).rows[0]
+    assert r["debit"] == 0.0 and r["credit"] == 2.0 and r["memo"] == ""
 
 
 def test_formula_only_rows_are_dropped_and_counted():
@@ -55,13 +55,13 @@ def test_formula_only_rows_are_dropped_and_counted():
 
 def test_excel_error_cells_are_ignored():
     r = p.normalise_rows(HEADER, [raw(acc_statutory="1-1", id_no="X-1", tgl=46023.0,
-                                      debit="0x2A", memo="0x07", ket1="ok")]).rows[0]
-    assert r["debit"] == 0.0 and r["memo"] == "" and r["ket1"] == "ok"
+                                      debit="0x2A", credit=3.0, memo="0x07", ket1="ok")]).rows[0]
+    assert r["debit"] == 0.0 and r["credit"] == 3.0 and r["memo"] == "" and r["ket1"] == "ok"
 
 
 def test_text_date_is_kept_and_zero_date_is_none():
-    a = p.normalise_rows(HEADER, [raw(acc_statutory="1-1", tgl="2026-02-03")]).rows[0]
-    b = p.normalise_rows(HEADER, [raw(acc_statutory="1-1", tgl=0.0)]).rows[0]
+    a = p.normalise_rows(HEADER, [raw(acc_statutory="1-1", tgl="2026-02-03", debit=1.0)]).rows[0]
+    b = p.normalise_rows(HEADER, [raw(acc_statutory="1-1", tgl=0.0, debit=1.0)]).rows[0]
     assert a["tgl"] == "2026-02-03" and b["tgl"] is None
 
 
@@ -74,3 +74,46 @@ def test_missing_required_header_raises():
 def test_row_with_amount_but_no_id_or_account_is_kept():
     res = p.normalise_rows(HEADER, [raw(memo="orphan", debit=500.0)])
     assert len(res.rows) == 1 and res.dropped == 0 and res.rows[0]["debit"] == 500.0
+
+
+EXTRA = [f"Keterangan {i}" for i in range(3, 21)] + [
+    "DEBIT - CREDIT", "Period", "CATEGORIES EXPENSE (6-****)", "Category LK", "Category SPT",
+    "Accrual/Actual", "PPh", "Sub-Category"]
+
+
+def test_all_sheet_columns_are_imported():
+    header = HEADER + EXTRA
+    r = [None] * len(header)
+    r[3], r[7], r[10] = "6-1810", "GJ-1", 250.0
+    r[14] = "TFFCON"                                   # PPH/Non PPH
+    r[header.index("Keterangan 3")] = "k3"
+    r[header.index("Keterangan 20")] = "k20"
+    r[header.index("DEBIT - CREDIT")] = 250.0
+    r[header.index("Period")] = 126.0
+    r[header.index("CATEGORIES EXPENSE (6-****)")] = "Office Supplies"
+    r[header.index("Category LK")] = "HARGA POKOK PENJUALAN"
+    r[header.index("Category SPT")] = "BIAYA LAINNYA"
+    r[header.index("Accrual/Actual")] = "Accrual"
+    r[header.index("PPh")] = "Final"
+    r[header.index("Sub-Category")] = "Zoom"
+    row = p.normalise_rows(header, [r]).rows[0]
+    assert row["pph_non_pph"] == "TFFCON" and row["ket3"] == "k3" and row["ket20"] == "k20"
+    assert row["debit_credit"] == 250.0 and row["period"] == "126"
+    assert row["category_expense"] == "Office Supplies" and row["category_lk"] == "HARGA POKOK PENJUALAN"
+    assert row["category_spt"] == "BIAYA LAINNYA" and row["accrual_actual"] == "Accrual"
+    assert row["pph"] == "Final" and row["sub_category"] == "Zoom"
+
+
+def test_columns_cover_every_sheet_column():
+    # sheet columns 1..51 minus the 1 blank col 0; every one maps to exactly one stored column
+    assert len(set(p._HEADER_MAP.values())) == len(p._HEADER_MAP) == len(p.COLUMNS) == 51
+
+
+def test_rows_without_a_debit_or_credit_amount_are_dropped():
+    zero = raw(acc_statutory="1-1", id_no="X-1", tgl=46023.0, debit=0.0, credit=0.0, memo="zero")
+    blank = raw(acc_statutory="1-1", id_no="X-2", memo="blank amounts")
+    err = raw(acc_statutory="1-1", id_no="X-3", debit="0x2A")
+    keep_d = raw(id_no="X-4", debit=1.0)
+    keep_c = raw(id_no="X-5", credit=-2.0)
+    res = p.normalise_rows(HEADER, [zero, blank, err, keep_d, keep_c])
+    assert [r["id_no"] for r in res.rows] == ["X-4", "X-5"] and res.dropped == 3

@@ -145,3 +145,14 @@ def test_non_admin_can_view_but_not_sync(client, monkeypatch):
     r = _sync(client, monkeypatch, [mkrow()])
     assert r.status_code == 403
     assert svc.query_rows("smt", {})["total"] == 0
+
+
+def test_page_shows_every_imported_column(client, monkeypatch):
+    login(client)
+    _sync(client, monkeypatch, [mkrow(sub_category="Zoom Sub", ket20="K20 value", pph_non_pph="PPH23",
+                                      category_lk="LK cat", accrual_actual="Accrual")])
+    html = client.get("/general-ledger/smt").data.decode()
+    for label in ("PPH/Non PPH", "Keterangan 20", "DEBIT - CREDIT", "Sub-Category", "Accrual/Actual"):
+        assert label in html, label
+    for value in ("Zoom Sub", "K20 value", "PPH23", "LK cat", "Accrual"):
+        assert value in html, value

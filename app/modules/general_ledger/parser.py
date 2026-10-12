@@ -6,28 +6,29 @@ from collections import namedtuple
 
 from pyxlsb import open_workbook
 
-COLUMNS = ("entry_no", "source_type", "acc_statutory", "acc_statutory_desc", "acc_management",
-           "acc_management_desc", "id_no", "tgl", "memo", "debit", "credit", "job_name",
-           "job_desc", "budget_activity", "customer_vendor", "allocation_memo", "event",
-           "qty_awal", "qty_akhir", "uom", "nama_item", "harga_satuan", "ket1", "ket2")
-
+# (sheet header, stored column) in sheet order; every one of the sheet's 51 columns is imported
+_SHEET_COLUMNS = (
+    [("x", "entry_no"), ("x1", "source_type"),
+     ("Account Statutory", "acc_statutory"), ("Description Account Statutory", "acc_statutory_desc"),
+     ("Account Management", "acc_management"), ("Description Account Management", "acc_management_desc"),
+     ("ID#", "id_no"), ("Date", "tgl"), ("Memo", "memo"), ("Debit", "debit"), ("Credit", "credit"),
+     ("Job Name", "job_name"), ("Job Description", "job_desc"), ("PPH/Non PPH", "pph_non_pph"),
+     ("Budget Activity", "budget_activity"), ("Customer/ Vendor", "customer_vendor"),
+     ("Allocation Memo", "allocation_memo"), ("EVENT", "event"),
+     ("Qty Awal", "qty_awal"), ("Qty Akhir", "qty_akhir"), ("UOM", "uom"),
+     ("Nama Item", "nama_item"), ("Harga Satuan", "harga_satuan")]
+    + [(f"Keterangan {i}", f"ket{i}") for i in range(1, 21)]
+    + [("DEBIT - CREDIT", "debit_credit"), ("Period", "period"),
+       ("CATEGORIES EXPENSE (6-****)", "category_expense"), ("Category LK", "category_lk"),
+       ("Category SPT", "category_spt"), ("Accrual/Actual", "accrual_actual"),
+       ("PPh", "pph"), ("Sub-Category", "sub_category")]
+)
+COLUMNS = tuple(col for _, col in _SHEET_COLUMNS)
+LABELS = {col: label for label, col in _SHEET_COLUMNS}
 # Normalised sheet header (lower case, whitespace collapsed) -> column
-_HEADER_MAP = {
-    "x": "entry_no", "x1": "source_type",
-    "account statutory": "acc_statutory",
-    "description account statutory": "acc_statutory_desc",
-    "account management": "acc_management",
-    "description account management": "acc_management_desc",
-    "id#": "id_no", "date": "tgl", "memo": "memo", "debit": "debit", "credit": "credit",
-    "job name": "job_name", "job description": "job_desc",
-    "budget activity": "budget_activity", "customer/ vendor": "customer_vendor",
-    "allocation memo": "allocation_memo", "event": "event",
-    "qty awal": "qty_awal", "qty akhir": "qty_akhir", "uom": "uom",
-    "nama item": "nama_item", "harga satuan": "harga_satuan",
-    "keterangan 1": "ket1", "keterangan 2": "ket2",
-}
+_HEADER_MAP = {" ".join(label.split()).lower(): col for label, col in _SHEET_COLUMNS}
 _REQUIRED = ("account statutory", "account management", "id#", "date", "debit", "credit")
-_REAL = {"debit", "credit", "qty_awal", "qty_akhir", "harga_satuan"}
+_REAL = {"debit", "credit", "qty_awal", "qty_akhir", "harga_satuan", "debit_credit"}
 _ERR = re.compile(r"^0x[0-9A-Fa-f]{1,2}$")       # how pyxlsb shows an Excel error cell
 
 ParseResult = namedtuple("ParseResult", "rows dropped")
@@ -107,8 +108,7 @@ def normalise_rows(header, raw_rows) -> ParseResult:
                 row[col] = _date(v)
             else:
                 row[col] = _text(v)
-        if not (row["id_no"] or row["acc_statutory"] or row["acc_management"]
-                or row["debit"] or row["credit"]):          # formula-only residue carries no amount
+        if not (row["debit"] or row["credit"]):          # only rows that carry an amount are synced
             dropped += 1
             continue
         rows.append(row)
