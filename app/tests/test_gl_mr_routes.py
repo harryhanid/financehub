@@ -463,3 +463,41 @@ def test_report_heading_without_description_is_just_the_cc(client):
     seed_full()
     html = page(client, "?cc=TFOPEX").data.decode()
     assert '<h3 class="gl-heading">TFOPEX</h3>' in html
+
+
+# ---- needs-resync banner (old-style map: COA rows only, no CC sheet / Code column) -----------
+RESYNC_FIRST = ("Pemetaan perlu disync ulang: sheet CC dan kolom Code belum dimuat, jadi COST CENTER2, "
+                "CC1, BC1 dan New Code belum valid.")
+RESYNC_ADMIN = RESYNC_FIRST + " Upload Management Report - MASTER.xlsb lalu klik Sync pemetaan COA & CC."
+RESYNC_USER = RESYNC_FIRST + " Minta admin untuk sync pemetaan."
+
+
+def test_old_style_map_shows_resync_banner_for_admin_and_no_cc_banner(client):
+    login(client)
+    seed_gl()
+    seed_map()                                           # no cc_rows: gl_cc_map empty, rows_cc 0
+    from markupsafe import escape
+    for view in ("", "?view=data"):
+        html = page(client, view).data.decode()
+        assert str(escape(RESYNC_ADMIN)) in html and RESYNC_USER not in html
+        assert "belum ada di sheet CC" not in html
+        assert html.count("Pemetaan perlu disync ulang") == 1
+
+
+def test_old_style_map_shows_resync_banner_for_non_admin(client):
+    make_non_admin(client)
+    seed_gl()
+    seed_map()
+    html = page(client).data.decode()
+    assert RESYNC_USER in html and RESYNC_ADMIN not in html
+    assert "belum ada di sheet CC" not in html
+
+
+def test_complete_map_has_no_resync_banner_but_keeps_cc_banner(client):
+    login(client)
+    seed_gl()
+    seed_cc([{"cost_center": "POITEC", "total_cc": "$POITEC", "seq": 16, "description": ""},
+             {"cost_center": "POCFAD", "total_cc": "$POCFAD", "seq": 3, "description": ""}])
+    html = page(client).data.decode()
+    assert "Pemetaan perlu disync ulang" not in html
+    assert "1 cost center belum ada di sheet CC (COST CENTER2 kosong, CC1 = 0): TFOPEX (1)" in html

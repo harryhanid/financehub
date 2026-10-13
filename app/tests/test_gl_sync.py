@@ -35,10 +35,23 @@ def table_count(table):
 
 # ---------- hash / summary ----------
 
-def test_hash_ignores_order_and_float_noise():
-    b = list(reversed(rows_a()))
-    b[0]["debit"] = 5.0000000001
+def test_hash_ignores_float_noise():
+    b = rows_a()
+    b[2]["debit"] = 5.0000000001                     # rows_a()[2] has debit 5.0
     assert glsync.compute_hash(rows_a()) == glsync.compute_hash(b)
+
+
+def test_hash_changes_when_row_order_changes():
+    assert glsync.compute_hash(list(reversed(rows_a()))) != glsync.compute_hash(rows_a())
+
+
+def test_sync_rows_pure_reorder_counts_as_changed_and_follows_new_order():
+    glsync.sync_rows("smt", "m.xlsb", "admin", rows_a())
+    reordered = list(reversed(rows_a()))
+    out = glsync.sync_rows("smt", "m.xlsb", "admin", reordered)
+    assert out["changed"] is True
+    assert [r["id_no"] for r in svc.load_rows("smt")] == ["GJ-2", "GJ-1", "GJ-1"]
+    assert glsync.sync_rows("smt", "m.xlsb", "admin", reordered)["changed"] is False
 
 
 def test_hash_changes_when_a_field_changes():

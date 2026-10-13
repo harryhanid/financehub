@@ -158,7 +158,10 @@ def mr_page():
     data = mr_report.query_data(scoped, q=q, cc=cc or None, page=_page()) if view == "data" else None
     shown = [r for r in scoped if not cc or r["cc"] == cc]
     unmapped = mr_rows.unmapped_summary(scoped)
-    unmapped_cc = mr_rows.unmapped_cc_summary(scoped)
+    last_coa = coa_map.last_sync()
+    # Old-style map (synced before the CC sheet / Code column existed): values are invalid until re-sync.
+    needs_resync = bool(cmap) and (not cc_map or (last_coa or {}).get("rows_cc", 0) == 0)
+    unmapped_cc = [] if needs_resync else mr_rows.unmapped_cc_summary(scoped)
     n_rows, total_act = len(shown), round(sum(r["act"] for r in shown), 6) + 0.0
     if data is not None:
         n_rows, total_act = data["total"], data["sum_act"]
@@ -169,7 +172,7 @@ def mr_page():
     return render_template(
         "general_ledger/mr.html",
         entities=service.ENTITIES, active_tab="mr", can_manage=can_manage,
-        last_coa=coa_map.last_sync(), has_map=bool(cmap), has_gl=bool(built.rows),
+        last_coa=last_coa, needs_resync=needs_resync, has_map=bool(cmap), has_gl=bool(built.rows),
         opts=opts, yy=yy, mm=mm, cc=cc, q=q, view=view, ccs=ccs,
         table=table, tables=mr_columns.TABLES, data_cols=mr_columns.TABLES[table][1],
         cc_desc=((cc_map.get(cc) or {}).get("description") or "") if cc else "",

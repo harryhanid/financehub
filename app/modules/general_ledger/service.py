@@ -108,7 +108,7 @@ def load_rows(entity) -> list:
     conn = get_conn()
     try:
         ensure_schema(conn)
-        return [dict(r) for r in conn.execute(f"SELECT {','.join(COLUMNS)} FROM {table}")]
+        return [dict(r) for r in conn.execute(f"SELECT {','.join(COLUMNS)} FROM {table} ORDER BY id")]
     finally:
         conn.close()
 

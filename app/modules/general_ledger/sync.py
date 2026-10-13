@@ -16,8 +16,10 @@ def _norm(v):
 
 
 def compute_hash(rows: list) -> str:
-    """Order-independent content hash of parsed rows (floats rounded to 6 decimals)."""
-    lines = sorted(json.dumps([_norm(r[c]) for c in COLUMNS], ensure_ascii=False) for r in rows)
+    """Order-sensitive content hash of parsed rows (floats rounded to 6 decimals).
+
+    Row order matters: MR New Code numbering follows sheet order, so a pure reorder is a change."""
+    lines = [json.dumps([_norm(r[c]) for c in COLUMNS], ensure_ascii=False) for r in rows]
     h = hashlib.sha256()
     for line in lines:
         h.update(line.encode("utf-8"))

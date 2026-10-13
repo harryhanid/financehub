@@ -59,6 +59,11 @@
   Perbarui sheet COA di Excel lalu sync COA ulang.
 </div>
 {% endif %}
+{% if needs_resync %}
+<div class="gl-warn card">
+  Pemetaan perlu disync ulang: sheet CC dan kolom Code belum dimuat, jadi COST CENTER2, CC1, BC1 dan New Code belum valid. {% if can_manage %}Upload Management Report - MASTER.xlsb lalu klik Sync pemetaan COA &amp; CC.{% else %}Minta admin untuk sync pemetaan.{% endif %}
+</div>
+{% endif %}
 {% if unmapped_cc %}
 <div class="gl-warn card">
   {{ unmapped_cc | length }} cost center belum ada di sheet CC (COST CENTER2 kosong, CC1 = 0): {% for u in unmapped_cc[:10] %}{{ u.cc }} ({{ u.rows }}){% if not loop.last %}, {% endif %}{% endfor %}{% if unmapped_cc | length > 10 %}, …{% endif %}.
