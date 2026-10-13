@@ -82,7 +82,10 @@ def _seq(v) -> int:
     if isinstance(v, bool):
         return 0
     if isinstance(v, (int, float)):
-        return int(v)
+        try:
+            return int(v)
+        except (ValueError, OverflowError):        # nan / inf
+            return 0
     return 0
 
 
@@ -106,21 +109,22 @@ def normalise_cc(sheet_rows) -> list:
     return rows
 
 
-def _read_sheets(fileobj, names):
-    """Open the workbook once and return the raw rows of each sheet in `names`."""
+def _read_sheets(fileobj, names, *normalisers):
+    """Open the workbook once; return each sheet in `names` passed through its normaliser.
+    Any failure other than CoaParseError is wrapped in CoaParseError."""
     try:
         wb = open_workbook(fileobj)
     except Exception as e:
         raise CoaParseError(f"File tidak bisa dibaca sebagai .xlsb: {e}") from e
     try:
         with wb:
-            out = []
+            raw = []
             for name in names:
                 if name not in wb.sheets:
                     raise CoaParseError(f"Sheet '{name}' tidak ditemukan di file.")
                 with wb.get_sheet(name) as sh:
-                    out.append([[c.v for c in r] for r in sh.rows()])
-            return out
+                    raw.append([[c.v for c in r] for r in sh.rows()])
+        return tuple(fn(r) for fn, r in zip(normalisers, raw))
     except CoaParseError:
         raise
     except Exception as e:
@@ -128,13 +132,13 @@ def _read_sheets(fileobj, names):
 
 
 def read_coa_sheet(fileobj) -> list:
-    return normalise_coa(_read_sheets(fileobj, [SHEET_NAME])[0])
+    return _read_sheets(fileobj, [SHEET_NAME], lambda r: normalise_coa(r))[0]
 
 
 def read_mapping_sheets(fileobj) -> tuple:
     """Read sheets COA and CC from one workbook open -> (coa_rows, cc_rows)."""
-    coa_raw, cc_raw = _read_sheets(fileobj, [SHEET_NAME, CC_SHEET_NAME])
-    return normalise_coa(coa_raw), normalise_cc(cc_raw)
+    return _read_sheets(fileobj, [SHEET_NAME, CC_SHEET_NAME],
+                        lambda r: normalise_coa(r), lambda r: normalise_cc(r))
 
 
 _DDL = """

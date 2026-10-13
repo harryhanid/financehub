@@ -1,4 +1,6 @@
 # tests/test_gl_coa_map.py
+import sqlite3
+
 import pytest
 
 from database import get_conn
@@ -216,23 +218,64 @@ def test_resync_same_file_after_cc_table_was_emptied_refills_it():
     assert count("gl_cc_map") == 2
 
 
-def test_failed_sync_keeps_previous_map():
-    cm.sync_coa("m.xlsb", "admin", rows_a(), cc_a())
-    with pytest.raises(KeyError):
-        cm.sync_coa("bad.xlsb", "admin", [{"source": "SMT", "account": "x"}], cc_a())
-    assert table_count() == 2 and count("gl_cc_map") == 2
-    assert cm.last_sync()["filename"] == "m.xlsb"
+def _state():
+    conn = get_conn()
+    try:
+        logs = conn.execute("SELECT filename, content_hash FROM gl_coa_sync_log "
+                            "ORDER BY id").fetchall()
+        return cm.get_map(), cm.get_cc_map(), [tuple(r) for r in logs]
+    finally:
+        conn.close()
 
 
-def test_failed_cc_insert_rolls_back_coa_too():
+def test_failed_sync_rolls_back_everything_when_cc_insert_violates_primary_key():
     cm.sync_coa("m.xlsb", "admin", rows_a(), cc_a())
+    before = _state()
     new = rows_a()
     new[0]["coa_ho"] = "1"
-    with pytest.raises(KeyError):
-        cm.sync_coa("bad.xlsb", "admin", new, [{"cost_center": "X"}])
+    dup_cc = [{"cost_center": "X", "total_cc": "", "seq": 1, "description": ""},
+              {"cost_center": "X", "total_cc": "", "seq": 2, "description": ""}]
+    with pytest.raises(sqlite3.IntegrityError):
+        cm.sync_coa("bad.xlsb", "admin", new, dup_cc)
+    assert _state() == before
     assert cm.get_map()[("SMT", "6-1810")][0] == "70108100"
     assert set(cm.get_cc_map()) == {"POITEC", "PULPP"}
     assert cm.last_sync()["filename"] == "m.xlsb"
+
+
+def test_failed_sync_rolls_back_when_coa_insert_violates_primary_key():
+    cm.sync_coa("m.xlsb", "admin", rows_a(), cc_a())
+    before = _state()
+    dup = rows_a() + rows_a()[:1]
+    with pytest.raises(sqlite3.IntegrityError):
+        cm.sync_coa("bad.xlsb", "admin", dup, [])
+    assert _state() == before
+
+
+def test_failed_sync_rolls_back_when_log_insert_fails(monkeypatch):
+    cm.sync_coa("m.xlsb", "admin", rows_a(), cc_a())
+    before = _state()
+    real_get_conn = cm.get_conn
+
+    class Proxy:
+        def __init__(self, conn):
+            self._c = conn
+
+        def execute(self, sql, *a):
+            if sql.lstrip().startswith("INSERT INTO gl_coa_sync_log"):
+                raise RuntimeError("log insert failed")
+            return self._c.execute(sql, *a)
+
+        def __getattr__(self, name):
+            return getattr(self._c, name)
+
+    monkeypatch.setattr(cm, "get_conn", lambda: Proxy(real_get_conn()))
+    changed = rows_a()
+    changed[0]["coa_ho"] = "2"
+    with pytest.raises(RuntimeError, match="log insert failed"):
+        cm.sync_coa("bad.xlsb", "admin", changed, cc_a()[:1])
+    monkeypatch.setattr(cm, "get_conn", real_get_conn)
+    assert _state() == before
 
 
 def test_get_map_and_last_sync_when_never_synced():
@@ -327,3 +370,32 @@ def test_read_mapping_sheets_wraps_unreadable_file():
     import io
     with pytest.raises(cm.CoaParseError, match="tidak bisa dibaca"):
         cm.read_mapping_sheets(io.BytesIO(b"not an xlsb"))
+
+
+def test_read_mapping_sheets_wraps_unexpected_normalise_errors(monkeypatch):
+    wb = _FakeWb({"COA": sheet(coa_row("6-1810", None, 70108100.0, " 10 - A ", "-10-")),
+                  "CC": cc_sheet(cc_row("POITEC", "IT", "$POITEC", 16.0))})
+    monkeypatch.setattr(cm, "open_workbook", lambda f: wb)
+
+    def boom(rows):
+        raise RuntimeError("kaboom")
+    monkeypatch.setattr(cm, "normalise_cc", boom)
+    with pytest.raises(cm.CoaParseError, match="kaboom"):
+        cm.read_mapping_sheets(object())
+
+
+def test_infinite_or_nan_seq_cell_becomes_zero():
+    rows = cm.normalise_cc(cc_sheet(cc_row("A", "d", "$A", float("inf")),
+                                    cc_row("B", "d", "$B", float("nan"))))
+    assert [r["seq"] for r in rows] == [0, 0]
+
+
+def test_read_coa_sheet_wraps_unexpected_normalise_errors(monkeypatch):
+    wb = _FakeWb({"COA": sheet(coa_row("6-1810", None, 70108100.0, " 10 - A ", "-10-"))})
+    monkeypatch.setattr(cm, "open_workbook", lambda f: wb)
+
+    def boom(rows):
+        raise RuntimeError("kaboom")
+    monkeypatch.setattr(cm, "normalise_coa", boom)
+    with pytest.raises(cm.CoaParseError, match="kaboom"):
+        cm.read_coa_sheet(object())
