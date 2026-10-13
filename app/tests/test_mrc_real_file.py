@@ -1,14 +1,16 @@
-# tests/test_gl_mr_real_file.py
+# tests/test_mrc_real_file.py
 """Compares the MR rows we derive with the real workbooks; skipped when they are not reachable."""
 import os
 import re
 import shutil
+import sqlite3
 from collections import Counter
+from datetime import date, timedelta
 
 import pytest
 from pyxlsb import open_workbook
 
-from modules.management_report import coa_map
+from modules.management_report import coa_map, combine_sources
 from modules.management_report.combine_rows import build_combine_rows, excel_round_mio
 from modules.general_ledger.parser import read_gl_sheet
 
@@ -47,6 +49,71 @@ def built(files):
     return build_combine_rows(source, cmap, ccmap)
 
 
+REAL_DB = "C:/Financehub/app/finance_hub.db"
+
+
+def _real_sponsor_rows():
+    """Sponsorship SMT rows from the real dev database, opened read-only (the test DB is isolated)."""
+    if not os.path.exists(REAL_DB):
+        pytest.skip("real finance_hub.db not reachable")
+    conn = sqlite3.connect(f"file:{REAL_DB}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        smt = conn.execute("SELECT id FROM companies WHERE code='SMT'").fetchone()["id"]
+        return [dict(r) for r in conn.execute(
+            "SELECT id, tanggal_form_sponsor, perihal, amount_request, coa, cc "
+            "FROM sponsorship_transaksi WHERE company_id=?", (smt,))]
+    finally:
+        conn.close()
+
+
+def _combine_sponsor_rows(mr_path):
+    out = []
+    with open_workbook(mr_path) as wb, wb.get_sheet("GL Combine") as sh:
+        for i, row in enumerate(sh.rows()):
+            v = [c.v for c in row] + [None] * 17
+            if i == 0 or v[7] != "Sponsor" or v[10] is None:
+                continue
+            out.append({"date": (date(1899, 12, 30) + timedelta(days=int(v[2]))).isoformat(),
+                        "mm": int(v[10]), "amount": float(v[6]), "memo": _norm(v[3]), "code": v[14]})
+    return out
+
+
+@pytest.fixture(scope="module")
+def built_all(files):
+    gl, mr = files
+    rows, cc_rows = coa_map.read_mapping_sheets(mr)
+    cmap = {(r["source"], r["account"]): (r["coa_ho"], r["category"], r["code"]) for r in rows}
+    cc_map = {r["cost_center"]: {"total": r["total_cc"], "seq": r["seq"], "description": r["description"]}
+              for r in cc_rows}
+    source = {label: read_gl_sheet(gl, sheet).rows for label, sheet in (("SMT", "GL SMT"), ("ETF", "GL ETF"))}
+    source["Sponsor"] = combine_sources.sponsor_rows_from(_real_sponsor_rows())
+    return build_combine_rows(source, cmap, cc_map)
+
+
+def test_sponsor_rows_match_the_gl_combine_sponsor_rows(files, built_all):
+    theirs = _combine_sponsor_rows(files[1])
+    ours = [r for r in built_all.rows if r["source"] == "Sponsor" and r["yy"] == 2026 and r["mm"] <= 9]
+    assert theirs, "no Sponsor rows read from GL Combine"
+    assert len(ours) == len(theirs)                                           # October is not in the workbook yet
+    assert Counter(r["mm"] for r in ours) == Counter(t["mm"] for t in theirs)
+    # (month, date) is exact; the amount may differ for at most 1 row: Sponsorship was edited after the workbook
+    # was made (measured: 1 of 85, "Golf Tournament KADIN", DB 2,898,000 vs workbook 3,000,000).
+    assert (Counter((r["mm"], r["tgl"]) for r in ours) == Counter((t["mm"], t["date"]) for t in theirs))
+    amount_hits = sum((Counter((r["mm"], round(r["debit_credit"]), r["tgl"]) for r in ours)
+                       & Counter((t["mm"], round(t["amount"]), t["date"]) for t in theirs)).values())
+    assert amount_hits >= len(theirs) - 1, (amount_hits, len(theirs))
+    assert {(r["account"], r["coa"], r["cc"], r["cost_center2"], r["cc1"], r["bc1"], r["category"])
+            for r in ours} == {("701078002", "701078002", "POSPON", "$POCCOM", 5, "", "")}
+    memo_hits = sum((Counter(_norm(r["allocation_memo"]) for r in ours) & Counter(t["memo"] for t in theirs)).values())
+    assert memo_hits >= 0.95 * len(theirs)                                    # 83/85 measured; the rest are manual edits
+    ours_codes = [r["new_code"] for r in ours]
+    theirs_codes = [t["code"] for t in theirs]
+    assert sorted(ours_codes) == sorted(theirs_codes)                         # A26-51 .. A26-5<n>, as a set
+    same_position = sum(a == b for a, b in zip(ours_codes, theirs_codes)) / len(theirs_codes)
+    assert same_position >= 0.95                                              # 1.0 measured (85/85 same position)
+
+
 def ours_key(r):
     return (r["source"], r["coa"], r["mm"], r["cc"], r["category"], _norm(r["description"]), r["act"])
 
@@ -82,7 +149,7 @@ def test_rows_match_the_gl_combine_sheet(files, built):
     assert matched >= 0.99 * len(ours_rows), (matched, len(ours_rows), diff)
 
 
-def test_our_act_values_exist_in_append1_with_the_same_rounding(files, built):
+def test_our_act_values_exist_in_append1_with_the_same_rounding(files, built_all):
     _, mr = files
     acts = {}
     with open_workbook(mr) as wb, wb.get_sheet("Append1") as sh:
@@ -92,15 +159,23 @@ def test_our_act_values_exist_in_append1_with_the_same_rounding(files, built):
                 continue
             key = (_coa(v[0]), int(v[1]), str(v[3] or "").strip(), str(v[5] or "").strip(), _norm(v[7]))
             acts.setdefault(key, set()).add(round(float(v[11] or 0), 1))
+    # Append1 holds 2026 only and its key has no year, so earlier Sponsorship years (2018-2025) must be left out
+    rows26 = [r for r in built_all.rows if r["yy"] == 2026]
     wrong, absent = [], []
-    for r in built.rows:
+    for r in rows26:
         key = (r["coa"], r["mm"], r["cc"], r["category"], _norm(r["description"]))
         if key not in acts:
             absent.append((key, r["act"]))        # manual overrides in the MR workbook
         elif r["act"] not in acts[key]:
             wrong.append((key, r["act"], sorted(acts[key])))
-    assert not wrong, (len(wrong), wrong[:5])     # rounding rule: zero tolerance
-    assert len(absent) <= 0.01 * len(built.rows), (len(absent), absent[:5])
+    # rounding rule: zero tolerance for GL rows. The one Sponsor row whose amount was edited in Sponsorship after
+    # the workbook was made (DB 2,898,000 vs workbook 3,000,000) is the only allowed deviation, Sponsor only.
+    wrong_gl = [w for w in wrong if w[0][2] != "POSPON"]
+    wrong_sp = [w for w in wrong if w[0][2] == "POSPON"]
+    assert not wrong_gl, (len(wrong_gl), wrong_gl[:5])
+    assert len(wrong_sp) <= 1, wrong_sp
+    print("MEASURED_APPEND1", len(absent), len(rows26), len(wrong_sp))
+    assert len(absent) <= 0.01 * len(rows26), (len(absent), absent[:5])
 
 
 def _combine_full(mr):
