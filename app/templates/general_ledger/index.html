@@ -19,11 +19,7 @@
 {% endblock %}
 
 {% block module_tabs %}
-<div class="tabs" style="margin-bottom:0">
-  {% for key, e in entities.items() %}
-  <a class="tab-btn{{ ' active' if key == entity else '' }}" href="{{ url_for('general_ledger.entity_page', entity=key) }}">{{ e.label }}</a>
-  {% endfor %}
-</div>
+{% include "general_ledger/_tabs.html" %}
 {% endblock %}
 
 {% block content %}

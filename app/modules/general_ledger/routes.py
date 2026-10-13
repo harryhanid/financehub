@@ -5,7 +5,7 @@ from flask import Blueprint, abort, jsonify, redirect, render_template, request,
 from flask_jwt_extended import get_jwt
 
 from auth.middleware import is_admin, json_admin_required, jwt_html_required
-from modules.general_ledger import service
+from modules.general_ledger import coa_map, mr_report, mr_rows, service
 from modules.general_ledger import sync as gl_sync
 from modules.general_ledger.parser import COLUMNS, LABELS, ParseError, read_gl_sheet
 
@@ -21,6 +21,16 @@ def _gl_num(value) -> str:
 
 
 bp.add_app_template_filter(_gl_num, "gl_num")
+
+
+def _gl_mio(value) -> str:
+    """Rp Mio with 1 decimal, Indonesian style: 1234.56 -> '1.234,6'; None -> ''."""
+    if value is None:
+        return ""
+    return f"{float(value):,.1f}".replace(",", "\0").replace(".", ",").replace("\0", ".")
+
+
+bp.add_app_template_filter(_gl_mio, "gl_mio")
 
 _FILTER_KEYS = ("date_from", "date_to", "acc", "job", "q")
 _NUMERIC = {"debit", "credit", "qty_awal", "qty_akhir", "harga_satuan", "debit_credit"}
@@ -57,7 +67,7 @@ def entity_page(entity):
         can_manage = False
     return render_template(
         "general_ledger/index.html",
-        entity=entity, ent=ent, entities=service.ENTITIES, filters=filters, result=result,
+        entity=entity, active_tab=entity, ent=ent, entities=service.ENTITIES, filters=filters, result=result,
         columns=[(c, LABELS[c]) for c in COLUMNS], numeric=_NUMERIC,
         last=service.last_sync(entity), syncs=service.list_syncs(entity, 5),
         can_manage=can_manage, active_page="general_ledger", use_unified_header=True,
@@ -96,3 +106,80 @@ def sync_excel(entity):
     if not out["balanced"]:
         pesan += " Peringatan: total Debit dan Credit tidak balance."
     return jsonify({"ok": True, "dropped": result.dropped, "pesan": pesan, **out})
+
+
+def _int_arg(name):
+    try:
+        return int(request.args.get(name))
+    except (TypeError, ValueError):
+        return None
+
+
+def _resolve_period(opts):
+    """Requested year/month if valid, otherwise the latest period that has data."""
+    yy = _int_arg("yy")
+    if yy not in opts["yys"]:
+        yy = opts["yys"][-1] if opts["yys"] else None
+    if yy is None:
+        return None, None
+    months = opts["months"][yy]
+    mm = _int_arg("mm")
+    return yy, (mm if mm in months else months[-1])
+
+
+@bp.route("/mr", methods=["GET"])
+@jwt_html_required
+def mr_page():
+    cmap = coa_map.get_map()
+    built = mr_rows.build_mr_rows(
+        {"SMT": service.load_mr_source("smt"), "ETF": service.load_mr_source("etf")}, cmap)
+    opts = mr_rows.period_options(built.rows)
+    yy, mm = _resolve_period(opts)
+    scoped = mr_rows.apply_cutoff(built.rows, yy, mm) if yy is not None else []
+    cc = (request.args.get("cc") or "").strip()
+    view = "data" if request.args.get("view") == "data" else "report"
+    q = (request.args.get("q") or "").strip()
+    report = mr_report.build_report(scoped, cc or None) if view == "report" else None
+    data = mr_report.query_data(scoped, q=q, cc=cc or None, page=_page()) if view == "data" else None
+    shown = [r for r in scoped if not cc or r["cc"] == cc]
+    unmapped = mr_rows.unmapped_summary(scoped)
+    try:
+        can_manage = is_admin(get_jwt())
+    except Exception:
+        can_manage = False
+    return render_template(
+        "general_ledger/mr.html",
+        entities=service.ENTITIES, active_tab="mr", can_manage=can_manage,
+        last_coa=coa_map.last_sync(), has_map=bool(cmap), has_gl=bool(built.rows),
+        opts=opts, yy=yy, mm=mm, cc=cc, q=q, view=view, ccs=mr_report.list_ccs(scoped),
+        report=report, data=data, n_rows=len(shown), total_act=round(sum(r["act"] for r in shown), 6),
+        unmapped=unmapped, unmapped_rows=sum(u["rows"] for u in unmapped),
+        unmapped_act=round(sum(u["act"] for u in unmapped), 6),
+        skipped_date=built.skipped_date, active_page="general_ledger", use_unified_header=True,
+    )
+
+
+@bp.route("/mr/sync-coa", methods=["POST"])
+@json_admin_required
+def sync_coa():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "pesan": "File belum dipilih."}), 400
+    if not f.filename.lower().endswith(".xlsb"):
+        return jsonify({"ok": False, "pesan": "File harus berformat .xlsb."}), 400
+    try:
+        rows = coa_map.read_coa_sheet(io.BytesIO(f.read()))
+        if not rows:
+            raise coa_map.CoaParseError("Tidak ada pemetaan COA yang valid di sheet COA.")
+    except coa_map.CoaParseError as e:
+        return jsonify({"ok": False, "pesan": str(e)}), 400
+    try:
+        out = coa_map.sync_coa(f.filename, get_jwt().get("username", ""), rows)
+    except Exception as e:
+        return jsonify({"ok": False, "pesan": f"Sync gagal, pemetaan lama tidak berubah: {e}"}), 500
+    if not out["changed"]:
+        pesan = (f"Sudah sinkron: pemetaan COA tidak berubah "
+                 f"(SMT {out['rows_smt']} akun, ETF {out['rows_etf']} akun).")
+    else:
+        pesan = f"Sync COA selesai: SMT {out['rows_smt']} akun, ETF {out['rows_etf']} akun."
+    return jsonify({"ok": True, "pesan": pesan, **out})

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}General Ledger - MR{% endblock %}
+
+{% block head %}
+<style>
+.gl-table { border-collapse:collapse; width:100%; font-size:.8125rem; white-space:nowrap; }
+.gl-table th, .gl-table td { padding:.3rem .5rem; border-bottom:1px solid var(--sl-200); }
+.gl-table th { text-align:left; background:var(--sl-50); position:sticky; top:0; }
+.gl-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.gl-table td.wrap { white-space:normal; min-width:360px; }
+.gl-table tr.gl-cat td { background:var(--sl-50); font-weight:600; }
+.gl-table tr.gl-grand td { background:var(--sl-200); font-weight:700; }
+.gl-wrap { overflow:auto; max-height:65vh; }
+.gl-muted { color:var(--sl-500); font-size:.8125rem; }
+.gl-cards { display:flex; gap:1rem; flex-wrap:wrap; margin:.5rem 0 1rem; }
+.gl-card { padding:.6rem .9rem; border:1px solid var(--sl-200); border-radius:8px; min-width:150px; }
+.gl-card b { display:block; font-size:1.05rem; font-variant-numeric:tabular-nums; }
+.gl-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:.75rem; }
+.gl-filter label { display:flex; flex-direction:column; font-size:.75rem; }
+.gl-pager { display:flex; align-items:center; gap:.75rem; margin:.6rem 0; }
+.gl-warn { margin-bottom:.75rem; padding:.7rem .9rem; font-size:.8125rem; border:1px solid var(--danger); border-radius:8px; }
+.gl-views { display:flex; gap:.5rem; margin-bottom:.75rem; }
+</style>
+{% endblock %}
+
+{% block module_tabs %}
+{% include "general_ledger/_tabs.html" %}
+{% endblock %}
+
+{% block content %}
+{% set bulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'] %}
+<div class="card" style="margin-bottom:1rem">
+  <strong>Pemetaan COA</strong>
+  <div class="gl-muted" style="margin:.25rem 0">
+    {% if last_coa %}Terakhir sync COA: {{ last_coa.synced_at }} · {{ last_coa.synced_by }} · {{ last_coa.filename }} · SMT {{ last_coa.rows_smt }} akun, ETF {{ last_coa.rows_etf }} akun
+    {% else %}Pemetaan COA belum pernah disync.{% endif %}
+  </div>
+  {% if can_manage %}
+  <div style="margin:.5rem 0">
+    <input type="file" id="gl-coa-file" accept=".xlsb">
+    <button class="btn btn-primary btn-sm" id="gl-coa-btn" onclick="glSyncCoa()">Sync COA dari Excel</button>
+    <span id="gl-coa-msg" class="gl-muted"></span>
+  </div>
+  <div class="gl-muted">Pilih file <code>Management Report - MASTER.xlsb</code>; hanya sheet <b>COA</b> yang dibaca.</div>
+  {% endif %}
+</div>
+
+{% if not has_map %}
+<div class="card">Pemetaan COA belum ada. {% if can_manage %}Upload Management Report - MASTER.xlsb di atas untuk memulai.{% else %}Minta admin untuk sync COA terlebih dahulu.{% endif %}</div>
+{% elif not has_gl %}
+<div class="card">Belum ada data GL SMT/ETF yang bisa ditampilkan. Sync data di tab GL SMT dan GL ETF lebih dulu (hanya akun berawalan 6 sampai 9 dengan Debit − Credit tidak nol yang masuk MR).</div>
+{% else %}
+
+{% if unmapped %}
+<div class="gl-warn card">
+  <strong>{{ unmapped | length }} akun belum dipetakan</strong> ({{ unmapped_rows }} baris, ACT {{ unmapped_act | gl_mio }} Rp Mio) tampil di kategori "(Belum dipetakan)":
+  {% for u in unmapped[:10] %}{{ u.source }} {{ u.account }} ({{ u.rows }}){% if not loop.last %}, {% endif %}{% endfor %}{% if unmapped | length > 10 %}, …{% endif %}.
+  Perbarui sheet COA di Excel lalu sync COA ulang.
+</div>
+{% endif %}
+{% if skipped_date %}
+<div class="gl-warn card">{{ skipped_date }} baris GL dilewati karena tanggalnya tidak valid.</div>
+{% endif %}
+
+<form class="gl-filter" method="get">
+  <input type="hidden" name="view" value="{{ view }}">
+  <label>Tahun
+    <select name="yy">{% for y in opts.yys %}<option value="{{ y }}"{{ ' selected' if y == yy else '' }}>{{ y }}</option>{% endfor %}</select>
+  </label>
+  <label>Cutoff bulan (kumulatif)
+    <select name="mm">{% for m in opts.months[yy] %}<option value="{{ m }}"{{ ' selected' if m == mm else '' }}>s/d {{ bulan[m] }}</option>{% endfor %}</select>
+  </label>
+  <label>Cost Center
+    <select name="cc"><option value="">All Cost Center</option>{% for c in ccs %}<option value="{{ c }}"{{ ' selected' if c == cc else '' }}>{{ c }}</option>{% endfor %}</select>
+  </label>
+  {% if view == 'data' %}<label>Cari<input type="text" name="q" value="{{ q }}" placeholder="deskripsi / CC / COA"></label>{% endif %}
+  <button class="btn btn-primary btn-sm" type="submit">Terapkan</button>
+</form>
+
+<div class="gl-views">
+  <a class="btn btn-sm{{ ' btn-primary' if view == 'report' else '' }}" href="?yy={{ yy }}&mm={{ mm }}&cc={{ cc | urlencode }}&view=report">Report</a>
+  <a class="btn btn-sm{{ ' btn-primary' if view == 'data' else '' }}" href="?yy={{ yy }}&mm={{ mm }}&cc={{ cc | urlencode }}&view=data">Data</a>
+</div>
+
+<div class="gl-cards">
+  <div class="gl-card">Periode<b>Jan – {{ bulan[mm] }} {{ yy }}</b></div>
+  <div class="gl-card">Baris<b>{{ n_rows | gl_num }}</b></div>
+  <div class="gl-card">Total ACT (Rp Mio)<b>{{ total_act | gl_mio }}</b></div>
+</div>
+
+{% if view == 'report' %}
+<div class="gl-wrap">
+<table class="gl-table">
+  <thead><tr><th>Category</th><th>Custom</th><th>MM.1</th><th>Description</th><th>Activity</th><th class="num">ACT (Rp Mio)</th></tr></thead>
+  <tbody>
+  {% for g in report.groups %}
+  <tr class="gl-cat"><td colspan="5">{{ g.category }}</td><td class="num">{{ g.total | gl_mio }}</td></tr>
+  {% for l in g.lines %}
+  <tr><td></td><td>{{ l.custom }}</td><td>{{ l.mm1 }}</td><td class="wrap">{{ l.description }}</td><td>{{ l.activity }}</td><td class="num">{{ l.act | gl_mio }}</td></tr>
+  {% endfor %}
+  {% else %}
+  <tr><td colspan="6" class="gl-muted">Tidak ada data untuk filter ini.</td></tr>
+  {% endfor %}
+  {% if report.has_data %}
+  <tr class="gl-grand"><td colspan="5">Total {{ cc if cc else 'All Cost Center' }}</td><td class="num">{{ report.grand | gl_mio }}</td></tr>
+  {% endif %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="gl-wrap">
+<table class="gl-table">
+  <thead><tr><th>COA</th><th>MM</th><th>YY</th><th>CC</th><th>Category</th><th>Activity</th><th>Description</th><th>Custom</th><th>MM.1</th><th class="num">ACT (Rp Mio)</th><th>Sumber</th></tr></thead>
+  <tbody>
+  {% for r in data.rows %}
+  <tr><td>{{ r.coa }}</td><td>{{ r.mm }}</td><td>{{ r.yy }}</td><td>{{ r.cc }}</td><td>{{ r.category }}</td><td>{{ r.activity }}</td><td class="wrap">{{ r.description }}</td><td>{{ r.custom }}</td><td>{{ r.mm1 }}</td><td class="num">{{ r.act | gl_mio }}</td><td>{{ r.source }}</td></tr>
+  {% else %}
+  <tr><td colspan="11" class="gl-muted">Tidak ada baris yang cocok.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div class="gl-pager">
+  {% set qs = request.args.to_dict() %}{% set _ = qs.pop('page', none) %}
+  {% if data.page > 1 %}<a class="btn btn-sm" href="?{{ (qs | urlencode) ~ ('&' if qs else '') }}page={{ data.page - 1 }}">&laquo; Sebelumnya</a>{% endif %}
+  <span class="gl-muted">Halaman {{ data.page }} dari {{ data.pages }}</span>
+  {% if data.page < data.pages %}<a class="btn btn-sm" href="?{{ (qs | urlencode) ~ ('&' if qs else '') }}page={{ data.page + 1 }}">Berikutnya &raquo;</a>{% endif %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if can_manage %}
+<script>
+async function glSyncCoa() {
+  const f = document.getElementById('gl-coa-file').files[0];
+  const msg = document.getElementById('gl-coa-msg');
+  if (!f) { msg.textContent = 'Pilih file Management Report - MASTER.xlsb dulu.'; return; }
+  const btn = document.getElementById('gl-coa-btn');
+  btn.disabled = true; msg.textContent = 'Menyinkronkan...';
+  const fd = new FormData(); fd.append('file', f);
+  try {
+    const r = await fetch('/general-ledger/mr/sync-coa', {method: 'POST', body: fd, credentials: 'same-origin'});
+    const j = await r.json();
+    msg.textContent = j.pesan || (r.ok ? 'Selesai.' : 'Gagal.');
+    if (j.ok && j.changed) setTimeout(() => location.reload(), 1200);
+  } catch (e) { msg.textContent = 'Gagal sync: ' + e; }
+  btn.disabled = false;
+}
+</script>
+{% endif %}
+{% endblock %}
