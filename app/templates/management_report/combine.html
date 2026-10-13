@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Management Report - {{ label }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mr_combine.css') }}">
+<style>
+.mc-table { border-collapse:collapse; width:100%; font-size:.8125rem; white-space:nowrap; }
+.mc-table th, .mc-table td { padding:.3rem .5rem; border-bottom:1px solid var(--sl-200); }
+.mc-table th { text-align:left; background:var(--sl-50); position:sticky; top:0; }
+.mc-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.mc-table td.wrap { white-space:normal; min-width:360px; }
+.mc-wrap { overflow:auto; max-height:65vh; }
+.mc-muted { color:var(--sl-500); font-size:.8125rem; }
+.mc-cards { display:flex; gap:1rem; flex-wrap:wrap; margin:.5rem 0 1rem; }
+.mc-card { padding:.6rem .9rem; border:1px solid var(--sl-200); border-radius:8px; min-width:150px; }
+.mc-card b { display:block; font-size:1.05rem; font-variant-numeric:tabular-nums; }
+.mc-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:.75rem; }
+.mc-filter label { display:flex; flex-direction:column; font-size:.75rem; }
+.mc-pager { display:flex; align-items:center; gap:.75rem; margin:.6rem 0; }
+.mc-warn { margin-bottom:.75rem; padding:.7rem .9rem; font-size:.8125rem; border:1px solid var(--danger); border-radius:8px; }
+</style>
+{% endblock %}
+
+{% block module_tabs %}
+{% include "management_report/_linktabs.html" %}
+{% endblock %}
+
+{% block content %}
+{% set bulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'] %}
+<div class="card" style="margin-bottom:1rem">
+  <strong>Pemetaan COA &amp; CC</strong>
+  <div class="mc-muted" style="margin:.25rem 0">
+    {% if last_map %}Terakhir sync: {{ last_map.synced_at }} · {{ last_map.synced_by }} · {{ last_map.filename }} · SMT {{ last_map.rows_smt }} akun, ETF {{ last_map.rows_etf }} akun, {{ last_map.rows_cc or 0 }} cost center
+    {% else %}Pemetaan belum pernah disync.{% endif %}
+  </div>
+  {% if can_manage %}
+  <div style="margin:.5rem 0">
+    <input type="file" id="mr-map-file" accept=".xlsb">
+    <button class="btn btn-primary btn-sm" id="mr-map-btn" onclick="mrSyncMapping()">Sync pemetaan COA &amp; CC dari Excel</button>
+    <span id="mr-map-msg" class="mc-muted"></span>
+  </div>
+  <div class="mc-muted">Pilih file <code>Management Report - MASTER.xlsb</code>; hanya sheet <b>COA</b> dan <b>CC</b> yang dibaca.</div>
+  {% endif %}
+</div>
+
+{% if not has_map %}
+<div class="card">Pemetaan COA belum ada. {% if can_manage %}Upload Management Report - MASTER.xlsb di atas untuk memulai.{% else %}Minta admin untuk sync pemetaan terlebih dahulu.{% endif %}</div>
+{% elif not has_rows %}
+<div class="card">Belum ada data sumber yang bisa ditampilkan. Sync GL SMT dan GL ETF di modul General Ledger, atau isi data di modul Sponsorship (GL: hanya akun berawalan 6 sampai 9 dengan Debit − Credit tidak nol).</div>
+{% else %}
+
+{% if needs_resync %}
+<div class="mc-warn card">
+  Pemetaan perlu disync ulang: sheet CC dan kolom Code belum dimuat, jadi COST CENTER2, CC1, BC1 dan New Code belum valid. {% if can_manage %}Upload Management Report - MASTER.xlsb lalu klik Sync pemetaan COA &amp; CC.{% else %}Minta admin untuk sync pemetaan.{% endif %}
+</div>
+{% endif %}
+{% if unmapped %}
+<div class="mc-warn card">
+  <strong>{{ unmapped | length }} akun belum dipetakan</strong> ({{ unmapped_rows }} baris, ACT {{ unmapped_act | mc_mio }} Rp Mio) tampil di kategori "(Belum dipetakan)":
+  {% for u in unmapped[:10] %}{{ u.source }} {{ u.account }} ({{ u.rows }}){% if not loop.last %}, {% endif %}{% endfor %}{% if unmapped | length > 10 %}, …{% endif %}.
+  Perbarui sheet COA di Excel lalu sync ulang.
+</div>
+{% endif %}
+{% if unmapped_cc %}
+<div class="mc-warn card">
+  {{ unmapped_cc | length }} cost center belum ada di sheet CC (COST CENTER2 kosong, CC1 = 0): {% for u in unmapped_cc[:10] %}{{ u.cc }} ({{ u.rows }}){% if not loop.last %}, {% endif %}{% endfor %}{% if unmapped_cc | length > 10 %}, …{% endif %}.
+  Perbarui sheet CC di Excel lalu sync ulang.
+</div>
+{% endif %}
+{% if skipped_date %}
+<div class="mc-warn card">{{ skipped_date }} baris dilewati karena tanggalnya tidak valid.</div>
+{% endif %}
+
+<form class="mc-filter" method="get">
+  <label>Tahun
+    <select name="yy">{% for y in opts.yys %}<option value="{{ y }}"{{ ' selected' if y == yy else '' }}>{{ y }}</option>{% endfor %}</select>
+  </label>
+  <label>Cutoff bulan (kumulatif)
+    <select name="mm">{% for m in opts.months[yy] %}<option value="{{ m }}"{{ ' selected' if m == mm else '' }}>s/d {{ bulan[m] }}</option>{% endfor %}</select>
+  </label>
+  <label>Cost Center
+    <select name="cc"><option value="">All Cost Center</option>{% for c in ccs %}<option value="{{ c }}"{{ ' selected' if c == cc else '' }}>{{ c }}</option>{% endfor %}</select>
+  </label>
+  <label>Source
+    <select name="source"><option value="">Semua</option>{% for s in sources %}<option value="{{ s }}"{{ ' selected' if s == source else '' }}>{{ s }}</option>{% endfor %}</select>
+  </label>
+  <label>Cari<input type="text" name="q" value="{{ q }}" placeholder="deskripsi / CC / COA / ID# / New Code"></label>
+  <button class="btn btn-primary btn-sm" type="submit">Terapkan</button>
+</form>
+
+<div class="mc-cards">
+  <div class="mc-card">Periode<b>Jan – {{ bulan[mm] }} {{ yy }}</b></div>
+  <div class="mc-card">Baris<b>{{ data.total | mc_num }}</b></div>
+  {% if table == 'combine' %}
+  <div class="mc-card">Total DEBIT - CREDIT (Rp)<b>{{ data.sum_dc | mc_num }}</b></div>
+  {% else %}
+  <div class="mc-card">Total ACT (Rp Mio)<b>{{ data.sum_act | mc_mio }}</b></div>
+  {% endif %}
+</div>
+
+{% macro cell(r, key, kind) -%}
+{%- if kind == 'rp' %}<td class="num">{{ r[key] | mc_num }}</td>
+{%- elif kind == 'mio' %}<td class="num">{{ r[key] | mc_mio }}</td>
+{%- elif kind == 'date' %}<td>{{ r[key] | mc_date }}</td>
+{%- elif kind == 'yy2' %}<td>{{ '%02d' % (r[key] % 100) }}</td>
+{%- elif key == 'description' %}<td class="wrap">{{ r[key] }}</td>
+{%- else %}<td>{{ r[key] }}</td>{% endif %}
+{%- endmacro %}
+
+<div class="mc-wrap">
+<table class="mc-table">
+  <thead><tr>{% for key, header, kind in data_cols %}<th{{ ' class="num"' | safe if kind in ('rp', 'mio') else '' }}>{{ header }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in data.rows %}
+  <tr>{% for key, header, kind in data_cols %}{{ cell(r, key, kind) }}{% endfor %}</tr>
+  {% else %}
+  <tr><td colspan="{{ data_cols | length }}" class="mc-muted">Tidak ada baris yang cocok.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div class="mc-pager">
+  {% set qs = request.args.to_dict() %}{% set _ = qs.pop('page', none) %}
+  {% if data.page > 1 %}<a class="btn btn-sm" href="?{{ (qs | urlencode) ~ ('&' if qs else '') }}page={{ data.page - 1 }}">&laquo; Sebelumnya</a>{% endif %}
+  <span class="mc-muted">Halaman {{ data.page }} dari {{ data.pages }}</span>
+  {% if data.page < data.pages %}<a class="btn btn-sm" href="?{{ (qs | urlencode) ~ ('&' if qs else '') }}page={{ data.page + 1 }}">Berikutnya &raquo;</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if can_manage %}
+<script>
+async function mrSyncMapping() {
+  const f = document.getElementById('mr-map-file').files[0];
+  const msg = document.getElementById('mr-map-msg');
+  if (!f) { msg.textContent = 'Pilih file Management Report - MASTER.xlsb dulu.'; return; }
+  const btn = document.getElementById('mr-map-btn');
+  btn.disabled = true; msg.textContent = 'Menyinkronkan...';
+  const fd = new FormData(); fd.append('file', f);
+  try {
+    const r = await fetch('/management-report/gl-combine/sync-mapping', {method: 'POST', body: fd, credentials: 'same-origin'});
+    const j = await r.json();
+    msg.textContent = j.pesan || (r.ok ? 'Selesai.' : 'Gagal.');
+    if (j.ok && j.changed) setTimeout(() => location.reload(), 1200);
+  } catch (e) { msg.textContent = 'Gagal sync: ' + e; }
+  btn.disabled = false;
+}
+</script>
+{% endif %}
+{% endblock %}

@@ -8,6 +8,7 @@ from flask_jwt_extended import get_jwt
 import config
 from auth.middleware import is_admin, json_admin_required, jwt_html_required
 from modules.management_report import bgt_report, exports, ho_report, service
+from modules.management_report import coa_map, combine_columns, combine_query, combine_rows, combine_sources
 from modules.management_report import sync as mr_sync
 from modules.management_report.formatting import id_amount, id_number, id_percent
 from modules.management_report.ho_template import load_template
@@ -314,3 +315,127 @@ def export_all():
     data = exports.build_zip(reports, f, ho_by_cc, append_by_cc, bgt_by_cc)
     suffix = {"1": " sheet 1", "12": " sheet 1-2", "123": ""}[sheets]
     return _attachment(data, f"Management Report {date.today().isoformat()}{suffix}.zip", "application/zip")
+
+
+# ---------- GL Combine / Append1 (built from GL SMT, GL ETF and Sponsorship; no Excel upload) ----------
+
+def _mc_num(value) -> str:
+    """1234567.0 -> '1.234.567'; None -> ''. Never '-0'."""
+    if value is None:
+        return ""
+    return f"{round(float(value)) + 0.0:,.0f}".replace(",", ".")
+
+
+def _mc_mio(value) -> str:
+    """Rp Mio with 1 decimal, Indonesian style: 1234.56 -> '1.234,6'; never '-0,0'."""
+    if value is None:
+        return ""
+    v = round(float(value), 1) + 0.0
+    return f"{v:,.1f}".replace(",", "\0").replace(".", ",").replace("\0", ".")
+
+
+def _mc_date(value) -> str:
+    """ISO 2026-01-15 -> 15/01/2026; anything else is shown as is."""
+    s = str(value or "")
+    return f"{s[8:10]}/{s[5:7]}/{s[:4]}" if len(s) >= 10 and s[4] == "-" else s
+
+
+bp.add_app_template_filter(_mc_num, "mc_num")
+bp.add_app_template_filter(_mc_mio, "mc_mio")
+bp.add_app_template_filter(_mc_date, "mc_date")
+
+
+def _int_arg(name):
+    try:
+        return int(request.args.get(name))
+    except (TypeError, ValueError):
+        return None
+
+
+def _page_arg() -> int:
+    return _int_arg("page") or 1
+
+
+def _resolve_period(opts):
+    """Requested year/month if valid, otherwise the latest period that has data."""
+    yy = _int_arg("yy")
+    if yy not in opts["yys"]:
+        yy = opts["yys"][-1] if opts["yys"] else None
+    if yy is None:
+        return None, None
+    months = opts["months"][yy]
+    mm = _int_arg("mm")
+    return yy, (mm if mm in months else months[-1])
+
+
+def _combine_page(table: str):
+    cmap = coa_map.get_map()
+    cc_map = coa_map.get_cc_map()
+    built = combine_rows.build_combine_rows(
+        {"SMT": combine_sources.gl_rows("smt"), "ETF": combine_sources.gl_rows("etf"),
+         "Sponsor": combine_sources.sponsor_rows()}, cmap, cc_map)
+    opts = combine_rows.period_options(built.rows)
+    yy, mm = _resolve_period(opts)
+    scoped = combine_rows.apply_cutoff(built.rows, yy, mm) if yy is not None else []
+    ccs = combine_query.list_ccs(scoped)
+    cc = (request.args.get("cc") or "").strip()
+    if cc not in ccs:
+        cc = ""                                        # stale/unknown CC behaves like "All Cost Center"
+    source = request.args.get("source") if request.args.get("source") in combine_query.SOURCES else ""
+    q = (request.args.get("q") or "").strip()
+    data = combine_query.query_data(scoped, q=q, cc=cc or None, source=source or None, page=_page_arg())
+    unmapped = combine_rows.unmapped_summary(scoped)
+    last_map = coa_map.last_sync()
+    # Old-style map (synced before the CC sheet / Code column existed): derived values are invalid until re-sync.
+    needs_resync = bool(cmap) and (not cc_map or (last_map or {}).get("rows_cc", 0) == 0)
+    unmapped_cc = [] if needs_resync else combine_rows.unmapped_cc_summary(scoped)
+    try:
+        can_manage = is_admin(get_jwt())
+    except Exception:
+        can_manage = False
+    label, cols = combine_columns.TABLES[table]
+    return render_template(
+        "management_report/combine.html",
+        active_tab=table, table=table, label=label, data_cols=cols, can_manage=can_manage,
+        last_map=last_map, needs_resync=needs_resync, has_map=bool(cmap), has_rows=bool(built.rows),
+        opts=opts, yy=yy, mm=mm, cc=cc, ccs=ccs, source=source, sources=combine_query.SOURCES, q=q, data=data,
+        unmapped=unmapped, unmapped_cc=unmapped_cc, unmapped_rows=sum(u["rows"] for u in unmapped),
+        unmapped_act=round(sum(u["act"] for u in unmapped), 6) + 0.0, skipped_date=built.skipped_date,
+        active_page="management_report", use_unified_header=True,
+    )
+
+
+@bp.route("/gl-combine")
+@jwt_html_required
+def gl_combine():
+    return _combine_page("combine")
+
+
+@bp.route("/append1")
+@jwt_html_required
+def append1_page():
+    return _combine_page("append1")
+
+
+@bp.route("/gl-combine/sync-mapping", methods=["POST"])
+@json_admin_required
+def sync_mapping():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "pesan": "File belum dipilih."}), 400
+    if not f.filename.lower().endswith(".xlsb"):
+        return jsonify({"ok": False, "pesan": "File harus berformat .xlsb."}), 400
+    try:
+        rows, cc_rows = coa_map.read_mapping_sheets(io.BytesIO(f.read()))
+        if not rows:
+            raise coa_map.CoaParseError("Tidak ada pemetaan COA yang valid di sheet COA.")
+    except coa_map.CoaParseError as e:
+        return jsonify({"ok": False, "pesan": str(e)}), 400
+    try:
+        out = coa_map.sync_coa(f.filename, get_jwt().get("username", ""), rows, cc_rows)
+    except Exception as e:
+        return jsonify({"ok": False, "pesan": f"Sync gagal, pemetaan lama tidak berubah: {e}"}), 500
+    counts = f"SMT {out['rows_smt']} akun, ETF {out['rows_etf']} akun, {out['rows_cc']} cost center"
+    pesan = (f"Sudah sinkron: pemetaan tidak berubah ({counts})." if not out["changed"]
+             else f"Sync pemetaan selesai: {counts}.")
+    return jsonify({"ok": True, "pesan": pesan, **out})

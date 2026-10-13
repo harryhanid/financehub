@@ -2,6 +2,7 @@
 {% block title %}Management Report{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mr_combine.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
 <style>
@@ -77,6 +78,8 @@
   <button class="tab-btn" data-tab="tab-sync">Data Sync</button>
   <button class="tab-btn" data-tab="tab-report">Report</button>
   <button class="tab-btn" data-tab="tab-ho">HO Report</button>
+  <a class="mr-linktab" href="{{ url_for('management_report.gl_combine') }}">GL Combine</a>
+  <a class="mr-linktab" href="{{ url_for('management_report.append1_page') }}">Append1</a>
 </div>
 {% endblock %}
 

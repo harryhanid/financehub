@@ -46,7 +46,7 @@ Perubahan di `app/modules/management_report/`:
 - `coa_map.py` (dipindah dari GL): pemetaan COA/CC dari sheet `COA` dan `CC` workbook MR. Nama tabel tidak berubah (`gl_coa_map`, `gl_cc_map`, `gl_coa_sync_log`), jadi data yang sudah di-sync tetap berlaku.
 - `combine_sources.py` (baru): adaptor per sumber, masing-masing mengembalikan baris mentah seragam.
   - `gl_rows(entity)`: membungkus `general_ledger.service.load_mr_source`.
-  - `sponsor_rows()`: membaca `sponsorship.service.list_transaksi(company_id_SMT, {"tahun": [...]})` dengan company SMT dicari dari tabel `companies` berdasarkan kode `SMT`, tanpa angka tetap. Tahun yang diambil: semua tahun yang punya data. Urutan: `tanggal_form_sponsor` naik, lalu `id` naik.
+  - `sponsor_rows()`: membaca `sponsorship.service.list_transaksi(company_id_SMT)` (semua tahun, tanpa filter) dengan company SMT dicari dari tabel `companies` berdasarkan kode `SMT`, tanpa angka tetap. Tahun yang diambil: semua tahun yang punya data. Urutan: `tanggal_form_sponsor` naik, lalu `id` naik.
 - `combine_rows.py` (dipindah dari `mr_rows.py`, diperluas): membentuk baris GL Combine dari tiga sumber, penomoran New Code, ringkasan belum-dipetakan, opsi periode, dan cutoff.
 - `combine_columns.py` (dipindah dari `mr_columns.py`): daftar kolom GL Combine dan Append1 beserta tipe tampilan.
 - `routes.py` dan template MR: dua halaman baru dengan bilah tab bersama, `/management-report/gl-combine` dan `/management-report/append1`, ditambah `POST /management-report/gl-combine/sync-mapping` (admin, menerima .xlsb). Tab lama (Data Sync, Report, HO Report) tidak diubah selain bilah tab yang menautkan dua tab baru.
@@ -64,7 +64,6 @@ Semua sumber menghasilkan baris dengan kunci yang sama (kunci yang sudah dipakai
   - `tgl` = `tanggal_form_sponsor`, `debit_credit` = `amount_request`, `allocation_memo` = `perihal` (apa adanya, boleh kosong), `id_no` = "", `activity` = "", `category` = "" (tampil kosong), `unmapped` = false, `cc_unmapped` mengikuti pemetaan CC.
   - `description` = `- Act {tahun} : {perihal} Month : {bulan}`. ACT = `debit_credit / 1.000.000`, setengah ke genap setelah normalisasi 15 digit signifikan (aturan yang sama dengan GL).
   - Transaksi tanpa tanggal form valid dilewati dan dihitung (`skipped_date`).
-  - Tidak memakai pemetaan COA/CC (nilai tetap dari konfigurasi).
 - **New Code:** `A{cc0}-{cc1}{bc1}{n}`, `n` adalah hitungan berjalan per grup (`cc0`, `cc1`, `bc1`) dalam urutan bentukan: semua GL SMT, lalu GL ETF, lalu Sponsor, dihitung atas semua baris sebelum filter apa pun (cutoff, CC, Source, pencarian).
 
 ## Tampilan
@@ -76,7 +75,7 @@ Halaman GL Combine dan Append1 berbagi filter dan bilah tab:
 - Append1: 13 kolom persis seperti sheet (COA, MM, YY dua digit, CC, CC.1, Category, Activity, Description, PTA, Custom, MM.1, ACT, BGT).
 - Urutan baris mengikuti urutan bentukan (bukan diurutkan ulang). Paginasi 100 baris per halaman.
 - Kartu ringkasan: Periode, Baris, Total (ACT dalam Rp Mio pada Append1, DEBIT - CREDIT pada GL Combine), mengikuti filter dan pencarian.
-- Banner: pemetaan perlu disync ulang (sheet CC dan kolom Code belum dimuat), akun belum dipetakan, cost center belum dipetakan (hanya baris GL), dan baris dilewati karena tanggal tidak valid (GL dan Sponsor).
+- Banner: pemetaan perlu disync ulang (sheet CC dan kolom Code belum dimuat), akun belum dipetakan, cost center belum dipetakan (berlaku untuk setiap sumber yang cost center-nya tidak punya COST CENTER2), dan baris dilewati karena tanggal tidak valid (GL dan Sponsor).
 - Parameter yang tidak valid (`yy`, `mm`, `page`, `cc`, `source`, `view`) kembali ke nilai default dengan status 200. Nilai yang ditampilkan di-escape.
 - Keadaan kosong: pemetaan COA belum ada, atau tidak ada data sumber sama sekali, menampilkan petunjuk.
 - Tombol "Sync pemetaan COA & CC" (admin) ada di halaman GL Combine. Hanya admin yang boleh sync.
