@@ -1133,7 +1133,7 @@ Pastikan impornya memakai modul MR (Task 1 & 2 sudah menggantinya) dan seluruh t
 Baca dulu `tests/test_mrc_real_file.py` (hasil pindahan): ia sudah punya fixture modul `files` (mengembalikan `(path_gl, path_mr)` salinan temp) dan fixture `built` (SMT + ETF), serta helper `_norm` dan `_coa`. Pakai ulang helper itu. Tambahkan (impor yang belum ada: `sqlite3`, `from datetime import date, timedelta`, `from collections import Counter`, `from modules.management_report import coa_map, combine_sources`, `from modules.management_report.combine_rows import build_combine_rows`):
 
 ```python
-REAL_DB = r"C:\Financehubppinance_hub.db"
+REAL_DB = r"C:\Financehub\app\finance_hub.db"
 
 
 def _real_sponsor_rows():
