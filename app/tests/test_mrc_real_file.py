@@ -99,10 +99,16 @@ def test_sponsor_rows_match_the_gl_combine_sponsor_rows(files, built_all):
     assert Counter(r["mm"] for r in ours) == Counter(t["mm"] for t in theirs)
     # (month, date) is exact; the amount may differ for at most 1 row: Sponsorship was edited after the workbook
     # was made (measured: 1 of 85, "Golf Tournament KADIN", DB 2,898,000 vs workbook 3,000,000).
-    assert (Counter((r["mm"], r["tgl"]) for r in ours) == Counter((t["mm"], t["date"]) for t in theirs))
-    amount_hits = sum((Counter((r["mm"], round(r["debit_credit"]), r["tgl"]) for r in ours)
-                       & Counter((t["mm"], round(t["amount"]), t["date"]) for t in theirs)).values())
-    assert amount_hits >= len(theirs) - 1, (amount_hits, len(theirs))
+    assert Counter((r["mm"], r["tgl"]) for r in ours) == Counter((t["mm"], t["date"]) for t in theirs)
+    ours_amt = Counter((r["mm"], round(r["debit_credit"]), r["tgl"]) for r in ours)
+    theirs_amt = Counter((t["mm"], round(t["amount"]), t["date"]) for t in theirs)
+    only_theirs, only_ours = theirs_amt - ours_amt, ours_amt - theirs_amt
+    # Pinned exception: the 2026-08-11 Golf Tournament KADIN row. The workbook has 3,000,000, Sponsorship now has
+    # 2,898,000 (edited after the workbook was made). Both differences together or neither (if the data is fixed);
+    # any other difference fails.
+    assert (only_theirs, only_ours) in (
+        (Counter(), Counter()),
+        (Counter({(8, 3000000, "2026-08-11"): 1}), Counter({(8, 2898000, "2026-08-11"): 1}))),         (dict(only_theirs), dict(only_ours))
     assert {(r["account"], r["coa"], r["cc"], r["cost_center2"], r["cc1"], r["bc1"], r["category"])
             for r in ours} == {("701078002", "701078002", "POSPON", "$POCCOM", 5, "", "")}
     memo_hits = sum((Counter(_norm(r["allocation_memo"]) for r in ours) & Counter(t["memo"] for t in theirs)).values())
@@ -173,8 +179,8 @@ def test_our_act_values_exist_in_append1_with_the_same_rounding(files, built_all
     wrong_gl = [w for w in wrong if w[0][2] != "POSPON"]
     wrong_sp = [w for w in wrong if w[0][2] == "POSPON"]
     assert not wrong_gl, (len(wrong_gl), wrong_gl[:5])
-    assert len(wrong_sp) <= 1, wrong_sp
-    print("MEASURED_APPEND1", len(absent), len(rows26), len(wrong_sp))
+    # Pinned exception: the Golf Tournament KADIN row (ours 2.9, Append1 3.0); zero mismatches also passes.
+    assert all("Golf Tournament KADIN" in w[0][4] and w[1] == 2.9 and w[2] == [3.0] for w in wrong_sp)         and len(wrong_sp) <= 1, wrong_sp
     assert len(absent) <= 0.01 * len(rows26), (len(absent), absent[:5])
 
 
