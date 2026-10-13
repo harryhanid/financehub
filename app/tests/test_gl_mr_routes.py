@@ -69,9 +69,13 @@ def test_report_defaults_to_latest_month_and_is_cumulative(client):
     assert "- Act 2026 : Zoom Month : 1" in html and "- Act 2026 : ATK Month : 2" in html
     import re
     # -0.958 + 5.0 (category 10) + 0.03 (category 20) = 4.07 Rp Mio
-    assert re.search(r'gl-grand"><td colspan="5">Total All Cost Center</td><td class="num">4,0</td>', html)
-    assert re.search(r'gl-cat"><td colspan="5">10 - Office Supplies And Equipment Expense</td><td class="num">4,0</td>', html)
-    assert re.search(r'gl-cat"><td colspan="5">20 - Others</td><td class="num">0,0</td>', html)
+    z = r'<td class="num">0,0</td><td class="num">0,0</td><td class="num">0,0</td>'
+    assert re.search(r'gl-grand"><td colspan="5">Total All Cost Center</td>' + z +
+                     r'<td class="num">4,0</td><td class="num">4,0</td><td class="num"></td>', html)
+    assert re.search(r'gl-cat"><td colspan="5">10 - Office Supplies And Equipment Expense</td>' + z +
+                     r'<td class="num">4,0</td><td class="num">4,0</td>', html)
+    assert re.search(r'gl-cat"><td colspan="5">20 - Others</td>' + z +
+                     r'<td class="num">0,0</td><td class="num">0,0</td>', html)
     assert "-1,0</td>" in html and "5,0</td>" in html
 
 
@@ -269,10 +273,10 @@ def test_data_view_pager_paginates_and_preserves_filters(client):
     href = nxt.group(1).replace("&amp;", "&")
     for part in ("view=data", "yy=2026", "mm=2", "cc=POCFAD", "q=Memo", "page=2"):
         assert part in href, part
-    assert html.count("<tr><td>70108100</td>") == 100
+    assert html.count("<tr><td>6-1810</td>") == 100
     p2 = page(client, base + "&page=2").data.decode()
     assert "Halaman 2 dari 2" in p2 and "Sebelumnya" in p2 and "Berikutnya" not in p2
-    assert p2.count("<tr><td>70108100</td>") == 30
+    assert p2.count("<tr><td>6-1810</td>") == 30
 
 
 def test_user_input_is_html_escaped(client):
@@ -315,3 +319,147 @@ def test_data_view_cards_follow_the_search_filter(client):
     assert re.search(r"Total ACT \(Rp Mio\)<b>5,0</b>", html)
     full = page(client, "?view=data").data.decode()
     assert re.search(r"Baris<b>3</b>", full)
+
+
+# ---- Task C: Data (GL Combine | Append1) and Report layouts ---------------------------------
+import re
+
+COMBINE_HEADERS = ["Account Management", "ID#", "Date", "Allocation Memo", "Budget Activity",
+                   "COST CENTER", "DEBIT - CREDIT", "Source", "COA HO", "COST CENTER2", "Month", "CC0",
+                   "CC1", "BC1", "New Code", "Memo", "BC"]
+APPEND1_HEADERS = ["COA", "MM", "YY", "CC", "CC.1", "Category", "Activity", "Description", "PTA",
+                   "Custom", "MM.1", "ACT", "BGT"]
+REPORT_HEADERS = ["Category", "Custom", "MM.1", "Description", "Activity", "Sum of BGT", "Sum of PTA",
+                  "BGT_Available", "Sum of ACT", "Diff_ACT-BGT", "Diff Percentage"]
+CAT10 = "10 - Office Supplies And Equipment Expense"
+
+
+def headers(html):
+    thead = html[html.index("<thead"):html.index("</thead>")]
+    return [re.sub(r"<[^>]+>", "", h).strip() for h in re.findall(r"<th[^>]*>(.*?)</th>", thead, re.S)]
+
+
+def cells(html, marker):
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S):
+        if marker in tr:
+            return [re.sub(r"<[^>]+>", "", c).strip() for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)]
+    raise AssertionError("row not found: " + marker)
+
+
+def seed_full():
+    seed_gl()
+    seed_cc([{"cost_center": "POITEC", "total_cc": "$POITEC", "seq": 16, "description": "IT Dept"},
+             {"cost_center": "POCFAD", "total_cc": "$CC2", "seq": 3, "description": "Finance"},
+             {"cost_center": "TFOPEX", "total_cc": "$TFOPEX", "seq": 5, "description": ""}])
+
+
+def test_default_data_view_is_gl_combine_with_real_values(client):
+    login(client)
+    seed_full()
+    html = page(client, "?view=data").data.decode()
+    assert headers(html) == COMBINE_HEADERS
+    assert cells(html, "A26-16-10-1") == [
+        "6-1810", "GJ-1", "15/01/2026", "Zoom", "SMT - IT", "POITEC", "-957.910", "SMT", "70108100",
+        "$POITEC", "1", "26", "16", "-10-", "A26-16-10-1", "- Act 2026 : Zoom Month : 1", CAT10]
+    row = cells(html, "A26-3-10-1")
+    assert row[6] == "5.000.000" and row[9] == "$CC2" and row[2] == "10/02/2026" and row[10] == "2"
+    assert cells(html, "A26-5-20-1")[7:9] == ["ETF", "70119100"]
+
+
+def test_table_append1_shows_append1_columns(client):
+    login(client)
+    seed_full()
+    html = page(client, "?view=data&table=append1").data.decode()
+    assert headers(html) == APPEND1_HEADERS
+    assert cells(html, "Zoom") == ["70108100", "1", "26", "POITEC", "POITEC", CAT10, "SMT - IT",
+                                   "- Act 2026 : Zoom Month : 1", "0,0", "3", "1", "-1,0", "0,0"]
+
+
+def test_invalid_table_falls_back_to_combine(client):
+    login(client)
+    seed_full()
+    for qs in ("?view=data&table=bogus", "?view=data&table=", "?view=data&table=APPEND1"):
+        resp = page(client, qs)
+        assert resp.status_code == 200 and headers(resp.data.decode()) == COMBINE_HEADERS, qs
+
+
+def test_table_switch_links_preserve_filters(client):
+    login(client)
+    seed_full()
+    html = page(client, "?view=data&table=append1&yy=2026&mm=2&cc=POCFAD&q=ATK").data.decode()
+    links = {m[1]: m[0].replace("&amp;", "&") for m in
+             re.findall(r'<a class="btn btn-sm[^"]*" href="([^"]*)">(GL Combine|Append1)</a>', html)}
+    assert set(links) == {"GL Combine", "Append1"}
+    for label, tbl in (("GL Combine", "combine"), ("Append1", "append1")):
+        href = links[label]
+        for part in ("view=data", "yy=2026", "mm=2", "cc=POCFAD", "q=ATK", "table=" + tbl):
+            assert part in href, (label, part)
+    assert "page=" not in links["Append1"]
+    assert headers(page(client, "?" + links["GL Combine"].split("?", 1)[1]).data.decode()) == COMBINE_HEADERS
+
+
+def test_view_toggle_to_data_preserves_table_and_q(client):
+    login(client)
+    seed_full()
+    html = page(client, "?view=report&table=append1&q=ATK&cc=POCFAD").data.decode()
+    m = re.search(r'href="([^"]*)">Data</a>', html)
+    href = m.group(1).replace("&amp;", "&")
+    for part in ("view=data", "table=append1", "q=ATK", "cc=POCFAD"):
+        assert part in href, part
+
+
+def test_data_search_by_new_code_and_id(client):
+    login(client)
+    seed_full()
+    html = page(client, "?view=data&q=A26-3-10-1").data.decode()
+    assert "ATK" in html and "Zoom" not in html and "Biaya admin" not in html
+    svc.replace_all("smt", [
+        mkrow(acc_management="6-1810", tgl="2026-01-15", debit_credit=1000000.0, job_name="POITEC",
+              id_no="GJ-777", allocation_memo="Zoom"),
+        mkrow(acc_management="6-1810", tgl="2026-01-16", debit_credit=2000000.0, job_name="POITEC",
+              id_no="GJ-888", allocation_memo="Other")], LOG)
+    html = page(client, "?view=data&q=gj-777").data.decode()
+    assert "Zoom" in html and "Other" not in html
+
+
+def test_data_rows_follow_build_order(client):
+    login(client)
+    seed_gl(extra_smt=[mkrow(acc_management="6-1810", tgl="2026-01-20", debit_credit=1000000.0,
+                             job_name="POCFAD", allocation_memo="LateJan")])
+    seed_cc([{"cost_center": "POITEC", "total_cc": "$POITEC", "seq": 16, "description": ""},
+             {"cost_center": "POCFAD", "total_cc": "$POCFAD", "seq": 3, "description": ""},
+             {"cost_center": "TFOPEX", "total_cc": "$TFOPEX", "seq": 5, "description": ""}])
+    html = page(client, "?view=data").data.decode()
+    codes = re.findall(r"A26-\d+-\d+-\d+", html)
+    # SMT in GL order (Jan, Feb, late Jan), then ETF; not re-sorted by month
+    assert codes == ["A26-16-10-1", "A26-3-10-1", "A26-3-10-2", "A26-5-20-1"]
+
+
+def test_report_view_layout_and_values(client):
+    login(client)
+    seed_full()
+    html = page(client, "?cc=POITEC").data.decode()
+    assert headers(html) == REPORT_HEADERS
+    assert "In Rp Mio" in html
+    assert "POITEC – IT Dept" in html
+    assert "CC: POITEC | YY: 2026 | MM: s/d Februari" in html
+    assert cells(html, "SMT - IT") == ["", "3", "1", "- Act 2026 : Zoom Month : 1", "SMT - IT",
+                                       "0,0", "0,0", "0,0", "-1,0", "-1,0", ""]
+    assert cells(html, "Total POITEC") == ["Total POITEC", "0,0", "0,0", "0,0", "-1,0", "-1,0", ""]
+    assert cells(html, CAT10)[-6:] == ["0,0", "0,0", "0,0", "-1,0", "-1,0", ""]
+    assert "-0,0" not in html
+
+
+def test_report_view_all_cost_centers_echo_and_no_heading(client):
+    login(client)
+    seed_full()
+    html = page(client, "").data.decode()
+    assert "CC: All | YY: 2026 | MM: s/d Februari" in html
+    assert "POITEC – IT Dept" not in html and "In Rp Mio" in html
+
+
+def test_report_heading_without_description_is_just_the_cc(client):
+    login(client)
+    seed_full()
+    html = page(client, "?cc=TFOPEX").data.decode()
+    assert '<h3 class="gl-heading">TFOPEX</h3>' in html

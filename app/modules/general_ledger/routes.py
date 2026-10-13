@@ -5,7 +5,7 @@ from flask import Blueprint, abort, jsonify, redirect, render_template, request,
 from flask_jwt_extended import get_jwt
 
 from auth.middleware import is_admin, json_admin_required, jwt_html_required
-from modules.general_ledger import coa_map, mr_report, mr_rows, service
+from modules.general_ledger import coa_map, mr_columns, mr_report, mr_rows, service
 from modules.general_ledger import sync as gl_sync
 from modules.general_ledger.parser import COLUMNS, LABELS, ParseError, read_gl_sheet
 
@@ -32,6 +32,15 @@ def _gl_mio(value) -> str:
 
 
 bp.add_app_template_filter(_gl_mio, "gl_mio")
+
+
+def _gl_date(value) -> str:
+    """ISO 2026-01-15 -> 15/01/2026; anything else is shown as is."""
+    s = str(value or "")
+    return f"{s[8:10]}/{s[5:7]}/{s[:4]}" if len(s) >= 10 and s[4] == "-" else s
+
+
+bp.add_app_template_filter(_gl_date, "gl_date")
 
 _FILTER_KEYS = ("date_from", "date_to", "acc", "job", "q")
 _NUMERIC = {"debit", "credit", "qty_awal", "qty_akhir", "harga_satuan", "debit_credit"}
@@ -132,9 +141,9 @@ def _resolve_period(opts):
 @jwt_html_required
 def mr_page():
     cmap = coa_map.get_map()
+    cc_map = coa_map.get_cc_map()
     built = mr_rows.build_mr_rows(
-        {"SMT": service.load_mr_source("smt"), "ETF": service.load_mr_source("etf")},
-        cmap, coa_map.get_cc_map())
+        {"SMT": service.load_mr_source("smt"), "ETF": service.load_mr_source("etf")}, cmap, cc_map)
     opts = mr_rows.period_options(built.rows)
     yy, mm = _resolve_period(opts)
     scoped = mr_rows.apply_cutoff(built.rows, yy, mm) if yy is not None else []
@@ -144,6 +153,7 @@ def mr_page():
         cc = ""                                       # stale/unknown CC: same as "All Cost Center"
     view = "data" if request.args.get("view") == "data" else "report"
     q = (request.args.get("q") or "").strip()
+    table = mr_columns.resolve_table(request.args.get("table"))
     report = mr_report.build_report(scoped, cc or None) if view == "report" else None
     data = mr_report.query_data(scoped, q=q, cc=cc or None, page=_page()) if view == "data" else None
     shown = [r for r in scoped if not cc or r["cc"] == cc]
@@ -161,6 +171,9 @@ def mr_page():
         entities=service.ENTITIES, active_tab="mr", can_manage=can_manage,
         last_coa=coa_map.last_sync(), has_map=bool(cmap), has_gl=bool(built.rows),
         opts=opts, yy=yy, mm=mm, cc=cc, q=q, view=view, ccs=ccs,
+        table=table, tables=mr_columns.TABLES, data_cols=mr_columns.TABLES[table][1],
+        cc_desc=((cc_map.get(cc) or {}).get("description") or "") if cc else "",
+        report_labels=mr_columns.REPORT_LABELS, report_metrics=mr_columns.REPORT_METRICS,
         report=report, data=data, n_rows=n_rows, total_act=total_act,
         unmapped=unmapped, unmapped_cc=unmapped_cc, unmapped_rows=sum(u["rows"] for u in unmapped),
         unmapped_act=round(sum(u["act"] for u in unmapped), 6) + 0.0,

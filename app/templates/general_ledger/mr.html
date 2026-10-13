@@ -19,7 +19,8 @@
 .gl-filter label { display:flex; flex-direction:column; font-size:.75rem; }
 .gl-pager { display:flex; align-items:center; gap:.75rem; margin:.6rem 0; }
 .gl-warn { margin-bottom:.75rem; padding:.7rem .9rem; font-size:.8125rem; border:1px solid var(--danger); border-radius:8px; }
-.gl-views { display:flex; gap:.5rem; margin-bottom:.75rem; }
+.gl-views { display:flex; gap:.5rem; margin-bottom:.75rem; flex-wrap:wrap; }
+.gl-heading { margin:.25rem 0; font-size:1rem; }
 </style>
 {% endblock %}
 
@@ -70,6 +71,7 @@
 
 <form class="gl-filter" method="get">
   <input type="hidden" name="view" value="{{ view }}">
+  <input type="hidden" name="table" value="{{ table }}">
   <label>Tahun
     <select name="yy">{% for y in opts.yys %}<option value="{{ y }}"{{ ' selected' if y == yy else '' }}>{{ y }}</option>{% endfor %}</select>
   </label>
@@ -79,13 +81,20 @@
   <label>Cost Center
     <select name="cc"><option value="">All Cost Center</option>{% for c in ccs %}<option value="{{ c }}"{{ ' selected' if c == cc else '' }}>{{ c }}</option>{% endfor %}</select>
   </label>
-  {% if view == 'data' %}<label>Cari<input type="text" name="q" value="{{ q }}" placeholder="deskripsi / CC / COA"></label>{% endif %}
+  {% if view == 'data' %}<label>Cari<input type="text" name="q" value="{{ q }}" placeholder="deskripsi / CC / COA / ID# / New Code"></label>{% endif %}
   <button class="btn btn-primary btn-sm" type="submit">Terapkan</button>
 </form>
 
+{% set base_qs = '?yy=' ~ yy ~ '&mm=' ~ mm ~ '&cc=' ~ (cc | urlencode) ~ '&q=' ~ (q | urlencode) ~ '&table=' ~ table %}
 <div class="gl-views">
-  <a class="btn btn-sm{{ ' btn-primary' if view == 'report' else '' }}" href="?yy={{ yy }}&mm={{ mm }}&cc={{ cc | urlencode }}&view=report">Report</a>
-  <a class="btn btn-sm{{ ' btn-primary' if view == 'data' else '' }}" href="?yy={{ yy }}&mm={{ mm }}&cc={{ cc | urlencode }}&view=data">Data</a>
+  <a class="btn btn-sm{{ ' btn-primary' if view == 'report' else '' }}" href="{{ base_qs }}&view=report">Report</a>
+  <a class="btn btn-sm{{ ' btn-primary' if view == 'data' else '' }}" href="{{ base_qs }}&view=data">Data</a>
+  {% if view == 'data' %}
+  <span class="gl-muted" style="margin-left:1rem;align-self:center">Tabel:</span>
+  {% for key, spec in tables.items() %}
+  <a class="btn btn-sm{{ ' btn-primary' if table == key else '' }}" href="?yy={{ yy }}&mm={{ mm }}&cc={{ cc | urlencode }}&q={{ q | urlencode }}&view=data&table={{ key }}">{{ spec[0] }}</a>
+  {% endfor %}
+  {% endif %}
 </div>
 
 <div class="gl-cards">
@@ -94,21 +103,36 @@
   <div class="gl-card">Total ACT (Rp Mio)<b>{{ total_act | gl_mio }}</b></div>
 </div>
 
+{% macro cell(r, key, kind) -%}
+{%- if kind == 'rp' %}<td class="num">{{ r[key] | gl_num }}</td>
+{%- elif kind == 'mio' %}<td class="num">{{ r[key] | gl_mio }}</td>
+{%- elif kind == 'date' %}<td>{{ r[key] | gl_date }}</td>
+{%- elif kind == 'yy2' %}<td>{{ '%02d' % (r[key] % 100) }}</td>
+{%- elif key == 'description' %}<td class="wrap">{{ r[key] }}</td>
+{%- else %}<td>{{ r[key] }}</td>{% endif %}
+{%- endmacro %}
+{% macro metrics(n) -%}
+{%- for key, label in report_metrics %}<td class="num">{% if key == 'pct' %}{% if n.pct is not none %}{{ n.pct | gl_mio }}%{% endif %}{% else %}{{ n[key] | gl_mio }}{% endif %}</td>{% endfor %}
+{%- endmacro %}
+
 {% if view == 'report' %}
+<div class="gl-muted" style="font-weight:600">In Rp Mio</div>
+{% if cc %}<h3 class="gl-heading">{{ cc }}{% if cc_desc %} – {{ cc_desc }}{% endif %}</h3>{% endif %}
+<div class="gl-muted" style="margin-bottom:.5rem">CC: {{ cc if cc else 'All' }} | YY: {{ yy }} | MM: s/d {{ bulan[mm] }}</div>
 <div class="gl-wrap">
 <table class="gl-table">
-  <thead><tr><th>Category</th><th>Custom</th><th>MM.1</th><th>Description</th><th>Activity</th><th class="num">ACT (Rp Mio)</th></tr></thead>
+  <thead><tr>{% for label in report_labels %}<th>{{ label }}</th>{% endfor %}{% for key, label in report_metrics %}<th class="num">{{ label }}</th>{% endfor %}</tr></thead>
   <tbody>
   {% for g in report.groups %}
-  <tr class="gl-cat"><td colspan="5">{{ g.category }}</td><td class="num">{{ g.total | gl_mio }}</td></tr>
+  <tr class="gl-cat"><td colspan="5">{{ g.category }}</td>{{ metrics(g) }}</tr>
   {% for l in g.lines %}
-  <tr><td></td><td>{{ l.custom }}</td><td>{{ l.mm1 }}</td><td class="wrap">{{ l.description }}</td><td>{{ l.activity }}</td><td class="num">{{ l.act | gl_mio }}</td></tr>
+  <tr><td></td><td>{{ l.custom }}</td><td>{{ l.mm1 }}</td><td class="wrap">{{ l.description }}</td><td>{{ l.activity }}</td>{{ metrics(l) }}</tr>
   {% endfor %}
   {% else %}
-  <tr><td colspan="6" class="gl-muted">Tidak ada data untuk filter ini.</td></tr>
+  <tr><td colspan="11" class="gl-muted">Tidak ada data untuk filter ini.</td></tr>
   {% endfor %}
   {% if report.has_data %}
-  <tr class="gl-grand"><td colspan="5">Total {{ cc if cc else 'All Cost Center' }}</td><td class="num">{{ report.grand | gl_mio }}</td></tr>
+  <tr class="gl-grand"><td colspan="5">Total {{ cc if cc else 'All Cost Center' }}</td>{{ metrics(report.grand) }}</tr>
   {% endif %}
   </tbody>
 </table>
@@ -116,12 +140,12 @@
 {% else %}
 <div class="gl-wrap">
 <table class="gl-table">
-  <thead><tr><th>COA</th><th>MM</th><th>YY</th><th>CC</th><th>Category</th><th>Activity</th><th>Description</th><th>Custom</th><th>MM.1</th><th class="num">ACT (Rp Mio)</th><th>Sumber</th></tr></thead>
+  <thead><tr>{% for key, label, kind in data_cols %}<th{{ ' class="num"' | safe if kind in ('rp', 'mio') else '' }}>{{ label }}</th>{% endfor %}</tr></thead>
   <tbody>
   {% for r in data.rows %}
-  <tr><td>{{ r.coa }}</td><td>{{ r.mm }}</td><td>{{ r.yy }}</td><td>{{ r.cc }}</td><td>{{ r.category }}</td><td>{{ r.activity }}</td><td class="wrap">{{ r.description }}</td><td>{{ r.custom }}</td><td>{{ r.mm1 }}</td><td class="num">{{ r.act | gl_mio }}</td><td>{{ r.source }}</td></tr>
+  <tr>{% for key, label, kind in data_cols %}{{ cell(r, key, kind) }}{% endfor %}</tr>
   {% else %}
-  <tr><td colspan="11" class="gl-muted">Tidak ada baris yang cocok.</td></tr>
+  <tr><td colspan="{{ data_cols | length }}" class="gl-muted">Tidak ada baris yang cocok.</td></tr>
   {% endfor %}
   </tbody>
 </table>
