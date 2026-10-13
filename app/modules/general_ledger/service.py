@@ -179,3 +179,16 @@ def query_rows(entity, filters, page=1, per_page=100) -> dict:
         conn.close()
     return {"rows": rows, "total": total, "sum_debit": sum_debit, "sum_credit": sum_credit,
             "page": page, "pages": pages, "per_page": per_page}
+
+
+def load_mr_source(entity) -> list:
+    """GL rows with an amount, reduced to what the MR row builder needs."""
+    table = ENTITIES[entity]["table"]
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        return [dict(r) for r in conn.execute(
+            f"SELECT acc_management, tgl, allocation_memo, budget_activity, job_name, debit_credit "
+            f"FROM {table} WHERE debit_credit IS NOT NULL AND debit_credit <> 0")]
+    finally:
+        conn.close()
