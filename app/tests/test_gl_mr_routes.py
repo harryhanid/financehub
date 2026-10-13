@@ -152,13 +152,33 @@ def test_non_admin_can_view_but_not_sync_coa(client):
 
 def test_sync_coa_success_then_unchanged(client, monkeypatch):
     login(client)
-    rows = [{"source": "SMT", "account": "6-1810", "coa_ho": "70108100", "category": "10 - Office"}]
-    monkeypatch.setattr(gl_routes.coa_map, "read_coa_sheet", lambda f: rows)
+    rows = [{"source": "SMT", "account": "6-1810", "coa_ho": "70108100", "category": "10 - Office",
+             "code": "-10-"}]
+    cc = [{"cost_center": "POITEC", "total_cc": "$POITEC", "seq": 16, "description": "IT"},
+          {"cost_center": "PULPP", "total_cc": "", "seq": 0, "description": ""}]
+    monkeypatch.setattr(gl_routes.coa_map, "read_mapping_sheets", lambda f: (rows, cc))
     j = upload(client).get_json()
-    assert j["ok"] and j["changed"] and "1" in j["pesan"]
+    assert j["ok"] and j["changed"] is True
+    assert j["pesan"] == "Sync pemetaan selesai: SMT 1 akun, ETF 0 akun, 2 cost center."
+    assert (j["rows_smt"], j["rows_etf"], j["rows_cc"]) == (1, 0, 2)
     again = upload(client).get_json()
-    assert again["ok"] and again["changed"] is False and "Sudah sinkron" in again["pesan"]
-    assert coa_map.get_map() == {("SMT", "6-1810"): ("70108100", "10 - Office")}
+    assert again["ok"] and again["changed"] is False
+    assert again["pesan"] == ("Sudah sinkron: pemetaan tidak berubah "
+                              "(SMT 1 akun, ETF 0 akun, 2 cost center).")
+    assert coa_map.get_map() == {("SMT", "6-1810"): ("70108100", "10 - Office", "-10-")}
+    assert coa_map.get_cc_map() == {"POITEC": {"total": "$POITEC", "seq": 16, "description": "IT"},
+                                    "PULPP": {"total": "", "seq": 0, "description": ""}}
+
+
+def test_sync_ui_labels_and_cc_count(client):
+    login(client)
+    seed_gl()
+    coa_map.sync_coa("m.xlsb", "u", [
+        {"source": "SMT", "account": "6-1810", "coa_ho": "70108100", "category": "c"}],
+        [{"cost_center": "POITEC", "total_cc": "$POITEC", "seq": 16, "description": ""}])
+    html = page(client).data.decode()
+    assert "Sync pemetaan COA &amp; CC dari Excel" in html
+    assert "SMT 1 akun, ETF 0 akun, 1 cost center" in html
 
 
 def test_sync_coa_rejects_bad_uploads_and_keeps_old_map(client, monkeypatch):
@@ -169,19 +189,20 @@ def test_sync_coa_rejects_bad_uploads_and_keeps_old_map(client, monkeypatch):
                        content_type="multipart/form-data").status_code == 400
 
     def boom(f):
-        raise coa_map.CoaParseError("Sheet 'COA' tidak ditemukan di file.")
-    monkeypatch.setattr(gl_routes.coa_map, "read_coa_sheet", boom)
+        raise coa_map.CoaParseError("Sheet 'CC' tidak ditemukan di file.")
+    monkeypatch.setattr(gl_routes.coa_map, "read_mapping_sheets", boom)
     r = upload(client)
-    assert r.status_code == 400 and "tidak ditemukan" in r.get_json()["pesan"]
-    monkeypatch.setattr(gl_routes.coa_map, "read_coa_sheet", lambda f: [])
+    assert r.status_code == 400
+    assert r.get_json()["pesan"] == "Sheet 'CC' tidak ditemukan di file."
+    monkeypatch.setattr(gl_routes.coa_map, "read_mapping_sheets", lambda f: ([], []))
     assert upload(client).status_code == 400                       # nothing to import
     assert len(coa_map.get_map()) == 2
 
 
 def test_sync_coa_database_error_returns_json_500(client, monkeypatch):
     login(client)
-    monkeypatch.setattr(gl_routes.coa_map, "read_coa_sheet", lambda f: [
-        {"source": "SMT", "account": "x", "coa_ho": "1", "category": "c"}])
+    monkeypatch.setattr(gl_routes.coa_map, "read_mapping_sheets", lambda f: (
+        [{"source": "SMT", "account": "x", "coa_ho": "1", "category": "c", "code": ""}], []))
 
     def boom(*a, **k):
         raise RuntimeError("database is locked")

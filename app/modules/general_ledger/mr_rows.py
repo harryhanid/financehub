@@ -43,7 +43,7 @@ def build_mr_rows(source_rows: dict, coa_map: dict) -> MrBuild:
             if d is None:
                 skipped += 1
                 continue
-            coa, category = coa_map.get((source, account), ("", ""))
+            coa, category, *_ = coa_map.get((source, account), ("", ""))
             memo = r.get("allocation_memo") or ""
             rows.append({
                 "coa": coa, "mm": d.month, "yy": d.year,

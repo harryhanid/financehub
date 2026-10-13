@@ -14,7 +14,12 @@ _HEADER_ROW = 1                                   # 0-based; row 0 is a numberin
 _SOURCE_COL = {"SMT": 1, "ETF": 3}                # COA SMT, COA ETF
 _COA_HO_COL = 6
 _CATEGORY_COL = 9                                 # CATEGORIES 2, already shaped like ' 10 - Office ... '
-_EXPECTED_HEADER = {1: "COA SMT", 3: "COA ETF", 6: "COA HO", 9: "CATEGORIES 2"}
+_CODE_COL = 10                                    # 'Code', e.g. '-10-'
+_EXPECTED_HEADER = {1: "COA SMT", 3: "COA ETF", 6: "COA HO", 9: "CATEGORIES 2", 10: "Code"}
+CC_SHEET_NAME = "CC"
+_CC_HEADER_ROW = 1
+_CC_EXPECTED_HEADER = {1: "Cost Center", 2: "Cost Center Description", 3: "Cost Center TOTAL"}
+_CC_SEQ_COL = 5
 _ERR = re.compile(r"^0x[0-9A-Fa-f]{1,2}$")        # how pyxlsb shows an Excel error cell
 
 
@@ -38,6 +43,12 @@ def _coa_ho(v):
     return s if s.isdigit() else None
 
 
+def _code(v) -> str:
+    if isinstance(v, (int, float)):
+        return ""                                  # numeric 0 / stray numbers are not a code
+    return _text(v)
+
+
 def _cell(row, i):
     return row[i] if i < len(row) else None
 
@@ -57,30 +68,73 @@ def normalise_coa(sheet_rows) -> list:
         if coa_ho is None:
             continue
         category = _text(_cell(r, _CATEGORY_COL))
+        code = _code(_cell(r, _CODE_COL))
         for source, col in _SOURCE_COL.items():
             account = _text(_cell(r, col))
             if account and (source, account) not in seen:
                 seen.add((source, account))
                 rows.append({"source": source, "account": account,
-                             "coa_ho": coa_ho, "category": category})
+                             "coa_ho": coa_ho, "category": category, "code": code})
     return rows
 
 
-def read_coa_sheet(fileobj) -> list:
+def _seq(v) -> int:
+    if isinstance(v, bool):
+        return 0
+    if isinstance(v, (int, float)):
+        return int(v)
+    return 0
+
+
+def normalise_cc(sheet_rows) -> list:
+    if len(sheet_rows) <= _CC_HEADER_ROW:
+        raise CoaParseError(f"Sheet '{CC_SHEET_NAME}' kosong.")
+    header = sheet_rows[_CC_HEADER_ROW]
+    for pos, label in _CC_EXPECTED_HEADER.items():
+        actual = " ".join(str(_cell(header, pos) or "").split()).lower()
+        if actual != label.lower():
+            raise CoaParseError(
+                f"Header sheet '{CC_SHEET_NAME}' tidak sesuai: kolom {pos + 1} harus '{label}'.")
+    rows, seen = [], set()
+    for r in sheet_rows[_CC_HEADER_ROW + 1:]:
+        cc = _text(_cell(r, 1))
+        if not cc or cc in seen:
+            continue
+        seen.add(cc)
+        rows.append({"cost_center": cc, "total_cc": _text(_cell(r, 3)),
+                     "seq": _seq(_cell(r, _CC_SEQ_COL)), "description": _text(_cell(r, 2))})
+    return rows
+
+
+def _read_sheets(fileobj, names):
+    """Open the workbook once and return the raw rows of each sheet in `names`."""
     try:
         wb = open_workbook(fileobj)
     except Exception as e:
         raise CoaParseError(f"File tidak bisa dibaca sebagai .xlsb: {e}") from e
     try:
         with wb:
-            if SHEET_NAME not in wb.sheets:
-                raise CoaParseError(f"Sheet '{SHEET_NAME}' tidak ditemukan di file.")
-            with wb.get_sheet(SHEET_NAME) as sh:
-                return normalise_coa([[c.v for c in r] for r in sh.rows()])
+            out = []
+            for name in names:
+                if name not in wb.sheets:
+                    raise CoaParseError(f"Sheet '{name}' tidak ditemukan di file.")
+                with wb.get_sheet(name) as sh:
+                    out.append([[c.v for c in r] for r in sh.rows()])
+            return out
     except CoaParseError:
         raise
     except Exception as e:
         raise CoaParseError(f"File tidak bisa dibaca: {e}") from e
+
+
+def read_coa_sheet(fileobj) -> list:
+    return normalise_coa(_read_sheets(fileobj, [SHEET_NAME])[0])
+
+
+def read_mapping_sheets(fileobj) -> tuple:
+    """Read sheets COA and CC from one workbook open -> (coa_rows, cc_rows)."""
+    coa_raw, cc_raw = _read_sheets(fileobj, [SHEET_NAME, CC_SHEET_NAME])
+    return normalise_coa(coa_raw), normalise_cc(cc_raw)
 
 
 _DDL = """
@@ -89,7 +143,14 @@ CREATE TABLE IF NOT EXISTS gl_coa_map (
     account  TEXT NOT NULL,
     coa_ho   TEXT NOT NULL,
     category TEXT NOT NULL DEFAULT '',
+    code     TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (source, account)
+);
+CREATE TABLE IF NOT EXISTS gl_cc_map (
+    cost_center TEXT PRIMARY KEY,
+    total_cc    TEXT NOT NULL DEFAULT '',
+    seq         INTEGER NOT NULL DEFAULT 0,
+    description TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS gl_coa_sync_log (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,19 +159,30 @@ CREATE TABLE IF NOT EXISTS gl_coa_sync_log (
     filename     TEXT,
     content_hash TEXT,
     rows_smt     INTEGER DEFAULT 0,
-    rows_etf     INTEGER DEFAULT 0
+    rows_etf     INTEGER DEFAULT 0,
+    rows_cc      INTEGER DEFAULT 0
 );
 """
 
 
+def _add_column_if_missing(conn, table, column, ddl) -> None:
+    cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+
 def ensure_schema(conn) -> None:
     conn.executescript(_DDL)
+    _add_column_if_missing(conn, "gl_coa_map", "code", "TEXT NOT NULL DEFAULT ''")
+    _add_column_if_missing(conn, "gl_coa_sync_log", "rows_cc", "INTEGER DEFAULT 0")
     conn.commit()
 
 
-def compute_hash(rows) -> str:
-    lines = sorted(json.dumps([r["source"], r["account"], r["coa_ho"], r["category"]],
-                              ensure_ascii=False) for r in rows)
+def compute_hash(rows, cc_rows=()) -> str:
+    lines = sorted(json.dumps(["coa", r["source"], r["account"], r["coa_ho"], r["category"],
+                               r.get("code", "")], ensure_ascii=False) for r in rows)
+    lines += sorted(json.dumps(["cc", r["cost_center"], r["total_cc"], r["seq"],
+                                r["description"]], ensure_ascii=False) for r in cc_rows)
     h = hashlib.sha256()
     for line in lines:
         h.update(line.encode("utf-8"))
@@ -122,8 +194,21 @@ def get_map() -> dict:
     conn = get_conn()
     try:
         ensure_schema(conn)
-        return {(r["source"], r["account"]): (r["coa_ho"], r["category"])
-                for r in conn.execute("SELECT source, account, coa_ho, category FROM gl_coa_map")}
+        return {(r["source"], r["account"]): (r["coa_ho"], r["category"], r["code"])
+                for r in conn.execute(
+                    "SELECT source, account, coa_ho, category, code FROM gl_coa_map")}
+    finally:
+        conn.close()
+
+
+def get_cc_map() -> dict:
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        return {r["cost_center"]: {"total": r["total_cc"], "seq": r["seq"],
+                                   "description": r["description"]}
+                for r in conn.execute(
+                    "SELECT cost_center, total_cc, seq, description FROM gl_cc_map")}
     finally:
         conn.close()
 
@@ -138,41 +223,50 @@ def last_sync():
         conn.close()
 
 
-def _count_rows() -> int:
+def _count_rows() -> tuple:
     conn = get_conn()
     try:
         ensure_schema(conn)
-        return conn.execute("SELECT COUNT(*) FROM gl_coa_map").fetchone()[0]
+        return (conn.execute("SELECT COUNT(*) FROM gl_coa_map").fetchone()[0],
+                conn.execute("SELECT COUNT(*) FROM gl_cc_map").fetchone()[0])
     finally:
         conn.close()
 
 
-def sync_coa(filename, user, rows) -> dict:
-    """Replace the mapping with `rows` unless identical to the last sync (and still in the table)."""
-    content_hash = compute_hash(rows)
+def sync_coa(filename, user, rows, cc_rows=()) -> dict:
+    """Replace both mappings unless identical to the last sync (and still in the tables)."""
+    rows, cc_rows = list(rows), list(cc_rows)
+    content_hash = compute_hash(rows, cc_rows)
     n_smt = sum(1 for r in rows if r["source"] == "SMT")
     n_etf = len(rows) - n_smt
+    n_cc = len(cc_rows)
     last = last_sync()
     if (last and last["content_hash"] == content_hash
-            and _count_rows() == last["rows_smt"] + last["rows_etf"]):
-        return {"changed": False, "rows_smt": n_smt, "rows_etf": n_etf}
+            and _count_rows() == (last["rows_smt"] + last["rows_etf"], last["rows_cc"] or 0)):
+        return {"changed": False, "rows_smt": n_smt, "rows_etf": n_etf, "rows_cc": n_cc}
     conn = get_conn()
     try:
         ensure_schema(conn)
         try:
             conn.execute("DELETE FROM gl_coa_map")
+            conn.execute("DELETE FROM gl_cc_map")
             conn.executemany(
-                "INSERT INTO gl_coa_map (source, account, coa_ho, category) VALUES (?,?,?,?)",
-                [(r["source"], r["account"], r["coa_ho"], r["category"]) for r in rows])
+                "INSERT INTO gl_coa_map (source, account, coa_ho, category, code) "
+                "VALUES (?,?,?,?,?)",
+                [(r["source"], r["account"], r["coa_ho"], r["category"], r.get("code", ""))
+                 for r in rows])
+            conn.executemany(
+                "INSERT INTO gl_cc_map (cost_center, total_cc, seq, description) VALUES (?,?,?,?)",
+                [(r["cost_center"], r["total_cc"], r["seq"], r["description"]) for r in cc_rows])
             conn.execute(
                 "INSERT INTO gl_coa_sync_log (synced_at, synced_by, filename, content_hash, "
-                "rows_smt, rows_etf) VALUES (?,?,?,?,?,?)",
+                "rows_smt, rows_etf, rows_cc) VALUES (?,?,?,?,?,?,?)",
                 (datetime.now().isoformat(timespec="seconds"), user, filename, content_hash,
-                 n_smt, n_etf))
+                 n_smt, n_etf, n_cc))
             conn.commit()
         except Exception:
             conn.rollback()
             raise
     finally:
         conn.close()
-    return {"changed": True, "rows_smt": n_smt, "rows_etf": n_etf}
+    return {"changed": True, "rows_smt": n_smt, "rows_etf": n_etf, "rows_cc": n_cc}

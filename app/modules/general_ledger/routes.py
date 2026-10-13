@@ -175,18 +175,19 @@ def sync_coa():
     if not f.filename.lower().endswith(".xlsb"):
         return jsonify({"ok": False, "pesan": "File harus berformat .xlsb."}), 400
     try:
-        rows = coa_map.read_coa_sheet(io.BytesIO(f.read()))
+        rows, cc_rows = coa_map.read_mapping_sheets(io.BytesIO(f.read()))
         if not rows:
             raise coa_map.CoaParseError("Tidak ada pemetaan COA yang valid di sheet COA.")
     except coa_map.CoaParseError as e:
         return jsonify({"ok": False, "pesan": str(e)}), 400
     try:
-        out = coa_map.sync_coa(f.filename, get_jwt().get("username", ""), rows)
+        out = coa_map.sync_coa(f.filename, get_jwt().get("username", ""), rows, cc_rows)
     except Exception as e:
         return jsonify({"ok": False, "pesan": f"Sync gagal, pemetaan lama tidak berubah: {e}"}), 500
     if not out["changed"]:
-        pesan = (f"Sudah sinkron: pemetaan COA tidak berubah "
-                 f"(SMT {out['rows_smt']} akun, ETF {out['rows_etf']} akun).")
+        pesan = (f"Sudah sinkron: pemetaan tidak berubah (SMT {out['rows_smt']} akun, "
+                 f"ETF {out['rows_etf']} akun, {out['rows_cc']} cost center).")
     else:
-        pesan = f"Sync COA selesai: SMT {out['rows_smt']} akun, ETF {out['rows_etf']} akun."
+        pesan = (f"Sync pemetaan selesai: SMT {out['rows_smt']} akun, "
+                 f"ETF {out['rows_etf']} akun, {out['rows_cc']} cost center.")
     return jsonify({"ok": True, "pesan": pesan, **out})

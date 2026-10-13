@@ -32,16 +32,16 @@
 <div class="card" style="margin-bottom:1rem">
   <strong>Pemetaan COA</strong>
   <div class="gl-muted" style="margin:.25rem 0">
-    {% if last_coa %}Terakhir sync COA: {{ last_coa.synced_at }} · {{ last_coa.synced_by }} · {{ last_coa.filename }} · SMT {{ last_coa.rows_smt }} akun, ETF {{ last_coa.rows_etf }} akun
+    {% if last_coa %}Terakhir sync COA: {{ last_coa.synced_at }} · {{ last_coa.synced_by }} · {{ last_coa.filename }} · SMT {{ last_coa.rows_smt }} akun, ETF {{ last_coa.rows_etf }} akun, {{ last_coa.rows_cc or 0 }} cost center
     {% else %}Pemetaan COA belum pernah disync.{% endif %}
   </div>
   {% if can_manage %}
   <div style="margin:.5rem 0">
     <input type="file" id="gl-coa-file" accept=".xlsb">
-    <button class="btn btn-primary btn-sm" id="gl-coa-btn" onclick="glSyncCoa()">Sync COA dari Excel</button>
+    <button class="btn btn-primary btn-sm" id="gl-coa-btn" onclick="glSyncCoa()">Sync pemetaan COA &amp; CC dari Excel</button>
     <span id="gl-coa-msg" class="gl-muted"></span>
   </div>
-  <div class="gl-muted">Pilih file <code>Management Report - MASTER.xlsb</code>; hanya sheet <b>COA</b> yang dibaca.</div>
+  <div class="gl-muted">Pilih file <code>Management Report - MASTER.xlsb</code>; hanya sheet <b>COA</b> dan <b>CC</b> yang dibaca.</div>
   {% endif %}
 </div>
 

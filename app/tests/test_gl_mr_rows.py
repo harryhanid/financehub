@@ -5,9 +5,9 @@ from modules.general_ledger import mr_rows as mr
 from modules.general_ledger import service as svc
 from tests.test_gl_sync import mkrow
 
-CMAP = {("SMT", "6-1810"): ("70108100", "10 - Office Supplies And Equipment Expense"),
-        ("ETF", "6-2190"): ("70119100", "20 - Others"),
-        ("SMT", "6-1111"): ("70100000", "")}
+CMAP = {("SMT", "6-1810"): ("70108100", "10 - Office Supplies And Equipment Expense", "-10-"),
+        ("ETF", "6-2190"): ("70119100", "20 - Others", "-20-"),
+        ("SMT", "6-1111"): ("70100000", "", "")}
 
 
 def g(acc="6-1810", tgl="2026-01-15", memo="Zoom", amount=-957910.0, job="POITEC",
@@ -29,6 +29,12 @@ def test_row_fields_follow_the_macro_and_gl_combine_mapping():
         "description": "- Act 2026 : Zoom Month : 1", "custom": "3", "mm1": 1,
         "pta": 0.0, "bgt": 0.0, "act": -1.0, "source": "SMT", "account": "6-1810",
         "unmapped": False}]
+
+
+def test_old_two_tuple_map_values_still_work():
+    res = mr.build_mr_rows({"SMT": [g()], "ETF": []},
+                           {("SMT", "6-1810"): ("70108100", "10 - Office")})
+    assert res.rows[0]["coa"] == "70108100" and res.rows[0]["category"] == "10 - Office"
 
 
 def test_only_accounts_starting_6_to_9_with_a_nonzero_amount_are_kept():
