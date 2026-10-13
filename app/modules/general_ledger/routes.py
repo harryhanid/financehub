@@ -133,7 +133,8 @@ def _resolve_period(opts):
 def mr_page():
     cmap = coa_map.get_map()
     built = mr_rows.build_mr_rows(
-        {"SMT": service.load_mr_source("smt"), "ETF": service.load_mr_source("etf")}, cmap)
+        {"SMT": service.load_mr_source("smt"), "ETF": service.load_mr_source("etf")},
+        cmap, coa_map.get_cc_map())
     opts = mr_rows.period_options(built.rows)
     yy, mm = _resolve_period(opts)
     scoped = mr_rows.apply_cutoff(built.rows, yy, mm) if yy is not None else []
@@ -147,6 +148,7 @@ def mr_page():
     data = mr_report.query_data(scoped, q=q, cc=cc or None, page=_page()) if view == "data" else None
     shown = [r for r in scoped if not cc or r["cc"] == cc]
     unmapped = mr_rows.unmapped_summary(scoped)
+    unmapped_cc = mr_rows.unmapped_cc_summary(scoped)
     n_rows, total_act = len(shown), round(sum(r["act"] for r in shown), 6) + 0.0
     if data is not None:
         n_rows, total_act = data["total"], data["sum_act"]
@@ -160,7 +162,7 @@ def mr_page():
         last_coa=coa_map.last_sync(), has_map=bool(cmap), has_gl=bool(built.rows),
         opts=opts, yy=yy, mm=mm, cc=cc, q=q, view=view, ccs=ccs,
         report=report, data=data, n_rows=n_rows, total_act=total_act,
-        unmapped=unmapped, unmapped_rows=sum(u["rows"] for u in unmapped),
+        unmapped=unmapped, unmapped_cc=unmapped_cc, unmapped_rows=sum(u["rows"] for u in unmapped),
         unmapped_act=round(sum(u["act"] for u in unmapped), 6) + 0.0,
         skipped_date=built.skipped_date, active_page="general_ledger", use_unified_header=True,
     )

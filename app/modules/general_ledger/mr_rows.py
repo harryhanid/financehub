@@ -31,8 +31,12 @@ def _parse_date(value):
         return None
 
 
-def build_mr_rows(source_rows: dict, coa_map: dict) -> MrBuild:
+def build_mr_rows(source_rows: dict, coa_map: dict, cc_map: dict = None) -> MrBuild:
+    """Rows in GL Combine / Append1 shape. `new_code` numbers run per (cc0, cc1, bc1) over ALL built rows
+    (SMT first, then ETF), so apply any cutoff afterwards, never before."""
+    cc_map = cc_map or {}
     rows, skipped = [], 0
+    counters = {}
     for source in ("SMT", "ETF"):
         for r in source_rows.get(source, []):
             account = str(r.get("acc_management") or "").strip()
@@ -43,17 +47,30 @@ def build_mr_rows(source_rows: dict, coa_map: dict) -> MrBuild:
             if d is None:
                 skipped += 1
                 continue
-            coa, category, *_ = coa_map.get((source, account), ("", ""))
+            coa, category, *rest = coa_map.get((source, account), ("", ""))
+            bc1 = rest[0] if rest else ""
             memo = r.get("allocation_memo") or ""
+            cc = str(r.get("job_name") or "").strip()
+            cc_entry = cc_map.get(cc) or {}
+            seq = int(cc_entry.get("seq") or 0)
+            total = cc_entry.get("total") or ""
+            cc0 = f"{d.year % 100:02d}"
+            group = (cc0, seq, bc1)
+            counters[group] = counters.get(group, 0) + 1
             rows.append({
                 "coa": coa, "mm": d.month, "yy": d.year,
-                "cc": str(r.get("job_name") or "").strip(),
+                "cc": cc,
                 "category": category or UNMAPPED,
                 "activity": str(r.get("budget_activity") or "").strip(),
                 "description": f"- Act {d.year} : {memo} Month : {d.month}",
                 "custom": "3", "mm1": d.month, "pta": 0.0, "bgt": 0.0,
                 "act": excel_round_mio(amount), "source": source, "account": account,
                 "unmapped": not category,
+                "id_no": str(r.get("id_no") or "").strip(), "tgl": d.isoformat(),
+                "allocation_memo": memo, "debit_credit": float(amount),
+                "cost_center2": total, "cc0": cc0, "cc1": seq, "bc1": bc1,
+                "new_code": f"A{cc0}-{seq}{bc1}{counters[group]}",
+                "cc_unmapped": not total,
             })
     return MrBuild(rows, skipped)
 
@@ -67,6 +84,15 @@ def unmapped_summary(rows) -> list:
             e["rows"] += 1
             e["act"] = round(e["act"] + r["act"], 6)
     return sorted(out.values(), key=lambda e: (e["source"], e["account"]))
+
+
+def unmapped_cc_summary(rows) -> list:
+    """Cost centres without a COST CENTER2 (absent from sheet CC or empty total), with their row counts."""
+    out = {}
+    for r in rows:
+        if r["cc_unmapped"]:
+            out[r["cc"]] = out.get(r["cc"], 0) + 1
+    return [{"cc": cc, "rows": n} for cc, n in sorted(out.items())]
 
 
 def period_options(rows) -> dict:

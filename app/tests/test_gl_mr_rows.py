@@ -10,14 +10,19 @@ CMAP = {("SMT", "6-1810"): ("70108100", "10 - Office Supplies And Equipment Expe
         ("SMT", "6-1111"): ("70100000", "", "")}
 
 
+CCMAP = {"POITEC": {"total": "$POITEC", "seq": 16, "description": "IT"},
+         "POCFAD": {"total": "$POCFAD", "seq": 3, "description": "Fin"},
+         "PULPP": {"total": "", "seq": 0, "description": "PULP & PAPER"}}
+
+
 def g(acc="6-1810", tgl="2026-01-15", memo="Zoom", amount=-957910.0, job="POITEC",
-      activity="SMT - IT"):
-    return {"acc_management": acc, "tgl": tgl, "allocation_memo": memo,
+      activity="SMT - IT", id_no="GJ-1"):
+    return {"id_no": id_no, "acc_management": acc, "tgl": tgl, "allocation_memo": memo,
             "budget_activity": activity, "job_name": job, "debit_credit": amount}
 
 
 def build(smt=(), etf=()):
-    return mr.build_mr_rows({"SMT": list(smt), "ETF": list(etf)}, CMAP)
+    return mr.build_mr_rows({"SMT": list(smt), "ETF": list(etf)}, CMAP, CCMAP)
 
 
 def test_row_fields_follow_the_macro_and_gl_combine_mapping():
@@ -28,7 +33,10 @@ def test_row_fields_follow_the_macro_and_gl_combine_mapping():
         "category": "10 - Office Supplies And Equipment Expense", "activity": "SMT - IT",
         "description": "- Act 2026 : Zoom Month : 1", "custom": "3", "mm1": 1,
         "pta": 0.0, "bgt": 0.0, "act": -1.0, "source": "SMT", "account": "6-1810",
-        "unmapped": False}]
+        "unmapped": False,
+        "id_no": "GJ-1", "tgl": "2026-01-15", "allocation_memo": "Zoom", "debit_credit": -957910.0,
+        "cost_center2": "$POITEC", "cc0": "26", "cc1": 16, "bc1": "-10-",
+        "new_code": "A26-16-10-1", "cc_unmapped": False}]
 
 
 def test_old_two_tuple_map_values_still_work():
@@ -106,6 +114,64 @@ def test_load_mr_source_returns_only_amount_rows_with_needed_columns():
               budget_activity="b", job_name="J"),
         mkrow(id_no="Z", debit_credit=0.0)], log)
     rows = svc.load_mr_source("smt")
-    assert rows == [{"acc_management": "6-1810", "tgl": "2026-01-02", "allocation_memo": "m",
+    assert rows == [{"id_no": "GJ-1", "acc_management": "6-1810", "tgl": "2026-01-02", "allocation_memo": "m",
                      "budget_activity": "b", "job_name": "J", "debit_credit": 5.0}]
     assert svc.load_mr_source("etf") == []
+
+
+def test_new_code_running_number_per_group_smt_before_etf():
+    res = build(smt=[g(), g(job="POCFAD"), g(), g(acc="6-1111", amount=5e6)],
+                etf=[g(acc="6-2190", amount=3e4), g()])     # ETF 6-1810 is unmapped there -> bc1 ""
+    codes = [(r["source"], r["cc1"], r["bc1"], r["new_code"]) for r in res.rows]
+    assert codes == [("SMT", 16, "-10-", "A26-16-10-1"),
+                     ("SMT", 3, "-10-", "A26-3-10-1"),          # other group restarts at 1
+                     ("SMT", 16, "-10-", "A26-16-10-2"),        # unaffected by the other group's row
+                     ("SMT", 16, "", "A26-161"),                # same cc, empty code is its own group
+                     ("ETF", 16, "-20-", "A26-16-20-1"),
+                     ("ETF", 16, "", "A26-162")]
+
+
+def test_new_code_year_is_part_of_the_group():
+    res = build(smt=[g(tgl="2025-12-01"), g(tgl="2026-01-01"), g(tgl="2025-12-02")])
+    assert [(r["cc0"], r["new_code"]) for r in res.rows] == [
+        ("25", "A25-16-10-1"), ("26", "A26-16-10-1"), ("25", "A25-16-10-2")]
+
+
+def test_new_fields_from_the_source_row():
+    r = build(smt=[g(id_no=" GJ-9 ", memo=" Zoom  x ")]).rows[0]
+    assert (r["id_no"], r["allocation_memo"], r["tgl"], r["debit_credit"]) == (
+        "GJ-9", " Zoom  x ", "2026-01-15", -957910.0)
+
+
+def test_cost_center_absent_or_empty_total_is_unmapped():
+    res = build(smt=[g(job="NOPE"), g(job="PULPP"), g()])
+    absent, pulpp, ok = res.rows
+    for r in (absent, pulpp):
+        assert (r["cost_center2"], r["cc1"], r["cc_unmapped"]) == ("", 0, True)
+    assert absent["new_code"] == "A26-0-10-1"
+    assert pulpp["new_code"] == "A26-0-10-2"
+    assert (ok["cost_center2"], ok["cc1"], ok["cc_unmapped"]) == ("$POITEC", 16, False)
+
+
+def test_cc_map_is_optional():
+    res = mr.build_mr_rows({"SMT": [g()], "ETF": []}, CMAP)
+    r = res.rows[0]
+    assert (r["cost_center2"], r["cc1"], r["cc_unmapped"], r["new_code"]) == ("", 0, True, "A26-0-10-1")
+
+
+def test_numbering_is_independent_of_the_cutoff():
+    res = build(smt=[g(tgl="2026-01-10"), g(tgl="2026-02-10"), g(tgl="2026-03-10")])
+    cut = mr.apply_cutoff(res.rows, 2026, 2)
+    assert [r["new_code"] for r in cut] == ["A26-16-10-1", "A26-16-10-2"]
+    late = mr.apply_cutoff(build(smt=[g(tgl="2025-12-10"), g(tgl="2026-02-10")]).rows, 2026, 2)
+    assert late[0]["new_code"] == "A26-16-10-1"
+    # the second row of a group keeps its number even when the first row is cut away
+    res2 = build(smt=[g(tgl="2026-03-10"), g(tgl="2026-01-10")])
+    assert [r["new_code"] for r in mr.apply_cutoff(res2.rows, 2026, 1)] == ["A26-16-10-2"]
+
+
+def test_unmapped_cc_summary():
+    res = build(smt=[g(job="ZZZ"), g(job="PULPP"), g(job="ZZZ"), g(), g(job="AAA")])
+    assert mr.unmapped_cc_summary(res.rows) == [
+        {"cc": "AAA", "rows": 1}, {"cc": "PULPP", "rows": 1}, {"cc": "ZZZ", "rows": 2}]
+    assert mr.unmapped_cc_summary(build(smt=[g()]).rows) == []

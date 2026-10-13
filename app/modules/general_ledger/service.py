@@ -188,7 +188,7 @@ def load_mr_source(entity) -> list:
     try:
         ensure_schema(conn)
         return [dict(r) for r in conn.execute(
-            f"SELECT acc_management, tgl, allocation_memo, budget_activity, job_name, debit_credit "
+            f"SELECT id_no, acc_management, tgl, allocation_memo, budget_activity, job_name, debit_credit "
             f"FROM {table} WHERE debit_credit IS NOT NULL AND debit_credit <> 0")]
     finally:
         conn.close()

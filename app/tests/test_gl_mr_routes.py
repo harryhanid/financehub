@@ -122,6 +122,41 @@ def test_unmapped_accounts_are_reported_not_hidden(client):
     assert "Belum dipetakan" in html and "6-9999" in html and "Misterius" in html
 
 
+def seed_cc(rows):
+    coa_map.sync_coa("m.xlsb", "u", [
+        {"source": "SMT", "account": "6-1810", "coa_ho": "70108100",
+         "category": "10 - Office Supplies And Equipment Expense", "code": "-10-"},
+        {"source": "ETF", "account": "6-2190", "coa_ho": "70119100", "category": "20 - Others",
+         "code": "-20-"}], rows)
+
+
+def test_unmapped_cost_center_banner(client):
+    login(client)
+    seed_gl()
+    seed_cc([{"cost_center": "POITEC", "total_cc": "$POITEC", "seq": 16, "description": "IT"},
+             {"cost_center": "POCFAD", "total_cc": "$POCFAD", "seq": 3, "description": "F"}])
+    html = page(client).data.decode()
+    assert "2 cost center belum ada di sheet CC (COST CENTER2 kosong, CC1 = 0): TFOPEX (1)" not in html
+    assert "1 cost center belum ada di sheet CC (COST CENTER2 kosong, CC1 = 0): TFOPEX (1)" in html
+
+
+def test_no_cost_center_banner_when_all_mapped(client):
+    login(client)
+    seed_gl()
+    seed_cc([{"cost_center": c, "total_cc": "$" + c, "seq": i + 1, "description": ""}
+             for i, c in enumerate(("POITEC", "POCFAD", "TFOPEX"))])
+    assert "belum ada di sheet CC" not in page(client).data.decode()
+
+
+def test_cost_center_banner_counts_only_cutoff_scoped_rows(client):
+    login(client)
+    seed_gl()
+    seed_cc([{"cost_center": "POITEC", "total_cc": "$POITEC", "seq": 16, "description": ""},
+             {"cost_center": "POCFAD", "total_cc": "$POCFAD", "seq": 3, "description": ""}])
+    # TFOPEX row is in Feb; cutoff January must not report it
+    assert "belum ada di sheet CC" not in page(client, "?yy=2026&mm=1").data.decode()
+
+
 def make_non_admin(client):
     import bcrypt
     import database

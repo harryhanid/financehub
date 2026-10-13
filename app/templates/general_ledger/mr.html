@@ -58,6 +58,12 @@
   Perbarui sheet COA di Excel lalu sync COA ulang.
 </div>
 {% endif %}
+{% if unmapped_cc %}
+<div class="gl-warn card">
+  {{ unmapped_cc | length }} cost center belum ada di sheet CC (COST CENTER2 kosong, CC1 = 0): {% for u in unmapped_cc[:10] %}{{ u.cc }} ({{ u.rows }}){% if not loop.last %}, {% endif %}{% endfor %}{% if unmapped_cc | length > 10 %}, …{% endif %}.
+  Perbarui sheet CC di Excel lalu sync ulang.
+</div>
+{% endif %}
 {% if skipped_date %}
 <div class="gl-warn card">{{ skipped_date }} baris GL dilewati karena tanggalnya tidak valid.</div>
 {% endif %}
