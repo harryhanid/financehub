@@ -36,6 +36,7 @@ Acuan: `Y:\Seagate\Management Report\2026\0926\Management Report - MASTER harry.
 - Modul Sponsorship dan konstanta `SPONSORSHIP_MR_*` di `config.py` **tidak diubah**. Aturan baru memakai pengaturan baru `MR_SPONSOR_*`. Akibatnya tab MR Sponsorship dan tab Append1/GL Combine di MR bisa berbeda sampai pengguna memutuskan menyelaraskannya.
 - Tab/tampilan **Report hasil bentukan** (dari pekerjaan sebelumnya) tidak ikut dipindah. Tahap berikutnya, tab Report dan HO Report milik modul MR akan membaca Append1 hasil bentukan.
 - Tab MR lama di modul General Ledger dihapus. Tab GL SMT, GL ETF, GL SETF tetap.
+- **Fitur yang sudah ada di modul MR tetap utuh.** Sync dari upload Excel (`POST /management-report/sync`, snapshot `mr_upload`/`mr_append`, aktivasi snapshot), tab Data Sync, Report, HO Report, dan export BGT tidak diubah perilakunya, tidak dihapus, dan tidak dibuat bergantung pada fitur baru. Fitur baru hanya berupa tab dan halaman baru.
 - Modul MR dan tesnya sudah ter-commit sebagai baseline (commit `0ecb2b2`).
 
 ## Struktur
@@ -82,6 +83,7 @@ Halaman GL Combine dan Append1 berbagi filter dan bilah tab:
 
 ## Pengujian (pytest)
 
+- **Semua tes MR yang sudah ada (`tests/test_mr_*.py`) harus lulus tanpa diubah.** Itu bukti fitur upload dan tab lama tetap utuh; tes lama hanya boleh diubah bila kontrak tab bar memang berubah dan perubahannya dicatat.
 - Tes yang sudah ada untuk `coa_map`, `mr_rows`, `mr_columns`, dan tampilan dipindah dan disesuaikan ke modul baru. Perilaku GL tidak boleh berubah.
 - Adaptor `sponsor_rows`: company SMT dicari dari kode, transaksi tahun lain ikut, urutan `tanggal_form_sponsor` lalu `id`, memo = `perihal`, transaksi tanpa tanggal valid dilewati.
 - Baris Sponsor: nilai tetap dari `MR_SPONSOR_*`, deskripsi, ACT setengah ke genap, tidak ditandai belum dipetakan.
