@@ -27,7 +27,8 @@ def _gl_mio(value) -> str:
     """Rp Mio with 1 decimal, Indonesian style: 1234.56 -> '1.234,6'; None -> ''."""
     if value is None:
         return ""
-    return f"{float(value):,.1f}".replace(",", "\0").replace(".", ",").replace("\0", ".")
+    v = round(float(value), 1) + 0.0                 # never "-0,0"
+    return f"{v:,.1f}".replace(",", "\0").replace(".", ",").replace("\0", ".")
 
 
 bp.add_app_template_filter(_gl_mio, "gl_mio")
@@ -137,12 +138,18 @@ def mr_page():
     yy, mm = _resolve_period(opts)
     scoped = mr_rows.apply_cutoff(built.rows, yy, mm) if yy is not None else []
     cc = (request.args.get("cc") or "").strip()
+    ccs = mr_report.list_ccs(scoped)
+    if cc not in ccs:
+        cc = ""                                       # stale/unknown CC: same as "All Cost Center"
     view = "data" if request.args.get("view") == "data" else "report"
     q = (request.args.get("q") or "").strip()
     report = mr_report.build_report(scoped, cc or None) if view == "report" else None
     data = mr_report.query_data(scoped, q=q, cc=cc or None, page=_page()) if view == "data" else None
     shown = [r for r in scoped if not cc or r["cc"] == cc]
     unmapped = mr_rows.unmapped_summary(scoped)
+    n_rows, total_act = len(shown), round(sum(r["act"] for r in shown), 6) + 0.0
+    if data is not None:
+        n_rows, total_act = data["total"], data["sum_act"]
     try:
         can_manage = is_admin(get_jwt())
     except Exception:
@@ -151,10 +158,10 @@ def mr_page():
         "general_ledger/mr.html",
         entities=service.ENTITIES, active_tab="mr", can_manage=can_manage,
         last_coa=coa_map.last_sync(), has_map=bool(cmap), has_gl=bool(built.rows),
-        opts=opts, yy=yy, mm=mm, cc=cc, q=q, view=view, ccs=mr_report.list_ccs(scoped),
-        report=report, data=data, n_rows=len(shown), total_act=round(sum(r["act"] for r in shown), 6),
+        opts=opts, yy=yy, mm=mm, cc=cc, q=q, view=view, ccs=ccs,
+        report=report, data=data, n_rows=n_rows, total_act=total_act,
         unmapped=unmapped, unmapped_rows=sum(u["rows"] for u in unmapped),
-        unmapped_act=round(sum(u["act"] for u in unmapped), 6),
+        unmapped_act=round(sum(u["act"] for u in unmapped), 6) + 0.0,
         skipped_date=built.skipped_date, active_page="general_ledger", use_unified_header=True,
     )
 

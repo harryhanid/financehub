@@ -65,3 +65,13 @@ def test_data_search_and_cc_filter():
 def test_data_empty():
     r = rep.query_data([])
     assert r["total"] == 0 and r["pages"] == 1 and r["sum_act"] == 0.0
+
+
+def test_totals_netting_to_zero_are_never_negative_zero():
+    import math
+    rows = [mr(act=0.3), mr(act=-0.1), mr(act=-0.2)]
+    r = rep.build_report(rows)
+    vals = [r["groups"][0]["lines"][0]["act"], r["groups"][0]["total"], r["grand"]]
+    for v in vals:
+        assert abs(v) < 1e-9 and math.copysign(1, v) > 0, v
+    assert math.copysign(1, rep.query_data(rows)["sum_act"]) > 0

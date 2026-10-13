@@ -230,3 +230,32 @@ def test_user_input_is_html_escaped(client):
     assert raw not in html and "&lt;script&gt;" in html
     html = page(client, "?view=data&cc=" + raw + "&q=" + raw).data.decode()
     assert raw not in html
+
+
+def test_gl_mio_never_shows_negative_zero():
+    assert gl_routes._gl_mio(-1e-17) == "0,0"
+    assert gl_routes._gl_mio(-0.04) == "0,0"
+    assert gl_routes._gl_mio(-0.0) == "0,0"
+    assert gl_routes._gl_mio(-0.06) == "-0,1"
+
+
+def test_unknown_or_out_of_scope_cost_center_falls_back_to_all(client):
+    login(client)
+    seed_gl()
+    seed_map()
+    html = page(client, "?yy=2026&mm=1&cc=POCFAD").data.decode()
+    assert "Zoom" in html and "Tidak ada data" not in html
+    html = page(client, "?cc=NOPE").data.decode()
+    assert "Zoom" in html and "ATK" in html and "Total All Cost Center" in html
+
+
+def test_data_view_cards_follow_the_search_filter(client):
+    import re
+    login(client)
+    seed_gl()
+    seed_map()
+    html = page(client, "?view=data&q=ATK").data.decode()
+    assert re.search(r"Baris<b>1</b>", html)
+    assert re.search(r"Total ACT \(Rp Mio\)<b>5,0</b>", html)
+    full = page(client, "?view=data").data.decode()
+    assert re.search(r"Baris<b>3</b>", full)
