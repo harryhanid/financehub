@@ -1,0 +1,31 @@
+{% macro v(x) %}{{ x if x is not none else '' }}{% endmacro %}
+{% if not has_snapshot %}
+<div class="mr-muted">Belum ada data. Sync dulu.</div>
+{% else %}
+<div class="mr-muted" style="margin:.25rem 0 .5rem">{{ total | mr_num(0) }} baris</div>
+<div class="budget-table-container" style="max-height:60vh">
+<table class="budget-table mr-append-table">
+  <thead><tr>
+    <th>COA</th><th>MM</th><th>YY</th><th>CC</th><th>Category</th><th>Activity</th><th>Description</th>
+    <th>PTA</th><th>Custom</th><th>MM.1</th><th>ACT</th><th>BGT</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ v(r.coa) }}</td><td>{{ v(r.mm) }}</td><td>{{ v(r.yy) }}</td><td>{{ v(r.cc) }}</td>
+      <td>{{ v(r.category) }}</td><td>{{ v(r.activity) }}</td><td class="mr-wrap">{{ v(r.description) }}</td>
+      <td class="num-right">{{ r.pta | mr_num(2) }}</td><td>{{ v(r.custom) }}</td><td>{{ v(r.mm1) }}</td>
+      <td class="num-right">{{ r.act | mr_num(2) }}</td><td class="num-right">{{ r.bgt | mr_num(2) }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="12">Tidak ada baris untuk filter ini.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div class="mr-pager">
+  <button type="button" class="budget-btn" data-page="{{ page - 1 }}" {% if page <= 1 %}disabled{% endif %}>Sebelumnya</button>
+  <span class="mr-muted">Halaman {{ page }} dari {{ pages }}</span>
+  <button type="button" class="budget-btn" data-page="{{ page + 1 }}" {% if page >= pages %}disabled{% endif %}>Berikutnya</button>
+</div>
+{% endif %}

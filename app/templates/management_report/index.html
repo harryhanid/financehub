@@ -1,0 +1,533 @@
+{% extends "base.html" %}
+{% block title %}Management Report{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+<style>
+/* Data Sync tab (normal page, app card look) */
+.mr-table { border-collapse:collapse; width:100%; font-size:.8125rem; }
+.mr-table th, .mr-table td { padding:.3rem .5rem; border-bottom:1px solid var(--sl-200); }
+.mr-table th { text-align:left; background:var(--sl-50); }
+.mr-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.mr-muted { color:var(--sl-500); font-size:.8125rem; }
+
+/* Data Append table (Data Sync tab) */
+.budget-page.mr-append-scope { padding:0; background:transparent; }
+#mr-append { margin-top:.25rem; transition:opacity .12s; }
+#mr-append.mr-loading { opacity:.45; }
+.mr-append-table { white-space:nowrap; font-size:.8rem; }
+.mr-append-table td.mr-wrap { white-space:normal; min-width:360px; }
+.mr-pager { display:flex; align-items:center; gap:.75rem; margin:.6rem 0 .2rem; }
+.mr-pager .budget-btn[disabled] { opacity:.45; cursor:default; box-shadow:none; }
+
+/* Report / HO Report tabs: same table look as the Sponsorship Report / MR pages (budget-table + sp-report-* rows) */
+#mr-filter-wrap[hidden] { display:none !important; }
+#mr-coa[hidden], #mr-cat[hidden] { display:none !important; }
+.mr-field { display:flex; flex-direction:column; min-width:120px; }
+.mr-field select { width:100%; }
+.mr-actions { margin-left:auto; display:flex; gap:.5rem; align-items:center; position:relative; }
+.mr-export-pop { position:absolute; top:100%; right:0; z-index:30; min-width:300px; padding:.75rem; margin-top:.4rem; display:flex; flex-direction:column; gap:.4rem;
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); box-shadow:0 8px 24px rgba(0,0,0,.35); }
+.mr-export-pop[hidden] { display:none !important; }
+.mr-export-pop label { display:flex; gap:.5rem; align-items:center; cursor:pointer; }
+.mr-export-pop input[type=radio] { width:auto !important; flex:none; margin:0; }
+.mr-export-title { font-weight:700; }
+.mr-export-actions { display:flex; gap:.5rem; justify-content:flex-end; margin-top:.25rem; }
+.mr-actions .budget-btn { text-decoration:none; display:inline-block; white-space:nowrap; }
+.budget-table-container { overflow:auto; }
+.budget-table-container.mr-loading { opacity:.45; }
+.mr-report-table, .mr-ho-table { white-space:nowrap; font-size:.8rem; }
+.mr-report-table td.mr-wrap { white-space:normal; min-width:480px; }
+.budget-table td.num-right { text-align:right; }
+.budget-table .mr-neg { color:var(--danger); }
+/* Var = Actual - Available: below budget (negative) is good, over budget (positive) is bad */
+.budget-table .mr-under { color:var(--success); }
+.budget-table .mr-over { color:var(--danger); }
+.mr-lvl-row td { background:var(--sl-200); font-weight:700; }
+.mr-cat-row td { background:var(--sl-50); font-weight:600; cursor:pointer; }
+.mr-cat-row .mr-arrow { display:inline-block; width:1em; transition:transform .12s; }
+.mr-cat-row.open .mr-arrow { transform:rotate(90deg); }
+.mr-detail[hidden] { display:none; }
+.mr-detail td { color:var(--text-muted); }
+.mr-toggle-links { margin-left:1rem; font-size:.8125rem; }
+.mr-sheet-head { margin:.25rem 0 .6rem; }
+.mr-sheet-head .mr-muted { margin-right:.75rem; }
+.mr-sheet-head strong { font-size:1rem; margin-right:.5rem; }
+.mr-sheet-title { font-weight:700; margin:1rem 0 .4rem; }
+.mr-note { color:var(--text-muted); font-size:.75rem; }
+.mr-warn { margin-bottom:.75rem; padding:.7rem .9rem; font-size:.8125rem; border-color:var(--danger); }
+.mr-warn > div + div { margin-top:.35rem; }
+.mr-ho-table th { white-space:nowrap; }
+
+/* COA dropdown: shared budget-dropdown-check look, plus search + select-all */
+#mr-coa .budget-dropdown-content, #mr-cat .budget-dropdown-content { width:260px; max-height:340px; padding:.4rem; }
+#mr-cat .budget-dropdown-content { width:340px; }
+#mr-coa .budget-dropdown-content input[type=search], #mr-cat .budget-dropdown-content input[type=search] { width:100%; margin-bottom:.35rem; }
+#mr-coa .budget-dropdown-content input[type=checkbox], #mr-cat .budget-dropdown-content input[type=checkbox] { width:auto !important; flex:none; margin:0; padding:0; }
+#mr-coa .budget-dropdown-content label, #mr-cat .budget-dropdown-content label { padding:.25rem .5rem; }
+#mr-coa .budget-dropdown-content label[hidden], #mr-cat .budget-dropdown-content label[hidden] { display:none !important; }
+.mr-coa-list { border-top:1px solid var(--border-color); margin-top:.25rem; padding-top:.25rem; }
+.mr-coa-hint { color:var(--danger); font-size:.75rem; margin:.25rem .5rem; }
+</style>
+{% endblock %}
+
+{% block module_tabs %}
+<div class="tabs" style="margin-bottom:0" title="Alt+&#8592; / Alt+&#8594; untuk pindah tab">
+  <button class="tab-btn" data-tab="tab-sync">Data Sync</button>
+  <button class="tab-btn" data-tab="tab-report">Report</button>
+  <button class="tab-btn" data-tab="tab-ho">HO Report</button>
+</div>
+{% endblock %}
+
+{% block content %}
+{% macro s(v) %}{{ '+' if v >= 0 else '' }}{{ v | mr_num }}{% endmacro %}
+
+<div data-tabs>
+
+<div class="tab-panel" id="tab-sync">
+<div class="card" style="margin-bottom:1rem">
+  <strong>Sinkronisasi Excel</strong>
+  {% set act = (uploads | selectattr('is_active') | list | first) if uploads else none %}
+  <div class="mr-muted" style="margin:.25rem 0">
+    {% if act %}Terakhir sync: {{ act.uploaded_at }} · {{ act.filename }} · {{ act.row_count }} baris
+    {% else %}Belum pernah sync.{% endif %}
+  </div>
+  {% if can_manage %}
+  <div style="margin:.5rem 0">
+    <input type="file" id="mr-file" accept=".xlsb">
+    <button class="btn btn-primary btn-sm" id="mr-sync-btn" onclick="mrSync()">Sync dari Excel</button>
+    <span id="mr-sync-msg" class="mr-muted"></span>
+  </div>
+  {% endif %}
+  {% if last_summary %}
+  <div style="margin:.75rem 0; padding:.6rem .75rem; border:1px solid var(--sl-200); border-radius:8px">
+    <strong>Perubahan sync terakhir</strong>
+    {% if last_summary.first %}
+      <div class="mr-muted">Sync pertama: {{ last_summary.rows_after }} baris dari {{ last_summary.ccs | length }} CC.</div>
+    {% else %}
+      <div>Baris: {{ last_summary.rows_before }} → {{ last_summary.rows_after }}
+        · BGT {{ s(last_summary.delta.bgt) }} · PTA {{ s(last_summary.delta.pta) }}
+        · ACT {{ s(last_summary.delta.act) }} <span class="mr-muted">(Rp Mio)</span></div>
+      <div class="mr-muted">Baris laporan: {{ last_summary.lines.added }} baru,
+        {{ last_summary.lines.removed }} dihapus, {{ last_summary.lines.changed }} berubah angkanya.</div>
+      {% if last_summary.meta_changed %}
+      <div class="mr-muted">Deskripsi CC atau periode laporan ikut berubah.</div>
+      {% endif %}
+      {% if last_summary.ccs %}
+      <details style="margin-top:.4rem">
+        <summary>CC terdampak ({{ last_summary.ccs | length }})</summary>
+        <table class="mr-table" style="max-width:640px; margin-top:.3rem">
+          <thead><tr><th>CC</th><th class="num">Δ BGT</th><th class="num">Δ PTA</th><th class="num">Δ ACT</th>
+            <th class="num">Baru</th><th class="num">Dihapus</th><th class="num">Berubah</th></tr></thead>
+          <tbody>
+          {% for c in last_summary.ccs %}
+            <tr><td>{{ c.cc }}</td><td class="num">{{ s(c.bgt) }}</td><td class="num">{{ s(c.pta) }}</td>
+              <td class="num">{{ s(c.act) }}</td><td class="num">{{ c.added }}</td>
+              <td class="num">{{ c.removed }}</td><td class="num">{{ c.changed }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </details>
+      {% elif last_summary.meta_changed %}
+      <div class="mr-muted">Angka laporan tidak berubah; hanya deskripsi CC atau periode yang berubah.</div>
+      {% else %}
+      <div class="mr-muted">Angka laporan tidak berubah; perbedaan hanya pada kolom COA atau periode.</div>
+      {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if uploads %}
+  <div class="mr-muted" style="margin-top:.5rem">Riwayat sync</div>
+  <table class="mr-table" style="max-width:760px">
+    <thead><tr><th>Tanggal</th><th>File</th><th class="num">Baris</th><th>User</th><th></th></tr></thead>
+    <tbody>
+    {% for u in uploads %}
+      <tr>
+        <td>{{ u.uploaded_at }}</td><td>{{ u.filename }}</td>
+        <td class="num">{{ u.row_count }}</td><td>{{ u.uploaded_by }}</td>
+        <td>
+          {% if u.is_active %}<strong>Aktif</strong>
+          {% elif u.purged %}<span class="mr-muted">dihapus</span>
+          {% elif can_manage %}
+            <button class="btn btn-secondary btn-sm" onclick="mrActivate({{ u.id }})">Aktifkan</button>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="card" style="margin-bottom:1rem">
+  <strong>Data Append</strong> <span class="mr-muted">(snapshot aktif)</span>
+  {% if not options.ccs %}
+  <div class="mr-muted" style="margin:.4rem 0">Belum ada data. Sync dulu.</div>
+  {% else %}
+  <div class="budget-page mr-append-scope">
+    <div class="budget-toolbar" id="mr-append-toolbar">
+      <div class="mr-field"><label for="mr-append-cc">CC</label>
+        <select id="mr-append-cc">
+          <option value="ALL">All Cost Center</option>
+          {% for c in options.ccs %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select></div>
+      <div class="mr-field" style="flex:1"><label for="mr-append-q">Cari</label>
+        <input type="search" id="mr-append-q" placeholder="COA, category, activity, description"></div>
+      <div class="mr-actions">
+        <a class="budget-btn" id="mr-append-export" href="/management-report/append/export">Export Append (Excel)</a>
+      </div>
+    </div>
+    <div id="mr-append"></div>
+  </div>
+  {% endif %}
+</div>
+</div>
+
+<div class="budget-page">
+{% if not options.ccs %}
+<div class="tab-panel" id="tab-report" data-full-bleed="true">
+  <div class="budget-card"><p>Belum ada data. Klik "Sync dari Excel" di tab Data Sync dan pilih file Management Report - MASTER.xlsb untuk memulai.</p></div>
+</div>
+<div class="tab-panel" id="tab-ho" data-full-bleed="true">
+  <div class="budget-card"><p>Belum ada data. Klik "Sync dari Excel" di tab Data Sync dan pilih file Management Report - MASTER.xlsb untuk memulai.</p></div>
+</div>
+{% else %}
+<div id="mr-filter-wrap" hidden>
+  <div class="budget-toolbar filter-bar collapsible" id="mr-filter-panel">
+    <div class="mr-field"><label for="mr-cc">CC</label>
+      <select id="mr-cc">
+        <option value="ALL" {% if filters.cc == 'ALL' %}selected{% endif %}>All Cost Center</option>
+        {% for c in options.ccs %}<option value="{{ c }}" {% if c == filters.cc %}selected{% endif %}>{{ c }}</option>{% endfor %}
+      </select></div>
+    <div class="mr-field"><label for="mr-yy">YY</label>
+      <select id="mr-yy">
+        <option value="">All</option>
+        {% for y in options.yys %}<option value="{{ y }}" {% if y == filters.yy %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select></div>
+    <div class="mr-field"><label for="mr-mm">MM</label>
+      <select id="mr-mm">
+        <option value="">All</option>
+        {% for m in options.mms %}<option value="{{ m }}" {% if m == filters.mm %}selected{% endif %}>{{ m }}</option>{% endfor %}
+      </select></div>
+    <div class="mr-field" id="mr-coa"><label>COA</label>
+      <div class="budget-dropdown-check">
+        <button type="button" class="budget-dropdown-btn" id="mr-coa-btn">
+          <span id="mr-coa-label">COA: All</span> <span style="font-size:.7em">▼</span>
+        </button>
+        <div class="budget-dropdown-content" id="mr-coa-panel">
+          <input type="search" id="mr-coa-search" placeholder="Cari COA">
+          <label><input type="checkbox" id="mr-coa-all"> (Pilih semua)</label>
+          <div class="mr-coa-list">
+            {% for c in options.coas %}
+            <label data-coa="{{ c }}"><input type="checkbox" class="mr-coa-item" value="{{ c }}" {% if not filters.coas or c in filters.coas %}checked{% endif %}> {{ c }}</label>
+            {% endfor %}
+          </div>
+          <div class="mr-coa-hint" id="mr-coa-hint" hidden>Pilih minimal satu COA.</div>
+        </div>
+      </div></div>
+    <div class="mr-field" id="mr-cat"><label>Category</label>
+      <div class="budget-dropdown-check">
+        <button type="button" class="budget-dropdown-btn" id="mr-cat-btn">
+          <span id="mr-cat-label">Category: All</span> <span style="font-size:.7em">▼</span>
+        </button>
+        <div class="budget-dropdown-content" id="mr-cat-panel">
+          <input type="search" id="mr-cat-search" placeholder="Cari category">
+          <label><input type="checkbox" id="mr-cat-all"> (Pilih semua)</label>
+          <div class="mr-coa-list">
+            {% for c in options.cats %}
+            <label><input type="checkbox" class="mr-cat-item" value="{{ c }}" {% if not filters.cats or c in filters.cats %}checked{% endif %}> {{ c }}</label>
+            {% endfor %}
+          </div>
+          <div class="mr-coa-hint" id="mr-cat-hint" hidden>Pilih minimal satu category.</div>
+        </div>
+      </div></div>
+    <div class="mr-actions">
+      <a class="budget-btn" id="mr-export-one"
+         href="{{ url_for('management_report.export_one', cc=filters.cc, yy=filters.yy, mm=filters.mm, coa=filters.coas, cat=filters.cats) }}">Export CC ini</a>
+      <a class="budget-btn" id="mr-export-all"
+         href="{{ url_for('management_report.export_all', yy=filters.yy, mm=filters.mm, coa=filters.coas, cat=filters.cats) }}">Export semua CC (ZIP)</a>
+      <div id="mr-export-pop" class="budget-card mr-export-pop" hidden role="dialog" aria-label="Pilih sheet untuk diexport">
+        <div class="mr-export-title">Sheet yang diunduh</div>
+        <label><input type="radio" name="mr-export-sheets" value="1"> Sheet 1 saja (BGT Report per CC)</label>
+        <label><input type="radio" name="mr-export-sheets" value="12"> Sheet 1 + 2 (+ BGT HO Report per CC)</label>
+        <label><input type="radio" name="mr-export-sheets" value="123" checked> Semua (Sheet 1 + 2 + 3 Append)</label>
+        <div class="mr-export-actions">
+          <button type="button" class="budget-btn" id="mr-export-go">Download</button>
+          <button type="button" class="budget-btn" id="mr-export-cancel">Batal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-report" data-full-bleed="true">
+  <div id="mr-report" class="budget-table-container">{% include "management_report/_report_table.html" %}</div>
+</div>
+<div class="tab-panel" id="tab-ho" data-full-bleed="true">
+  <div id="mr-ho" class="budget-table-container">{% include "management_report/_ho_table.html" %}</div>
+</div>
+{% endif %}
+</div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Choose the tab before the app's initTabs() runs: Report when there is data, otherwise Data Sync. */
+(function () {
+  const u = new URL(location.href);
+  if (!u.searchParams.get('tab')) { u.searchParams.set('tab', {{ default_tab | tojson }}); history.replaceState(null, '', u); }
+})();
+
+async function mrSync() {
+  const f = document.getElementById('mr-file').files[0];
+  const msg = document.getElementById('mr-sync-msg');
+  if (!f) { msg.textContent = 'Pilih file master .xlsb dulu.'; return; }
+  const btn = document.getElementById('mr-sync-btn');
+  btn.disabled = true; msg.textContent = 'Menyinkronkan...';
+  const fd = new FormData(); fd.append('file', f);
+  try {
+    const r = await fetch('/management-report/sync', {method: 'POST', body: fd, credentials: 'same-origin'});
+    const j = await r.json();
+    msg.textContent = j.pesan || (r.ok ? 'Selesai.' : 'Gagal.');
+    if (j.ok && j.changed) setTimeout(() => location.reload(), 800);
+  } catch (e) { msg.textContent = 'Gagal sync: ' + e; }
+  btn.disabled = false;
+}
+async function mrActivate(id) {
+  try {
+    const r = await fetch('/management-report/uploads/' + id + '/activate', {method: 'POST', credentials: 'same-origin'});
+    const j = await r.json();
+    if (j.ok) location.reload(); else alert(j.pesan);
+  } catch (e) { alert('Gagal: ' + e); }
+}
+
+/* Filters (F opens the bar, Esc closes it: the app's generic collapsible filter panel).
+   Any change refetches only the visible tab's table (no page reload). */
+(function () {
+  const wrap = document.getElementById('mr-filter-wrap');
+  if (!wrap) return;                                   // no data synced yet
+  const cc = document.getElementById('mr-cc'), yy = document.getElementById('mr-yy'),
+        mm = document.getElementById('mr-mm');
+  const panes = {report: document.getElementById('mr-report'), ho: document.getElementById('mr-ho')};
+  const bar = document.getElementById('mr-filter-panel');
+  const exportOne = document.getElementById('mr-export-one'), exportAll = document.getElementById('mr-export-all');
+  const stale = {report: false, ho: false};            // a tab not shown while a filter changed
+  const seqs = {report: 0, ho: 0};                     // per tab, so a switch never orphans a dimmed pane
+  let tab = 'report', timer = null;
+
+  /* Export buttons ask which sheets to download; the anchors' hrefs (refreshed with the filters) get `sheets=`. */
+  const pop = document.getElementById('mr-export-pop'), popGo = document.getElementById('mr-export-go'),
+        popCancel = document.getElementById('mr-export-cancel');
+  const SHEETS_KEY = 'mrExportSheets';
+  let popFor = null;
+  function closePop() { pop.hidden = true; popFor = null; }
+  function openPop(a) {
+    popFor = a;
+    try {
+      const saved = localStorage.getItem(SHEETS_KEY), r = saved && pop.querySelector('input[value="' + saved + '"]');
+      if (r) r.checked = true;
+    } catch (e) { /* no storage: keep the default */ }
+    pop.hidden = false;
+  }
+  [exportOne, exportAll].forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    if (!pop.hidden && popFor === a) closePop(); else openPop(a);
+  }));
+  popGo.addEventListener('click', () => {
+    const v = pop.querySelector('input[name="mr-export-sheets"]:checked').value, href = popFor.href;
+    try { localStorage.setItem(SHEETS_KEY, v); } catch (e) { /* ignore */ }
+    closePop();
+    location.href = href + (href.includes('?') ? '&' : '?') + 'sheets=' + v;
+  });
+  popCancel.addEventListener('click', closePop);
+  document.addEventListener('click', e => {
+    if (!pop.hidden && !pop.contains(e.target) && !exportOne.contains(e.target) && !exportAll.contains(e.target)) closePop();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePop(); });
+
+  /* A tick list with search and (Pilih semua): COA and Category share it. `param` is the query key. */
+  function tickList(key, param, title) {
+    const box = document.getElementById('mr-' + key), btn = document.getElementById('mr-' + key + '-btn'),
+          label = document.getElementById('mr-' + key + '-label'),
+          panel = document.getElementById('mr-' + key + '-panel'),
+          search = document.getElementById('mr-' + key + '-search'),
+          allBox = document.getElementById('mr-' + key + '-all'),
+          hint = document.getElementById('mr-' + key + '-hint');
+    const items = Array.from(document.querySelectorAll('.mr-' + key + '-item'));
+    const selected = () => items.filter(i => i.checked).map(i => i.value);
+    function syncUi() {
+      const n = selected().length;
+      label.textContent = title + ': ' + (n === items.length ? 'All' : n + ' dipilih');
+      const visible = items.filter(i => !i.closest('label').hidden);
+      const ticked = visible.filter(i => i.checked).length;
+      allBox.checked = visible.length > 0 && ticked === visible.length;
+      allBox.indeterminate = ticked > 0 && ticked < visible.length;
+      hint.hidden = n > 0;
+    }
+    btn.addEventListener('click', () => { panel.classList.toggle('show'); if (panel.classList.contains('show')) search.focus(); });
+    search.addEventListener('input', () => {
+      const q = search.value.trim().toLowerCase();
+      items.forEach(i => { i.closest('label').hidden = q !== '' && !i.value.toLowerCase().includes(q); });
+      syncUi();
+    });
+    allBox.addEventListener('change', () => {          // acts on the items currently shown (as in Excel)
+      items.filter(i => !i.closest('label').hidden).forEach(i => { i.checked = allBox.checked; });
+      syncUi(); filtersChanged();
+    });
+    items.forEach(i => i.addEventListener('change', () => { syncUi(); filtersChanged(); }));
+    syncUi();
+    return {
+      box, panel, selected,
+      /* sent only when a real subset is ticked (all ticked = no filter) */
+      addTo: p => { const s = selected(); if (s.length && s.length < items.length) s.forEach(v => p.append(param, v)); },
+    };
+  }
+  const coa = tickList('coa', 'coa', 'COA');
+  const cat = tickList('cat', 'cat', 'Category');
+  const lists = [coa, cat];
+
+  /* Table areas fill the viewport below the toolbar, like the Sponsorship pages. */
+  function sizeWraps() {
+    Object.values(panes).forEach(p => {
+      if (!p || p.offsetParent === null) return;       // tab not shown
+      p.style.height = Math.max(240, window.innerHeight - p.getBoundingClientRect().top - 24) + 'px';
+    });
+  }
+
+  function query(withCc, withLists) {
+    const p = new URLSearchParams();
+    if (withCc) p.set('cc', cc.value);
+    if (yy.value) p.set('yy', yy.value);
+    if (mm.value) p.set('mm', mm.value);
+    if (withLists) lists.forEach(l => l.addTo(p));
+    return p.toString();
+  }
+
+  function refresh() {
+    if (tab !== 'report' && tab !== 'ho') return;
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      // like Excel: keep at least one COA and one category ticked (both tabs follow both lists)
+      if (lists.some(l => l.selected().length === 0)) return;
+      const name = tab, pane = panes[name], mine = ++seqs[name];
+      const q = query(true, true);
+      pane.classList.add('mr-loading');
+      try {
+        const r = await fetch('/management-report/' + (name === 'report' ? 'table?' : 'ho-table?') + q,
+                              {credentials: 'same-origin'});
+        if (r.redirected || !r.ok) { location.reload(); return; }   // session expired
+        const html = await r.text();
+        if (mine !== seqs[name]) return;               // a newer request for this tab is already running
+        pane.innerHTML = html;
+        stale[name] = false;
+        history.replaceState(null, '', '?' + query(true, true) + '&tab=' + tab);
+        exportOne.href = '/management-report/export?' + query(true, true);
+        exportAll.href = '/management-report/export-all?' + query(false, true);
+      } catch (e) {
+        const box = document.createElement('div');
+        box.className = 'budget-card';
+        box.textContent = 'Gagal memuat laporan: ' + e;
+        pane.replaceChildren(box);
+      } finally {
+        if (mine === seqs[name]) pane.classList.remove('mr-loading');
+      }
+    }, 120);
+  }
+
+  function filtersChanged() { stale.report = stale.ho = true; refresh(); }
+
+  function showTab(name) {                             // runs for every tab click, incl. the initial one
+    tab = name;
+    wrap.hidden = name === 'sync';
+    lists.forEach(l => { l.box.hidden = name !== 'report' && name !== 'ho'; l.panel.classList.remove('show'); });
+    setTimeout(sizeWraps, 30);
+    if ((name === 'report' || name === 'ho') && stale[name]) refresh();
+  }
+  document.querySelectorAll('.tabs .tab-btn').forEach(b =>
+    b.addEventListener('click', () => showTab(b.dataset.tab.replace(/^tab-/, ''))));
+
+  [cc, yy, mm].forEach(el => el.addEventListener('change', filtersChanged));
+  document.addEventListener('click', e => lists.forEach(l => { if (!l.box.contains(e.target)) l.panel.classList.remove('show'); }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') lists.forEach(l => l.panel.classList.remove('show')); });
+
+  /* Report table: a category row toggles its detail rows; Buka/Tutup semua act on all of them.
+     The fragment is replaced via innerHTML, so the handler is delegated on the pane. */
+  panes.report.addEventListener('click', e => {
+    const all = e.target.closest('[data-mr-toggle]');
+    if (all) {
+      e.preventDefault();
+      const open = all.dataset.mrToggle === 'open';
+      panes.report.querySelectorAll('.mr-detail').forEach(r => { r.hidden = !open; });
+      panes.report.querySelectorAll('.mr-cat-row').forEach(r => r.classList.toggle('open', open));
+      return;
+    }
+    const row = e.target.closest('.mr-cat-row');
+    if (!row) return;
+    const open = row.classList.toggle('open');
+    panes.report.querySelectorAll('.mr-detail').forEach(r => { if (r.dataset.g === row.dataset.g) r.hidden = !open; });
+  });
+
+  window.addEventListener('resize', sizeWraps);
+  window.addEventListener('load', sizeWraps);
+  if (window.ResizeObserver) new ResizeObserver(sizeWraps).observe(bar);   // the bar opens/closes with F/Esc
+})();
+
+/* Data Append table (Data Sync tab): loaded on first view, then on every filter/page change. */
+(function () {
+  const box = document.getElementById('mr-append');
+  if (!box) return;                                    // no data synced yet
+  const cc = document.getElementById('mr-append-cc'), q = document.getElementById('mr-append-q'),
+        exp = document.getElementById('mr-append-export');
+  let page = 1, loaded = false, seq = 0, timer = null;
+
+  function params(withPage) {
+    const p = new URLSearchParams();
+    if (cc.value !== 'ALL') p.set('cc', cc.value);
+    if (q.value.trim()) p.set('q', q.value.trim());
+    if (withPage) p.set('page', page);
+    return p;
+  }
+
+  async function load() {
+    const mine = ++seq;
+    box.classList.add('mr-loading');
+    try {
+      const r = await fetch('/management-report/append-table?' + params(true), {credentials: 'same-origin'});
+      if (r.redirected || r.status === 401) { location.reload(); return; }   // session expired
+      if (!r.ok) throw new Error('HTTP ' + r.status);          // never reload on a server error (no reload loop)
+      const html = await r.text();
+      if (mine !== seq) return;                        // a newer request is already running
+      box.innerHTML = html;
+      loaded = true;
+      const qs = params(false).toString();
+      exp.href = '/management-report/append/export' + (qs ? '?' + qs : '');
+    } catch (e) {
+      if (mine !== seq) return;                        // a newer request owns the box now
+      const err = document.createElement('div');
+      err.className = 'mr-muted';
+      err.textContent = 'Gagal memuat data Append: ' + e;
+      box.replaceChildren(err);
+    } finally {
+      if (mine === seq) box.classList.remove('mr-loading');
+    }
+  }
+
+  function setExportLink() {
+    const qs = params(false).toString();
+    exp.href = '/management-report/append/export' + (qs ? '?' + qs : '');
+  }
+  function filterChanged() { page = 1; setExportLink(); clearTimeout(timer); timer = setTimeout(load, 250); }
+  cc.addEventListener('change', filterChanged);
+  q.addEventListener('input', filterChanged);
+  box.addEventListener('click', e => {
+    const b = e.target.closest('button[data-page]');
+    if (b && !b.disabled) { page = parseInt(b.dataset.page, 10) || 1; load(); }
+  });
+  const syncTab = document.querySelector('.tab-btn[data-tab="tab-sync"]');
+  if (syncTab) syncTab.addEventListener('click', () => { if (!loaded) load(); });
+})();
+</script>
+{% endblock %}

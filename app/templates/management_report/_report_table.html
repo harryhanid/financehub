@@ -1,0 +1,37 @@
+{% if bgt and bgt.has_data %}
+{% macro metrics(m) %}
+    <td class="num-right">{{ m.get('d') | mr_num }}</td><td class="num-right">{{ m.get('e') | mr_num }}</td>
+    <td class="num-right">{{ m.get('f') | mr_num }}</td><td class="num-right">{{ m.get('g') | mr_num }}</td>
+    <td class="num-right">{{ m.get('i') | mr_num }}</td>
+    <td class="num-right {% if m.get('j') is not none %}{% if m.get('j') < 0 %}mr-under{% elif m.get('j') > 0 %}mr-over{% endif %}{% endif %}">{{ m.get('j') | mr_num }}</td>
+    <td class="num-right {% if m.get('k') is not none %}{% if m.get('k') < 0 %}mr-under{% elif m.get('k') > 0 %}mr-over{% endif %}{% endif %}">{{ m.get('k') | mr_pct }}</td>
+    <td class="num-right {% if m.get('m') is not none and m.get('m') < 0 %}mr-neg{% endif %}">{{ m.get('m') | mr_num }}</td>
+    <td class="num-right {% if m.get('n') is not none and m.get('n') < 0 %}mr-neg{% endif %}">{{ m.get('n') | mr_pct }}</td>
+{% endmacro %}
+<div class="mr-sheet-head"><strong>{{ bgt.title }}</strong>
+  <span class="mr-muted">In Rp Mio</span>
+  <span class="mr-muted">Period {{ bgt.period_date.strftime('%b %Y') }} (YTD)</span>
+  <span class="mr-toggle-links"><a href="#" data-mr-toggle="open">Buka semua</a> · <a href="#" data-mr-toggle="close">Tutup semua</a></span></div>
+<table class="budget-table mr-report-table">
+  <thead><tr>
+    <th>Description</th><th>Budget Full Year</th><th>Budget YTD</th><th>PTA YTD</th>
+    <th>Budget Available YTD</th><th>Actual YTD</th><th>Var Amount</th><th>Var %</th>
+    <th>Available Bgt Amount</th><th>Available Bgt %</th>
+  </tr></thead>
+  <tbody>
+  {% for lvl in bgt.levels %}
+    <tr class="mr-lvl-row"><td>{{ lvl.label }}</td>{{ metrics(lvl.m) }}</tr>
+    {% for cat in lvl.categories %}
+    {% set g = loop.index0 ~ '-' ~ lvl.label %}
+    <tr class="mr-cat-row" data-g="{{ g }}"><td><span class="mr-arrow">&#9656;</span> {{ cat.label }}</td>{{ metrics(cat.m) }}</tr>
+      {% for d in cat.details %}
+    <tr class="mr-detail" data-g="{{ g }}" hidden>
+      <td class="mr-wrap">{% if d.coa %}<span class="mr-muted">{{ d.coa }}</span> {% endif %}{{ d.text }}</td>{{ metrics(d) }}</tr>
+      {% endfor %}
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="budget-card"><p>Tidak ada data untuk filter ini.</p></div>
+{% endif %}

@@ -1,0 +1,2153 @@
+{
+ "org": "President Office & ETF",
+ "location": "Head Office - Jakarta",
+ "sections": [
+  {
+   "key": "capex",
+   "title": "Budget - Capital Expenditure (in Rp. 000)",
+   "rows": [
+    {
+     "id": 8,
+     "type": "group",
+     "label": "NON FACTORY MACHINE"
+    },
+    {
+     "id": 9,
+     "type": "account",
+     "code": "27001010",
+     "label": "Mach&Equip Under Construction - Installation Service",
+     "note": null
+    },
+    {
+     "id": 10,
+     "type": "account",
+     "code": "27001020",
+     "label": "Mach&Equip Under Construction - Sparepart & Machine",
+     "note": null
+    },
+    {
+     "id": 11,
+     "type": "account",
+     "code": "27001100",
+     "label": "Machinery and Equipment",
+     "note": null
+    },
+    {
+     "id": 12,
+     "type": "account",
+     "code": "27001200",
+     "label": "Machineries & Equipments UCL",
+     "note": null
+    },
+    {
+     "id": 13,
+     "type": "total",
+     "label": "Total - Non Factory Machine",
+     "of": [
+      9,
+      10,
+      11,
+      12
+     ]
+    },
+    {
+     "id": 14,
+     "type": "group",
+     "label": "BUILDINGS"
+    },
+    {
+     "id": 15,
+     "type": "account",
+     "code": "27002010",
+     "label": "Semi-permanent Building Under Construction - Contractor",
+     "note": null
+    },
+    {
+     "id": 16,
+     "type": "account",
+     "code": "27002020",
+     "label": "Semi-permanent Building Under Construction - Non Contractor",
+     "note": null
+    },
+    {
+     "id": 17,
+     "type": "account",
+     "code": "27002100",
+     "label": "Semi-permanent Buildings",
+     "note": null
+    },
+    {
+     "id": 18,
+     "type": "account",
+     "code": "27003010",
+     "label": "Building Under Construction - Contractor",
+     "note": null
+    },
+    {
+     "id": 19,
+     "type": "account",
+     "code": "27003020",
+     "label": "Building Under Construction - Non Contractor ≥ 200 m2",
+     "note": null
+    },
+    {
+     "id": 20,
+     "type": "account",
+     "code": "27003030",
+     "label": "Building Under Construction - Non Contractor < 200 m2",
+     "note": null
+    },
+    {
+     "id": 21,
+     "type": "account",
+     "code": "27003100",
+     "label": "Buildings",
+     "note": null
+    },
+    {
+     "id": 22,
+     "type": "account",
+     "code": "27003200",
+     "label": "Buildings UCL",
+     "note": null
+    },
+    {
+     "id": 23,
+     "type": "total",
+     "label": "Total - Buildings",
+     "of": [
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22
+     ]
+    },
+    {
+     "id": 24,
+     "type": "group",
+     "label": "FURNITURES AND FIXTURES"
+    },
+    {
+     "id": 25,
+     "type": "account",
+     "code": "27004010",
+     "label": "Furniture & Fixtures Under Construction - Installation Service",
+     "note": null
+    },
+    {
+     "id": 26,
+     "type": "account",
+     "code": "27004020",
+     "label": "Furniture & Fixtures Under Construction - Sparepart & Machine",
+     "note": null
+    },
+    {
+     "id": 27,
+     "type": "account",
+     "code": "27004100",
+     "label": "Furnitures & Fixtures",
+     "note": null
+    },
+    {
+     "id": 28,
+     "type": "account",
+     "code": "27004200",
+     "label": "Furniture & Fixtures UCL",
+     "note": null
+    },
+    {
+     "id": 29,
+     "type": "total",
+     "label": "Total - Furnitures & Fixtures",
+     "of": [
+      25,
+      26,
+      27,
+      28
+     ]
+    },
+    {
+     "id": 30,
+     "type": "group",
+     "label": "VEHICLES"
+    },
+    {
+     "id": 31,
+     "type": "account",
+     "code": "27007100",
+     "label": "Vehicle",
+     "note": null
+    },
+    {
+     "id": 32,
+     "type": "account",
+     "code": "27007200",
+     "label": "Vehicle UCL",
+     "note": null
+    },
+    {
+     "id": 33,
+     "type": "total",
+     "label": "Total - Vehicles",
+     "of": [
+      31,
+      32
+     ]
+    },
+    {
+     "id": 34,
+     "type": "group",
+     "label": "HEAVY EQUIPMENT"
+    },
+    {
+     "id": 35,
+     "type": "account",
+     "code": "27008000",
+     "label": "Heavy Equipment Under Construction",
+     "note": null
+    },
+    {
+     "id": 36,
+     "type": "account",
+     "code": "27008100",
+     "label": "Heavy Equipment",
+     "note": null
+    },
+    {
+     "id": 37,
+     "type": "account",
+     "code": "27008200",
+     "label": "Heavy Equipment UCL",
+     "note": null
+    },
+    {
+     "id": 38,
+     "type": "total",
+     "label": "Total - Heavy Equipment",
+     "of": [
+      35,
+      36,
+      37
+     ]
+    },
+    {
+     "id": 39,
+     "type": "group",
+     "label": "Software Development"
+    },
+    {
+     "id": 40,
+     "type": "account",
+     "code": "29009000",
+     "label": "Software Development",
+     "note": null
+    },
+    {
+     "id": 41,
+     "type": "account",
+     "code": "29009100",
+     "label": "Software Development (AUC)",
+     "note": null
+    },
+    {
+     "id": 42,
+     "type": "total",
+     "label": "Total - Software Development",
+     "of": [
+      40,
+      41
+     ]
+    },
+    {
+     "id": 43,
+     "type": "total",
+     "label": "Total Capex",
+     "of": [
+      13,
+      23,
+      29,
+      33,
+      38,
+      42
+     ]
+    }
+   ]
+  },
+  {
+   "key": "opex",
+   "title": "Budget - Operating Expense (in Rp. 000)",
+   "rows": [
+    {
+     "id": 54,
+     "type": "account",
+     "code": "70119250",
+     "label": "Advertising EXP",
+     "note": null
+    },
+    {
+     "id": 55,
+     "type": "account",
+     "code": "70004113",
+     "label": "Biaya Iklan Media Cetak",
+     "note": "COA unit, tidak ada di HO"
+    },
+    {
+     "id": 56,
+     "type": "group",
+     "label": "REPAIR AND MAINTENANCE EXPENSE"
+    },
+    {
+     "id": 57,
+     "type": "account",
+     "code": "70101101",
+     "label": "Building Maint. Exp. - Service",
+     "note": null
+    },
+    {
+     "id": 58,
+     "type": "account",
+     "code": "70101102",
+     "label": "Building Maint. Exp. - Material",
+     "note": null
+    },
+    {
+     "id": 59,
+     "type": "account",
+     "code": "70101103",
+     "label": "Maintenance, Planning and Supervision exp of Palm Oil Facility",
+     "note": null
+    },
+    {
+     "id": 60,
+     "type": "account",
+     "code": "70101106",
+     "label": "Building Maint Exp Aff - Service",
+     "note": null
+    },
+    {
+     "id": 61,
+     "type": "account",
+     "code": "70101111",
+     "label": "Repairment and Fire Engine Exp",
+     "note": null
+    },
+    {
+     "id": 62,
+     "type": "account",
+     "code": "70101113",
+     "label": "Repair Furn&Fix Exp. - Service",
+     "note": null
+    },
+    {
+     "id": 63,
+     "type": "account",
+     "code": "70101114",
+     "label": "Repair Furn&Fix Exp. - Material",
+     "note": null
+    },
+    {
+     "id": 64,
+     "type": "account",
+     "code": "70101118",
+     "label": "Repair Furn&Fix Exp Aff - Service",
+     "note": null
+    },
+    {
+     "id": 65,
+     "type": "account",
+     "code": "70101201",
+     "label": "Vehicle&HE Maintenance Exp. - Service",
+     "note": null
+    },
+    {
+     "id": 66,
+     "type": "account",
+     "code": "70101202",
+     "label": "Vehicle&HE Maintenance Exp. - Material",
+     "note": null
+    },
+    {
+     "id": 67,
+     "type": "account",
+     "code": "70101220",
+     "label": "Oil Exp",
+     "note": null
+    },
+    {
+     "id": 68,
+     "type": "account",
+     "code": "70101230",
+     "label": "Cntr V&H Maint",
+     "note": null
+    },
+    {
+     "id": 69,
+     "type": "account",
+     "code": "70101300",
+     "label": "Workshop Exp",
+     "note": null
+    },
+    {
+     "id": 70,
+     "type": "total",
+     "label": "Total - 701-01-xxx",
+     "of": [
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68
+     ]
+    },
+    {
+     "id": 71,
+     "type": "group",
+     "label": "SALARY & ALLOWANCE FOR STAFF EXP."
+    },
+    {
+     "id": 72,
+     "type": "account",
+     "code": "70102100",
+     "label": "Non Staff salaries expense",
+     "note": null
+    },
+    {
+     "id": 73,
+     "type": "account",
+     "code": "70102101",
+     "label": "Non Staff allowance expense",
+     "note": null
+    },
+    {
+     "id": 74,
+     "type": "account",
+     "code": "70102102",
+     "label": "Non Staf Pension fund Expense",
+     "note": null
+    },
+    {
+     "id": 75,
+     "type": "account",
+     "code": "70102103",
+     "label": "JAMSOSTEK Allowance Expense - Non Staff",
+     "note": null
+    },
+    {
+     "id": 76,
+     "type": "account",
+     "code": "70102104",
+     "label": "Non Staff medical Expense",
+     "note": null
+    },
+    {
+     "id": 77,
+     "type": "account",
+     "code": "70102105",
+     "label": "NS Transport & Meal",
+     "note": null
+    },
+    {
+     "id": 78,
+     "type": "account",
+     "code": "70102106",
+     "label": "Non StaffTHR,Bonus,Holiday,Lve",
+     "note": null
+    },
+    {
+     "id": 79,
+     "type": "account",
+     "code": "70102107",
+     "label": "NS Overtime Exp.",
+     "note": null
+    },
+    {
+     "id": 80,
+     "type": "account",
+     "code": "70102108",
+     "label": "NS Overtime Holiday",
+     "note": null
+    },
+    {
+     "id": 81,
+     "type": "account",
+     "code": "70102110",
+     "label": "Non Staff Pensiun PSL",
+     "note": null
+    },
+    {
+     "id": 82,
+     "type": "account",
+     "code": "70102111",
+     "label": "NS Outside Medicine",
+     "note": null
+    },
+    {
+     "id": 83,
+     "type": "account",
+     "code": "70102112",
+     "label": "NS BPJS Kesehatan",
+     "note": null
+    },
+    {
+     "id": 84,
+     "type": "account",
+     "code": "70102114",
+     "label": "NS BPJT TK (JKK & JKM) Allowance",
+     "note": null
+    },
+    {
+     "id": 85,
+     "type": "account",
+     "code": "70102200",
+     "label": "Staff Salary Expense",
+     "note": null
+    },
+    {
+     "id": 86,
+     "type": "account",
+     "code": "70102201",
+     "label": "Staff Allowance Expense",
+     "note": null
+    },
+    {
+     "id": 87,
+     "type": "account",
+     "code": "70102202",
+     "label": "Staff Pension Allowance",
+     "note": null
+    },
+    {
+     "id": 88,
+     "type": "account",
+     "code": "70102203",
+     "label": "Staff Medical Expense",
+     "note": null
+    },
+    {
+     "id": 89,
+     "type": "account",
+     "code": "70102204",
+     "label": "Staff JAMSOSTEK Allowance Expense",
+     "note": null
+    },
+    {
+     "id": 90,
+     "type": "account",
+     "code": "70102205",
+     "label": "Staff Transportation and Meal Allowance",
+     "note": null
+    },
+    {
+     "id": 91,
+     "type": "account",
+     "code": "70102206",
+     "label": "Holiday Allowance, Bonus and Leave - Staff",
+     "note": null
+    },
+    {
+     "id": 92,
+     "type": "account",
+     "code": "70102207",
+     "label": "Tax 21 Borne by C",
+     "note": null
+    },
+    {
+     "id": 93,
+     "type": "account",
+     "code": "70102210",
+     "label": "Staff Past Service Liabilities - Pension Expense",
+     "note": null
+    },
+    {
+     "id": 94,
+     "type": "account",
+     "code": "70102211",
+     "label": "Staff Outside Medical Expense",
+     "note": null
+    },
+    {
+     "id": 95,
+     "type": "account",
+     "code": "70102212",
+     "label": "Staff \"BPJS Kesehatan\" Allowance",
+     "note": null
+    },
+    {
+     "id": 96,
+     "type": "account",
+     "code": "70102213",
+     "label": "Employee Benefit Obligation",
+     "note": null
+    },
+    {
+     "id": 97,
+     "type": "account",
+     "code": "70102214",
+     "label": "Staff BPJT TK (JKK & JKM ) Allowance",
+     "note": null
+    },
+    {
+     "id": 98,
+     "type": "account",
+     "code": "70102219",
+     "label": "Employee Benefit and Bonus Provision",
+     "note": null
+    },
+    {
+     "id": 99,
+     "type": "account",
+     "code": "70102300",
+     "label": "Poliklinik Exp",
+     "note": null
+    },
+    {
+     "id": 100,
+     "type": "account",
+     "code": "70102400",
+     "label": "Security Expense",
+     "note": null
+    },
+    {
+     "id": 101,
+     "type": "account",
+     "code": "70102420",
+     "label": "Outsource Exp",
+     "note": null
+    },
+    {
+     "id": 102,
+     "type": "account",
+     "code": "70102500",
+     "label": "Uniform and Office Expense",
+     "note": null
+    },
+    {
+     "id": 103,
+     "type": "account",
+     "code": "70102600",
+     "label": "Non Staff Severence Pay",
+     "note": null
+    },
+    {
+     "id": 104,
+     "type": "account",
+     "code": "70102700",
+     "label": "Non Staff Housing Allowance Expense",
+     "note": null
+    },
+    {
+     "id": 105,
+     "type": "account",
+     "code": "70102800",
+     "label": "Staff Severence Pay",
+     "note": null
+    },
+    {
+     "id": 106,
+     "type": "account",
+     "code": "70102900",
+     "label": "Staff Housing Allowance",
+     "note": null
+    },
+    {
+     "id": 107,
+     "type": "total",
+     "label": "Total - 701-02-xxx",
+     "of": [
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106
+     ]
+    },
+    {
+     "id": 108,
+     "type": "group",
+     "label": "ELECTRICAL, WATER AND GAS EXPENSE"
+    },
+    {
+     "id": 109,
+     "type": "account",
+     "code": "70103100",
+     "label": "Water Expense",
+     "note": null
+    },
+    {
+     "id": 110,
+     "type": "account",
+     "code": "70103200",
+     "label": "Electrical Expense",
+     "note": null
+    },
+    {
+     "id": 111,
+     "type": "account",
+     "code": "70103300",
+     "label": "Gas Expense",
+     "note": null
+    },
+    {
+     "id": 112,
+     "type": "total",
+     "label": "Total - 701-03-xxx",
+     "of": [
+      109,
+      110,
+      111
+     ]
+    },
+    {
+     "id": 113,
+     "type": "group",
+     "label": "INSURANCE EXPENSE"
+    },
+    {
+     "id": 114,
+     "type": "account",
+     "code": "70104100",
+     "label": "Insurance Expense - 3rd Party",
+     "note": null
+    },
+    {
+     "id": 115,
+     "type": "account",
+     "code": "70104200",
+     "label": "Insurance Expense - Affiliated Party",
+     "note": null
+    },
+    {
+     "id": 116,
+     "type": "account",
+     "code": "70104300",
+     "label": "Transportation Insurance - 3rd Party",
+     "note": null
+    },
+    {
+     "id": 117,
+     "type": "account",
+     "code": "70104400",
+     "label": "Transportation Insurance - Affiliated Party",
+     "note": null
+    },
+    {
+     "id": 118,
+     "type": "total",
+     "label": "Total - 701-04-xxx",
+     "of": [
+      114,
+      115,
+      116,
+      117
+     ]
+    },
+    {
+     "id": 119,
+     "type": "group",
+     "label": "RENTAL, TAX & LICENCE EXPENSE"
+    },
+    {
+     "id": 120,
+     "type": "account",
+     "code": "70105100",
+     "label": "Building Rent Expense - 3rd Party",
+     "note": null
+    },
+    {
+     "id": 121,
+     "type": "account",
+     "code": "70105101",
+     "label": "Building Rent Expense - Affiliated Party",
+     "note": null
+    },
+    {
+     "id": 122,
+     "type": "account",
+     "code": "70105110",
+     "label": "Warehouse Expense - 3rd Party",
+     "note": null
+    },
+    {
+     "id": 123,
+     "type": "account",
+     "code": "70105111",
+     "label": "Warehouse Expense - Affiliated Party",
+     "note": null
+    },
+    {
+     "id": 124,
+     "type": "account",
+     "code": "70105120",
+     "label": "Equipment Rent Expense - 3rd Party",
+     "note": null
+    },
+    {
+     "id": 125,
+     "type": "account",
+     "code": "70105121",
+     "label": "Equipment Rent Expense - Affiliated Party",
+     "note": null
+    },
+    {
+     "id": 126,
+     "type": "account",
+     "code": "70105130",
+     "label": "Land Rent Expense - 3rd Party",
+     "note": null
+    },
+    {
+     "id": 127,
+     "type": "account",
+     "code": "70105131",
+     "label": "Land Rent Expense - Affiliated Party",
+     "note": null
+    },
+    {
+     "id": 128,
+     "type": "account",
+     "code": "70105200",
+     "label": "Property Tax Expense",
+     "note": null
+    },
+    {
+     "id": 129,
+     "type": "account",
+     "code": "70105210",
+     "label": "Vehicle Tax Expense",
+     "note": null
+    },
+    {
+     "id": 130,
+     "type": "account",
+     "code": "70105220",
+     "label": "Fiscal Tax Expense",
+     "note": null
+    },
+    {
+     "id": 131,
+     "type": "account",
+     "code": "70105230",
+     "label": "Tax Penalty Expense",
+     "note": null
+    },
+    {
+     "id": 132,
+     "type": "account",
+     "code": "70105300",
+     "label": "Local Government Expense",
+     "note": null
+    },
+    {
+     "id": 133,
+     "type": "account",
+     "code": "70105310",
+     "label": "Work Licence Expense",
+     "note": null
+    },
+    {
+     "id": 134,
+     "type": "account",
+     "code": "70105320",
+     "label": "ISO Expense",
+     "note": null
+    },
+    {
+     "id": 135,
+     "type": "account",
+     "code": "70105321",
+     "label": "HACCP / Halal Certification Exp",
+     "note": null
+    },
+    {
+     "id": 136,
+     "type": "account",
+     "code": "70105330",
+     "label": "Land Measurement Expense",
+     "note": null
+    },
+    {
+     "id": 137,
+     "type": "total",
+     "label": "Total - 701-05-xxx",
+     "of": [
+      120,
+      121,
+      122,
+      123,
+      124,
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136
+     ]
+    },
+    {
+     "id": 138,
+     "type": "group",
+     "label": "TRANSPORT & TRAVELLING EXPENSE"
+    },
+    {
+     "id": 139,
+     "type": "account",
+     "code": "70106100",
+     "label": "Local Transportation Expense",
+     "note": null
+    },
+    {
+     "id": 140,
+     "type": "account",
+     "code": "70106200",
+     "label": "Local Travel Expense",
+     "note": null
+    },
+    {
+     "id": 141,
+     "type": "account",
+     "code": "70106300",
+     "label": "Overseas Travel Expense",
+     "note": null
+    },
+    {
+     "id": 142,
+     "type": "account",
+     "code": "70106400",
+     "label": "Fuel Expense",
+     "note": null
+    },
+    {
+     "id": 143,
+     "type": "total",
+     "label": "Total - 701-06-xxx",
+     "of": [
+      139,
+      140,
+      141,
+      142
+     ]
+    },
+    {
+     "id": 144,
+     "type": "group",
+     "label": "MESS, ENTERTAINMENT & DONATION EXPENSE"
+    },
+    {
+     "id": 145,
+     "type": "account",
+     "code": "70107200",
+     "label": "Entertainment Expense",
+     "note": null
+    },
+    {
+     "id": 146,
+     "type": "account",
+     "code": "70107500",
+     "label": "Social Donation Expense",
+     "note": null
+    },
+    {
+     "id": 147,
+     "type": "account",
+     "code": "70107700",
+     "label": "Ceremonial Expense",
+     "note": null
+    },
+    {
+     "id": 148,
+     "type": "account",
+     "code": "70119310",
+     "label": "Gift Expense",
+     "note": null
+    },
+    {
+     "id": 149,
+     "type": "account",
+     "code": "701193100",
+     "label": "Biaya Promotion Gift",
+     "note": "COA unit, tidak ada di HO"
+    },
+    {
+     "id": 150,
+     "type": "total",
+     "label": "Total - 701-07-xxx",
+     "of": [
+      145,
+      146,
+      147,
+      148,
+      149
+     ]
+    },
+    {
+     "id": 151,
+     "type": "group",
+     "label": "OFFICE  SUPPLIES AND EQUIPMENT EXPENSE"
+    },
+    {
+     "id": 152,
+     "type": "account",
+     "code": "70108100",
+     "label": "Office Equipment Expense",
+     "note": null
+    },
+    {
+     "id": 153,
+     "type": "account",
+     "code": "70108110",
+     "label": "Photocopy Expense",
+     "note": null
+    },
+    {
+     "id": 154,
+     "type": "total",
+     "label": "Total - 701-08-xxx",
+     "of": [
+      152,
+      153
+     ]
+    },
+    {
+     "id": 155,
+     "type": "group",
+     "label": "COMMUNICATION EXPENSE"
+    },
+    {
+     "id": 156,
+     "type": "account",
+     "code": "70109100",
+     "label": "Communication Expense - 3rd Party",
+     "note": null
+    },
+    {
+     "id": 157,
+     "type": "account",
+     "code": "70109200",
+     "label": "Communication Expense - Affiliated Party",
+     "note": null
+    },
+    {
+     "id": 158,
+     "type": "account",
+     "code": "70109300",
+     "label": "Telephone Expense",
+     "note": null
+    },
+    {
+     "id": 159,
+     "type": "total",
+     "label": "Total - 701-09-xxx",
+     "of": [
+      156,
+      157,
+      158
+     ]
+    },
+    {
+     "id": 160,
+     "type": "group",
+     "label": "HUMAN RESOURCES"
+    },
+    {
+     "id": 161,
+     "type": "account",
+     "code": "70107100",
+     "label": "Guest House Expense",
+     "note": null
+    },
+    {
+     "id": 162,
+     "type": "account",
+     "code": "70107300",
+     "label": "Sports & Games Exp.",
+     "note": null
+    },
+    {
+     "id": 163,
+     "type": "account",
+     "code": "70107400",
+     "label": "Recreation Expense",
+     "note": null
+    },
+    {
+     "id": 164,
+     "type": "account",
+     "code": "70110100",
+     "label": "Professional International Organization Expense",
+     "note": null
+    },
+    {
+     "id": 165,
+     "type": "account",
+     "code": "70110110",
+     "label": "Professional National Organization Expense",
+     "note": null
+    },
+    {
+     "id": 166,
+     "type": "account",
+     "code": "70110200",
+     "label": "External Training Expense - 3rd Party",
+     "note": null
+    },
+    {
+     "id": 167,
+     "type": "account",
+     "code": "70110201",
+     "label": "General Training Expense",
+     "note": null
+    },
+    {
+     "id": 168,
+     "type": "account",
+     "code": "70110210",
+     "label": "Internal Training Expense",
+     "note": null
+    },
+    {
+     "id": 170,
+     "type": "account",
+     "code": "70110300",
+     "label": "Recruitment Expense",
+     "note": null
+    },
+    {
+     "id": 171,
+     "type": "account",
+     "code": "70110400",
+     "label": "Subscription Expense",
+     "note": null
+    },
+    {
+     "id": 172,
+     "type": "account",
+     "code": "70110500",
+     "label": "Local Conference Expense",
+     "note": null
+    },
+    {
+     "id": 173,
+     "type": "account",
+     "code": "70110501",
+     "label": "Overseas Conference Expense",
+     "note": null
+    },
+    {
+     "id": 174,
+     "type": "account",
+     "code": "70110502",
+     "label": "Internal Conference Expense",
+     "note": null
+    },
+    {
+     "id": 175,
+     "type": "total",
+     "label": "Total - 701-10-xxx",
+     "of": [
+      161,
+      162,
+      163,
+      164,
+      165,
+      166,
+      167,
+      168,
+      170,
+      171,
+      172,
+      173,
+      174
+     ]
+    },
+    {
+     "id": 176,
+     "type": "group",
+     "label": "CSR AND SCHOLARSHIP EXPENSE"
+    },
+    {
+     "id": 177,
+     "type": "account",
+     "code": "70110220",
+     "label": "CSR Expense",
+     "note": null
+    },
+    {
+     "id": 178,
+     "type": "account",
+     "code": "70110230",
+     "label": "Scholarship Expense",
+     "note": null
+    },
+    {
+     "id": 179,
+     "type": "total",
+     "label": "Total - 701-10-xxx",
+     "of": [
+      177,
+      178
+     ]
+    },
+    {
+     "id": 180,
+     "type": "group",
+     "label": "SPONSORSHIP EXPENSE"
+    },
+    {
+     "id": 181,
+     "type": "account",
+     "code": "70107800",
+     "label": "Sponsorship Expense",
+     "note": null
+    },
+    {
+     "id": 182,
+     "type": "account",
+     "code": "701078002",
+     "label": "Sponsorship Expense - Non Building",
+     "note": "COA unit, tidak ada di HO"
+    },
+    {
+     "id": 183,
+     "type": "account",
+     "code": "701078003",
+     "label": "Sponsorship Expense",
+     "note": "COA unit, tidak ada di HO"
+    },
+    {
+     "id": 184,
+     "type": "total",
+     "label": "Total - 701-07-xxx",
+     "of": [
+      181,
+      182,
+      183
+     ]
+    },
+    {
+     "id": 185,
+     "type": "group",
+     "label": "PROFESSIONAL FEE"
+    },
+    {
+     "id": 186,
+     "type": "account",
+     "code": "70111100",
+     "label": "Custodian Expense",
+     "note": null
+    },
+    {
+     "id": 187,
+     "type": "account",
+     "code": "70111110",
+     "label": "Notary/Legal Fee",
+     "note": null
+    },
+    {
+     "id": 188,
+     "type": "account",
+     "code": "70111111",
+     "label": "Notary/Legal Allowance",
+     "note": null
+    },
+    {
+     "id": 189,
+     "type": "account",
+     "code": "70111120",
+     "label": "Audit Fee",
+     "note": null
+    },
+    {
+     "id": 190,
+     "type": "account",
+     "code": "70111130",
+     "label": "Consultant Fee",
+     "note": null
+    },
+    {
+     "id": 191,
+     "type": "account",
+     "code": "70111131",
+     "label": "Consultant Allowance",
+     "note": null
+    },
+    {
+     "id": 192,
+     "type": "account",
+     "code": "70111132",
+     "label": "Consultant - Affiliated",
+     "note": null
+    },
+    {
+     "id": 193,
+     "type": "account",
+     "code": "70111140",
+     "label": "Planning and Construction Service Exp.",
+     "note": null
+    },
+    {
+     "id": 194,
+     "type": "total",
+     "label": "Total - 701-11-xxx",
+     "of": [
+      186,
+      187,
+      188,
+      189,
+      190,
+      191,
+      192,
+      193
+     ]
+    },
+    {
+     "id": 195,
+     "type": "group",
+     "label": "MANAGEMENT FEE AFFILIATED EXPENSE"
+    },
+    {
+     "id": 196,
+     "type": "account",
+     "code": "70112100",
+     "label": "Management Fee Affiliated",
+     "note": null
+    },
+    {
+     "id": 197,
+     "type": "total",
+     "label": "Total - 701-12-xxx",
+     "of": [
+      196
+     ]
+    },
+    {
+     "id": 198,
+     "type": "group",
+     "label": "ISSUER EXPENSE"
+    },
+    {
+     "id": 199,
+     "type": "account",
+     "code": "70113100",
+     "label": "Go Public Expense",
+     "note": null
+    },
+    {
+     "id": 200,
+     "type": "total",
+     "label": "Total - 701-13-xxx",
+     "of": [
+      199
+     ]
+    },
+    {
+     "id": 201,
+     "type": "group",
+     "label": "AMORTIZATION & DEPRECIATION EXPENSE"
+    },
+    {
+     "id": 202,
+     "type": "account",
+     "code": "70114101",
+     "label": "Trademark  - Amortization Expense",
+     "note": null
+    },
+    {
+     "id": 203,
+     "type": "account",
+     "code": "70114102",
+     "label": "Patent - Amortization Expense",
+     "note": null
+    },
+    {
+     "id": 204,
+     "type": "account",
+     "code": "70114103",
+     "label": "Software Development - Amortization Expense",
+     "note": null
+    },
+    {
+     "id": 205,
+     "type": "account",
+     "code": "70114104",
+     "label": "Deferred Land Right - Amortization Expense",
+     "note": null
+    },
+    {
+     "id": 206,
+     "type": "account",
+     "code": "70114201",
+     "label": "Mature Plant AD Exp",
+     "note": null
+    },
+    {
+     "id": 207,
+     "type": "account",
+     "code": "70114202",
+     "label": "Machine - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 208,
+     "type": "account",
+     "code": "70114203",
+     "label": "Leased Machine - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 209,
+     "type": "account",
+     "code": "70114204",
+     "label": "Semi Permanent Building - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 210,
+     "type": "account",
+     "code": "70114205",
+     "label": "Permanent Building - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 211,
+     "type": "account",
+     "code": "70114206",
+     "label": "Leased Permanent Building - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 212,
+     "type": "account",
+     "code": "70114207",
+     "label": "Furnitures & Fixtures - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 213,
+     "type": "account",
+     "code": "70114208",
+     "label": "Leased Furnitures & Fixtures - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 214,
+     "type": "account",
+     "code": "70114209",
+     "label": "Gen. Infrastr AD Exp",
+     "note": null
+    },
+    {
+     "id": 215,
+     "type": "account",
+     "code": "70114210",
+     "label": "Nur. Infrastr AD Exp",
+     "note": null
+    },
+    {
+     "id": 216,
+     "type": "account",
+     "code": "70114211",
+     "label": "Vehicle - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 217,
+     "type": "account",
+     "code": "70114212",
+     "label": "Leased Vehicle - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 218,
+     "type": "account",
+     "code": "70114213",
+     "label": "Heavy Equipment - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 219,
+     "type": "account",
+     "code": "70114214",
+     "label": "Leased Heavy Equipment - Depreciation Expense",
+     "note": null
+    },
+    {
+     "id": 220,
+     "type": "account",
+     "code": "70114215",
+     "label": "St. Tank AD Expense",
+     "note": null
+    },
+    {
+     "id": 221,
+     "type": "account",
+     "code": "70114949",
+     "label": "Adjustment Depreciation Expense - USD",
+     "note": null
+    },
+    {
+     "id": 222,
+     "type": "total",
+     "label": "Total - 701-14-xxx",
+     "of": [
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209,
+      210,
+      211,
+      212,
+      213,
+      214,
+      215,
+      216,
+      217,
+      218,
+      219,
+      220
+     ]
+    },
+    {
+     "id": 223,
+     "type": "group",
+     "label": "RESEARCH & DEVELOPMENT EXPENSE"
+    },
+    {
+     "id": 224,
+     "type": "account",
+     "code": "70115100",
+     "label": "Research & Development Expense",
+     "note": null
+    },
+    {
+     "id": 225,
+     "type": "total",
+     "label": "Total - 701-15-xxx",
+     "of": [
+      224
+     ]
+    },
+    {
+     "id": 226,
+     "type": "group",
+     "label": "OTHER EXPENSES"
+    },
+    {
+     "id": 227,
+     "type": "account",
+     "code": "70105140",
+     "label": "Courier/Forwarder Expense",
+     "note": null
+    },
+    {
+     "id": 228,
+     "type": "account",
+     "code": "70105145",
+     "label": "Flight Expense",
+     "note": null
+    },
+    {
+     "id": 229,
+     "type": "account",
+     "code": "70105150",
+     "label": "Shipment Expense",
+     "note": null
+    },
+    {
+     "id": 230,
+     "type": "account",
+     "code": "70107600",
+     "label": "Office Consumption Expense",
+     "note": null
+    },
+    {
+     "id": 231,
+     "type": "account",
+     "code": "70111150",
+     "label": "Agent Fee",
+     "note": null
+    },
+    {
+     "id": 232,
+     "type": "account",
+     "code": "70119100",
+     "label": "Bank Admin Expense",
+     "note": null
+    },
+    {
+     "id": 233,
+     "type": "account",
+     "code": "70119200",
+     "label": "Documentation Expense",
+     "note": null
+    },
+    {
+     "id": 234,
+     "type": "account",
+     "code": "70119300",
+     "label": "Other General & Administration Expense",
+     "note": null
+    },
+    {
+     "id": 236,
+     "type": "account",
+     "code": "70119400",
+     "label": "Mould Shop - Settlement Expense",
+     "note": null
+    },
+    {
+     "id": 237,
+     "type": "account",
+     "code": "70119500",
+     "label": "Freight Cost - 3rd Party",
+     "note": null
+    },
+    {
+     "id": 238,
+     "type": "account",
+     "code": "70119501",
+     "label": "Freight Cost - Affiliated",
+     "note": null
+    },
+    {
+     "id": 239,
+     "type": "account",
+     "code": "70119600",
+     "label": "FI / CO Reconsiliation Expense",
+     "note": null
+    },
+    {
+     "id": 240,
+     "type": "account",
+     "code": "70119700",
+     "label": "Contractor Expense",
+     "note": null
+    },
+    {
+     "id": 241,
+     "type": "account",
+     "code": "70119800",
+     "label": "Supplies Expense",
+     "note": null
+    },
+    {
+     "id": 242,
+     "type": "account",
+     "code": "70119900",
+     "label": "In/Out Cost allocation Expense",
+     "note": null
+    },
+    {
+     "id": 243,
+     "type": "account",
+     "code": "70119930",
+     "label": "Cost Allocation to Other PCA",
+     "note": null
+    },
+    {
+     "id": 244,
+     "type": "account",
+     "code": "70119940",
+     "label": "Other Income Allocation",
+     "note": null
+    },
+    {
+     "id": 245,
+     "type": "account",
+     "code": "70119949",
+     "label": "Capitalized Overhead/GA Expense",
+     "note": null
+    },
+    {
+     "id": 246,
+     "type": "account",
+     "code": "70119997",
+     "label": "G&A Allocation Expense",
+     "note": null
+    },
+    {
+     "id": 247,
+     "type": "account",
+     "code": "70119998",
+     "label": "Project - Settlement Expense",
+     "note": null
+    },
+    {
+     "id": 248,
+     "type": "total",
+     "label": "Total - 701-19-xxx",
+     "of": [
+      227,
+      228,
+      229,
+      230,
+      231,
+      232,
+      233,
+      234,
+      236,
+      237,
+      238,
+      239,
+      240,
+      241,
+      242,
+      243,
+      244,
+      245,
+      246,
+      247,
+      54,
+      55
+     ]
+    },
+    {
+     "id": 249,
+     "type": "group",
+     "label": "INTEREST EXPENSE"
+    },
+    {
+     "id": 250,
+     "type": "account",
+     "code": "71100110",
+     "label": "Bank and Financial Instituions Loan Int. Expense-3rd party",
+     "note": null
+    },
+    {
+     "id": 251,
+     "type": "account",
+     "code": "71100120",
+     "label": "Bank and Financial Instituions Loan Int. Expense-Affiliated party",
+     "note": null
+    },
+    {
+     "id": 252,
+     "type": "account",
+     "code": "71100210",
+     "label": "Securities Int. Expense-3rd party",
+     "note": null
+    },
+    {
+     "id": 253,
+     "type": "account",
+     "code": "71100220",
+     "label": "Securities Int. Expense-Affiliated party",
+     "note": null
+    },
+    {
+     "id": 254,
+     "type": "account",
+     "code": "71100320",
+     "label": "Loan Interest Expense - Affiliated party",
+     "note": null
+    },
+    {
+     "id": 255,
+     "type": "account",
+     "code": "71100500",
+     "label": "Deferred Loan Provision - Amortization Expense",
+     "note": null
+    },
+    {
+     "id": 256,
+     "type": "account",
+     "code": "71100600",
+     "label": "Deferred Bank Adm - Amortization Exp",
+     "note": null
+    },
+    {
+     "id": 257,
+     "type": "account",
+     "code": "71100700",
+     "label": "Tax Penalty",
+     "note": null
+    },
+    {
+     "id": 258,
+     "type": "account",
+     "code": "71100800",
+     "label": "Goodwill Amortization",
+     "note": null
+    },
+    {
+     "id": 259,
+     "type": "total",
+     "label": "Total - 711-00-xxx",
+     "of": [
+      250,
+      251,
+      252,
+      253,
+      254,
+      255,
+      256,
+      257,
+      258
+     ]
+    },
+    {
+     "id": 260,
+     "type": "group",
+     "label": "INCOME TAX EXPENSE"
+    },
+    {
+     "id": 261,
+     "type": "account",
+     "code": "80100100",
+     "label": "Income Tax Expense",
+     "note": null
+    },
+    {
+     "id": 262,
+     "type": "total",
+     "label": "Total - 801-00-xxx",
+     "of": [
+      261
+     ]
+    },
+    {
+     "id": 263,
+     "type": "total",
+     "label": "Grand Total included Depreciation",
+     "of": [
+      70,
+      107,
+      112,
+      118,
+      137,
+      143,
+      150,
+      154,
+      159,
+      175,
+      194,
+      197,
+      200,
+      222,
+      225,
+      248,
+      259,
+      262,
+      179,
+      184
+     ]
+    }
+   ]
+  },
+  {
+   "key": "summary",
+   "title": "Operating Expense Summary (in Rp. 000)",
+   "rows": [
+    {
+     "id": 275,
+     "type": "total",
+     "nomor": "701 - 01 - xxx",
+     "label": "Repair And Maintenance Expense",
+     "of": [
+      70
+     ]
+    },
+    {
+     "id": 276,
+     "type": "total",
+     "nomor": "701 - 02 - xxx",
+     "label": "Salary & Allowance For Non Staff Expense",
+     "of": [
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      100,
+      101,
+      102,
+      103,
+      104
+     ]
+    },
+    {
+     "id": 277,
+     "type": "total",
+     "nomor": "701 - 02 - xxx",
+     "label": "Salary & Allowance For Staff Expense",
+     "of": [
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      105,
+      106
+     ]
+    },
+    {
+     "id": 278,
+     "type": "total",
+     "nomor": "701 - 02 - xxx",
+     "label": "Policlinic Expense",
+     "of": [
+      99
+     ]
+    },
+    {
+     "id": 279,
+     "type": "total",
+     "nomor": "701 - 03 - xxx",
+     "label": "Electrical, Water And Gas Expense",
+     "of": [
+      112
+     ]
+    },
+    {
+     "id": 280,
+     "type": "total",
+     "nomor": "701 - 04 - xxx",
+     "label": "Insurance Expense",
+     "of": [
+      118
+     ]
+    },
+    {
+     "id": 281,
+     "type": "total",
+     "nomor": "701 - 05 - xxx",
+     "label": "Rent, Tax, and License Expense",
+     "of": [
+      137
+     ]
+    },
+    {
+     "id": 282,
+     "type": "total",
+     "nomor": "701 - 06 - xxx",
+     "label": "Transport & Travelling Expense",
+     "of": [
+      143
+     ]
+    },
+    {
+     "id": 283,
+     "type": "total",
+     "nomor": "701 - 07 - xxx",
+     "label": "Mess, Entertainment & Donation Expense",
+     "of": [
+      150
+     ]
+    },
+    {
+     "id": 284,
+     "type": "total",
+     "nomor": "701 - 08 - xxx",
+     "label": "Utilities & Office Equipment Expense",
+     "of": [
+      154
+     ]
+    },
+    {
+     "id": 285,
+     "type": "total",
+     "nomor": "701 - 09 - xxx",
+     "label": "Communication Expense",
+     "of": [
+      159
+     ]
+    },
+    {
+     "id": 286,
+     "type": "total",
+     "nomor": "701 - 10 - xxx",
+     "label": "Human Resource Expense",
+     "of": [
+      175
+     ]
+    },
+    {
+     "id": 287,
+     "type": "total",
+     "nomor": "701 - 10 - xxx",
+     "label": "CSR & Scholarship Expense",
+     "of": [
+      179
+     ]
+    },
+    {
+     "id": 288,
+     "type": "total",
+     "nomor": "701 - 10 - xxx",
+     "label": "Sponsorship Expense",
+     "of": [
+      184
+     ]
+    },
+    {
+     "id": 289,
+     "type": "total",
+     "nomor": "701 - 11 - xxx",
+     "label": "Custodian, Audit & Consultant Expense",
+     "of": [
+      194
+     ]
+    },
+    {
+     "id": 290,
+     "type": "total",
+     "nomor": "701 - 12 - xxx",
+     "label": "Management Fee Affiliated Expense",
+     "of": [
+      197
+     ]
+    },
+    {
+     "id": 291,
+     "type": "total",
+     "nomor": "701 - 13 - xxx",
+     "label": "Issuer Expense",
+     "of": [
+      200
+     ]
+    },
+    {
+     "id": 292,
+     "type": "total",
+     "nomor": "701 - 14 - xxx",
+     "label": "Amortization & Depreciation Expense",
+     "of": [
+      222
+     ]
+    },
+    {
+     "id": 293,
+     "type": "total",
+     "nomor": "701 - 15 - xxx",
+     "label": "Research & Development Expense",
+     "of": [
+      225
+     ]
+    },
+    {
+     "id": 294,
+     "type": "total",
+     "nomor": "701 - 19 - xxx",
+     "label": "Other Expense",
+     "of": [
+      248
+     ]
+    },
+    {
+     "id": 295,
+     "type": "total",
+     "nomor": "711 - xx - xxx",
+     "label": "Interest Expense",
+     "of": [
+      259
+     ]
+    },
+    {
+     "id": 296,
+     "type": "total",
+     "nomor": "80x - xxx - xxx",
+     "label": "Income Tax Expense",
+     "of": [
+      262
+     ]
+    },
+    {
+     "id": 298,
+     "type": "total",
+     "nomor": "",
+     "label": "Total",
+     "of": [
+      275,
+      276,
+      277,
+      278,
+      279,
+      280,
+      281,
+      282,
+      283,
+      284,
+      285,
+      286,
+      287,
+      288,
+      289,
+      290,
+      291,
+      292,
+      293,
+      294,
+      295,
+      296
+     ]
+    }
+   ]
+  }
+ ]
+}

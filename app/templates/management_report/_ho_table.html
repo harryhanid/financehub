@@ -1,0 +1,50 @@
+{% macro gl(code) %}{{ code[:-5] }}-{{ code[-5:-3] }}-{{ code[-3:] }}{% endmacro %}
+{% if ho and ho.has_data %}
+  {% if ho.unmapped or ho.summary_missing %}
+  <div class="budget-card mr-warn">
+    {% if ho.unmapped %}
+    <div><strong>COA di luar template HO tidak ikut dihitung:</strong>
+      {% for u in ho.unmapped %}{{ u.coa }}{% if u.label %} ({{ u.label }}){% endif %} — BGT {{ u.bgt | mr_amt }}, PTA {{ u.pta | mr_amt }}, ACT {{ u.act | mr_amt }}{% if not loop.last %}; {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+    {% if ho.summary_missing %}
+    <div><strong>Akun ini ikut Grand Total Opex tetapi tidak ada di ringkasan:</strong>
+      {% for m in ho.summary_missing %}{{ m.coa }} ({{ m.label }}) — BGT {{ m.bgt | mr_amt }}, PTA {{ m.pta | mr_amt }}, ACT {{ m.act | mr_amt }}{% if not loop.last %}; {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+  <div class="mr-sheet-head">
+    <strong>{{ ho.org }}</strong> <span class="mr-muted">{{ ho.location }} · Division/Dept.: {{ ho.division }}</span>
+  </div>
+  {% for s in ho.sections %}
+  <div class="mr-sheet-title">{{ s.title }}</div>
+  <table class="budget-table mr-ho-table">
+    <thead>
+      <tr><th>{% if s.key == 'summary' %}Nomor{% else %}GL Account{% endif %}</th>
+          <th>{% if s.key == 'summary' %}Keterangan{% else %}Description{% endif %}</th>
+          <th>Budget<br>{{ ho.period_label }}</th><th>PTA<br>{{ ho.period_label }}</th><th>Actual<br>{{ ho.period_label }}</th>
+          <th></th></tr>
+    </thead>
+    <tbody>
+    {% for r in s.rows %}
+      {% if r.type == 'group' %}
+      <tr class="sp-report-section-band"><td colspan="6">{{ r.label }}</td></tr>
+      {% elif r.type == 'account' %}
+      <tr><td>{{ gl(r.code) }}</td><td>{{ r.label }}</td>
+          <td class="num-right">{{ r.bgt | mr_amt }}</td><td class="num-right">{{ r.pta | mr_amt }}</td><td class="num-right">{{ r.act | mr_amt }}</td>
+          <td class="mr-note">{{ r.note or '' }}</td></tr>
+      {% else %}
+      <tr class="{{ 'sp-report-grandtotal-row' if r.grand else 'sp-report-subtotal-row' }}">
+        <td>{% if s.key == 'summary' %}{{ r.nomor }}{% else %}{{ r.label }}{% endif %}</td>
+        <td>{% if s.key == 'summary' %}{{ r.label }}{% endif %}</td>
+        <td class="num-right">{{ r.bgt | mr_amt }}</td><td class="num-right">{{ r.pta | mr_amt }}</td><td class="num-right">{{ r.act | mr_amt }}</td><td></td>
+      </tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+{% else %}
+<div class="budget-card"><p>Tidak ada data untuk filter ini.</p></div>
+{% endif %}
