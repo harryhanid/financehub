@@ -9,7 +9,7 @@ import pytest
 from pyxlsb import open_workbook
 
 from modules.management_report import coa_map
-from modules.management_report.combine_rows import build_mr_rows, excel_round_mio
+from modules.management_report.combine_rows import build_combine_rows, excel_round_mio
 from modules.general_ledger.parser import read_gl_sheet
 
 GL = r"Y:\Seagate\Management Report\2026\0926\GL - MASTER.xlsb"
@@ -44,7 +44,7 @@ def built(files):
              for r in cc_rows}
     source = {label: read_gl_sheet(gl, sheet).rows
               for label, sheet in (("SMT", "GL SMT"), ("ETF", "GL ETF"))}
-    return build_mr_rows(source, cmap, ccmap)
+    return build_combine_rows(source, cmap, ccmap)
 
 
 def ours_key(r):

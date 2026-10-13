@@ -145,7 +145,7 @@ def _resolve_period(opts):
 def mr_page():
     cmap = coa_map.get_map()
     cc_map = coa_map.get_cc_map()
-    built = mr_rows.build_mr_rows(
+    built = mr_rows.build_combine_rows(
         {"SMT": service.load_mr_source("smt"), "ETF": service.load_mr_source("etf")}, cmap, cc_map)
     opts = mr_rows.period_options(built.rows)
     yy, mm = _resolve_period(opts)

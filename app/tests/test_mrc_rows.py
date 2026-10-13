@@ -22,7 +22,7 @@ def g(acc="6-1810", tgl="2026-01-15", memo="Zoom", amount=-957910.0, job="POITEC
 
 
 def build(smt=(), etf=()):
-    return mr.build_mr_rows({"SMT": list(smt), "ETF": list(etf)}, CMAP, CCMAP)
+    return mr.build_combine_rows({"SMT": list(smt), "ETF": list(etf)}, CMAP, CCMAP)
 
 
 def test_row_fields_follow_the_macro_and_gl_combine_mapping():
@@ -40,7 +40,7 @@ def test_row_fields_follow_the_macro_and_gl_combine_mapping():
 
 
 def test_old_two_tuple_map_values_still_work():
-    res = mr.build_mr_rows({"SMT": [g()], "ETF": []},
+    res = mr.build_combine_rows({"SMT": [g()], "ETF": []},
                            {("SMT", "6-1810"): ("70108100", "10 - Office")})
     assert res.rows[0]["coa"] == "70108100" and res.rows[0]["category"] == "10 - Office"
 
@@ -154,7 +154,7 @@ def test_cost_center_absent_or_empty_total_is_unmapped():
 
 
 def test_cc_map_is_optional():
-    res = mr.build_mr_rows({"SMT": [g()], "ETF": []}, CMAP)
+    res = mr.build_combine_rows({"SMT": [g()], "ETF": []}, CMAP)
     r = res.rows[0]
     assert (r["cost_center2"], r["cc1"], r["cc_unmapped"], r["new_code"]) == ("", 0, True, "A26-0-10-1")
 
@@ -175,3 +175,64 @@ def test_unmapped_cc_summary():
     assert mr.unmapped_cc_summary(res.rows) == [
         {"cc": "AAA", "rows": 1}, {"cc": "PULPP", "rows": 1}, {"cc": "ZZZ", "rows": 2}]
     assert mr.unmapped_cc_summary(build(smt=[g()]).rows) == []
+
+
+SP = {"tgl": "2026-01-19", "perihal": "Prasasti Membership", "amount": 500000000.0,
+      "coa": "701078002", "cc": "POSPON"}
+CCMAP_SP = {"POSPON": {"total": "$POCCOM", "seq": 5, "description": "SMT - Sponshorship"}}
+
+
+def build_all(smt=(), etf=(), sponsor=(), cc_map=None):
+    return mr.build_combine_rows({"SMT": list(smt), "ETF": list(etf), "Sponsor": list(sponsor)},
+                                 CMAP, CCMAP_SP if cc_map is None else cc_map)
+
+
+def test_sponsor_row_follows_the_workbook_format():
+    res = build_all(sponsor=[SP])
+    assert res.skipped_date == 0
+    assert res.rows == [{
+        "coa": "701078002", "mm": 1, "yy": 2026, "cc": "POSPON", "category": "",
+        "activity": "", "description": "- Act 2026 : Prasasti Membership Month : 1",
+        "custom": "3", "mm1": 1, "pta": 0.0, "bgt": 0.0, "act": 500.0, "source": "Sponsor",
+        "account": "701078002", "unmapped": False, "id_no": "", "tgl": "2026-01-19",
+        "allocation_memo": "Prasasti Membership", "debit_credit": 500000000.0,
+        "cost_center2": "$POCCOM", "cc0": "26", "cc1": 5, "bc1": "", "new_code": "A26-51",
+        "cc_unmapped": False}]
+
+
+def test_sponsor_new_codes_count_per_year_and_after_gl_rows():
+    rows = build_all(
+        smt=[g(tgl="2026-01-15")],
+        sponsor=[dict(SP, tgl="2026-01-19"), dict(SP, tgl="2026-02-01"), dict(SP, tgl="2027-01-02")]).rows
+    assert rows[0]["source"] == "SMT" and rows[0]["new_code"].endswith("-1")
+    assert [(r["source"], r["new_code"]) for r in rows[1:]] == [
+        ("Sponsor", "A26-51"), ("Sponsor", "A26-52"), ("Sponsor", "A27-51")]
+
+
+def test_gl_rows_do_not_disturb_sponsor_numbering():
+    only = build_all(sponsor=[SP, dict(SP, tgl="2026-03-01")]).rows
+    mixed = build_all(smt=[g(), g()], etf=[g("6-2190", amount=30000.0)],
+                      sponsor=[SP, dict(SP, tgl="2026-03-01")]).rows
+    assert [r["new_code"] for r in only] == ["A26-51", "A26-52"]
+    assert [r["new_code"] for r in mixed if r["source"] == "Sponsor"] == ["A26-51", "A26-52"]
+
+
+def test_sponsor_cost_center_uses_the_cc_mapping_and_flags_when_missing():
+    res = build_all(sponsor=[SP], cc_map={})
+    assert res.rows[0]["cost_center2"] == "" and res.rows[0]["cc1"] == 0
+    assert res.rows[0]["cc_unmapped"] is True
+
+
+def test_sponsor_blank_coa_and_cc_fall_back_to_config():
+    res = build_all(sponsor=[dict(SP, coa="", cc="")])
+    assert res.rows[0]["coa"] == "701078002" and res.rows[0]["cc"] == "POSPON"
+
+
+def test_sponsor_rows_with_invalid_date_are_skipped_and_counted():
+    res = build_all(sponsor=[dict(SP, tgl=None), dict(SP, tgl="garbage"), SP])
+    assert len(res.rows) == 1 and res.skipped_date == 2
+
+
+def test_sponsor_empty_perihal_and_zero_amount_are_kept():
+    res = build_all(sponsor=[dict(SP, perihal="", amount=0.0)])
+    assert res.rows[0]["description"] == "- Act 2026 :  Month : 1" and res.rows[0]["act"] == 0.0

@@ -1,4 +1,4 @@
-"""General Ledger MR: build Management Report (Append1 format) rows from GL SMT / GL ETF rows.
+"""Management Report GL Combine: build Append1-format rows from GL SMT, GL ETF and Sponsorship rows.
 
 Mirrors the 'TransferDataGLCombineFinalFix' macro and the GL Combine sheet of
 Management Report - MASTER.xlsb. Pure functions: no database access.
@@ -6,6 +6,8 @@ Management Report - MASTER.xlsb. Pure functions: no database access.
 from collections import namedtuple
 from datetime import date
 from decimal import Decimal, ROUND_HALF_EVEN
+
+import config
 
 UNMAPPED = "(Belum dipetakan)"
 _MIO = Decimal(1000000)
@@ -31,9 +33,9 @@ def _parse_date(value):
         return None
 
 
-def build_mr_rows(source_rows: dict, coa_map: dict, cc_map: dict = None) -> MrBuild:
-    """Rows in GL Combine / Append1 shape. `new_code` numbers run per (cc0, cc1, bc1) over ALL built rows
-    (SMT first, then ETF), so apply any cutoff afterwards, never before."""
+def build_combine_rows(source_rows: dict, coa_map: dict, cc_map: dict = None) -> MrBuild:
+    """Rows in GL Combine / Append1 shape from GL SMT, GL ETF and Sponsorship (in that order).
+    `new_code` numbers run per (cc0, cc1, bc1) over ALL built rows, so apply any filter afterwards."""
     cc_map = cc_map or {}
     rows, skipped = [], 0
     counters = {}
@@ -72,6 +74,31 @@ def build_mr_rows(source_rows: dict, coa_map: dict, cc_map: dict = None) -> MrBu
                 "new_code": f"A{cc0}-{seq}{bc1}{counters[group]}",
                 "cc_unmapped": not total,
             })
+
+    for r in source_rows.get("Sponsor", []):
+        d = _parse_date(r.get("tgl"))
+        if d is None:
+            skipped += 1
+            continue
+        amount = float(r.get("amount") or 0.0)
+        coa = str(r.get("coa") or "").strip() or config.MR_SPONSOR_ACCOUNT
+        cc = str(r.get("cc") or "").strip() or config.MR_SPONSOR_COST_CENTER
+        memo = r.get("perihal") or ""
+        cc_entry = cc_map.get(cc) or {}
+        seq = int(cc_entry.get("seq") or 0)
+        total = cc_entry.get("total") or ""
+        cc0 = f"{d.year % 100:02d}"
+        group = (cc0, seq, "")
+        counters[group] = counters.get(group, 0) + 1
+        rows.append({
+            "coa": coa, "mm": d.month, "yy": d.year, "cc": cc, "category": "", "activity": "",
+            "description": f"- Act {d.year} : {memo} Month : {d.month}",
+            "custom": "3", "mm1": d.month, "pta": 0.0, "bgt": 0.0,
+            "act": excel_round_mio(amount), "source": config.MR_SPONSOR_SOURCE, "account": coa,
+            "unmapped": False, "id_no": "", "tgl": d.isoformat(), "allocation_memo": memo,
+            "debit_credit": amount, "cost_center2": total, "cc0": cc0, "cc1": seq, "bc1": "",
+            "new_code": f"A{cc0}-{seq}{counters[group]}", "cc_unmapped": not total,
+        })
     return MrBuild(rows, skipped)
 
 

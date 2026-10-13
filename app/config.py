@@ -80,6 +80,12 @@ SPONSORSHIP_MR_CC1                = 5
 SPONSORSHIP_MR_BC1                = "-25-"
 SPONSORSHIP_MR_BC                 = "Sponsorship - Non Building"
 
+# Management Report GL Combine - Sponsorship source (workbook format). Used only as fallbacks when the
+# sponsorship_transaksi row has an empty coa/cc. See docs/superpowers/specs/2026-10-13-mr-combine-from-modules-design.md
+MR_SPONSOR_ACCOUNT     = "701078002"
+MR_SPONSOR_COST_CENTER = "POSPON"
+MR_SPONSOR_SOURCE      = "Sponsor"
+
 CAT1_BGT = ["By Pendidikan", "By Tunjangan", "By Penelitian", "By Medical"]
 
 CAT2_SEM = [
