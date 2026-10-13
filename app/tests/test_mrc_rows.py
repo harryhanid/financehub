@@ -1,7 +1,7 @@
 # tests/test_gl_mr_rows.py
 import pytest
 
-from modules.general_ledger import mr_rows as mr
+from modules.management_report import combine_rows as mr
 from modules.general_ledger import service as svc
 from tests.test_gl_sync import mkrow
 

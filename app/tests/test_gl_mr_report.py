@@ -1,6 +1,6 @@
 # tests/test_gl_mr_report.py
 from modules.general_ledger import mr_report as rep
-from modules.general_ledger.mr_rows import UNMAPPED
+from modules.management_report.combine_rows import UNMAPPED
 
 
 def mr(category="10 - Office", cc="AAA", mm=1, description="d", act=1.0, activity="Act",

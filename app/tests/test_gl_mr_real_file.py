@@ -8,8 +8,8 @@ from collections import Counter
 import pytest
 from pyxlsb import open_workbook
 
-from modules.general_ledger import coa_map
-from modules.general_ledger.mr_rows import build_mr_rows, excel_round_mio
+from modules.management_report import coa_map
+from modules.management_report.combine_rows import build_mr_rows, excel_round_mio
 from modules.general_ledger.parser import read_gl_sheet
 
 GL = r"Y:\Seagate\Management Report\2026\0926\GL - MASTER.xlsb"

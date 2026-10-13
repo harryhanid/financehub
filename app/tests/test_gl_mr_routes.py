@@ -1,7 +1,7 @@
 # tests/test_gl_mr_routes.py
 import io
 
-from modules.general_ledger import coa_map
+from modules.management_report import coa_map
 from modules.general_ledger import routes as gl_routes
 from modules.general_ledger import service as svc
 from tests.test_gl_sync import mkrow

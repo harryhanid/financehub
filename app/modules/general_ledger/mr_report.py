@@ -2,7 +2,7 @@
 
 Pure functions over the row dicts produced by mr_rows.build_mr_rows.
 """
-from modules.general_ledger.mr_rows import UNMAPPED
+from modules.management_report.combine_rows import UNMAPPED
 
 
 def list_ccs(rows) -> list:

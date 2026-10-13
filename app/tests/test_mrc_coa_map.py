@@ -4,7 +4,7 @@ import sqlite3
 import pytest
 
 from database import get_conn
-from modules.general_ledger import coa_map as cm
+from modules.management_report import coa_map as cm
 
 HEADER = [None, "COA SMT", "Description", "COA ETF", "Description", "FROM :", "COA HO",
           "Sub Account", "CATEGORIES", "CATEGORIES 2", "Code", "BUDGET CATEGORY"]

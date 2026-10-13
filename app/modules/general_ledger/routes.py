@@ -5,7 +5,10 @@ from flask import Blueprint, abort, jsonify, redirect, render_template, request,
 from flask_jwt_extended import get_jwt
 
 from auth.middleware import is_admin, json_admin_required, jwt_html_required
-from modules.general_ledger import coa_map, mr_columns, mr_report, mr_rows, service
+from modules.general_ledger import mr_report, service
+from modules.management_report import coa_map
+from modules.management_report import combine_columns as mr_columns
+from modules.management_report import combine_rows as mr_rows
 from modules.general_ledger import sync as gl_sync
 from modules.general_ledger.parser import COLUMNS, LABELS, ParseError, read_gl_sheet
 
