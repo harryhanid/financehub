@@ -67,7 +67,12 @@ def test_report_defaults_to_latest_month_and_is_cumulative(client):
     html = page(client).data.decode()
     assert "10 - Office Supplies And Equipment Expense" in html and "20 - Others" in html
     assert "- Act 2026 : Zoom Month : 1" in html and "- Act 2026 : ATK Month : 2" in html
-    assert "4,0" in html                                   # -1.0 + 5.0 + 0.0 (Rp Mio)
+    import re
+    # -0.958 + 5.0 (category 10) + 0.03 (category 20) = 4.07 Rp Mio
+    assert re.search(r'gl-grand"><td colspan="5">Total All Cost Center</td><td class="num">4,0</td>', html)
+    assert re.search(r'gl-cat"><td colspan="5">10 - Office Supplies And Equipment Expense</td><td class="num">4,0</td>', html)
+    assert re.search(r'gl-cat"><td colspan="5">20 - Others</td><td class="num">0,0</td>', html)
+    assert "-1,0</td>" in html and "5,0</td>" in html
 
 
 def test_cutoff_month_limits_the_report(client):
@@ -190,3 +195,38 @@ def test_gl_mio_filter_formats_indonesian_style():
     assert gl_routes._gl_mio(1234.56) == "1.234,6"
     assert gl_routes._gl_mio(-0.9) == "-0,9"
     assert gl_routes._gl_mio(0.0) == "0,0"
+
+
+def test_data_view_pager_paginates_and_preserves_filters(client):
+    login(client)
+    smt = [mkrow(acc_management="6-1810", tgl="2026-02-10", debit_credit=1000000.0,
+                 job_name="POCFAD", budget_activity="SMT - Finance", allocation_memo=f"Memo{i:03d}")
+           for i in range(130)]
+    svc.replace_all("smt", smt, LOG)
+    seed_map()
+    base = "?view=data&yy=2026&mm=2&cc=POCFAD&q=Memo"
+    html = page(client, base).data.decode()
+    assert "Halaman 1 dari 2" in html and "Sebelumnya" not in html
+    import re
+    nxt = re.search(r'<a class="btn btn-sm" href="([^"]*)">Berikutnya', html)
+    assert nxt, "next link missing"
+    href = nxt.group(1).replace("&amp;", "&")
+    for part in ("view=data", "yy=2026", "mm=2", "cc=POCFAD", "q=Memo", "page=2"):
+        assert part in href, part
+    assert html.count("<tr><td>70108100</td>") == 100
+    p2 = page(client, base + "&page=2").data.decode()
+    assert "Halaman 2 dari 2" in p2 and "Sebelumnya" in p2 and "Berikutnya" not in p2
+    assert p2.count("<tr><td>70108100</td>") == 30
+
+
+def test_user_input_is_html_escaped(client):
+    login(client)
+    seed_gl()
+    seed_map()
+    raw = "<script>alert(1)</script>"
+    html = page(client, "?cc=" + raw).data.decode()
+    assert raw not in html
+    html = page(client, "?view=data&q=" + raw).data.decode()
+    assert raw not in html and "&lt;script&gt;" in html
+    html = page(client, "?view=data&cc=" + raw + "&q=" + raw).data.decode()
+    assert raw not in html
