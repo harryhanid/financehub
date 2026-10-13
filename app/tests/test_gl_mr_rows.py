@@ -47,14 +47,16 @@ def test_etf_rows_use_the_etf_column_of_the_mapping():
 
 
 @pytest.mark.parametrize("amount,expected", [
-    (957910.0, 1.0), (-957910.0, -1.0), (50000.0, 0.1), (-50000.0, -0.1), (49999.0, 0.0),
-    (150000.0, 0.2), (250000.0, 0.3), (-95818918.0, -95.8), (1500000000.0, 1500.0)])
-def test_excel_style_rounding_half_away_from_zero(amount, expected):
+    (957910.0, 1.0), (-957910.0, -1.0), (50000.0, 0.0), (-50000.0, 0.0), (150000.0, 0.2),
+    (250000.0, 0.2), (350000.0, 0.4), (-250000.0, -0.2), (3250000.0, 3.2), (49999.0, 0.0),
+    (51000.0, 0.1), (2450000.0000000005, 2.4), (-95818918.0, -95.8), (1500000000.0, 1500.0)])
+def test_append1_rounding_half_to_even(amount, expected):
     assert mr.excel_round_mio(amount) == expected
 
 
 def test_rounding_never_returns_negative_zero():
     assert str(mr.excel_round_mio(-49999.0)) == "0.0"
+    assert str(mr.excel_round_mio(-50000.0)) == "0.0"
 
 
 def test_unmapped_account_is_kept_and_summarised():

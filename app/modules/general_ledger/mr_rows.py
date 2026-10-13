@@ -5,7 +5,7 @@ Management Report - MASTER.xlsb. Pure functions: no database access.
 """
 from collections import namedtuple
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_EVEN
 
 UNMAPPED = "(Belum dipetakan)"
 _MIO = Decimal(1000000)
@@ -16,9 +16,12 @@ MrBuild = namedtuple("MrBuild", "rows skipped_date")
 
 
 def excel_round_mio(amount) -> float:
-    """(Debit - Credit) in rupiah -> Rp Mio, 1 decimal, ties away from zero like Excel's ROUND."""
-    d = Decimal(str(float(amount))) / _MIO
-    return float(d.quantize(_TENTH, rounding=ROUND_HALF_UP)) + 0.0      # + 0.0 turns -0.0 into 0.0
+    """(Debit - Credit) in rupiah -> Rp Mio, 1 decimal, ties to even like Append1.
+
+    Normalised to 15 significant digits first, like Excel, so float noise cannot break a tie.
+    """
+    d = Decimal(format(float(amount), ".15g")) / _MIO
+    return float(d.quantize(_TENTH, rounding=ROUND_HALF_EVEN)) + 0.0      # + 0.0 turns -0.0 into 0.0
 
 
 def _parse_date(value):

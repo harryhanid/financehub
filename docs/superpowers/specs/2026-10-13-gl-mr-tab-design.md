@@ -26,7 +26,7 @@ Sumber: `Y:\Seagate\Management Report\2026\0926\Management Report - MASTER harry
 | PTA, BGT | 0 |
 | Custom | `3` |
 | MM.1 | Bulan |
-| ACT | (Debit - Credit) / 1.000.000, **dibulatkan 1 desimal per baris** (Excel, setengah menjauhi nol) |
+| ACT | (Debit - Credit) / 1.000.000, **dibulatkan 1 desimal per baris** (setengah ke genap, ROUND_HALF_EVEN, sesuai Append1) |
 
 - `GL Combine` juga memuat sumber lain (PAM, Sponsor, Others, BMGSQ). Itu di luar scope.
 - Pemetaan akun ke COA HO dan kategori hanya ada di sheet `COA` workbook MR. Aplikasi belum punya (tabel `coa` yang ada hanya kode dan nama).
@@ -76,7 +76,7 @@ Untuk tiap baris GLSMT dan GLETF dengan `acc_management` diawali `6`, `7`, `8`, 
 - `cc`: `job_name`. `activity`: `budget_activity`. `category`: dari pemetaan.
 - `description`: `- Act {yy 4 digit} : {allocation_memo} Month : {mm}`.
 - `custom`: `3`. `mm1`: `mm`. `pta`, `bgt`: 0. `source`: `SMT`/`ETF`.
-- `act`: `debit_credit / 1.000.000` dibulatkan 1 desimal, setengah menjauhi nol, menggunakan `Decimal` dengan `ROUND_HALF_UP` pada nilai yang sudah dinormalkan (menghindari galat float).
+- `act`: `debit_credit / 1.000.000` dibulatkan 1 desimal per baris, setengah ke genap (`ROUND_HALF_EVEN`) setelah dinormalkan ke 15 digit signifikan, sesuai Append1.
 
 Akun yang tidak ada di pemetaan: baris tetap dibentuk dengan `coa` kosong dan `category` `(Belum dipetakan)`. Banner peringatan menampilkan jumlah baris, total ACT, dan contoh akunnya.
 
@@ -93,7 +93,7 @@ Cutoff kumulatif: `yy == tahun terpilih` dan `mm <= bulan terpilih`. Daftar tahu
 ## Pengujian (pytest)
 
 - Parser sheet `COA`: pemetaan kolom, baris tanpa COA HO diabaikan, header salah memberi galat, baris pertama menang untuk akun duplikat.
-- `mr_rows`: filter akun 6-9 dan nonzero, pembulatan setengah menjauhi nol (termasuk negatif dan nilai batas seperti 0,05), format Description, cutoff kumulatif, tanggal tidak valid, akun belum dipetakan.
+- `mr_rows`: filter akun 6-9 dan nonzero, pembulatan setengah ke genap (termasuk negatif dan nilai batas seperti 0,05 dan 0,25), format Description, cutoff kumulatif, tanggal tidak valid, akun belum dipetakan.
 - `mr_report`: pengelompokan, subtotal, grand total, dan filter CC.
 - Sync COA: hash sama berarti tidak berubah, berbeda berarti diganti, kegagalan tidak merusak data lama.
 - Route: login wajib, non-admin tidak boleh sync COA (403), file bukan .xlsb ditolak (400), halaman memakai parameter yang tidak valid tanpa error 500, dan tab MR tampil di menu.
