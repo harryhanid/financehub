@@ -156,3 +156,13 @@ def test_page_shows_every_imported_column(client, monkeypatch):
         assert label in html, label
     for value in ("Zoom Sub", "K20 value", "PPH23", "LK cat", "Accrual"):
         assert value in html, value
+
+
+def test_old_mr_tab_is_gone_from_the_general_ledger_module(client):
+    login(client)
+    for url in ("/general-ledger/mr", "/general-ledger/mr/sync-coa"):
+        assert client.get(url).status_code in (404, 405)
+    html = client.get("/general-ledger/smt").data.decode()
+    assert "/general-ledger/mr" not in html
+    for label in ("GL SMT", "GL ETF", "GL SETF"):
+        assert label in html

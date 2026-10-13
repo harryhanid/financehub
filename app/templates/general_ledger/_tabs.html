@@ -2,5 +2,4 @@
   {% for key, e in entities.items() %}
   <a class="tab-btn{{ ' active' if key == active_tab else '' }}" href="{{ url_for('general_ledger.entity_page', entity=key) }}">{{ e.label }}</a>
   {% endfor %}
-  <a class="tab-btn{{ ' active' if active_tab == 'mr' else '' }}" href="{{ url_for('general_ledger.mr_page') }}">MR</a>
 </div>

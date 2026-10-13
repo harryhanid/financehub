@@ -5,10 +5,7 @@ from flask import Blueprint, abort, jsonify, redirect, render_template, request,
 from flask_jwt_extended import get_jwt
 
 from auth.middleware import is_admin, json_admin_required, jwt_html_required
-from modules.general_ledger import mr_report, service
-from modules.management_report import coa_map
-from modules.management_report import combine_columns as mr_columns
-from modules.management_report import combine_rows as mr_rows
+from modules.general_ledger import service
 from modules.general_ledger import sync as gl_sync
 from modules.general_ledger.parser import COLUMNS, LABELS, ParseError, read_gl_sheet
 
@@ -25,25 +22,6 @@ def _gl_num(value) -> str:
 
 bp.add_app_template_filter(_gl_num, "gl_num")
 
-
-def _gl_mio(value) -> str:
-    """Rp Mio with 1 decimal, Indonesian style: 1234.56 -> '1.234,6'; None -> ''."""
-    if value is None:
-        return ""
-    v = round(float(value), 1) + 0.0                 # never "-0,0"
-    return f"{v:,.1f}".replace(",", "\0").replace(".", ",").replace("\0", ".")
-
-
-bp.add_app_template_filter(_gl_mio, "gl_mio")
-
-
-def _gl_date(value) -> str:
-    """ISO 2026-01-15 -> 15/01/2026; anything else is shown as is."""
-    s = str(value or "")
-    return f"{s[8:10]}/{s[5:7]}/{s[:4]}" if len(s) >= 10 and s[4] == "-" else s
-
-
-bp.add_app_template_filter(_gl_date, "gl_date")
 
 _FILTER_KEYS = ("date_from", "date_to", "acc", "job", "q")
 _NUMERIC = {"debit", "credit", "qty_awal", "qty_akhir", "harga_satuan", "debit_credit"}
@@ -119,96 +97,3 @@ def sync_excel(entity):
     if not out["balanced"]:
         pesan += " Peringatan: total Debit dan Credit tidak balance."
     return jsonify({"ok": True, "dropped": result.dropped, "pesan": pesan, **out})
-
-
-def _int_arg(name):
-    try:
-        return int(request.args.get(name))
-    except (TypeError, ValueError):
-        return None
-
-
-def _resolve_period(opts):
-    """Requested year/month if valid, otherwise the latest period that has data."""
-    yy = _int_arg("yy")
-    if yy not in opts["yys"]:
-        yy = opts["yys"][-1] if opts["yys"] else None
-    if yy is None:
-        return None, None
-    months = opts["months"][yy]
-    mm = _int_arg("mm")
-    return yy, (mm if mm in months else months[-1])
-
-
-@bp.route("/mr", methods=["GET"])
-@jwt_html_required
-def mr_page():
-    cmap = coa_map.get_map()
-    cc_map = coa_map.get_cc_map()
-    built = mr_rows.build_combine_rows(
-        {"SMT": service.load_mr_source("smt"), "ETF": service.load_mr_source("etf")}, cmap, cc_map)
-    opts = mr_rows.period_options(built.rows)
-    yy, mm = _resolve_period(opts)
-    scoped = mr_rows.apply_cutoff(built.rows, yy, mm) if yy is not None else []
-    cc = (request.args.get("cc") or "").strip()
-    ccs = mr_report.list_ccs(scoped)
-    if cc not in ccs:
-        cc = ""                                       # stale/unknown CC: same as "All Cost Center"
-    view = "data" if request.args.get("view") == "data" else "report"
-    q = (request.args.get("q") or "").strip()
-    table = mr_columns.resolve_table(request.args.get("table"))
-    report = mr_report.build_report(scoped, cc or None) if view == "report" else None
-    data = mr_report.query_data(scoped, q=q, cc=cc or None, page=_page()) if view == "data" else None
-    shown = [r for r in scoped if not cc or r["cc"] == cc]
-    unmapped = mr_rows.unmapped_summary(scoped)
-    last_coa = coa_map.last_sync()
-    # Old-style map (synced before the CC sheet / Code column existed): values are invalid until re-sync.
-    needs_resync = bool(cmap) and (not cc_map or (last_coa or {}).get("rows_cc", 0) == 0)
-    unmapped_cc = [] if needs_resync else mr_rows.unmapped_cc_summary(scoped)
-    n_rows, total_act = len(shown), round(sum(r["act"] for r in shown), 6) + 0.0
-    if data is not None:
-        n_rows, total_act = data["total"], data["sum_act"]
-    try:
-        can_manage = is_admin(get_jwt())
-    except Exception:
-        can_manage = False
-    return render_template(
-        "general_ledger/mr.html",
-        entities=service.ENTITIES, active_tab="mr", can_manage=can_manage,
-        last_coa=last_coa, needs_resync=needs_resync, has_map=bool(cmap), has_gl=bool(built.rows),
-        opts=opts, yy=yy, mm=mm, cc=cc, q=q, view=view, ccs=ccs,
-        table=table, tables=mr_columns.TABLES, data_cols=mr_columns.TABLES[table][1],
-        cc_desc=((cc_map.get(cc) or {}).get("description") or "") if cc else "",
-        report_labels=mr_columns.REPORT_LABELS, report_metrics=mr_columns.REPORT_METRICS,
-        report=report, data=data, n_rows=n_rows, total_act=total_act,
-        unmapped=unmapped, unmapped_cc=unmapped_cc, unmapped_rows=sum(u["rows"] for u in unmapped),
-        unmapped_act=round(sum(u["act"] for u in unmapped), 6) + 0.0,
-        skipped_date=built.skipped_date, active_page="general_ledger", use_unified_header=True,
-    )
-
-
-@bp.route("/mr/sync-coa", methods=["POST"])
-@json_admin_required
-def sync_coa():
-    f = request.files.get("file")
-    if not f or not f.filename:
-        return jsonify({"ok": False, "pesan": "File belum dipilih."}), 400
-    if not f.filename.lower().endswith(".xlsb"):
-        return jsonify({"ok": False, "pesan": "File harus berformat .xlsb."}), 400
-    try:
-        rows, cc_rows = coa_map.read_mapping_sheets(io.BytesIO(f.read()))
-        if not rows:
-            raise coa_map.CoaParseError("Tidak ada pemetaan COA yang valid di sheet COA.")
-    except coa_map.CoaParseError as e:
-        return jsonify({"ok": False, "pesan": str(e)}), 400
-    try:
-        out = coa_map.sync_coa(f.filename, get_jwt().get("username", ""), rows, cc_rows)
-    except Exception as e:
-        return jsonify({"ok": False, "pesan": f"Sync gagal, pemetaan lama tidak berubah: {e}"}), 500
-    if not out["changed"]:
-        pesan = (f"Sudah sinkron: pemetaan tidak berubah (SMT {out['rows_smt']} akun, "
-                 f"ETF {out['rows_etf']} akun, {out['rows_cc']} cost center).")
-    else:
-        pesan = (f"Sync pemetaan selesai: SMT {out['rows_smt']} akun, "
-                 f"ETF {out['rows_etf']} akun, {out['rows_cc']} cost center.")
-    return jsonify({"ok": True, "pesan": pesan, **out})
