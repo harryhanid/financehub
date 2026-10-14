@@ -159,6 +159,13 @@ def exceptions(pid):
                    kind=kind, severity=severity, q=q)
 
 
+def _safe_cell(value):
+    """Prefix text that Excel would read as a formula so it is stored and shown as plain text."""
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", chr(9), chr(13)):
+        return "'" + value
+    return value
+
+
 @bp.route("/<int:pid>/pengecualian.xlsx")
 @jwt_html_required
 def exceptions_xlsx(pid):
@@ -170,8 +177,9 @@ def exceptions_xlsx(pid):
     ws.append(["Jenis", "Tingkat", "Akun", "Tanggal", "ID#", "Job", "Memo", "Debit - Credit", "PPh (GL)", "Keterangan"])
     if snapshot:
         for r in service.list_exceptions(snapshot["id"], per_page=10 ** 9)["rows"]:
-            ws.append([KIND_LABELS.get(r["kind"], r["kind"]), r["severity"], r["account"], r["tgl"], r["id_no"],
-                       r["job_name"], r["memo"], r["debit_credit"], r["pph_type_raw"], r["detail"]])
+            ws.append([_safe_cell(v) for v in (
+                KIND_LABELS.get(r["kind"], r["kind"]), r["severity"], r["account"], r["tgl"], r["id_no"],
+                r["job_name"], r["memo"], r["debit_credit"], r["pph_type_raw"], r["detail"])])
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)

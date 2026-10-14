@@ -15,7 +15,7 @@
     <thead><tr><th>Jenis</th><th>Tingkat</th><th>Akun</th><th class="num">Baris</th></tr></thead>
     <tbody>
     {% for g in groups %}
-    <tr><td>{{ g.kind }}</td><td><span class="spt-badge {{ g.severity }}">{{ g.severity }}</span></td><td>{{ g.account }}</td><td class="num">{{ g.n | spt_num }}</td></tr>
+    <tr><td>{{ kind_labels.get(g.kind, g.kind) }}</td><td><span class="spt-badge {{ g.severity }}">{{ g.severity }}</span></td><td>{{ g.account }}</td><td class="num">{{ g.n | spt_num }}</td></tr>
     {% else %}
     <tr><td colspan="4" class="spt-muted">Tidak ada pengecualian.</td></tr>
     {% endfor %}

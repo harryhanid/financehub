@@ -9,7 +9,8 @@ import database
 from modules.management_report import category_map as cm
 from modules.spt_badan import service as sv
 from tests.test_mrc_routes import login
-from tests.test_spt_service import SPT_GAJI, new_period, seed_gl, seed_mapping
+from modules.spt_badan.routes import KIND_LABELS
+from tests.test_spt_service import SPT_GAJI, gl, new_period, seed_gl, seed_mapping
 
 BASE = "/spt-badan"
 
@@ -116,13 +117,27 @@ def test_income_statement_page_shows_numbers_and_drill_links(client):
     assert f"/spt-badan/{pid}/baris?" in html
 
 
+def card(html, label):
+    return re.search(rf"{re.escape(label)}<b>(.*?)</b>", html).group(1)
+
+
 def test_drill_page_total_equals_the_statement_row(client):
     pid, sid = ready(client)
-    html = client.get(f"{BASE}/{pid}/baris",
+    rows = {r["key"]: r for r in sv.income_statement_for(sid)["rows"]}
+    for key in ("opex", "hpp", "revenue"):                # revenue is credit-natured: sign flips
+        html = client.get(f"{BASE}/{pid}/baris", query_string={"cats": rows[key]["cats"]}).data.decode()
+        shown = card(html, "Jumlah (debit − credit)").lstrip("-")
+        assert shown == f"{abs(rows[key]['amount']):,.0f}".replace(",", "."), key
+    assert card(client.get(f"{BASE}/{pid}/baris", query_string={"cats": rows["opex"]["cats"]})
+                .data.decode(), "Jumlah (debit − credit)") == "200"
+    both = client.get(f"{BASE}/{pid}/baris",
                       query_string={"cats": ["HARGA POKOK PENJUALAN", "Beban Operasional"]}).data.decode()
-    assert [r[2] for r in cells(html, "spt-lines")] and "600" in html            # 300+100+200
+    assert card(both, "Jumlah (debit − credit)") == "600"                         # 300+100+200
     one = client.get(f"{BASE}/{pid}/baris", query_string={"cats": "HARGA POKOK PENJUALAN", "spt": "BIAYA SEWA"})
     assert [r[2] for r in cells(one.data.decode(), "spt-lines")] == ["5-2000"]
+    blank = client.get(f"{BASE}/{pid}/baris",
+                       query_string={"cats": "Jasa Konsultasi & Advokasi", "spt": ""}).data.decode()
+    assert [r[2] for r in cells(blank, "spt-lines")] == ["4-1000"]
     assert client.get(f"{BASE}/{pid}/baris").status_code == 200                  # no category: empty list
 
 
@@ -130,7 +145,8 @@ def test_exceptions_page_groups_filters_and_exports(client):
     pid, sid = ready(client)
     html = client.get(f"{BASE}/{pid}/pengecualian").data.decode()
     groups = cells(html, "spt-exc-groups")
-    assert {(g[0], g[2]) for g in groups} == {("pph_kosong", "6-1000"), ("pph_bukan_jenis", "8-2000")}
+    assert {(g[0], g[2]) for g in groups} == {(KIND_LABELS["pph_kosong"], "6-1000"),
+                                              (KIND_LABELS["pph_bukan_jenis"], "8-2000")}
     only = client.get(f"{BASE}/{pid}/pengecualian?kind=pph_bukan_jenis").data.decode()
     assert [r[2] for r in cells(only, "spt-exc-rows")] == ["8-2000"]
     x = client.get(f"{BASE}/{pid}/pengecualian.xlsx")
@@ -154,3 +170,19 @@ def test_module_tab_is_in_the_dashboard_navigation(client):
     login(client)
     html = client.get(BASE + "/").data.decode()
     assert "SPT Badan" in html and "/spt-badan/" in html
+
+
+def test_exceptions_xlsx_neutralises_formulas(client):
+    login(client)
+    seed_mapping()
+    seed_gl([gl("6-1000", 5, 0, "Beban Operasional", "BIAYA LAINNYA", "", memo="=1+1", job_name="=HYPERLINK(1)"),
+             gl("6-1000", 6, 0, "Beban Operasional", "BIAYA LAINNYA", "", memo="+cmd", id_no="@x"),
+             gl("4-1000", 0, 11, "Jasa Konsultasi & Advokasi", "")])
+    pid = new_period()
+    assert client.post(f"{BASE}/{pid}/snapshot").get_json()["ok"]
+    x = client.get(f"{BASE}/{pid}/pengecualian.xlsx")
+    ws = openpyxl.load_workbook(io.BytesIO(x.data)).active
+    assert ws.max_row == 3
+    assert not [c for row in ws.iter_rows() for c in row if c.data_type == "f"]
+    memos = {r[6].value for r in ws.iter_rows(min_row=2)}
+    assert memos == {"'=1+1", "'+cmd"}
