@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}SPT Badan · Pengecualian{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/spt_badan.css') }}">{% endblock %}
+{% block module_tabs %}{% include "spt_badan/_tabs.html" %}{% endblock %}
+
+{% block content %}
+{% include "spt_badan/_banner.html" %}
+{% if not snapshot %}
+<section class="card spt-section"><div class="spt-muted">Belum ada snapshot.</div></section>
+{% else %}
+<section class="card spt-section">
+  <strong>Ringkasan per jenis dan akun</strong>
+  <div class="spt-wrap" style="max-height:35vh">
+  <table class="spt-table" id="spt-exc-groups" style="margin-top:.4rem">
+    <thead><tr><th>Jenis</th><th>Tingkat</th><th>Akun</th><th class="num">Baris</th></tr></thead>
+    <tbody>
+    {% for g in groups %}
+    <tr><td>{{ g.kind }}</td><td><span class="spt-badge {{ g.severity }}">{{ g.severity }}</span></td><td>{{ g.account }}</td><td class="num">{{ g.n | spt_num }}</td></tr>
+    {% else %}
+    <tr><td colspan="4" class="spt-muted">Tidak ada pengecualian.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="card spt-section">
+  <strong>Daftar pengecualian</strong>
+  <form class="spt-filter" method="get" style="margin-top:.5rem">
+    <label>Jenis
+      <select name="kind"><option value="">Semua</option>{% for k, label in kind_labels.items() %}<option value="{{ k }}"{{ ' selected' if k == kind else '' }}>{{ label }}</option>{% endfor %}</select>
+    </label>
+    <label>Tingkat
+      <select name="severity"><option value="">Semua</option>{% for s in ('blocker', 'warning') %}<option value="{{ s }}"{{ ' selected' if s == severity else '' }}>{{ s }}</option>{% endfor %}</select>
+    </label>
+    <label>Cari<input type="text" name="q" value="{{ q }}" placeholder="akun / memo / ID# / job"></label>
+    <button class="btn btn-primary btn-sm" type="submit">Terapkan</button>
+    <a class="btn btn-sm" href="{{ url_for('spt_badan.exceptions_xlsx', pid=period.id) }}">Unduh xlsx</a>
+  </form>
+  <div class="spt-wrap">
+  <table class="spt-table" id="spt-exc-rows">
+    <thead><tr><th>Jenis</th><th>Tingkat</th><th>Akun</th><th>Tanggal</th><th>ID#</th><th>Job</th><th>Memo</th><th>PPh (GL)</th><th class="num">Debit − Credit</th></tr></thead>
+    <tbody>
+    {% for r in data.rows %}
+    <tr><td>{{ kind_labels.get(r.kind, r.kind) }}</td><td><span class="spt-badge {{ r.severity }}">{{ r.severity }}</span></td><td>{{ r.account }}</td>
+        <td>{{ r.tgl }}</td><td>{{ r.id_no }}</td><td>{{ r.job_name }}</td><td>{{ r.memo }}</td><td>{{ r.pph_type_raw }}</td><td class="num">{{ r.debit_credit | spt_num }}</td></tr>
+    {% else %}
+    <tr><td colspan="9" class="spt-muted">Tidak ada baris yang cocok.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% include "spt_badan/_pager.html" %}
+</section>
+{% endif %}
+{% endblock %}

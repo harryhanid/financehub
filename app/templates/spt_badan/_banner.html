@@ -1,0 +1,8 @@
+<div class="spt-banner">
+  <b>{{ period.label or 'SPT' }}</b> · {{ entity_label }} · Tahun pajak {{ period.tax_year }}
+  {% if snapshot %} · Data GL {{ snapshot.date_min }} s.d. {{ snapshot.date_max }} · Snapshot {{ snapshot.taken_at }} oleh {{ snapshot.taken_by }}{% endif %}
+  <div class="spt-muted">Angka ini simulasi dari GL berjalan, bukan SPT final.</div>
+</div>
+{% if stale %}
+<div class="spt-banner warn">{{ stale | join('; ') }}. Ambil snapshot ulang di halaman Ringkasan agar angka mengikuti data terbaru.</div>
+{% endif %}

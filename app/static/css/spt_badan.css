@@ -1,0 +1,20 @@
+.spt-table { border-collapse:collapse; width:100%; font-size:.8125rem; white-space:nowrap; }
+.spt-table th, .spt-table td { padding:.3rem .5rem; border-bottom:1px solid var(--sl-200); }
+.spt-table th { text-align:left; background:var(--sl-50); position:sticky; top:0; }
+.spt-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.spt-table tr.sub td:first-child { padding-left:1.8rem; color:var(--sl-500); }
+.spt-table tr.subtotal td { font-weight:700; border-top:1px solid var(--sl-300, var(--sl-200)); }
+.spt-wrap { overflow:auto; max-height:65vh; }
+.spt-muted { color:var(--sl-500); font-size:.8125rem; }
+.spt-cards { display:flex; gap:1rem; flex-wrap:wrap; margin:.5rem 0 1rem; }
+.spt-card { padding:.6rem .9rem; border:1px solid var(--sl-200); border-radius:8px; min-width:150px; }
+.spt-card b { display:block; font-size:1.05rem; font-variant-numeric:tabular-nums; }
+.spt-banner { margin-bottom:.75rem; padding:.6rem .9rem; font-size:.8125rem; border:1px solid var(--sl-200); border-radius:8px; }
+.spt-banner.warn { border-color:var(--danger); }
+.spt-badge { display:inline-block; padding:.05rem .5rem; border-radius:999px; font-size:.75rem; border:1px solid var(--sl-200); }
+.spt-badge.lulus { border-color:var(--success, #2e7d32); }
+.spt-badge.gagal, .spt-badge.blocker { border-color:var(--danger); font-weight:700; }
+.spt-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:.75rem; }
+.spt-filter label { display:flex; flex-direction:column; font-size:.75rem; }
+.spt-pager { display:flex; align-items:center; gap:.75rem; margin:.6rem 0; }
+.spt-section { margin-bottom:1rem; }

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}SPT Badan{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/spt_badan.css') }}">{% endblock %}
+
+{% block content %}
+<section class="card spt-section">
+  <strong>SPT Badan · Periode</strong>
+  <div class="spt-muted" style="margin:.25rem 0">Setiap periode dihitung dari General Ledger tahun pajak yang sama dan mapping di menu Pemetaan Management Report.</div>
+  {% if can_manage %}
+  <div class="spt-filter" style="margin-top:.5rem">
+    <label>Entitas
+      <select id="spt-entity">{% for key, e in entities.items() %}<option value="{{ key }}">{{ e.label }}</option>{% endfor %}</select>
+    </label>
+    <label>Tahun pajak<input type="number" id="spt-year" min="2000" max="2100" value="{{ periods[0].tax_year if periods else 2026 }}" style="width:6rem"></label>
+    <button class="btn btn-primary btn-sm" id="spt-create-btn" onclick="sptCreate()">Buat periode</button>
+    <span id="spt-msg" class="spt-muted"></span>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card spt-section">
+  <div class="spt-wrap" style="max-height:none">
+  <table class="spt-table" id="spt-periods">
+    <thead><tr><th>Entitas</th><th>Tahun pajak</th><th>Label</th><th>Snapshot terakhir</th><th class="num">Baris GL</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for p in periods %}
+    <tr>
+      <td>{{ p.entity_label }}</td><td>{{ p.tax_year }}</td><td>{{ p.label }}</td>
+      <td>{% if p.snapshot %}{{ p.snapshot.taken_at }}{% else %}<span class="spt-muted">belum ada</span>{% endif %}</td>
+      <td class="num">{{ p.snapshot.row_count | spt_num if p.snapshot else '' }}</td>
+      <td>{% if p.stale %}<span class="spt-badge gagal">usang</span>{% elif p.snapshot %}<span class="spt-badge lulus">terbaru</span>{% endif %}</td>
+      <td><a class="btn btn-sm" href="{{ url_for('spt_badan.detail', pid=p.id) }}">Buka</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="spt-muted">Belum ada periode.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if can_manage %}
+<script>
+async function sptCreate() {
+  const msg = document.getElementById('spt-msg');
+  const r = await fetch('/spt-badan/periods', {method: 'POST', credentials: 'same-origin',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({entity: document.getElementById('spt-entity').value, tax_year: document.getElementById('spt-year').value})});
+  const j = await r.json().catch(() => ({}));
+  msg.textContent = j.pesan || (r.ok ? 'Selesai.' : 'Gagal.');
+  if (j.ok) setTimeout(() => { location.href = '/spt-badan/' + j.id; }, 500);
+}
+</script>
+{% endif %}
+{% endblock %}

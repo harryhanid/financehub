@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}SPT Badan · {{ entity_label }} {{ period.tax_year }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/spt_badan.css') }}">{% endblock %}
+{% block module_tabs %}{% include "spt_badan/_tabs.html" %}{% endblock %}
+
+{% block content %}
+{% include "spt_badan/_banner.html" %}
+<section class="card spt-section">
+  <strong>Ringkasan</strong>
+  {% if can_manage %}
+  <div style="margin:.5rem 0">
+    <button class="btn btn-primary btn-sm" id="spt-snapshot-btn" onclick="sptSnapshot()">Ambil snapshot GL</button>
+    <span id="spt-msg" class="spt-muted"></span>
+  </div>
+  {% endif %}
+  {% if not snapshot %}
+  <div class="spt-muted">Belum ada snapshot. Ambil snapshot untuk menghitung dari GL {{ entity_label }} tahun {{ period.tax_year }}.</div>
+  {% else %}
+  <div class="spt-cards">
+    <div class="spt-card">Baris GL<b>{{ snapshot.row_count | spt_num }}</b></div>
+    <div class="spt-card">Rentang tanggal<b>{{ snapshot.date_min }} s.d. {{ snapshot.date_max }}</b></div>
+    <div class="spt-card">Laba sebelum pajak<b>{{ summary.pbt | spt_num }}</b></div>
+    <div class="spt-card">Kontrol wajib gagal<b>{{ blockers }}</b></div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="card spt-section">
+  <strong>Langkah</strong>
+  <table class="spt-table" id="spt-steps" style="margin-top:.4rem">
+    <thead><tr><th>Langkah</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for s in steps %}
+    <tr><td>{{ s.name }}</td><td><span class="spt-badge {{ s.status }}">{{ s.status }}</span></td>
+        <td><a class="btn btn-sm" href="{{ url_for(s.endpoint, pid=period.id) }}">Lihat</a></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if can_manage %}
+<script>
+async function sptSnapshot() {
+  const msg = document.getElementById('spt-msg'), btn = document.getElementById('spt-snapshot-btn');
+  btn.disabled = true; msg.textContent = 'Memproses...';
+  try {
+    const r = await fetch('/spt-badan/{{ period.id }}/snapshot', {method: 'POST', credentials: 'same-origin'});
+    const j = await r.json().catch(() => ({}));
+    msg.textContent = j.pesan || (r.ok ? 'Selesai.' : 'Gagal.');
+    if (j.ok) setTimeout(() => location.reload(), 800);
+  } catch (e) { msg.textContent = 'Gagal: ' + e; }
+  btn.disabled = false;
+}
+</script>
+{% endif %}
+{% endblock %}
