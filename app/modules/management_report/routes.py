@@ -436,3 +436,37 @@ def sync_mapping():
     pesan = (f"Sudah sinkron: pemetaan tidak berubah ({counts})." if not out["changed"]
              else f"Sync pemetaan selesai: {counts}.")
     return jsonify({"ok": True, "pesan": pesan, **out})
+
+
+@bp.route("/pemetaan")
+@jwt_html_required
+def mapping_page():
+    view = request.args.get("view") if request.args.get("view") in ("coa", "cc") else "coa"
+    source = request.args.get("source") if request.args.get("source") in ("SMT", "ETF") else ""
+    q = (request.args.get("q") or "").strip()
+    page = _page_arg()
+    if page < 1:
+        page = 1
+    cmap = coa_map.get_map()
+    cc_map = coa_map.get_cc_map()
+    last_map = coa_map.last_sync()
+    has_map = bool(cmap)
+    needs_resync = has_map and (not cc_map or (last_map or {}).get("rows_cc", 0) == 0)
+    unmapped, unmapped_cc = [], []
+    if has_map:
+        built = combine_rows.build_combine_rows(
+            {"SMT": combine_sources.gl_rows("smt"), "ETF": combine_sources.gl_rows("etf"),
+             "Sponsor": combine_sources.sponsor_rows()}, cmap, cc_map)
+        unmapped = combine_rows.unmapped_summary(built.rows)
+        unmapped_cc = [] if needs_resync else combine_rows.unmapped_cc_summary(built.rows)
+    data = None
+    if has_map:
+        data = (coa_map.search_cc(q, page) if view == "cc" else coa_map.search_coa(source or None, q, page))
+    return render_template(
+        "management_report/mapping.html",
+        active_tab="mapping", view=view, source=source, q=q, data=data,
+        last_map=last_map, history=coa_map.list_syncs(10), has_map=has_map, needs_resync=needs_resync,
+        unmapped=unmapped, unmapped_cc=unmapped_cc, limit=50,
+        active_page="management_report", use_unified_header=True,
+        **_ctx(),
+    )

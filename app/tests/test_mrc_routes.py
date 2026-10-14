@@ -171,8 +171,30 @@ def test_tab_bar_links_and_old_tabs_unchanged(client):
         assert href in page, href
     index = client.get("/management-report/").data.decode()
     assert 'data-tab="tab-sync"' in index and 'data-tab="tab-report"' in index and 'data-tab="tab-ho"' in index
-    links = re.findall(r'<a [^>]*href="/management-report/(?:gl-combine|append1)"[^>]*>', index)
-    assert len(links) == 2 and all("mr-linktab" in l and "tab-btn" not in l for l in links)
+    links = re.findall(r'<a [^>]*href="/management-report/(?:gl-combine|append1|pemetaan)"[^>]*>', index)
+    assert len(links) == 3 and all("mr-linktab" in l and "tab-btn" not in l for l in links)
+    for url in ("/management-report/gl-combine", "/management-report/append1"):
+        html = client.get(url).data.decode()
+        pem = re.findall(r'<a [^>]*href="/management-report/pemetaan"[^>]*>', html)
+        assert len(pem) == 2                                     # tab link + "Kelola pemetaan" link
+        assert any("mr-linktab" in l and "tab-btn" not in l for l in pem)
+
+
+def test_combine_pages_have_slim_mapping_line_and_no_sync_controls(client):
+    login(client)
+    seed()
+    for url in ("/management-report/gl-combine", "/management-report/append1"):
+        html = client.get(url).data.decode()
+        assert "mr-map-btn" not in html and "mr-map-file" not in html and "mrSyncMapping" not in html
+        assert "Kelola pemetaan" in html and "SMT 1 akun, ETF 1 akun, 4 cost center" in html
+        assert "Pemetaan: terakhir sync" in html
+
+
+def test_combine_page_without_any_sync_says_never_synced(client):
+    login(client)
+    seed(mapping=False)
+    html = client.get("/management-report/gl-combine").data.decode()
+    assert "Pemetaan belum pernah disync" in html and "Kelola pemetaan" in html
 
 
 def upload(client, name="Master.xlsb"):
@@ -222,8 +244,6 @@ def test_non_admin_can_view_but_not_sync(client):
     assert client.post("/auth/login", json={"username": "req1", "password": "Req@12345"}).status_code == 200
     client.post("/select-company", data={"company_id": "2"})
     seed()
-    html = client.get("/management-report/gl-combine").data.decode()
-    assert "mr-map-btn" not in html
     assert upload(client).status_code == 403
 
 

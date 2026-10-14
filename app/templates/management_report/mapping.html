@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Management Report - Pemetaan{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mr_combine.css') }}">
+<style>
+.mc-table { border-collapse:collapse; width:100%; font-size:.8125rem; white-space:nowrap; }
+.mc-table th, .mc-table td { padding:.3rem .5rem; border-bottom:1px solid var(--sl-200); }
+.mc-table th { text-align:left; background:var(--sl-50); position:sticky; top:0; }
+.mc-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.mc-wrap { overflow:auto; max-height:65vh; }
+.mc-muted { color:var(--sl-500); font-size:.8125rem; }
+.mc-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:.75rem; }
+.mc-filter label { display:flex; flex-direction:column; font-size:.75rem; }
+.mc-pager { display:flex; align-items:center; gap:.75rem; margin:.6rem 0; }
+.mc-warn { margin-bottom:.75rem; padding:.7rem .9rem; font-size:.8125rem; border:1px solid var(--danger); border-radius:8px; }
+.mc-section { margin-bottom:1rem; }
+.mc-switch { display:inline-block; padding:.3rem .8rem; border:1px solid var(--sl-200); border-radius:999px; font-size:.8rem; text-decoration:none; margin-right:.35rem; }
+.mc-switch.active { font-weight:700; border-color:var(--accent); }
+.mc-two { display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-start; }
+.mc-two > div { flex:1 1 320px; min-width:0; overflow:auto; }
+</style>
+{% endblock %}
+
+{% block module_tabs %}
+{% include "management_report/_linktabs.html" %}
+{% endblock %}
+
+{% block content %}
+<section class="card mc-section">
+  <strong>Pemetaan COA &amp; CC</strong>
+  <div class="mc-muted" style="margin:.25rem 0">
+    {% if last_map %}Terakhir sync: {{ last_map.synced_at }} · {{ last_map.synced_by }} · {{ last_map.filename }} · SMT {{ last_map.rows_smt }} akun, ETF {{ last_map.rows_etf }} akun, {{ last_map.rows_cc or 0 }} cost center
+    {% else %}Pemetaan belum pernah disync.{% endif %}
+  </div>
+  {% if can_manage %}
+  <div style="margin:.5rem 0">
+    <input type="file" id="mr-map-file" accept=".xlsb">
+    <button class="btn btn-primary btn-sm" id="mr-map-btn" onclick="mrSyncMapping()">Sync pemetaan COA &amp; CC dari Excel</button>
+    <span id="mr-map-msg" class="mc-muted"></span>
+  </div>
+  <div class="mc-muted">Pilih file <code>Management Report - MASTER.xlsb</code>; hanya sheet <b>COA</b> dan <b>CC</b> yang dibaca.</div>
+  {% endif %}
+</section>
+
+<section class="card mc-section">
+  <strong>Riwayat sync</strong>
+  {% if history %}
+  <div class="mc-wrap" style="max-height:none">
+  <table class="mc-table" id="mr-history">
+    <thead><tr><th>Waktu</th><th>User</th><th>File</th><th class="num">SMT</th><th class="num">ETF</th><th class="num">Cost center</th></tr></thead>
+    <tbody>
+    {% for h in history %}
+    <tr><td>{{ h.synced_at }}</td><td>{{ h.synced_by }}</td><td>{{ h.filename }}</td><td class="num">{{ h.rows_smt }}</td><td class="num">{{ h.rows_etf }}</td><td class="num">{{ h.rows_cc }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="mc-muted">Belum ada riwayat.</div>
+  {% endif %}
+</section>
+
+{% if not has_map %}
+<div class="card mc-section">Pemetaan belum ada. {% if can_manage %}Upload Management Report - MASTER.xlsb di atas.{% else %}Minta admin untuk sync pemetaan.{% endif %}</div>
+{% else %}
+
+{% if needs_resync %}
+<div class="mc-warn card">
+  Pemetaan perlu disync ulang: sheet CC dan kolom Code belum dimuat, jadi COST CENTER2, CC1, BC1 dan New Code belum valid. {% if can_manage %}Upload Management Report - MASTER.xlsb di atas lalu klik Sync pemetaan COA &amp; CC.{% else %}Minta admin untuk sync pemetaan.{% endif %}
+</div>
+{% endif %}
+
+<section class="card mc-section" id="mr-unmapped">
+  <strong>Belum terpetakan</strong> <span class="mc-muted">(semua periode)</span>
+  {% if not unmapped and not unmapped_cc %}
+  <div class="mc-muted" style="margin-top:.35rem">{{ 'Semua akun sudah terpetakan.' if needs_resync else 'Semua akun dan cost center sudah terpetakan.' }}</div>
+  {% else %}
+  <div class="mc-two">
+    {% if unmapped %}
+    <div>
+      <div class="mc-muted" style="margin:.35rem 0">{{ unmapped | length }} akun belum dipetakan atau tanpa kategori</div>
+      <table class="mc-table" id="mr-unmapped-acc">
+        <thead><tr><th>Sumber</th><th>Akun</th><th class="num">Baris</th><th class="num">ACT (Rp Mio)</th></tr></thead>
+        <tbody>
+        {% for u in unmapped[:limit] %}
+        <tr><td>{{ u.source }}</td><td>{{ u.account }}</td><td class="num">{{ u.rows }}</td><td class="num">{{ u.act | mc_mio }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% if unmapped | length > limit %}<div class="mc-muted">… dan {{ unmapped | length - limit }} lainnya</div>{% endif %}
+    </div>
+    {% endif %}
+    {% if unmapped_cc %}
+    <div>
+      <div class="mc-muted" style="margin:.35rem 0">{{ unmapped_cc | length }} cost center belum ada di sheet CC</div>
+      <table class="mc-table" id="mr-unmapped-cc">
+        <thead><tr><th>Cost Center</th><th class="num">Baris</th></tr></thead>
+        <tbody>
+        {% for u in unmapped_cc[:limit] %}
+        <tr><td>{{ u.cc }}</td><td class="num">{{ u.rows }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% if unmapped_cc | length > limit %}<div class="mc-muted">… dan {{ unmapped_cc | length - limit }} lainnya</div>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+
+<section class="card mc-section">
+  <strong>Tabel pemetaan</strong>
+  <div style="margin:.5rem 0">
+    <a class="mc-switch{{ ' active' if view == 'coa' else '' }}" href="?{{ ({'view': 'coa', 'q': q} if q else {'view': 'coa'}) | urlencode }}">COA</a>
+    <a class="mc-switch{{ ' active' if view == 'cc' else '' }}" href="?{{ ({'view': 'cc', 'q': q} if q else {'view': 'cc'}) | urlencode }}">Cost Center</a>
+  </div>
+  <form class="mc-filter" method="get">
+    <input type="hidden" name="view" value="{{ view }}">
+    {% if view == 'coa' %}
+    <label>Sumber
+      <select name="source"><option value="">Semua</option>{% for s in ('SMT', 'ETF') %}<option value="{{ s }}"{{ ' selected' if s == source else '' }}>{{ s }}</option>{% endfor %}</select>
+    </label>
+    {% endif %}
+    <label>Cari<input type="text" name="q" value="{{ q }}" placeholder="{{ 'akun / COA HO / kategori / code' if view == 'coa' else 'cost center / COST CENTER2 / deskripsi' }}"></label>
+    <button class="btn btn-primary btn-sm" type="submit">Terapkan</button>
+  </form>
+  <div class="mc-muted" style="margin-bottom:.5rem">{{ data.total }} baris</div>
+
+  <div class="mc-wrap">
+  <table class="mc-table" id="mr-map-table">
+    {% if view == 'coa' %}
+    <thead><tr><th>Sumber</th><th>Akun</th><th>COA HO</th><th>Kategori</th><th>Code (BC1)</th></tr></thead>
+    <tbody>
+    {% for r in data.rows %}
+    <tr><td>{{ r.source }}</td><td>{{ r.account }}</td><td>{{ r.coa_ho }}</td><td>{{ r.category }}</td><td>{{ r.code }}</td></tr>
+    {% else %}
+    <tr><td colspan="5" class="mc-muted">Tidak ada baris yang cocok.</td></tr>
+    {% endfor %}
+    </tbody>
+    {% else %}
+    <thead><tr><th>Cost Center</th><th>COST CENTER2</th><th class="num">CC1</th><th>Deskripsi</th></tr></thead>
+    <tbody>
+    {% for r in data.rows %}
+    <tr><td>{{ r.cost_center }}</td><td>{{ r.total_cc }}</td><td class="num">{{ r.seq }}</td><td>{{ r.description }}</td></tr>
+    {% else %}
+    <tr><td colspan="4" class="mc-muted">Tidak ada baris yang cocok.</td></tr>
+    {% endfor %}
+    </tbody>
+    {% endif %}
+  </table>
+  </div>
+  <div class="mc-pager">
+    {% set qs = request.args.to_dict() %}{% set _ = qs.pop('page', none) %}
+    {% if data.page > 1 %}<a class="btn btn-sm" href="?{{ (qs | urlencode) ~ ('&' if qs else '') }}page={{ data.page - 1 }}">&laquo; Sebelumnya</a>{% endif %}
+    <span class="mc-muted">Halaman {{ data.page }} dari {{ data.pages }}</span>
+    {% if data.page < data.pages %}<a class="btn btn-sm" href="?{{ (qs | urlencode) ~ ('&' if qs else '') }}page={{ data.page + 1 }}">Berikutnya &raquo;</a>{% endif %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if can_manage %}
+<script>
+async function mrSyncMapping() {
+  const f = document.getElementById('mr-map-file').files[0];
+  const msg = document.getElementById('mr-map-msg');
+  if (!f) { msg.textContent = 'Pilih file Management Report - MASTER.xlsb dulu.'; return; }
+  const btn = document.getElementById('mr-map-btn');
+  btn.disabled = true; msg.textContent = 'Menyinkronkan...';
+  const fd = new FormData(); fd.append('file', f);
+  try {
+    const r = await fetch('/management-report/gl-combine/sync-mapping', {method: 'POST', body: fd, credentials: 'same-origin'});
+    const j = await r.json();
+    msg.textContent = j.pesan || (r.ok ? 'Selesai.' : 'Gagal.');
+    if (j.ok && j.changed) setTimeout(() => location.reload(), 1200);
+  } catch (e) { msg.textContent = 'Gagal sync: ' + e; }
+  btn.disabled = false;
+}
+</script>
+{% endif %}
+{% endblock %}
