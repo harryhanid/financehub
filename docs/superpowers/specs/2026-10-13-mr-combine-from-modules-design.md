@@ -49,7 +49,7 @@ Perubahan di `app/modules/management_report/`:
   - `sponsor_rows()`: membaca `sponsorship.service.list_transaksi(company_id_SMT)` (semua tahun, tanpa filter) dengan company SMT dicari dari tabel `companies` berdasarkan kode `SMT`, tanpa angka tetap. Tahun yang diambil: semua tahun yang punya data. Urutan: `tanggal_form_sponsor` naik, lalu `id` naik.
 - `combine_rows.py` (dipindah dari `mr_rows.py`, diperluas): membentuk baris GL Combine dari tiga sumber, penomoran New Code, ringkasan belum-dipetakan, opsi periode, dan cutoff.
 - `combine_columns.py` (dipindah dari `mr_columns.py`): daftar kolom GL Combine dan Append1 beserta tipe tampilan.
-- `routes.py` dan template MR: dua halaman baru dengan bilah tab bersama, `/management-report/gl-combine` dan `/management-report/append1`, ditambah `POST /management-report/gl-combine/sync-mapping` (admin, menerima .xlsb). Tab lama (Data Sync, Report, HO Report) tidak diubah selain bilah tab yang menautkan dua tab baru.
+- `routes.py` dan template MR: tiga halaman baru dengan bilah tab bersama, `/management-report/gl-combine`, `/management-report/append1` dan `/management-report/pemetaan` (tab Pemetaan), ditambah `POST /management-report/gl-combine/sync-mapping` (admin, menerima .xlsb). Tab lama (Data Sync, Report, HO Report) tidak diubah selain bilah tab yang menautkan tiga tab baru.
 - `config.py`: konstanta cadangan baru `MR_SPONSOR_ACCOUNT = "701078002"`, `MR_SPONSOR_COST_CENTER = "POSPON"`, `MR_SPONSOR_SOURCE = "Sponsor"`, dipakai hanya bila kolom `coa`/`cc` baris Sponsorship kosong. `MR_SPONSOR_COST_CENTER2` dan `MR_SPONSOR_CC1` tidak ada: COST CENTER2 dan CC1 dicari lewat pemetaan CC yang sama dengan GL.
 
 Yang dihapus dari `app/modules/general_ledger/`: `mr_rows.py`, `mr_report.py`, `mr_columns.py`, `coa_map.py` (dipindah atau dihapus), route `/mr` dan `/mr/sync-coa` di `routes.py`, tautan MR di `templates/general_ledger/_tabs.html`, template `mr.html`. Fungsi `service.load_mr_source` tetap di modul GL karena dipakai MR.
@@ -78,7 +78,7 @@ Halaman GL Combine dan Append1 berbagi filter dan bilah tab:
 - Banner: pemetaan perlu disync ulang (sheet CC dan kolom Code belum dimuat), akun belum dipetakan, cost center belum dipetakan (berlaku untuk setiap sumber yang cost center-nya tidak punya COST CENTER2), dan baris dilewati karena tanggal tidak valid (GL dan Sponsor).
 - Parameter yang tidak valid (`yy`, `mm`, `page`, `cc`, `source`, `view`) kembali ke nilai default dengan status 200. Nilai yang ditampilkan di-escape.
 - Keadaan kosong: pemetaan COA belum ada, atau tidak ada data sumber sama sekali, menampilkan petunjuk.
-- Tombol "Sync pemetaan COA & CC" (admin) ada di halaman GL Combine. Hanya admin yang boleh sync.
+- Tombol "Sync pemetaan COA & CC" (admin), riwayat sync, penelusuran pemetaan, dan daftar belum-dipetakan ada di tab Pemetaan (`/management-report/pemetaan`). Endpoint POST `/management-report/gl-combine/sync-mapping` tidak berubah. Hanya admin yang boleh sync. GL Combine dan Append1 hanya menampilkan satu baris status pemetaan dengan tautan "Kelola pemetaan".
 
 ## Pengujian (pytest)
 

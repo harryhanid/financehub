@@ -224,3 +224,26 @@ def test_unmapped_list_truncates_at_50(client):
               allocation_memo="x") for i in range(53)], LOG)
     html = get(client)
     assert len(rows_of(html, "mr-unmapped-acc")) == 50 and "dan 3 lainnya" in html
+
+
+def test_no_source_data_does_not_claim_everything_is_mapped(client):
+    login(client)
+    coa_map.sync_coa("m.xlsb", "u", CMAP_ROWS, CC_ROWS)
+    html = get(client)
+    assert "Belum ada data sumber untuk diperiksa. Sync GL SMT dan GL ETF di modul General Ledger atau isi data Sponsorship." in html
+    assert "sudah terpetakan" not in html
+
+
+def test_panel_failure_keeps_page_alive(client, monkeypatch):
+    from modules.management_report import routes as mr_routes
+    login(client)
+    seed()
+
+    def boom():
+        raise RuntimeError("boom <b>")
+    monkeypatch.setattr(mr_routes.combine_sources, "sponsor_rows", boom)
+    html = get(client)
+    assert "Panel belum terpetakan tidak dapat dihitung: boom &lt;b&gt;" in html
+    assert "mr-map-btn" in html and len(rows_of(html, "mr-history")) == 1
+    assert len(rows_of(html, "mr-map-table")) == 2
+    assert "sudah terpetakan" not in html

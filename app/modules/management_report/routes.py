@@ -453,12 +453,18 @@ def mapping_page():
     has_map = bool(cmap)
     needs_resync = has_map and (not cc_map or (last_map or {}).get("rows_cc", 0) == 0)
     unmapped, unmapped_cc = [], []
+    has_rows, panel_error = False, ""
     if has_map:
-        built = combine_rows.build_combine_rows(
-            {"SMT": combine_sources.gl_rows("smt"), "ETF": combine_sources.gl_rows("etf"),
-             "Sponsor": combine_sources.sponsor_rows()}, cmap, cc_map)
-        unmapped = combine_rows.unmapped_summary(built.rows)
-        unmapped_cc = [] if needs_resync else combine_rows.unmapped_cc_summary(built.rows)
+        try:
+            built = combine_rows.build_combine_rows(
+                {"SMT": combine_sources.gl_rows("smt"), "ETF": combine_sources.gl_rows("etf"),
+                 "Sponsor": combine_sources.sponsor_rows()}, cmap, cc_map)
+            has_rows = bool(built.rows)
+            unmapped = combine_rows.unmapped_summary(built.rows)
+            unmapped_cc = [] if needs_resync else combine_rows.unmapped_cc_summary(built.rows)
+        except Exception as e:
+            unmapped, unmapped_cc = [], []
+            panel_error = (str(e) or type(e).__name__)[:200]
     data = None
     if has_map:
         data = (coa_map.search_cc(q, page) if view == "cc" else coa_map.search_coa(source or None, q, page))
@@ -466,7 +472,7 @@ def mapping_page():
         "management_report/mapping.html",
         active_tab="mapping", view=view, source=source, q=q, data=data,
         last_map=last_map, history=coa_map.list_syncs(10), has_map=has_map, needs_resync=needs_resync,
-        unmapped=unmapped, unmapped_cc=unmapped_cc, limit=50,
+        has_rows=has_rows, panel_error=panel_error, unmapped=unmapped, unmapped_cc=unmapped_cc, limit=50,
         active_page="management_report", use_unified_header=True,
         **_ctx(),
     )

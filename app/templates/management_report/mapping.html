@@ -73,7 +73,11 @@
 
 <section class="card mc-section" id="mr-unmapped">
   <strong>Belum terpetakan</strong> <span class="mc-muted">(semua periode)</span>
-  {% if not unmapped and not unmapped_cc %}
+  {% if panel_error %}
+  <div class="mc-muted" style="margin-top:.35rem">Panel belum terpetakan tidak dapat dihitung: {{ panel_error }}</div>
+  {% elif not has_rows %}
+  <div class="mc-muted" style="margin-top:.35rem">Belum ada data sumber untuk diperiksa. Sync GL SMT dan GL ETF di modul General Ledger atau isi data Sponsorship.</div>
+  {% elif not unmapped and not unmapped_cc %}
   <div class="mc-muted" style="margin-top:.35rem">{{ 'Semua akun sudah terpetakan.' if needs_resync else 'Semua akun dan cost center sudah terpetakan.' }}</div>
   {% else %}
   <div class="mc-two">
