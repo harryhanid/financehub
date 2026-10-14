@@ -1,9 +1,10 @@
 # SPT Tahunan PPh Badan — Product Requirements Document (PRD)
 
 **Tanggal:** 2026-10-14
-**Versi:** 0.2 (draft untuk review; memuat jawaban Q1–Q3)
+**Versi:** 0.3 (draft untuk review; TP 2026 sebagai tahun uji, desain F1 ditambahkan di Bagian 14)
 **Modul:** `app/modules/spt_badan/` (baru), di dalam FLOW
 **Entitas awal:** Sinar Mas Tjipta (SMT). ETF/SETF di fase berikutnya.
+**Tahun uji:** TP 2026 (data GL Jan–Sep 2026, hasil berstatus *simulasi YTD*). TP 2025 menyusul setelah GL 2025 di-sync.
 **Sumber analisis:** folder kerja `Y:\Seagate\Dicky\2025\1325\SPT 2025\SMT` (Tahun Pajak 2025, dilaporkan 22 April 2026 via Coretax)
 
 ---
@@ -35,7 +36,7 @@ Modul **SPT Badan** di FLOW menggantikan rantai itu dengan satu alur terpandu:
 ## 3. Tujuan dan bukan tujuan
 
 **Tujuan**
-- G1. Hasil hitung SPT untuk TP 2025 SMT **identik** dengan yang sudah dilaporkan (lihat Bagian 10, golden test).
+- G1. Hasil hitung SPT TP 2025 SMT **identik** dengan yang sudah dilaporkan (Bagian 10.1, golden test). Sampai GL 2025 tersedia, alur diuji dengan TP 2026 memakai kontrol internal (Bagian 10.2).
 - G2. Tidak ada copy-paste GL: sumber data tunggal adalah modul General Ledger.
 - G3. Satu sumber pemetaan akun, dikelola di FLOW, bukan di sheet.
 - G4. Setiap angka SPT bisa ditelusuri (drill-down) sampai baris GL.
@@ -175,7 +176,9 @@ Hasil pemeriksaan database FLOW (14 Okt 2026), setelah jawaban pemilik proses:
 
 Bagian lain yang bukan GL dan perlu sumber baru: data pajak dipotong (`Pajak 2025.xlsx`, saat ini file Excel dengan link ke `Downloads` pribadi), register aset (`05 List of Fixed Assets`), rekap bunga bank dan reksa dana. Rencana awal: impor xlsx/CSV dengan validasi; integrasi langsung menyusul.
 
-## 10. Kriteria penerimaan — golden test TP 2025 SMT
+## 10. Kriteria penerimaan
+
+### 10.1 Golden test TP 2025 SMT (menunggu GL 2025)
 
 Hasil modul untuk SMT TP 2025 harus sama dengan SPT yang **telah dilaporkan** (Coretax 22 Apr 2026, `2025 - SPT Badan - Coretax - SINAR MAS TJIPTA.pdf`) dan `NERACA & LAPORAN KEUANGAN SMT 2025.pdf`:
 
@@ -198,7 +201,16 @@ Hasil modul untuk SMT TP 2025 harus sama dengan SPT yang **telah dilaporkan** (C
 
 Catatan: nilai penghasilan neto fiskal di workbook `Perhitungan 1771` (6.395.118.000) berbeda Rp1.807 dari yang dilaporkan, dan file `02 ... Update PPh 25` diubah 22 Jul 2026 setelah pelaporan. Yang dipakai sebagai acuan adalah **angka yang dilaporkan**. Selisih ini perlu dijelaskan pemilik proses (lihat Bagian 12).
 
-Kriteria tambahan:
+### 10.2 Uji TP 2026 (simulasi YTD, berlaku sekarang)
+
+Tahun 2026 belum penuh dan belum ada SPT yang dilaporkan, sehingga tidak ada angka acuan eksternal. Kebenaran diuji lewat kontrol internal:
+- Total debit = total kredit pada snapshot GL; jumlah baris dan total sama dengan modul GL pada tahun itu.
+- Setiap baris HPP/biaya punya Category SPT; setiap `category_lk` dikenali (laba rugi atau neraca).
+- Laba rugi komersial YTD sama dengan jumlah `debit_credit` GL untuk kategori laba rugi.
+- Setiap angka laporan dapat di-drill-down ke baris GL, dan jumlah baris drill-down sama dengan angka yang ditampilkan.
+- Hasil ditandai **Simulasi YTD (Jan–Sep 2026)**, bukan SPT final.
+
+### 10.3 Kriteria tambahan
 - Seluruh kontrol wajib lulus tanpa override.
 - Setiap angka induk dapat di-drill-down ke baris GL.
 - Waktu hitung ulang penuh untuk 1 tahun pajak < 60 detik.
@@ -208,7 +220,7 @@ Kriteria tambahan:
 | Fase | Isi | Hasil |
 |---|---|---|
 | **F0** | Prasyarat: GL 2025 ada di modul GL (sync multi-tahun yang tidak menimpa tahun lain); cost center terpetakan | Data siap |
-| **F1** | Periode SPT, snapshot GL (langkah 0–2), halaman kontrol | Validasi data dan pemetaan |
+| **F1** | Periode SPT, snapshot GL, validasi klasifikasi, laba rugi komersial YTD, halaman kontrol (langkah 0–2 dan bagian laba rugi langkah 4). Desain di Bagian 14 | Angka laba rugi 2026 yang dapat ditelusuri |
 | **F2** | Penyesuaian manual, Laporan Keuangan, 1771-II (langkah 3, 4, 6) | LK cocok dengan PDF |
 | **F2b** | Aturan accrue (GL Accrue DQ, DPP accrue tahun lalu) | Replikasi akrual workbook; ditentukan kemudian |
 | **F3** | Rekonsiliasi pajak, koreksi fiskal, PKP/PPh (langkah 5, 7, 8) | Induk SPT cocok dengan Coretax |
@@ -243,3 +255,112 @@ Kriteria tambahan:
 | Selisih kecil (pembulatan) membuat kontrol selalu gagal | Toleransi per kontrol, tampilkan selisih dan alasannya |
 | Format Coretax berubah | Ekspor dipisah dalam lapisan template yang mudah diganti |
 | Satu orang memegang seluruh pengetahuan proses | Alur wizard dan log aktivitas mendokumentasikan proses |
+
+## 14. Desain F1 (TP 2026, simulasi YTD)
+
+### 14.1 Ruang lingkup F1
+1. Periode SPT per (entitas, tahun pajak) beserta parameter dan identitas WP.
+2. Snapshot GL tahun pajak dari tabel modul General Ledger, dengan hash dan peringatan bila GL berubah sesudahnya.
+3. Validasi dan normalisasi klasifikasi (`category_lk`, `category_spt`, `pph_non_pph`) dengan daftar pengecualian.
+4. Laporan laba rugi komersial YTD dari `category_lk`, dengan drill-down ke baris GL.
+5. Halaman ringkasan kontrol per langkah.
+
+Di luar F1: neraca, akrual, rekonsiliasi pajak, 1771-II/I, PKP, lampiran, ekspor, penyusutan fiskal.
+
+### 14.2 Modul dan akses
+- Paket baru `app/modules/spt_badan/`: `routes.py`, `service.py` (periode, snapshot, kontrol), `classify.py` (normalisasi dan validasi, fungsi murni), `income_statement.py` (agregasi laba rugi, fungsi murni), dengan test terpisah.
+- Terdaftar di `app.py` dan daftar modul dashboard (`modules/dashboard/routes.py`) dengan label "SPT Badan".
+- Akses F1: lihat untuk pengguna login; buat periode, ambil snapshot dan ubah parameter hanya admin (`json_admin_required`), mengikuti General Ledger. Peran preparer/reviewer ditunda sampai F4.
+- Entitas F1 hanya SMT; struktur menerima ETF/SETF tanpa perubahan skema.
+
+### 14.3 Tabel F1 (`finance_hub.db`, `ensure_schema`, backup sebelum migrasi pertama)
+
+| Tabel | Kolom utama |
+|---|---|
+| `spt_period` | `id`, `entity`, `tax_year`, `status` (`draft`), `label` (mis. "Simulasi YTD"), `params` (JSON: identitas WP, KLU, periode pembukuan), `created_at`, `created_by`; unik `(entity, tax_year)` |
+| `spt_snapshot` | `id`, `period_id`, `taken_at`, `taken_by`, `gl_hash` (hash isi sync GL terakhir tahun itu), `row_count`, `total_debit`, `total_credit`, `date_min`, `date_max`, `is_current` |
+| `spt_gl_line` | `snapshot_id`, `gl_id`, `tgl`, `id_no`, `acc_statutory`, `acc_management`, `job_name`, `memo`, `debit_credit`, `category_lk`, `category_spt`, `pph_type_raw`, `pph_type` (hasil normalisasi), `accrual_actual` |
+| `spt_exception` | `snapshot_id`, `gl_id`, `kind`, `severity` (`blocker` / `warning`), `detail` |
+| `spt_control` | `snapshot_id`, `code`, `name`, `left_value`, `right_value`, `diff`, `status` (`lulus` / `gagal` / `peringatan`), `blocking` |
+
+Snapshot lama disimpan paling banyak 3 per periode; hanya satu yang `is_current`. Snapshot baru menandai yang lama non-aktif dan tidak mengubah GL.
+
+### 14.4 Alur snapshot
+1. Admin menekan **Ambil snapshot GL**.
+2. Sistem membaca baris GL entitas pada tahun pajak, menghitung total serta tanggal awal/akhir, dan mengambil `content_hash` sync GL terakhir untuk tahun itu (`gl_sync_log`).
+3. Setiap baris dinormalkan (14.5), dicek, lalu disimpan ke `spt_gl_line`, `spt_exception`, dan `spt_control` dalam satu transaksi. Gagal di tengah tidak meninggalkan snapshot setengah jadi.
+4. Bila sync GL tahun itu berubah setelah snapshot (hash berbeda), halaman periode menampilkan banner **"GL berubah sejak snapshot, ambil snapshot ulang"** dan hasil ditandai usang.
+
+### 14.5 Normalisasi dan validasi klasifikasi
+Aturan berupa fungsi murni di `classify.py`, diuji tanpa database.
+
+**Jenis PPh (`pph_non_pph` → `pph_type`)**: pangkas spasi dan abaikan huruf besar/kecil.
+
+| Nilai mentah | Hasil |
+|---|---|
+| `PPh 21`, `pph 21` | `PPh 21` |
+| `PPh 23`, `pph 23` | `PPh 23` |
+| `PPh 4(2)`, `pph 4 (2)`, `PPh4(2)` | `PPh 4(2)` |
+| `Non PPh`, `non pph`, `non-pph` | `Non PPh` |
+| kosong, pada baris biaya | pengecualian `pph_kosong` (**warning**), `pph_type` dikosongkan |
+| kode lain (mis. `POSENG`, `$POITEC`, `TFKHAR`) | pengecualian `pph_bukan_jenis` (**warning**), `pph_type` dikosongkan |
+| kosong, pada baris neraca/pendapatan | diabaikan |
+
+Pengecualian PPh berstatus *warning* karena sumbernya (GL - MASTER) belum bersih dan penanganan baris kosong masih terbuka (Bagian 12 no. 1–2). F2 (rekonsiliasi pajak) menaikkannya menjadi *blocker*.
+
+**Kategori**
+- Kategori laba rugi `category_lk`: `Jasa Konsultasi & Advokasi` (pendapatan), `HARGA POKOK PENJUALAN`, `Beban Operasional`, `Pendapatan (Beban) Lainnya`, `Bunga Jasa Giro`, `Income Tax Expense`.
+- Kategori neraca: `KAS DAN SETARA KAS`, `AKTIVA LANCAR LAINNYA`, `PIUTANG LAIN-LAIN PIHAK KETIGA`, `UANG MUKA PEMBELIAN`, `AKTIVA TETAP LAINNYA`, `AKUMULASI PENYUSUTAN`, `HUTANG USAHA PIHAK KETIGA`, `HUTANG PAJAK`.
+- `category_lk` di luar dua daftar ini → pengecualian `category_lk_tidak_dikenal` (**blocker**).
+- Baris `HARGA POKOK PENJUALAN` atau `Beban Operasional` dengan `category_spt` kosong → pengecualian `category_spt_kosong` (**blocker**).
+- Daftar kategori disimpan sebagai konfigurasi di `classify.py`, bukan tersebar di query.
+
+### 14.6 Laba rugi komersial YTD
+Agregasi dari `spt_gl_line` snapshot aktif. Pendapatan ditampilkan positif (−`debit_credit`), beban positif (+`debit_credit`).
+
+| Baris | Sumber |
+|---|---|
+| Pendapatan bersih | `Jasa Konsultasi & Advokasi` |
+| Harga pokok penjualan | `HARGA POKOK PENJUALAN` |
+| Laba kotor | pendapatan − HPP |
+| Biaya operasional | `Beban Operasional` |
+| Laba operasional | laba kotor − biaya operasional |
+| Pendapatan (beban) lainnya | `Pendapatan (Beban) Lainnya` |
+| Bunga jasa giro | `Bunga Jasa Giro` |
+| Laba sebelum pajak | laba operasional + lainnya + bunga |
+| Income tax expense | `Income Tax Expense` |
+| Laba bersih | laba sebelum pajak − income tax expense |
+
+Struktur dan label mengikuti `LAPORAN KEUANGAN` di workbook (lihat `NERACA & LAPORAN KEUANGAN SMT 2025.pdf`). Rincian HPP dan biaya per `category_spt` tampil sebagai sub-baris. Klik angka membuka daftar baris GL pembentuknya (filter kategori, paginasi), dengan total yang sama persis.
+
+### 14.7 Kontrol F1
+
+| Kode | Kontrol | Sifat |
+|---|---|---|
+| C1 | Total debit = total kredit pada snapshot (toleransi Rp1) | blocker |
+| C2 | Jumlah baris dan total snapshot = baris dan total modul GL pada tahun itu | blocker |
+| C3 | Tidak ada `category_lk` tidak dikenal | blocker |
+| C4 | Tidak ada baris HPP/biaya tanpa `category_spt` | blocker |
+| C5 | Semua tanggal snapshot berada di tahun pajak | blocker |
+| C6 | Laba sebelum pajak = jumlah negatif `debit_credit` baris laba rugi sebelum income tax | blocker |
+| C7 | Jenis PPh bersih (tanpa `pph_kosong` / `pph_bukan_jenis`) | peringatan |
+| C8 | Snapshot masih sesuai sync GL terakhir (hash) | peringatan |
+
+### 14.8 Tampilan
+- `GET /spt-badan/`: daftar periode dan tombol **Buat periode** (admin).
+- `GET /spt-badan/<id>`: ringkasan langkah (status per langkah), banner usang, kartu ringkasan (baris GL, rentang tanggal, laba sebelum pajak), tombol **Ambil snapshot GL**.
+- `GET /spt-badan/<id>/pengecualian`: daftar pengecualian dengan filter jenis, tingkat, dan pencarian; dapat diunduh xlsx untuk dikirim ke pemilik sumber GL.
+- `GET /spt-badan/<id>/laba-rugi`: laporan laba rugi + drill-down.
+- `GET /spt-badan/<id>/kontrol`: tabel kontrol C1–C8.
+- Gaya mengikuti modul lain (unified header, tab modul, paginasi dinamis).
+
+### 14.9 Pengujian
+- `classify.py` dan `income_statement.py`: unit test murni (tabel nilai mentah → hasil, tanda pendapatan/beban, label baris).
+- Servis: snapshot atomik (gagal di tengah tidak menyisakan data), snapshot ulang menonaktifkan yang lama, deteksi usang saat sync GL berubah, batas 3 snapshot.
+- Route: akses admin vs non-admin, validasi tahun/entitas, 404 periode tidak ada.
+- Integrasi: periode SMT 2026 dari data uji kecil, kontrol C1–C8 dihitung benar; total drill-down = angka laporan.
+
+### 14.10 Risiko khusus F1
+- Pengecualian `pph_*` jumlahnya besar (±2.200 baris kosong) dan dapat membanjiri tampilan; daftar dikelompokkan per akun dan job, bukan hanya per baris.
+- Bergantung pada label kategori dari sumber yang belum bersih: perubahan label di GL - MASTER membuat C3 gagal; ini disengaja agar terdeteksi.
+- Angka 2026 tidak dapat diverifikasi eksternal; label **Simulasi YTD** wajib tampil di setiap halaman dan ekspor.
