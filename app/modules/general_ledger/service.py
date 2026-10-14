@@ -252,3 +252,17 @@ def account_totals(entity, year) -> list:
             (str(int(year)),))]
     finally:
         conn.close()
+
+
+def load_lines(entity, year) -> list:
+    """Every row of one year with its database id and the columns SPT Badan classifies."""
+    table = ENTITIES[entity]["table"]
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        return [dict(r) for r in conn.execute(
+            f"SELECT id, tgl, id_no, acc_statutory, acc_management, job_name, memo, debit, credit, "
+            f"debit_credit, category_lk, category_spt, pph_non_pph, accrual_actual FROM {table} "
+            f"WHERE substr(tgl,1,4) = ? ORDER BY id", (str(int(year)),))]
+    finally:
+        conn.close()
