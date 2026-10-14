@@ -25,18 +25,24 @@
 {% block content %}
 {% set diff = result.sum_debit - result.sum_credit %}
 <div class="card" style="margin-bottom:1rem">
-  <strong>Sinkronisasi Excel · {{ ent.label }}</strong>
+  <strong>Sinkronisasi Excel · {{ ent.label }} · {{ year }}</strong>
   <div class="gl-muted" style="margin:.25rem 0">
     {% if last %}Terakhir sync: {{ last.synced_at }} · {{ last.synced_by }} · {{ last.filename }} · {{ last.rows_after }} baris
-    {% else %}Belum pernah sync.{% endif %}
+    {% else %}Belum pernah sync untuk {{ year }}.{% endif %}
   </div>
   {% if can_manage %}
   <div style="margin:.5rem 0">
+    <label class="gl-muted">Tahun
+      <select id="gl-sync-year">
+        {% for y in sync_years %}<option value="{{ y }}"{{ ' selected' if y == year else '' }}>{{ y }}</option>{% endfor %}
+      </select>
+    </label>
     <input type="file" id="gl-file" accept=".xlsb">
     <button class="btn btn-primary btn-sm" id="gl-sync-btn" onclick="glSync()">Upload &amp; Sync .xlsb</button>
     <span id="gl-sync-msg" class="gl-muted"></span>
   </div>
-  <div class="gl-muted">Pilih file <code>GL - MASTER.xlsb</code>; hanya sheet <b>{{ ent.sheet }}</b> yang diproses.</div>
+  <div class="gl-muted">Pilih file <code>GL - MASTER.xlsb</code>; hanya sheet <b>{{ ent.sheet }}</b> yang diproses.
+    Sync hanya mengganti data tahun yang dipilih; baris bertanggal di luar tahun itu dilewati dan tahun lain tidak berubah.</div>
   {% endif %}
 </div>
 
@@ -51,13 +57,18 @@
 </div>
 
 <form class="gl-filter" method="get">
+  <label>Tahun
+    <select name="year">
+      {% for y in view_years %}<option value="{{ y }}"{{ ' selected' if y == year else '' }}>{{ y }}</option>{% endfor %}
+    </select>
+  </label>
   <label>Dari tanggal<input type="date" name="date_from" value="{{ filters.date_from }}"></label>
   <label>Sampai tanggal<input type="date" name="date_to" value="{{ filters.date_to }}"></label>
   <label>Akun<input type="text" name="acc" value="{{ filters.acc }}" placeholder="kode / nama akun"></label>
   <label>Job Name<input type="text" name="job" value="{{ filters.job }}"></label>
   <label>Memo / ID#<input type="text" name="q" value="{{ filters.q }}"></label>
   <button class="btn btn-primary btn-sm" type="submit">Terapkan</button>
-  <a class="btn btn-sm" href="{{ url_for('general_ledger.entity_page', entity=entity) }}">Reset</a>
+  <a class="btn btn-sm" href="{{ url_for('general_ledger.entity_page', entity=entity, year=year) }}">Reset</a>
 </form>
 
 <div class="gl-wrap">
@@ -89,7 +100,7 @@
 
 {% if syncs %}
 <details style="margin-top:1rem">
-  <summary>Riwayat sync terakhir ({{ syncs | length }})</summary>
+  <summary>Riwayat sync {{ year }} ({{ syncs | length }})</summary>
   <table class="gl-table" style="max-width:820px; margin-top:.3rem">
     <thead><tr><th>Waktu</th><th>User</th><th>File</th><th class="num">Baris</th><th class="num">Baru</th><th class="num">Dihapus</th><th class="num">Berubah</th></tr></thead>
     <tbody>
@@ -114,12 +125,13 @@ async function glSync() {
   if (!f) { msg.textContent = 'Pilih file GL - MASTER.xlsb dulu.'; return; }
   const btn = document.getElementById('gl-sync-btn');
   btn.disabled = true; msg.textContent = 'Menyinkronkan...';
-  const fd = new FormData(); fd.append('file', f);
+  const year = document.getElementById('gl-sync-year').value;
+  const fd = new FormData(); fd.append('file', f); fd.append('year', year);
   try {
     const r = await fetch('/general-ledger/{{ entity }}/sync', {method: 'POST', body: fd, credentials: 'same-origin'});
     const j = await r.json();
     msg.textContent = j.pesan || (r.ok ? 'Selesai.' : 'Gagal.');
-    if (j.ok && j.changed) setTimeout(() => location.reload(), 1200);
+    if (j.ok && j.changed) setTimeout(() => { location.href = '?year=' + year; }, 1200);
   } catch (e) { msg.textContent = 'Gagal sync: ' + e; }
   btn.disabled = false;
 }

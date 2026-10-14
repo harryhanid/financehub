@@ -109,7 +109,7 @@ def test_period_options_and_cumulative_cutoff():
 def test_load_mr_source_returns_only_amount_rows_with_needed_columns():
     log = dict(synced_by="u", filename="f", content_hash="h", rows_before=0, rows_after=2,
                total_debit=0, total_credit=0, dropped=0, summary={})
-    svc.replace_all("smt", [
+    svc.replace_year("smt", 2026, [
         mkrow(acc_management="6-1810", debit_credit=5.0, allocation_memo="m",
               budget_activity="b", job_name="J"),
         mkrow(id_no="Z", debit_credit=0.0)], log)

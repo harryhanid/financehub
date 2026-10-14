@@ -47,24 +47,39 @@ def summarize_changes(old_rows: list, new_rows: list) -> dict:
     }
 
 
-def sync_rows(entity, filename, user, rows, dropped=0) -> dict:
-    """Replace the entity's table with `rows` unless the content is identical to the last sync."""
-    content_hash = compute_hash(rows)
-    total_debit = sum(r["debit"] for r in rows)
-    total_credit = sum(r["credit"] for r in rows)
-    base = {"rows": len(rows), "total_debit": total_debit, "total_credit": total_credit,
+class NoRowsForYear(ValueError):
+    """The file holds no row dated in the chosen year."""
+
+
+def sync_rows(entity, year, filename, user, rows, dropped=0) -> dict:
+    """Replace the entity's rows of `year` with the file's rows of that year, leaving other years alone.
+
+    Rows dated outside `year` (or without a date) are skipped and counted in `skipped_year`.
+    Nothing is written when the year's content is identical to its last sync."""
+    year = int(year)
+    prefix = f"{year}-"
+    in_year = [r for r in rows if (r["tgl"] or "").startswith(prefix)]
+    skipped_year = len(rows) - len(in_year)
+    if not in_year:
+        raise NoRowsForYear(f"Tidak ada baris bertanggal {year} di file ini.")
+
+    content_hash = compute_hash(in_year)
+    total_debit = sum(r["debit"] for r in in_year)
+    total_credit = sum(r["credit"] for r in in_year)
+    base = {"year": year, "rows": len(in_year), "skipped_year": skipped_year,
+            "total_debit": total_debit, "total_credit": total_credit,
             "balanced": abs(total_debit - total_credit) <= _BALANCE_TOLERANCE}
 
-    last = service.last_sync(entity)
+    last = service.last_sync(entity, year)
     if (last and last["content_hash"] == content_hash
-            and service.row_count(entity) == last["rows_after"]):     # table must still hold that sync
+            and service.row_count(entity, year) == last["rows_after"]):   # table must still hold that sync
         return {"changed": False, "summary": last["summary"], **base}
 
-    old = service.load_rows(entity)
-    summary = summarize_changes(old, rows)
-    service.replace_all(entity, rows, {
+    old = service.load_rows(entity, year)
+    summary = summarize_changes(old, in_year)
+    service.replace_year(entity, year, in_year, {
         "synced_by": user, "filename": filename, "content_hash": content_hash,
-        "rows_before": len(old), "rows_after": len(rows),
+        "rows_before": len(old), "rows_after": len(in_year),
         "total_debit": total_debit, "total_credit": total_credit,
         "dropped": dropped, "summary": summary})
     return {"changed": True, "summary": summary, **base}

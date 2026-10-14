@@ -14,7 +14,7 @@ def seed():
     ]
     for r in rows:
         r["acc_management"] = r["acc_statutory"]
-    svc.replace_all("smt", rows, dict(synced_by="u", filename="f", content_hash="h", rows_before=0,
+    svc.replace_year("smt", 2026, rows, dict(synced_by="u", filename="f", content_hash="h", rows_before=0,
                                       rows_after=3, total_debit=150.0, total_credit=100.0,
                                       dropped=0, summary={}))
 
@@ -55,7 +55,7 @@ def test_like_wildcards_are_literal():
 
 
 def test_pagination_and_clamping():
-    svc.replace_all("smt", [mkrow(entry_no=i, id_no=f"X-{i}") for i in range(1, 251)],
+    svc.replace_year("smt", 2026, [mkrow(entry_no=i, id_no=f"X-{i}") for i in range(1, 251)],
                     dict(synced_by="u", filename="f", content_hash="h", rows_before=0,
                          rows_after=250, total_debit=0, total_credit=0, dropped=0, summary={}))
     p1 = svc.query_rows("smt", {}, page=1)
@@ -68,3 +68,25 @@ def test_pagination_and_clamping():
 def test_empty_table():
     r = svc.query_rows("etf", {})
     assert r["total"] == 0 and r["rows"] == [] and r["pages"] == 1 and r["sum_debit"] == 0
+
+
+def test_year_filter_and_totals():
+    seed()
+    svc.replace_year("smt", 2025, [mkrow(entry_no=9, id_no="OLD", tgl="2025-06-06", debit=7.0)],
+                     dict(synced_by="u", filename="f", content_hash="h25", rows_before=0, rows_after=1,
+                          total_debit=7.0, total_credit=0, dropped=0, summary={}))
+    assert q()["total"] == 4
+    r = q(year=2025)
+    assert r["total"] == 1 and r["sum_debit"] == 7.0
+    assert q(year=2026)["total"] == 3
+    assert q(year=2026, job="POITEC")["total"] == 1
+
+
+def test_load_mr_source_defaults_to_the_latest_year():
+    log = dict(synced_by="u", filename="f", content_hash="h", rows_before=0, rows_after=1,
+               total_debit=0, total_credit=0, dropped=0, summary={})
+    svc.replace_year("smt", 2025, [mkrow(id_no="OLD", tgl="2025-06-06", debit_credit=1.0)], log)
+    svc.replace_year("smt", 2026, [mkrow(id_no="NEW", tgl="2026-06-06", debit_credit=2.0)], log)
+    assert [r["id_no"] for r in svc.load_mr_source("smt")] == ["NEW"]
+    assert [r["id_no"] for r in svc.load_mr_source("smt", 2025)] == ["OLD"]
+    assert svc.load_mr_source("etf") == []

@@ -12,10 +12,12 @@ def login(client, user="admin", password="Admin@123"):
     client.post("/select-company", data={"company_id": "2"})
 
 
-def _sync(client, monkeypatch, rows, dropped=0, entity="smt", name="Master.xlsb"):
+def _sync(client, monkeypatch, rows, dropped=0, entity="smt", name="Master.xlsb", year=2026):
     monkeypatch.setattr(gl_routes, "read_gl_sheet", lambda f, sheet: ParseResult(rows, dropped))
-    return client.post(f"/general-ledger/{entity}/sync",
-                       data={"file": (io.BytesIO(b"x"), name)},
+    data = {"file": (io.BytesIO(b"x"), name)}
+    if year is not None:
+        data["year"] = str(year)
+    return client.post(f"/general-ledger/{entity}/sync", data=data,
                        content_type="multipart/form-data")
 
 
@@ -81,7 +83,7 @@ def test_bad_page_param_does_not_error(client, monkeypatch):
 def test_sync_rejects_non_xlsb(client):
     login(client)
     r = client.post("/general-ledger/smt/sync",
-                    data={"file": (io.BytesIO(b"x"), "a.xlsx")},
+                    data={"file": (io.BytesIO(b"x"), "a.xlsx"), "year": "2026"},
                     content_type="multipart/form-data")
     assert r.status_code == 400 and "xlsb" in r.get_json()["pesan"]
 
@@ -99,7 +101,7 @@ def test_parse_error_keeps_old_data(client, monkeypatch):
     def boom(f, sheet):
         raise ParseError("Sheet 'GL SMT' tidak ditemukan di file.")
     monkeypatch.setattr(gl_routes, "read_gl_sheet", boom)
-    r = client.post("/general-ledger/smt/sync", data={"file": (io.BytesIO(b"x"), "m.xlsb")},
+    r = client.post("/general-ledger/smt/sync", data={"file": (io.BytesIO(b"x"), "m.xlsb"), "year": "2026"},
                     content_type="multipart/form-data")
     assert r.status_code == 400 and "tidak ditemukan" in r.get_json()["pesan"]
     assert svc.query_rows("smt", {})["total"] == 1
@@ -113,7 +115,7 @@ def test_sync_with_no_valid_rows_is_400(client, monkeypatch):
 
 def test_sync_unknown_entity_is_404(client):
     login(client)
-    r = client.post("/general-ledger/xyz/sync", data={"file": (io.BytesIO(b"x"), "m.xlsb")},
+    r = client.post("/general-ledger/xyz/sync", data={"file": (io.BytesIO(b"x"), "m.xlsb"), "year": "2026"},
                     content_type="multipart/form-data")
     assert r.status_code == 404
 
@@ -166,3 +168,58 @@ def test_old_mr_tab_is_gone_from_the_general_ledger_module(client):
     assert "/general-ledger/mr" not in html
     for label in ("GL SMT", "GL ETF", "GL SETF"):
         assert label in html
+
+
+# ---------- multi-year ----------
+
+def test_sync_requires_a_valid_year(client, monkeypatch):
+    login(client)
+    for bad in (None, "", "abc", "1999", "2101"):
+        r = _sync(client, monkeypatch, [mkrow()], year=bad)
+        assert r.status_code == 400 and "tahun" in r.get_json()["pesan"].lower(), bad
+    assert svc.query_rows("smt", {})["total"] == 0
+
+
+def test_sync_skips_rows_outside_the_chosen_year_and_reports_them(client, monkeypatch):
+    login(client)
+    rows = [mkrow(id_no="A", tgl="2025-12-31"), mkrow(id_no="B", tgl="2026-01-02"),
+            mkrow(id_no="C", tgl=None)]
+    j = _sync(client, monkeypatch, rows, year=2026).get_json()
+    assert j["ok"] and j["rows"] == 1 and j["skipped_year"] == 2
+    assert "2 baris di luar 2026" in j["pesan"]
+    assert [r["id_no"] for r in svc.query_rows("smt", {})["rows"]] == ["B"]
+
+
+def test_sync_with_no_row_in_the_chosen_year_is_400_and_changes_nothing(client, monkeypatch):
+    login(client)
+    _sync(client, monkeypatch, [mkrow(id_no="keep", tgl="2026-01-02")], year=2026)
+    r = _sync(client, monkeypatch, [mkrow(id_no="x", tgl="2026-05-05")], year=2025)
+    assert r.status_code == 400 and "2025" in r.get_json()["pesan"]
+    assert [x["id_no"] for x in svc.query_rows("smt", {})["rows"]] == ["keep"]
+
+
+def test_syncing_another_year_does_not_touch_existing_years(client, monkeypatch):
+    login(client)
+    _sync(client, monkeypatch, [mkrow(id_no="N26", tgl="2026-01-02")], year=2026)
+    j = _sync(client, monkeypatch, [mkrow(id_no="N25", tgl="2025-03-03")], year=2025).get_json()
+    assert j["ok"] and j["changed"]
+    assert svc.years_with_data("smt") == [2026, 2025]
+    assert svc.query_rows("smt", {"year": 2026})["total"] == 1
+    assert svc.query_rows("smt", {"year": 2025})["total"] == 1
+
+
+def test_viewer_defaults_to_latest_year_and_year_filter_switches(client, monkeypatch):
+    login(client)
+    _sync(client, monkeypatch, [mkrow(memo="memo dua-enam", tgl="2026-01-02")], year=2026)
+    _sync(client, monkeypatch, [mkrow(memo="memo dua-lima", tgl="2025-03-03")], year=2025)
+    html = client.get("/general-ledger/smt").data.decode()
+    assert "memo dua-enam" in html and "memo dua-lima" not in html
+    html = client.get("/general-ledger/smt?year=2025").data.decode()
+    assert "memo dua-lima" in html and "memo dua-enam" not in html
+    assert 'name="year"' in html
+
+
+def test_sync_form_has_a_year_selector_for_admin(client):
+    login(client)
+    html = client.get("/general-ledger/smt").data.decode()
+    assert 'id="gl-sync-year"' in html

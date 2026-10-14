@@ -4,9 +4,11 @@ from modules.general_ledger import service as gl_service
 from modules.sponsorship import service as sponsorship_service
 
 
-def gl_rows(entity: str) -> list:
-    """GL SMT / GL ETF rows that carry an amount (see general_ledger.service.load_mr_source)."""
-    return gl_service.load_mr_source(entity)
+def gl_rows(entity: str, year=None) -> list:
+    """GL SMT / GL ETF rows that carry an amount (see general_ledger.service.load_mr_source).
+
+    `year` defaults to the latest year that holds data, so older years never mix into the report."""
+    return gl_service.load_mr_source(entity, year)
 
 
 def smt_company_id():

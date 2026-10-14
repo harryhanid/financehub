@@ -59,7 +59,7 @@ def test_sponsor_rows_empty_when_smt_company_is_missing(monkeypatch):
 
 
 def test_gl_rows_delegates_to_the_general_ledger_service():
-    gl_service.replace_all("smt", [mkrow(acc_management="6-1810", debit_credit=5.0,
+    gl_service.replace_year("smt", 2026, [mkrow(acc_management="6-1810", debit_credit=5.0,
                                          allocation_memo="m", job_name="J")], LOG)
     rows = src.gl_rows("smt")
     assert len(rows) == 1 and rows[0]["acc_management"] == "6-1810" and rows[0]["id_no"] == "GJ-1"

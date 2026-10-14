@@ -140,7 +140,7 @@ def test_q_is_escaped(client):
 def test_unmapped_panel_lists_exact_accounts_and_cost_centers(client):
     login(client)
     seed()
-    gl_service.replace_all("smt", [
+    gl_service.replace_year("smt", 2026, [
         mkrow(acc_management="6-9999", tgl="2026-02-20", debit_credit=2000000.0, job_name="POXXXX", allocation_memo="a"),
         mkrow(acc_management="6-9999", tgl="2026-03-20", debit_credit=1000000.0, job_name="POXXXX", allocation_memo="b"),
         mkrow(acc_management="6-1810", tgl="2026-03-21", debit_credit=1000.0, job_name="POITEC", allocation_memo="c")],
@@ -180,7 +180,7 @@ def test_no_mapping_message_non_admin(client):
 def test_old_style_mapping_single_banner_and_no_cc_list(client):
     login(client)
     seed(mapping=False)
-    gl_service.replace_all("smt", [
+    gl_service.replace_year("smt", 2026, [
         mkrow(acc_management="6-1810", tgl="2026-02-20", debit_credit=1000.0, job_name="POXXXX", allocation_memo="a")], LOG)
     coa_map.sync_coa("m.xlsb", "u", CMAP_ROWS)
     html = get(client)
@@ -219,7 +219,7 @@ def test_navbar_and_active_tab(client):
 def test_unmapped_list_truncates_at_50(client):
     login(client)
     seed()
-    gl_service.replace_all("smt", [
+    gl_service.replace_year("smt", 2026, [
         mkrow(acc_management=f"6-{7000 + i}", tgl="2026-02-20", debit_credit=1000.0, job_name="POITEC",
               allocation_memo="x") for i in range(53)], LOG)
     html = get(client)

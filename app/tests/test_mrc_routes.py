@@ -28,12 +28,12 @@ def login(client, user="admin", password="Admin@123"):
 
 
 def seed(client_sponsor=True, mapping=True):
-    gl_service.replace_all("smt", [
+    gl_service.replace_year("smt", 2026, [
         mkrow(acc_management="6-1810", tgl="2026-01-15", debit_credit=-957910.0, job_name="POITEC",
               budget_activity="SMT - IT", allocation_memo="Zoom", id_no="GJ-00168"),
         mkrow(acc_management="6-1810", tgl="2026-02-10", debit_credit=5000000.0, job_name="POCFAD",
               budget_activity="SMT - Finance", allocation_memo="ATK", id_no="GJ-00200")], LOG)
-    gl_service.replace_all("etf", [
+    gl_service.replace_year("etf", 2026, [
         mkrow(acc_management="6-2190", tgl="2026-02-05", debit_credit=30000.0, job_name="TFOPEX",
               budget_activity="", allocation_memo="Biaya admin", id_no="BK2-0126")], LOG)
     if client_sponsor:
@@ -156,7 +156,7 @@ def test_old_style_mapping_shows_one_resync_banner(client):
 def test_unmapped_account_and_cost_center_banners(client):
     login(client)
     seed()
-    gl_service.replace_all("smt", [
+    gl_service.replace_year("smt", 2026, [
         mkrow(acc_management="6-9999", tgl="2026-02-20", debit_credit=2000000.0, job_name="POXXXX",
               allocation_memo="Misterius")], LOG)
     html = client.get("/management-report/gl-combine").data.decode()

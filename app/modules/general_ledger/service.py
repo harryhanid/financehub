@@ -31,6 +31,7 @@ _LOG_DDL = """
 CREATE TABLE IF NOT EXISTS gl_sync_log (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     entity       TEXT NOT NULL,
+    year         INTEGER,
     synced_at    TEXT,
     synced_by    TEXT,
     filename     TEXT,
@@ -60,6 +61,8 @@ def ensure_schema(conn) -> None:
             conn.execute(f"ALTER TABLE {table} RENAME TO {legacy}")
         conn.executescript(_table_ddl(table))
     conn.executescript(_LOG_DDL)
+    if "year" not in {r[1] for r in conn.execute("PRAGMA table_info(gl_sync_log)")}:
+        conn.execute("ALTER TABLE gl_sync_log ADD COLUMN year INTEGER")        # logs before multi-year stay NULL
     conn.commit()
 
 
@@ -67,22 +70,30 @@ def _ts() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def replace_all(entity, rows, log) -> None:
+def _year_of(tgl):
+    return str(tgl)[:4] if tgl else ""
+
+
+def replace_year(entity, year, rows, log) -> None:
+    """Replace only the rows dated in `year`; every other year stays untouched."""
+    year = int(year)
+    if any(_year_of(r["tgl"]) != str(year) for r in rows):
+        raise ValueError(f"Semua baris harus bertanggal {year}.")
     table = ENTITIES[entity]["table"]
     conn = get_conn()
     try:
         ensure_schema(conn)
         try:
-            conn.execute(f"DELETE FROM {table}")
+            conn.execute(f"DELETE FROM {table} WHERE substr(tgl,1,4) = ?", (str(year),))
             marks = ",".join("?" * len(COLUMNS))
             conn.executemany(
                 f"INSERT INTO {table} ({','.join(COLUMNS)}) VALUES ({marks})",
                 [tuple(r[c] for c in COLUMNS) for r in rows])
             conn.execute(
-                "INSERT INTO gl_sync_log (entity, synced_at, synced_by, filename, content_hash, "
+                "INSERT INTO gl_sync_log (entity, year, synced_at, synced_by, filename, content_hash, "
                 "rows_before, rows_after, total_debit, total_credit, dropped, summary) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (entity, _ts(), log["synced_by"], log["filename"], log["content_hash"],
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (entity, year, _ts(), log["synced_by"], log["filename"], log["content_hash"],
                  log["rows_before"], log["rows_after"], log["total_debit"], log["total_credit"],
                  log["dropped"], json.dumps(log["summary"], ensure_ascii=False)))
             conn.commit()
@@ -93,22 +104,47 @@ def replace_all(entity, rows, log) -> None:
         conn.close()
 
 
-def row_count(entity) -> int:
+def _year_where(year):
+    return ("", []) if year is None else (" WHERE substr(tgl,1,4) = ?", [str(int(year))])
+
+
+def years_with_data(entity) -> list:
+    """Years that hold at least one row, newest first."""
     table = ENTITIES[entity]["table"]
     conn = get_conn()
     try:
         ensure_schema(conn)
-        return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        cur = conn.execute(f"SELECT DISTINCT substr(tgl,1,4) FROM {table} "
+                           f"WHERE tgl IS NOT NULL AND tgl <> '' ORDER BY 1 DESC")
+        return [int(r[0]) for r in cur if str(r[0]).isdigit()]
     finally:
         conn.close()
 
 
-def load_rows(entity) -> list:
+def latest_year(entity):
+    years = years_with_data(entity)
+    return years[0] if years else None
+
+
+def row_count(entity, year=None) -> int:
     table = ENTITIES[entity]["table"]
+    where, params = _year_where(year)
     conn = get_conn()
     try:
         ensure_schema(conn)
-        return [dict(r) for r in conn.execute(f"SELECT {','.join(COLUMNS)} FROM {table} ORDER BY id")]
+        return conn.execute(f"SELECT COUNT(*) FROM {table}{where}", params).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def load_rows(entity, year=None) -> list:
+    table = ENTITIES[entity]["table"]
+    where, params = _year_where(year)
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        return [dict(r) for r in conn.execute(
+            f"SELECT {','.join(COLUMNS)} FROM {table}{where} ORDER BY id", params)]
     finally:
         conn.close()
 
@@ -119,19 +155,22 @@ def _log_row(r):
     return d
 
 
-def list_syncs(entity, limit=10) -> list:
+def list_syncs(entity, year=None, limit=10) -> list:
+    clause, params = ("", [])
+    if year is not None:
+        clause, params = (" AND year = ?", [int(year)])
     conn = get_conn()
     try:
         ensure_schema(conn)
-        cur = conn.execute("SELECT * FROM gl_sync_log WHERE entity=? ORDER BY id DESC LIMIT ?",
-                           (entity, limit))
+        cur = conn.execute(f"SELECT * FROM gl_sync_log WHERE entity=?{clause} ORDER BY id DESC LIMIT ?",
+                           [entity, *params, limit])
         return [_log_row(r) for r in cur]
     finally:
         conn.close()
 
 
-def last_sync(entity):
-    rows = list_syncs(entity, 1)
+def last_sync(entity, year=None):
+    rows = list_syncs(entity, year, 1)
     return rows[0] if rows else None
 
 
@@ -142,6 +181,9 @@ def _like(text: str) -> str:
 
 def _where(filters: dict):
     clauses, params = [], []
+    if filters.get("year"):
+        clauses.append("substr(tgl,1,4) = ?")
+        params.append(str(int(filters["year"])))
     if filters.get("date_from"):
         clauses.append("tgl >= ?")
         params.append(filters["date_from"])
@@ -181,14 +223,18 @@ def query_rows(entity, filters, page=1, per_page=100) -> dict:
             "page": page, "pages": pages, "per_page": per_page}
 
 
-def load_mr_source(entity) -> list:
-    """GL rows with an amount, reduced to what the MR row builder needs."""
+def load_mr_source(entity, year=None) -> list:
+    """GL rows with an amount, reduced to what the MR row builder needs. Year defaults to the latest."""
+    year = latest_year(entity) if year is None else year
+    if year is None:
+        return []
     table = ENTITIES[entity]["table"]
     conn = get_conn()
     try:
         ensure_schema(conn)
         return [dict(r) for r in conn.execute(
             f"SELECT id_no, acc_management, tgl, allocation_memo, budget_activity, job_name, debit_credit "
-            f"FROM {table} WHERE debit_credit IS NOT NULL AND debit_credit <> 0 ORDER BY id")]
+            f"FROM {table} WHERE debit_credit IS NOT NULL AND debit_credit <> 0 "
+            f"AND substr(tgl,1,4) = ? ORDER BY id", (str(int(year)),))]
     finally:
         conn.close()

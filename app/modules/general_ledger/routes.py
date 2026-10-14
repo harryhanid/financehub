@@ -1,5 +1,6 @@
 # modules/general_ledger/routes.py
 import io
+from datetime import datetime
 
 from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 from flask_jwt_extended import get_jwt
@@ -24,6 +25,7 @@ bp.add_app_template_filter(_gl_num, "gl_num")
 
 
 _FILTER_KEYS = ("date_from", "date_to", "acc", "job", "q")
+_MIN_YEAR, _MAX_YEAR = 2000, 2100
 _NUMERIC = {"debit", "credit", "qty_awal", "qty_akhir", "harga_satuan", "debit_credit"}
 
 
@@ -31,6 +33,20 @@ def _entity_or_404(entity):
     if entity not in service.ENTITIES:
         abort(404)
     return service.ENTITIES[entity]
+
+
+def _year_arg(raw):
+    try:
+        year = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return None
+    return year if _MIN_YEAR <= year <= _MAX_YEAR else None
+
+
+def _sync_years(data_years):
+    """Years offered in the sync dropdown: this year and the 4 before it, plus any year already holding data."""
+    this_year = datetime.now().year
+    return sorted({*range(this_year - 4, this_year + 1), *data_years}, reverse=True)
 
 
 def _page():
@@ -51,7 +67,10 @@ def index():
 def entity_page(entity):
     ent = _entity_or_404(entity)
     filters = {k: (request.args.get(k) or "").strip() for k in _FILTER_KEYS}
-    result = service.query_rows(entity, {k: v for k, v in filters.items() if v}, page=_page())
+    data_years = service.years_with_data(entity)
+    year = _year_arg(request.args.get("year")) or (data_years[0] if data_years else datetime.now().year)
+    result = service.query_rows(entity, {**{k: v for k, v in filters.items() if v}, "year": year},
+                                page=_page())
     try:
         can_manage = is_admin(get_jwt())
     except Exception:
@@ -60,7 +79,9 @@ def entity_page(entity):
         "general_ledger/index.html",
         entity=entity, active_tab=entity, ent=ent, entities=service.ENTITIES, filters=filters, result=result,
         columns=[(c, LABELS[c]) for c in COLUMNS], numeric=_NUMERIC,
-        last=service.last_sync(entity), syncs=service.list_syncs(entity, 5),
+        year=year, data_years=data_years, sync_years=_sync_years(data_years),
+        view_years=sorted({*data_years, year}, reverse=True),
+        last=service.last_sync(entity, year), syncs=service.list_syncs(entity, year, 5),
         can_manage=can_manage, active_page="general_ledger", use_unified_header=True,
     )
 
@@ -71,6 +92,9 @@ def sync_excel(entity):
     if entity not in service.ENTITIES:
         return jsonify({"ok": False, "pesan": "Entitas tidak dikenal."}), 404
     ent = service.ENTITIES[entity]
+    year = _year_arg(request.form.get("year"))
+    if year is None:
+        return jsonify({"ok": False, "pesan": f"Tahun belum dipilih atau tidak valid ({_MIN_YEAR}-{_MAX_YEAR})."}), 400
     f = request.files.get("file")
     if not f or not f.filename:
         return jsonify({"ok": False, "pesan": "File belum dipilih."}), 400
@@ -83,17 +107,21 @@ def sync_excel(entity):
     except ParseError as e:
         return jsonify({"ok": False, "pesan": str(e)}), 400
     try:
-        out = gl_sync.sync_rows(entity, f.filename, get_jwt().get("username", ""),
+        out = gl_sync.sync_rows(entity, year, f.filename, get_jwt().get("username", ""),
                                 result.rows, result.dropped)
+    except gl_sync.NoRowsForYear as e:
+        return jsonify({"ok": False, "pesan": str(e)}), 400
     except Exception as e:
         return jsonify({"ok": False, "pesan": f"Sync gagal, data lama tidak berubah: {e}"}), 500
     if not out["changed"]:
-        pesan = f"Sudah sinkron: tidak ada perubahan sejak sync terakhir ({out['rows']} baris)."
+        pesan = f"Sudah sinkron: tidak ada perubahan {year} sejak sync terakhir ({out['rows']} baris)."
     else:
         s = out["summary"]
-        pesan = (f"Sync {ent['label']} selesai: {out['rows']} baris "
+        pesan = (f"Sync {ent['label']} {year} selesai: {out['rows']} baris "
                  f"({s['added']} baru, {s['removed']} dihapus, {s['changed']} berubah; "
                  f"{result.dropped} baris dilewati).")
+    if out["skipped_year"]:
+        pesan += f" {out['skipped_year']} baris di luar {year} dilewati."
     if not out["balanced"]:
         pesan += " Peringatan: total Debit dan Credit tidak balance."
     return jsonify({"ok": True, "dropped": result.dropped, "pesan": pesan, **out})
