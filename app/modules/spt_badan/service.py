@@ -160,6 +160,10 @@ def take_snapshot(period_id, user) -> int:
         raise KeyError(period_id)
     entity, year = period["entity"], period["tax_year"]
     ent = ENTITIES[entity]
+    # Read the freshness markers FIRST: a sync/edit landing mid-snapshot then reads as stale, never as current.
+    last = gl_service.last_sync(entity, year)
+    gl_hash = last["content_hash"] if last else ""
+    map_version = category_map.get_version()
     gl_lines = gl_service.load_lines(entity, year)
     if not gl_lines:
         raise ValueError(f"Tidak ada baris GL {ent['label']} untuk tahun {year}. Sync General Ledger dulu.")
@@ -167,9 +171,6 @@ def take_snapshot(period_id, user) -> int:
     cmap = category_map.get_category_map()
     lk_list = category_map.get_lk_list()
     aliases = category_map.get_pph_aliases()
-    map_version = category_map.get_version()
-    last = gl_service.last_sync(entity, year)
-    gl_hash = last["content_hash"] if last else ""
 
     classified, exceptions = [], []
     for line in gl_lines:

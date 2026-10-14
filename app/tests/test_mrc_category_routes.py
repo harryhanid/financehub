@@ -164,3 +164,12 @@ def test_pph_alias_with_slash_can_be_deleted(client):
     assert r.get_json()["alias"] == "a/b"
     assert client.delete(URL + "/pph/a/b").status_code == 200
     assert "a/b" not in cm.get_pph_aliases()
+
+
+def test_lk_update_rejects_laba_rugi_without_kind_and_default_alias_remap(client):
+    login(client)
+    seed_map()
+    r = client.post(URL + "/lk", json={"name": "Beban Operasional", "statement": "laba_rugi", "kind": ""})
+    assert r.status_code == 400 and not r.get_json()["ok"]
+    r = client.post(URL + "/pph", json={"alias": "PPh 21", "pph_type": "PPh 23"})
+    assert r.status_code == 400 and "baku" in r.get_json()["pesan"]

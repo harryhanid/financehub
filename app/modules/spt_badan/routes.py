@@ -139,8 +139,10 @@ def drill(pid):
     snapshot = service.get_current_snapshot(pid)
     cats = [c for c in request.args.getlist("cats") if c]
     spt = request.args.get("spt") if "spt" in request.args else None
+    sign = -1 if request.args.get("sign") == "-1" else 1
     data = service.drill_lines(snapshot["id"], cats, spt, page=_page()) if snapshot else None
-    return _render("spt_badan/baris.html", period, active_tab="laba_rugi", data=data, cats=cats, spt=spt)
+    return _render("spt_badan/baris.html", period, active_tab="laba_rugi", data=data, cats=cats, spt=spt,
+                   sign=sign)
 
 
 @bp.route("/<int:pid>/pengecualian")
@@ -174,6 +176,16 @@ def exceptions_xlsx(pid):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Pengecualian"
+    marker = f"Simulasi YTD — bukan SPT final · {service.ENTITIES[period['entity']]['label']} {period['tax_year']}"
+    if snapshot:
+        marker += (f" · snapshot {snapshot['taken_at']} · data {snapshot['date_min']} s.d. "
+                   f"{snapshot['date_max']}")
+        stale = service.staleness(period, snapshot)
+    else:
+        stale = []
+    ws.append([_safe_cell(marker)])
+    if stale:
+        ws.append([_safe_cell("; ".join(stale))])
     ws.append(["Jenis", "Tingkat", "Akun", "Tanggal", "ID#", "Job", "Memo", "Debit - Credit", "PPh (GL)", "Keterangan"])
     if snapshot:
         for r in service.list_exceptions(snapshot["id"], per_page=10 ** 9)["rows"]:

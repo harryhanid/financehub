@@ -15,6 +15,7 @@
   <div class="spt-cards">
     <div class="spt-card">Baris<b>{{ data.total | spt_num }}</b></div>
     <div class="spt-card">Jumlah (debit − credit)<b>{{ data.amount | spt_num }}</b></div>
+    <div class="spt-card">Angka di laporan<b>{{ (sign * data.amount) | spt_num }}</b></div>
   </div>
   <div class="spt-wrap">
   <table class="spt-table" id="spt-lines">

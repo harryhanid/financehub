@@ -41,7 +41,8 @@ def ready(client):
 
 
 def test_pages_require_login(client):
-    for url in (BASE + "/", BASE + "/1", BASE + "/1/laba-rugi", BASE + "/1/pengecualian", BASE + "/1/kontrol"):
+    for url in (BASE + "/", BASE + "/1", BASE + "/1/laba-rugi", BASE + "/1/pengecualian", BASE + "/1/kontrol",
+                BASE + "/1/baris", BASE + "/1/pengecualian.xlsx"):
         r = client.get(url)
         assert r.status_code == 302 and "/auth/login" in r.headers["Location"], url
 
@@ -124,10 +125,19 @@ def card(html, label):
 def test_drill_page_total_equals_the_statement_row(client):
     pid, sid = ready(client)
     rows = {r["key"]: r for r in sv.income_statement_for(sid)["rows"]}
-    for key in ("opex", "hpp", "revenue"):                # revenue is credit-natured: sign flips
-        html = client.get(f"{BASE}/{pid}/baris", query_string={"cats": rows[key]["cats"]}).data.decode()
-        shown = card(html, "Jumlah (debit − credit)").lstrip("-")
-        assert shown == f"{abs(rows[key]['amount']):,.0f}".replace(",", "."), key
+    other = next(k for k in rows if k.startswith("other:") and rows[k]["kind"] == "item")
+    for key in ("opex", "hpp", "revenue", other):          # revenue / other income are credit-natured: sign -1
+        row = rows[key]
+        html = client.get(f"{BASE}/{pid}/baris",
+                          query_string={"cats": row["cats"], "sign": row["sign"]}).data.decode()
+        assert card(html, "Angka di laporan") == f"{row['amount']:,.0f}".replace(",", "."), key
+        raw = card(html, "Jumlah (debit − credit)")
+        assert raw == f"{row['sign'] * row['amount']:,.0f}".replace(",", "."), key
+    assert rows["revenue"]["sign"] == -1
+    stmt = client.get(f"{BASE}/{pid}/laba-rugi").data.decode()
+    assert "sign=-1" in stmt                                # drill links carry the sign
+    bad = client.get(f"{BASE}/{pid}/baris", query_string={"cats": rows["revenue"]["cats"], "sign": "7"})
+    assert card(bad.data.decode(), "Angka di laporan") == card(bad.data.decode(), "Jumlah (debit − credit)")
     assert card(client.get(f"{BASE}/{pid}/baris", query_string={"cats": rows["opex"]["cats"]})
                 .data.decode(), "Jumlah (debit − credit)") == "200"
     both = client.get(f"{BASE}/{pid}/baris",
@@ -152,7 +162,13 @@ def test_exceptions_page_groups_filters_and_exports(client):
     x = client.get(f"{BASE}/{pid}/pengecualian.xlsx")
     assert x.status_code == 200 and "spreadsheetml" in x.headers["Content-Type"]
     ws = openpyxl.load_workbook(io.BytesIO(x.data)).active
-    assert [c.value for c in ws[1]][:4] == ["Jenis", "Tingkat", "Akun", "Tanggal"] and ws.max_row == 3
+    assert str(ws["A1"].value).startswith("Simulasi YTD — bukan SPT final · SMT 2026 · snapshot ")
+    assert "data 2026-01-02 s.d. 2026-01-02" in ws["A1"].value
+    assert [c.value for c in ws[2]][:4] == ["Jenis", "Tingkat", "Akun", "Tanggal"] and ws.max_row == 4
+    seed_gl(hash_="hash-2")                                 # stale snapshot: reasons go on a second row
+    ws = openpyxl.load_workbook(io.BytesIO(client.get(f"{BASE}/{pid}/pengecualian.xlsx").data)).active
+    assert "GL berubah sejak snapshot" in ws["A2"].value
+    assert [c.value for c in ws[3]][:2] == ["Jenis", "Tingkat"] and ws.max_row == 5
 
 
 def test_controls_page_lists_c1_to_c9_and_marks_stale(client):
@@ -182,7 +198,15 @@ def test_exceptions_xlsx_neutralises_formulas(client):
     assert client.post(f"{BASE}/{pid}/snapshot").get_json()["ok"]
     x = client.get(f"{BASE}/{pid}/pengecualian.xlsx")
     ws = openpyxl.load_workbook(io.BytesIO(x.data)).active
-    assert ws.max_row == 3
+    assert ws.max_row == 4
     assert not [c for row in ws.iter_rows() for c in row if c.data_type == "f"]
-    memos = {r[6].value for r in ws.iter_rows(min_row=2)}
+    memos = {r[6].value for r in ws.iter_rows(min_row=3)}
     assert memos == {"'=1+1", "'+cmd"}
+
+
+def test_banner_keeps_simulasi_ytd_even_when_the_label_is_free_text(client):
+    login(client)
+    seed_mapping(); seed_gl()
+    pid = sv.create_period("smt", 2026, "admin", label="Final")
+    html = client.get(f"{BASE}/{pid}").data.decode()
+    assert "Simulasi YTD" in html and "Final" in html

@@ -144,3 +144,16 @@ def test_zero_amounts_are_positive_zero():
 def test_no_sub_rows_for_categories_without_needs_spt():
     rows = statement([ln("Bunga Jasa Giro", "", -50.0)])["rows"]
     assert not [r for r in rows if r["kind"] == "sub"]
+
+
+def test_rows_with_cats_carry_the_display_sign_and_subrows_inherit_it():
+    rows = statement()["rows"]
+    signs = {r["key"]: r["sign"] for r in rows if r["cats"]}
+    assert signs["revenue"] == -1 and signs["hpp"] == 1 and signs["opex"] == 1 and signs["tax"] == 1
+    assert signs["other:Bunga Jasa Giro"] == -1 and signs["other:Pendapatan (Beban) Lainnya"] == -1
+    for r in rows:
+        if r["kind"] == "sub":
+            parent = r["key"].rsplit(":", 1)[0]
+            assert r["sign"] == signs[parent], r["key"]
+        elif not r["cats"]:
+            assert "sign" not in r or r["sign"] is None

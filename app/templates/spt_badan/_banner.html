@@ -1,5 +1,5 @@
 <div class="spt-banner">
-  <b>{{ period.label or 'SPT' }}</b> · {{ entity_label }} · Tahun pajak {{ period.tax_year }}
+  <b>Simulasi YTD</b>{% if period.label and period.label != 'Simulasi YTD' %} ({{ period.label }}){% endif %} · {{ entity_label }} · Tahun pajak {{ period.tax_year }}
   {% if snapshot %} · Data GL {{ snapshot.date_min }} s.d. {{ snapshot.date_max }} · Snapshot {{ snapshot.taken_at }} oleh {{ snapshot.taken_by }}{% endif %}
   <div class="spt-muted">Angka ini simulasi dari GL berjalan, bukan SPT final.</div>
 </div>

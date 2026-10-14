@@ -18,7 +18,7 @@
     <tr class="{{ r.kind }}">
       <td>{{ r.label }}</td>
       <td class="num">
-        {% if r.cats %}<a href="{{ url_for('spt_badan.drill', pid=period.id, cats=r.cats, spt=r.spt) if r.spt is not none else url_for('spt_badan.drill', pid=period.id, cats=r.cats) }}">{{ r.amount | spt_num }}</a>
+        {% if r.cats %}<a href="{{ url_for('spt_badan.drill', pid=period.id, cats=r.cats, spt=r.spt, sign=r.sign) if r.spt is not none else url_for('spt_badan.drill', pid=period.id, cats=r.cats, sign=r.sign) }}">{{ r.amount | spt_num }}</a>
         {% else %}{{ r.amount | spt_num }}{% endif %}
       </td>
     </tr>

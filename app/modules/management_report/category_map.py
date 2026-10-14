@@ -266,6 +266,8 @@ def update_lk(name, statement, kind, seq, label, needs_spt) -> None:
         raise ValueError("Jenis laporan harus kosong, 'neraca', atau 'laba_rugi'.")
     if kind not in ("", *KINDS):
         raise ValueError("Sifat harus kosong, 'pendapatan', 'beban', atau 'lainnya'.")
+    if statement == "laba_rugi" and not kind:
+        raise ValueError("Kategori laba rugi harus punya sifat (pendapatan, beban, atau lainnya).")
     try:
         seq = int(seq)
     except (TypeError, ValueError):
@@ -302,6 +304,8 @@ def add_pph_alias(alias, pph_type) -> str:
     key = alias_key(alias)
     if not key:
         raise ValueError("Alias tidak boleh kosong.")
+    if key in DEFAULT_ALIASES:
+        raise ValueError("Alias baku tidak bisa diubah.")
     if pph_type not in PPH_TYPES:
         raise ValueError("Jenis PPh harus salah satu dari: " + ", ".join(PPH_TYPES) + ".")
     conn = get_conn()
@@ -362,6 +366,8 @@ def unmapped_accounts(year) -> list:
                 meta = lk.get(entry["category_lk"])
                 if meta is None or not meta["statement"]:
                     reason = "Category LK belum diatur jenis laporannya"
+                elif meta["statement"] == "laba_rugi" and not meta["kind"]:
+                    reason = "Category LK belum diatur sifatnya"
                 elif meta["needs_spt"] and is_unmapped(entry["category_spt"]):
                     reason = "Category SPT kosong / TBA"
             if reason:

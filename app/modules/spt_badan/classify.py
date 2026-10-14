@@ -47,6 +47,10 @@ def classify_line(line, source, cmap, lk_list, aliases):
             exceptions.append(_exc("category_lk_tidak_dikenal", BLOCKER,
                                    f"Category LK '{lk}' belum diatur jenis laporannya"))
             meta = None
+        elif meta["statement"] == "laba_rugi" and not meta["kind"]:
+            exceptions.append(_exc("category_lk_tidak_dikenal", BLOCKER,
+                                   f"Category LK '{lk}' belum diatur sifatnya (pendapatan/beban/lainnya)"))
+            meta = None
         elif meta["needs_spt"] and not spt:
             exceptions.append(_exc("category_spt_kosong", BLOCKER,
                                    f"Category SPT akun {account} kosong / TBA"))

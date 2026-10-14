@@ -20,8 +20,12 @@ def aggregate(lines):
     return totals, spt_totals
 
 
-def _row(key, label, amount, kind, cats=None, spt=None):
-    return {"key": key, "label": label, "amount": amount, "kind": kind, "cats": cats, "spt": spt}
+def _row(key, label, amount, kind, cats=None, spt=None, sign=None):
+    """`sign` (1 / -1) maps the raw debit-credit sum of `cats` to `amount`; only rows with `cats` carry it."""
+    row = {"key": key, "label": label, "amount": amount, "kind": kind, "cats": cats, "spt": spt}
+    if cats:
+        row["sign"] = sign if sign is not None else 1
+    return row
 
 
 def _sub_rows(prefix, cats, spt_totals, sign, lk_list):
@@ -30,7 +34,7 @@ def _sub_rows(prefix, cats, spt_totals, sign, lk_list):
     for (lk, spt), value in spt_totals.items():
         if lk in cats:
             by_spt[spt] = by_spt.get(spt, 0.0) + sign * value + 0.0   # + 0.0 turns -0.0 into 0.0
-    return [_row(f"{prefix}:{spt}", spt or NO_SPT_LABEL, amount, "sub", list(cats), spt)
+    return [_row(f"{prefix}:{spt}", spt or NO_SPT_LABEL, amount, "sub", list(cats), spt, sign)
             for spt, amount in sorted(by_spt.items(), key=lambda kv: (-kv[1], kv[0]))]
 
 
@@ -53,7 +57,7 @@ def build_income_statement(totals, spt_totals, lk_list):
     pbt = operating + other
     tax = net(tax_cats)
 
-    rows = [_row("revenue", "Pendapatan bersih", revenue, "item", revenue_cats),
+    rows = [_row("revenue", "Pendapatan bersih", revenue, "item", revenue_cats, sign=-1),
             _row("hpp", "Harga pokok penjualan", hpp, "item", hpp_cats),
             *_sub_rows("hpp", hpp_cats, spt_totals, 1, lk_list),
             _row("gross", "Laba kotor", gross, "subtotal"),
@@ -61,7 +65,7 @@ def build_income_statement(totals, spt_totals, lk_list):
             *_sub_rows("opex", opex_cats, spt_totals, 1, lk_list),
             _row("operating", "Laba operasional", operating, "subtotal")]
     for name, value in other_rows:
-        rows.append(_row(f"other:{name}", pnl[name]["label"] or name, value, "item", [name]))
+        rows.append(_row(f"other:{name}", pnl[name]["label"] or name, value, "item", [name], sign=-1))
         rows.extend(_sub_rows(f"other:{name}", [name], spt_totals, -1, lk_list))
     rows += [_row("pbt", "Laba sebelum pajak penghasilan", pbt, "subtotal"),
              _row("tax", "Income tax expense", tax, "item", tax_cats),

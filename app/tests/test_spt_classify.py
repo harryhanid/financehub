@@ -106,3 +106,15 @@ def test_gl_row_categories_that_differ_from_the_mapping_are_a_warning():
 def test_account_is_matched_as_text():
     c, ex = cl.classify_line(line(acc_statutory=None), "SMT", CMAP, LK, ALIASES)
     assert ("akun_belum_dipetakan", "blocker") in kinds(ex)
+
+
+def test_laba_rugi_category_without_kind_is_a_blocker_naming_the_missing_sifat():
+    lk = {"Aneh": {"statement": "laba_rugi", "kind": "", "seq": 9, "label": "Aneh", "needs_spt": 0}}
+    cmap = {("SMT", "6-1"): {"category_lk": "Aneh", "category_spt": ""}}
+    item, excs = cl.classify_line(
+        {"id": 1, "tgl": "2026-01-02", "id_no": "x", "acc_statutory": "6-1", "acc_management": "6-1",
+         "job_name": "", "memo": "", "debit_credit": 5.0, "accrual_actual": "", "category_lk": "Aneh",
+         "category_spt": "", "pph_non_pph": ""}, "SMT", cmap, lk, {})
+    blockers = [e for e in excs if e["kind"] == "category_lk_tidak_dikenal"]
+    assert len(blockers) == 1 and blockers[0]["severity"] == "blocker"
+    assert "belum diatur sifatnya" in blockers[0]["detail"] and "'Aneh'" in blockers[0]["detail"]

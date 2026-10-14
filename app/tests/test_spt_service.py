@@ -178,7 +178,9 @@ def test_unbalanced_gl_fails_c1_and_missing_pnl_kind_fails_c6():
     seed_gl([gl("4-1000", 0, 1000, "Jasa Konsultasi & Advokasi", ""),
              gl("5-1000", 300, 0, "HARGA POKOK PENJUALAN", SPT_GAJI, "PPh 21")])
     assert controls_of(sv.take_snapshot(pid, "admin"))["C1"]["status"] == "gagal"
-    cm.update_lk("Beban Operasional", "laba_rugi", "", 3, "BO", 1)       # kind removed -> not placed
+    conn = get_conn()                                                    # kind removed -> not placed
+    conn.execute("UPDATE gl_category_lk SET kind='' WHERE category_lk='Beban Operasional'")
+    conn.commit(); conn.close()
     seed_gl([gl("6-1000", 200, 0, "Beban Operasional", "BIAYA LAINNYA", "PPh 21"),
              gl("1-1000", 0, 200, "KAS DAN SETARA KAS", "")], hash_="hash-2")
     assert controls_of(sv.take_snapshot(pid, "admin"))["C6"]["status"] == "gagal"
@@ -236,3 +238,32 @@ def test_step_statuses():
     assert [(s["name"], s["status"]) for s in steps] == [
         ("Snapshot GL", "lulus"), ("Validasi klasifikasi", "peringatan"),
         ("Laba rugi komersial", "lulus"), ("Kontrol", "peringatan")]
+
+
+def test_snapshot_reads_hash_and_version_before_lines_so_a_race_reads_stale(monkeypatch):
+    seed_mapping(); seed_gl()
+    pid = new_period()
+    real = gl_service.load_lines
+
+    def racing(entity, year):
+        lines = real(entity, year)
+        seed_gl(hash_="hash-2")                       # GL re-sync lands mid-snapshot
+        cm.add_pph_alias("pph empat dua", "PPh 4(2)")  # and so does a Pemetaan edit
+        return lines
+
+    monkeypatch.setattr(gl_service, "load_lines", racing)
+    sv.take_snapshot(pid, "admin")
+    assert sv.staleness(sv.get_period(pid), sv.get_current_snapshot(pid)) == [
+        "GL berubah sejak snapshot", "Pemetaan berubah sejak snapshot"]
+
+
+def test_laba_rugi_category_without_kind_is_a_named_blocker():
+    seed_mapping(); seed_gl()
+    conn = get_conn()
+    conn.execute("UPDATE gl_category_lk SET kind='' WHERE category_lk='Beban Operasional'")
+    conn.commit(); conn.close()
+    sid = sv.take_snapshot(new_period(), "admin")
+    blockers = [g for g in sv.exception_groups(sid) if g["kind"] == "category_lk_tidak_dikenal"]
+    assert [g["account"] for g in blockers] == ["6-1000"]
+    got = sv.list_exceptions(sid, kind="category_lk_tidak_dikenal")["rows"][0]["detail"]
+    assert "belum diatur sifatnya" in got and "Beban Operasional" in got

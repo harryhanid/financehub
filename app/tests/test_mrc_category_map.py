@@ -259,3 +259,29 @@ def test_unmapped_accounts_keeps_smt_and_etf_apart():
     cm.sync_categories("a", "u", cm.normalise_categories(sheet(row("6-x", None, "", "Beban Operasional", "BIAYA LAINNYA"))))
     seed_gl("etf", ("6-x", 5.0))                                   # only SMT knows 6-x
     assert [(u["source"], u["account"]) for u in cm.unmapped_accounts(2026)] == [("ETF", "6-x")]
+
+
+def test_update_lk_rejects_laba_rugi_without_kind():
+    cm.sync_categories("a", "u", _rows_with("Kategori Baru"))
+    v = cm.get_version()
+    with pytest.raises(ValueError, match="sifat"):
+        cm.update_lk("Kategori Baru", statement="laba_rugi", kind="", seq=1, label="x", needs_spt=0)
+    assert cm.get_version() == v
+    cm.update_lk("Kategori Baru", statement="laba_rugi", kind="beban", seq=1, label="x", needs_spt=0)
+
+
+def test_unmapped_accounts_flags_laba_rugi_category_without_kind():
+    from database import get_conn
+    cm.sync_categories("a", "u", cm.normalise_categories(sheet(row("6-ok", None, "", "Beban Operasional", "BIAYA LAINNYA"))))
+    conn = get_conn()
+    conn.execute("UPDATE gl_category_lk SET kind='' WHERE category_lk='Beban Operasional'")
+    conn.commit(); conn.close()
+    seed_gl("smt", ("6-ok", 5.0))
+    got = {u["account"]: u["reason"] for u in cm.unmapped_accounts(2026)}
+    assert got == {"6-ok": "Category LK belum diatur sifatnya"}
+
+
+def test_default_alias_cannot_be_remapped():
+    with pytest.raises(ValueError, match="Alias baku"):
+        cm.add_pph_alias("PPh 21", "PPh 23")
+    assert cm.get_pph_aliases()["pph21"] == "PPh 21"
