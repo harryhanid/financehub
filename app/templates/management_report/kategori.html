@@ -131,7 +131,7 @@
     <thead><tr><th>Alias</th><th>Jenis PPh</th><th></th></tr></thead>
     <tbody>
     {% for alias, t in aliases.items() %}
-    <tr><td>{{ alias }}</td><td>{{ t }}</td><td>{% if can_manage and alias not in default_aliases %}<button class="btn btn-sm" onclick="mrDeleteAlias('{{ alias }}')">Hapus</button>{% else %}<span class="mc-muted">{{ 'baku' if alias in default_aliases else '' }}</span>{% endif %}</td></tr>
+    <tr><td>{{ alias }}</td><td>{{ t }}</td><td>{% if can_manage and alias not in default_aliases %}<button class="btn btn-sm" data-alias="{{ alias }}" onclick="mrDeleteAlias(this.dataset.alias)">Hapus</button>{% else %}<span class="mc-muted">{{ 'baku' if alias in default_aliases else '' }}</span>{% endif %}</td></tr>
     {% endfor %}
     </tbody>
   </table>

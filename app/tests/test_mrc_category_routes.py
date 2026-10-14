@@ -144,3 +144,23 @@ def test_unmapped_panel_lists_gl_accounts_without_mapping(client):
     accounts = [r[1] for r in rows_of(html, "mr-cat-unmapped")]
     assert accounts == ["9-none", "6-tba"]                       # biggest amount first, mapped one absent
     assert "Akun tidak ada di pemetaan kategori" in html
+
+
+def test_pph_alias_is_never_interpolated_into_js(client):
+    login(client)
+    evil = "x');alert(1);//"
+    assert client.post(URL + "/pph", json={"alias": evil, "pph_type": "PPh 21"}).status_code == 200
+    html = client.get(URL + "?view=pph").data.decode()
+    assert "mrDeleteAlias('x" not in html
+    key = cm.alias_key(evil)
+    from markupsafe import escape
+    assert f'data-alias="{escape(key)}"' in html
+    assert html.count(str(escape(key))) == html.count(f'data-alias="{escape(key)}"') + 1  # + the Alias cell
+
+
+def test_pph_alias_with_slash_can_be_deleted(client):
+    login(client)
+    r = client.post(URL + "/pph", json={"alias": "a/b", "pph_type": "PPh 21"})
+    assert r.get_json()["alias"] == "a/b"
+    assert client.delete(URL + "/pph/a/b").status_code == 200
+    assert "a/b" not in cm.get_pph_aliases()

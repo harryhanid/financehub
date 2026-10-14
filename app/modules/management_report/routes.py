@@ -552,7 +552,7 @@ def category_pph_add():
     return jsonify({"ok": True, "pesan": "Alias disimpan.", "alias": key})
 
 
-@bp.route("/pemetaan/kategori/pph/<alias>", methods=["DELETE"])
+@bp.route("/pemetaan/kategori/pph/<path:alias>", methods=["DELETE"])
 @json_admin_required
 def category_pph_delete(alias):
     try:
