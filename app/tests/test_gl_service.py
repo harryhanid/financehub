@@ -90,3 +90,17 @@ def test_load_mr_source_defaults_to_the_latest_year():
     assert [r["id_no"] for r in svc.load_mr_source("smt")] == ["NEW"]
     assert [r["id_no"] for r in svc.load_mr_source("smt", 2025)] == ["OLD"]
     assert svc.load_mr_source("etf") == []
+
+
+def test_account_totals_groups_by_account_and_year():
+    log = dict(synced_by="u", filename="f", content_hash="h", rows_before=0, rows_after=1,
+               total_debit=0, total_credit=0, dropped=0, summary={})
+    svc.replace_year("smt", 2025, [mkrow(acc_statutory="6-1", tgl="2025-02-02", debit_credit=9.0)], log)
+    svc.replace_year("smt", 2026, [
+        mkrow(acc_statutory="6-1", tgl="2026-01-02", debit_credit=10.0),
+        mkrow(acc_statutory="6-1", tgl="2026-01-03", debit_credit=-4.0),
+        mkrow(acc_statutory="6-2", tgl="2026-01-04", debit_credit=1.0)], log)
+    assert svc.account_totals("smt", 2026) == [{"account": "6-1", "n": 2, "amount": 6.0},
+                                               {"account": "6-2", "n": 1, "amount": 1.0}]
+    assert svc.account_totals("smt", 2025) == [{"account": "6-1", "n": 1, "amount": 9.0}]
+    assert svc.account_totals("etf", 2026) == []

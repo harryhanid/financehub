@@ -9,7 +9,8 @@ import re
 from datetime import datetime
 
 from database import get_conn
-from modules.management_report.coa_map import CoaParseError, _cell, _read_sheets, _text
+from modules.general_ledger import service as gl_service
+from modules.management_report.coa_map import CoaParseError, _cell, _page, _read_sheets, _text
 
 SHEET_NAME = "COA"
 _HEADER_ROW = 1                                   # 0-based; row 0 is a numbering row
@@ -327,3 +328,44 @@ def delete_pph_alias(key) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def search_accounts(source=None, q=None, page=1, per_page=100) -> dict:
+    needle = (q or "").strip().lower()
+    rows = []
+    for (src, account), v in sorted(get_category_map().items()):
+        if source in ("SMT", "ETF") and src != source:
+            continue
+        if needle and not any(needle in f.lower() for f in
+                              (account, v["categories_expense"], v["category_lk"], v["category_spt"])):
+            continue
+        rows.append({"source": src, "account": account, **v})
+    return _page(rows, page, per_page)
+
+
+_SOURCES = (("smt", "SMT"), ("etf", "ETF"))
+
+
+def unmapped_accounts(year) -> list:
+    """GL accounts of `year` whose category mapping is missing or incomplete, biggest amount first."""
+    cmap, lk = get_category_map(), get_lk_list()
+    out = []
+    for entity, source in _SOURCES:
+        for t in gl_service.account_totals(entity, year):
+            entry = cmap.get((source, t["account"]))
+            reason = ""
+            if entry is None:
+                reason = "Akun tidak ada di pemetaan kategori"
+            elif is_unmapped(entry["category_lk"]):
+                reason = "Category LK kosong / TBA"
+            else:
+                meta = lk.get(entry["category_lk"])
+                if meta is None or not meta["statement"]:
+                    reason = "Category LK belum diatur jenis laporannya"
+                elif meta["needs_spt"] and is_unmapped(entry["category_spt"]):
+                    reason = "Category SPT kosong / TBA"
+            if reason:
+                out.append({"source": source, "account": t["account"], "rows": t["n"],
+                            "amount": t["amount"], "reason": reason})
+    out.sort(key=lambda u: -abs(u["amount"]))
+    return out

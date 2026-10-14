@@ -238,3 +238,17 @@ def load_mr_source(entity, year=None) -> list:
             f"AND substr(tgl,1,4) = ? ORDER BY id", (str(int(year)),))]
     finally:
         conn.close()
+
+
+def account_totals(entity, year) -> list:
+    """Per statutory account: row count and net amount (debit_credit) for one year."""
+    table = ENTITIES[entity]["table"]
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        return [{"account": r[0], "n": r[1], "amount": r[2]} for r in conn.execute(
+            f"SELECT acc_statutory, COUNT(*), COALESCE(SUM(debit_credit), 0) FROM {table} "
+            f"WHERE substr(tgl,1,4) = ? GROUP BY acc_statutory ORDER BY acc_statutory",
+            (str(int(year)),))]
+    finally:
+        conn.close()

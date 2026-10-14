@@ -202,3 +202,60 @@ def test_alias_validation_and_default_alias_is_protected():
     assert "pph21" in cm.get_pph_aliases()
     with pytest.raises(KeyError):
         cm.delete_pph_alias("tidak-ada")
+
+
+# ---------- search + unmapped ----------
+
+from modules.general_ledger import service as gl_service
+from tests.test_gl_sync import mkrow
+
+GL_LOG = dict(synced_by="u", filename="f", content_hash="h", rows_before=0, rows_after=1,
+              total_debit=0, total_credit=0, dropped=0, summary={})
+
+
+def seed_gl(entity, *accounts):
+    rows = [mkrow(acc_statutory=a, tgl="2026-01-02", debit_credit=amt) for a, amt in accounts]
+    gl_service.replace_year(entity, 2026, rows, GL_LOG)
+
+
+def test_search_accounts_filters_by_source_and_text_and_pages():
+    cm.sync_categories("a", "u", cm.normalise_categories(sheet(
+        row("6-1810", "6-2150", "Office", "Beban Operasional", "BIAYA LAINNYA"),
+        row("6-1720", None, "Gift", "HARGA POKOK PENJUALAN", "BIAYA SEWA"))))
+    assert cm.search_accounts()["total"] == 3
+    assert cm.search_accounts("ETF")["total"] == 1
+    assert [r["account"] for r in cm.search_accounts(None, "gift")["rows"]] == ["6-1720"]
+    assert cm.search_accounts(None, "biaya sewa")["rows"][0]["category_spt"] == "BIAYA SEWA"
+    assert cm.search_accounts(None, "", page=99)["page"] == 1
+
+
+def test_unmapped_accounts_reasons_and_ordering():
+    cm.sync_categories("a", "u", cm.normalise_categories(sheet(
+        row("6-ok", None, "", "Beban Operasional", "BIAYA LAINNYA"),
+        row("6-tba", None, "", "TBA", "TBA"),
+        row("6-nospt", None, "", "HARGA POKOK PENJUALAN", "TBA"),
+        row("6-noreport", None, "", "Kategori Baru", "BIAYA LAINNYA"),
+        row("1-bank", None, "", "KAS DAN SETARA KAS", ""))))
+    seed_gl("smt", ("6-ok", 5.0), ("6-tba", 10.0), ("6-nospt", -30.0), ("6-noreport", 2.0),
+            ("1-bank", 100.0), ("9-missing", 1.0))
+    got = {u["account"]: u for u in cm.unmapped_accounts(2026)}
+    assert set(got) == {"6-tba", "6-nospt", "6-noreport", "9-missing"}
+    assert got["6-tba"]["reason"] == "Category LK kosong / TBA"
+    assert got["6-nospt"]["reason"] == "Category SPT kosong / TBA"
+    assert got["6-noreport"]["reason"] == "Category LK belum diatur jenis laporannya"
+    assert got["9-missing"]["reason"] == "Akun tidak ada di pemetaan kategori"
+    assert got["6-nospt"]["source"] == "SMT" and got["6-nospt"]["rows"] == 1
+    assert [u["account"] for u in cm.unmapped_accounts(2026)][0] == "6-nospt"      # biggest |amount| first
+
+
+def test_unmapped_accounts_is_empty_for_other_years_and_when_everything_is_mapped():
+    cm.sync_categories("a", "u", cm.normalise_categories(sheet(
+        row("6-ok", None, "", "Beban Operasional", "BIAYA LAINNYA"))))
+    seed_gl("smt", ("6-ok", 5.0))
+    assert cm.unmapped_accounts(2026) == [] and cm.unmapped_accounts(2025) == []
+
+
+def test_unmapped_accounts_keeps_smt_and_etf_apart():
+    cm.sync_categories("a", "u", cm.normalise_categories(sheet(row("6-x", None, "", "Beban Operasional", "BIAYA LAINNYA"))))
+    seed_gl("etf", ("6-x", 5.0))                                   # only SMT knows 6-x
+    assert [(u["source"], u["account"]) for u in cm.unmapped_accounts(2026)] == [("ETF", "6-x")]
