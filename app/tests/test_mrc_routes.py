@@ -76,9 +76,26 @@ def test_append1_page_shows_the_13_headers_and_workbook_values(client):
 def test_new_code_numbering_ignores_source_cutoff_and_search(client):
     login(client)
     seed()
-    full = client.get("/management-report/gl-combine").data.decode()
-    only_sponsor = client.get("/management-report/gl-combine?source=Sponsor&mm=2&q=Prasasti").data.decode()
-    assert "A26-51" in full and "A26-51" in only_sponsor
+    from modules.management_report import combine_sources
+    insert_sponsor(combine_sources.smt_company_id(), "2026-02-12", "Februari Sponsor", 100000000.0)
+    for qs in ("?source=Sponsor&q=Februari", "?source=Sponsor&q=Februari&mm=2", "?q=Februari"):
+        html = client.get("/management-report/gl-combine" + qs).data.decode()
+        assert "A26-52" in html and "A26-51" not in html, qs
+    jan = client.get("/management-report/gl-combine?source=Sponsor&mm=1").data.decode()
+    assert "A26-51" in jan and "A26-52" not in jan and "Februari Sponsor" not in jan
+
+
+def test_navbar_shows_user_and_company_on_the_new_pages(client):
+    login(client)
+    seed()
+    idx = client.get("/management-report/").data.decode()
+    company = re.search(r'class="navbar-company"[^>]*>(.*?)</a>', idx, re.S).group(1).strip()
+    assert company
+    for url in ("/management-report/gl-combine", "/management-report/append1"):
+        html = client.get(url).data.decode()
+        assert re.search(r'class="navbar-company"[^>]*>\s*' + re.escape(company), html), url
+        user = re.search(r'class="navbar-user">.*?</svg>\s*(\S+)', html, re.S).group(1)
+        assert user == "admin", (url, user)
 
 
 def test_source_filter_and_invalid_source(client):

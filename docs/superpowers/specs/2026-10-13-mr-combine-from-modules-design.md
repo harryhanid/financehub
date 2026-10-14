@@ -86,7 +86,7 @@ Halaman GL Combine dan Append1 berbagi filter dan bilah tab:
 - Tes yang sudah ada untuk `coa_map`, `mr_rows`, `mr_columns`, dan tampilan dipindah dan disesuaikan ke modul baru. Perilaku GL tidak boleh berubah.
 - Adaptor `sponsor_rows`: company SMT dicari dari kode, transaksi tahun lain ikut, urutan `tanggal_form_sponsor` lalu `id`, memo = `perihal`, transaksi tanpa tanggal valid dilewati.
 - Baris Sponsor: `coa`/`cc` dari baris Sponsorship (cadangan dari `MR_SPONSOR_*`), COST CENTER2 dan CC1 dari pemetaan CC, deskripsi, ACT setengah ke genap, tidak ditandai belum dipetakan.
-- Penomoran New Code gabungan: SMT, ETF, lalu Sponsor; grup Sponsor berhitung sendiri per tahun; tidak terpengaruh cutoff, Source, atau pencarian.
+- Penomoran New Code gabungan: SMT, ETF, lalu Sponsor; penomoran per tahun, berbagi penghitung dengan baris GL yang ber-CC1 dan BC1 sama (dalam praktik grup Sponsor, CC1 5 dan BC1 kosong, hanya bertabrakan dengan baris GL ber-cost center CC1 5 tanpa Code); tidak terpengaruh cutoff, Source, atau pencarian.
 - Route: dua halaman baru, filter Source, parameter tidak valid, admin-only sync, tab bar, dan tab MR lama di modul GL sudah tidak ada (404) sementara tab GL SMT/ETF/SETF tetap jalan.
 - File asli (dilewati bila Y: tidak terjangkau): 85 baris `Sponsor` di `GL Combine` dibandingkan dengan baris Sponsor bentukan Jan–Sep (jumlah per bulan, tanggal, nominal persis; memo boleh berbeda di 2 baris edit manual; urutan dan New Code dilaporkan). Baris GL dan perbandingan `Append1` dari pekerjaan sebelumnya diperluas ke tiga sumber.
 

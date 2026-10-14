@@ -389,19 +389,16 @@ def _combine_page(table: str):
     # Old-style map (synced before the CC sheet / Code column existed): derived values are invalid until re-sync.
     needs_resync = bool(cmap) and (not cc_map or (last_map or {}).get("rows_cc", 0) == 0)
     unmapped_cc = [] if needs_resync else combine_rows.unmapped_cc_summary(scoped)
-    try:
-        can_manage = is_admin(get_jwt())
-    except Exception:
-        can_manage = False
     label, cols = combine_columns.TABLES[table]
     return render_template(
         "management_report/combine.html",
-        active_tab=table, table=table, label=label, data_cols=cols, can_manage=can_manage,
+        active_tab=table, table=table, label=label, data_cols=cols,
         last_map=last_map, needs_resync=needs_resync, has_map=bool(cmap), has_rows=bool(built.rows),
         opts=opts, yy=yy, mm=mm, cc=cc, ccs=ccs, source=source, sources=combine_query.SOURCES, q=q, data=data,
         unmapped=unmapped, unmapped_cc=unmapped_cc, unmapped_rows=sum(u["rows"] for u in unmapped),
         unmapped_act=round(sum(u["act"] for u in unmapped), 6) + 0.0, skipped_date=built.skipped_date,
         active_page="management_report", use_unified_header=True,
+        **_ctx(),
     )
 
 

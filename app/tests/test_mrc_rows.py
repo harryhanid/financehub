@@ -209,12 +209,18 @@ def test_sponsor_new_codes_count_per_year_and_after_gl_rows():
         ("Sponsor", "A26-51"), ("Sponsor", "A26-52"), ("Sponsor", "A27-51")]
 
 
-def test_gl_rows_do_not_disturb_sponsor_numbering():
+def test_sponsor_numbering_ignores_gl_rows_of_other_groups():
     only = build_all(sponsor=[SP, dict(SP, tgl="2026-03-01")]).rows
     mixed = build_all(smt=[g(), g()], etf=[g("6-2190", amount=30000.0)],
                       sponsor=[SP, dict(SP, tgl="2026-03-01")]).rows
     assert [r["new_code"] for r in only] == ["A26-51", "A26-52"]
     assert [r["new_code"] for r in mixed if r["source"] == "Sponsor"] == ["A26-51", "A26-52"]
+
+
+def test_sponsor_shares_the_counter_with_gl_rows_of_the_same_group():
+    gl = g(acc="6-1111", job="POSPON")             # empty Code + seq 5 -> group ("26", 5, "")
+    rows = build_all(smt=[gl], sponsor=[SP]).rows
+    assert [(r["source"], r["new_code"]) for r in rows] == [("SMT", "A26-51"), ("Sponsor", "A26-52")]
 
 
 def test_sponsor_cost_center_uses_the_cc_mapping_and_flags_when_missing():
