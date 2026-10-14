@@ -118,3 +118,29 @@ def test_stale_control():
     c = ct.stale_control(["GL berubah sejak snapshot"])
     assert (c["code"], c["status"], c["blocking"]) == ("C8", "peringatan", False)
     assert c["left_value"] == 1 and "GL berubah" in c["name"]
+
+
+# ---------- review fixes ----------
+
+def test_c6_uses_profit_positive_pnl_sum():
+    totals, spt = inc.aggregate(LINES)
+    stmt = inc.build_income_statement(totals, spt, LK)
+    pnl_sum = -sum(v for n, v in totals.items() if LK[n]["statement"] == "laba_rugi" and n != inc.TAX)
+    ok = run_controls(statement_pbt=stmt["summary"]["pbt"], pnl_sum_excl_tax=pnl_sum)
+    assert ok["C6"]["status"] == "lulus"
+    raw = run_controls(statement_pbt=stmt["summary"]["pbt"], pnl_sum_excl_tax=-pnl_sum)
+    assert raw["C6"]["status"] == "gagal"
+
+
+def test_zero_amounts_are_positive_zero():
+    rows = statement([ln("Jasa Konsultasi & Advokasi", "", -5.0)])["rows"]
+    other = next(r for r in rows if r["key"] == "other:Bunga Jasa Giro")
+    assert other["amount"] == 0.0 and str(other["amount"]) == "0.0"
+    spt_zero = statement([ln("Pendapatan (Beban) Lainnya", "X", 0.0)])["rows"]
+    sub = next(r for r in spt_zero if r["kind"] == "sub")
+    assert str(sub["amount"]) == "0.0"
+
+
+def test_no_sub_rows_for_categories_without_needs_spt():
+    rows = statement([ln("Bunga Jasa Giro", "", -50.0)])["rows"]
+    assert not [r for r in rows if r["kind"] == "sub"]

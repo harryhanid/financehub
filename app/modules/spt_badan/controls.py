@@ -21,6 +21,8 @@ def _count(exceptions, kinds):
 
 def compute_controls(*, total_debit, total_credit, line_count, gl_row_count, exceptions, out_of_year,
                      statement_pbt, pnl_sum_excl_tax):
+    """pnl_sum_excl_tax is profit-positive: -(sum of debit_credit of laba_rugi lines except
+    Income Tax Expense). It must equal statement_pbt (the raw GL sum is negative for a profit)."""
     return [
         _control("C1", "Total debit = total kredit", total_debit, total_credit, True, TOL_MONEY),
         _control("C2", "Jumlah baris snapshot = jumlah baris GL", line_count, gl_row_count, True),
