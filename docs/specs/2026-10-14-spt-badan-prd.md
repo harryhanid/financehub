@@ -1,7 +1,7 @@
 # SPT Tahunan PPh Badan — Product Requirements Document (PRD)
 
 **Tanggal:** 2026-10-14
-**Versi:** 0.3 (draft untuk review; TP 2026 sebagai tahun uji, desain F1 ditambahkan di Bagian 14)
+**Versi:** 0.4 (draft untuk review; semua mapping SPT dipusatkan di menu Pemetaan Management Report, Bagian 14.11)
 **Modul:** `app/modules/spt_badan/` (baru), di dalam FLOW
 **Entitas awal:** Sinar Mas Tjipta (SMT). ETF/SETF di fase berikutnya.
 **Tahun uji:** TP 2026 (data GL Jan–Sep 2026, hasil berstatus *simulasi YTD*). TP 2025 menyusul setelah GL 2025 di-sync.
@@ -231,7 +231,7 @@ Tahun 2026 belum penuh dan belum ada SPT yang dilaporkan, sehingga tidak ada ang
 
 **Sudah diputuskan (14 Okt 2026)**
 - D1. Penyimpanan GL **multi-tahun** pada tabel yang sama; tahun berjalan di-sync berkala.
-- D2. Category SPT dan jenis PPh **sudah ada di kolom GL**; modul SPT memakainya dan memvalidasi, tidak mendefinisikan ulang.
+- D2. Category SPT dan jenis PPh **sudah ada di kolom GL**. Sejak 14 Okt 2026 (sore), seluruh mapping kategori dipusatkan di menu Pemetaan Management Report dan SPT membacanya dari sana (Bagian 14.11); kolom GL hanya dibandingkan.
 - D3. Aturan accrue **ditunda**; ditentukan nanti sebagai F2b.
 
 **Masih terbuka**
@@ -243,7 +243,9 @@ Tahun 2026 belum penuh dan belum ada SPT yang dilaporkan, sehingga tidak ada ang
 6. **Sumber data pajak dipotong** (`Pajak 2025.xlsx`): berasal dari ekspor Coretax? Bisa diimpor langsung?
 7. **Lampiran** yang wajib untuk SMT (1A, 3A, 4A, 8A dst.): daftar final untuk menentukan cakupan F4.
 8. **Peran**: siapa preparer, reviewer, penandatangan per entitas?
-9. **Cost center**: dari mana reklas HPP vs Biaya Usaha Lainnya ditentukan bila `gl_cc_map` tetap kosong?
+9. ~~Cost center~~: `gl_cc_map` sekarang terisi 89 baris; masih perlu dipastikan kelengkapannya untuk F2.
+10. **Sumber sync Pemetaan** untuk kolom kategori: `Category LK` / `Category SPT` ada di sheet `COA` milik `GL - MASTER.xlsb`, sedangkan Pemetaan sekarang membaca `Management Report - MASTER.xlsb`. Sync dari dua file, atau satu file saja (mana)?
+11. **Nilai `TBA`** pada `Category LK` / `Category SPT`: diperlakukan sebagai belum dipetakan (usulan), atau ada makna lain?
 
 ## 13. Risiko
 
@@ -272,6 +274,7 @@ Di luar F1: neraca, akrual, rekonsiliasi pajak, 1771-II/I, PKP, lampiran, ekspor
 - Terdaftar di `app.py` dan daftar modul dashboard (`modules/dashboard/routes.py`) dengan label "SPT Badan".
 - Akses F1: lihat untuk pengguna login; buat periode, ambil snapshot dan ubah parameter hanya admin (`json_admin_required`), mengikuti General Ledger. Peran preparer/reviewer ditunda sampai F4.
 - Entitas F1 hanya SMT; struktur menerima ETF/SETF tanpa perubahan skema.
+- **Semua mapping yang dibutuhkan SPT dipusatkan di menu Pemetaan Management Report** (`/management-report/pemetaan`) dan dibaca dari sana; modul SPT tidak menyimpan daftar kategori sendiri (Bagian 14.11).
 
 ### 14.3 Tabel F1 (`finance_hub.db`, `ensure_schema`, backup sebelum migrasi pertama)
 
@@ -288,7 +291,7 @@ Snapshot lama disimpan paling banyak 3 per periode; hanya satu yang `is_current`
 ### 14.4 Alur snapshot
 1. Admin menekan **Ambil snapshot GL**.
 2. Sistem membaca baris GL entitas pada tahun pajak, menghitung total serta tanggal awal/akhir, dan mengambil `content_hash` sync GL terakhir untuk tahun itu (`gl_sync_log`).
-3. Setiap baris dinormalkan (14.5), dicek, lalu disimpan ke `spt_gl_line`, `spt_exception`, dan `spt_control` dalam satu transaksi. Gagal di tengah tidak meninggalkan snapshot setengah jadi.
+3. Setiap baris diklasifikasikan memakai Pemetaan (14.5), dicek, lalu disimpan ke `spt_gl_line`, `spt_exception`, dan `spt_control` dalam satu transaksi. Gagal di tengah tidak meninggalkan snapshot setengah jadi.
 4. Bila sync GL tahun itu berubah setelah snapshot (hash berbeda), halaman periode menampilkan banner **"GL berubah sejak snapshot, ambil snapshot ulang"** dan hasil ditandai usang.
 
 ### 14.5 Normalisasi dan validasi klasifikasi
@@ -308,12 +311,13 @@ Aturan berupa fungsi murni di `classify.py`, diuji tanpa database.
 
 Pengecualian PPh berstatus *warning* karena sumbernya (GL - MASTER) belum bersih dan penanganan baris kosong masih terbuka (Bagian 12 no. 1–2). F2 (rekonsiliasi pajak) menaikkannya menjadi *blocker*.
 
-**Kategori**
-- Kategori laba rugi `category_lk`: `Jasa Konsultasi & Advokasi` (pendapatan), `HARGA POKOK PENJUALAN`, `Beban Operasional`, `Pendapatan (Beban) Lainnya`, `Bunga Jasa Giro`, `Income Tax Expense`.
-- Kategori neraca: `KAS DAN SETARA KAS`, `AKTIVA LANCAR LAINNYA`, `PIUTANG LAIN-LAIN PIHAK KETIGA`, `UANG MUKA PEMBELIAN`, `AKTIVA TETAP LAINNYA`, `AKUMULASI PENYUSUTAN`, `HUTANG USAHA PIHAK KETIGA`, `HUTANG PAJAK`.
-- `category_lk` di luar dua daftar ini → pengecualian `category_lk_tidak_dikenal` (**blocker**).
-- Baris `HARGA POKOK PENJUALAN` atau `Beban Operasional` dengan `category_spt` kosong → pengecualian `category_spt_kosong` (**blocker**).
-- Daftar kategori disimpan sebagai konfigurasi di `classify.py`, bukan tersebar di query.
+**Kategori (bersumber dari Pemetaan)**
+- Klasifikasi baris GL = hasil *lookup* akun (`acc_statutory`, per sumber SMT/ETF) ke Pemetaan: `category_lk`, `category_spt`, `categories_expense`. Nilai pada kolom GL tidak dipakai sebagai sumber, hanya dibandingkan (kontrol C9).
+- Apakah suatu `category_lk` termasuk **Neraca** atau **Laba rugi**, urutan tampil, dan labelnya diambil dari daftar *Kategori LK* di Pemetaan (14.11), bukan dari kode.
+- Akun yang tidak ada di Pemetaan, atau bernilai kosong / `TBA` / `tba` → pengecualian `akun_belum_dipetakan` (**blocker**).
+- `category_lk` yang ada di Pemetaan tetapi belum ada di daftar *Kategori LK* → pengecualian `category_lk_tidak_dikenal` (**blocker**).
+- Baris dengan `category_lk` berjenis Laba rugi bukan Pendapatan/Bunga/Income tax (yaitu HPP, Beban Operasional, Pendapatan (Beban) Lainnya) dan `category_spt` kosong atau `TBA` → pengecualian `category_spt_kosong` (**blocker**).
+- Pengecekan nyata terhadap `GL - MASTER.xlsb` (sheet COA, 592 akun): `Category LK` terisi di 511 akun, `Category SPT` di 267 akun, dan sebagian bernilai `TBA`. Untuk 8.898 baris GL SMT 2026, hasil lookup akun **cocok 100%** dengan kolom GL.
 
 ### 14.6 Laba rugi komersial YTD
 Agregasi dari `spt_gl_line` snapshot aktif. Pendapatan ditampilkan positif (−`debit_credit`), beban positif (+`debit_credit`).
@@ -331,7 +335,7 @@ Agregasi dari `spt_gl_line` snapshot aktif. Pendapatan ditampilkan positif (−`
 | Income tax expense | `Income Tax Expense` |
 | Laba bersih | laba sebelum pajak − income tax expense |
 
-Struktur dan label mengikuti `LAPORAN KEUANGAN` di workbook (lihat `NERACA & LAPORAN KEUANGAN SMT 2025.pdf`). Rincian HPP dan biaya per `category_spt` tampil sebagai sub-baris. Klik angka membuka daftar baris GL pembentuknya (filter kategori, paginasi), dengan total yang sama persis.
+Struktur dan label mengikuti `LAPORAN KEUANGAN` di workbook (lihat `NERACA & LAPORAN KEUANGAN SMT 2025.pdf`); pengelompokan baris diambil dari daftar *Kategori LK* di Pemetaan. Rincian HPP dan biaya per `category_spt` tampil sebagai sub-baris. Klik angka membuka daftar baris GL pembentuknya (filter kategori, paginasi), dengan total yang sama persis.
 
 ### 14.7 Kontrol F1
 
@@ -339,28 +343,48 @@ Struktur dan label mengikuti `LAPORAN KEUANGAN` di workbook (lihat `NERACA & LAP
 |---|---|---|
 | C1 | Total debit = total kredit pada snapshot (toleransi Rp1) | blocker |
 | C2 | Jumlah baris dan total snapshot = baris dan total modul GL pada tahun itu | blocker |
-| C3 | Tidak ada `category_lk` tidak dikenal | blocker |
+| C3 | Semua akun bersaldo terpetakan dan `category_lk`-nya dikenal (tanpa kosong / `TBA`) | blocker |
 | C4 | Tidak ada baris HPP/biaya tanpa `category_spt` | blocker |
 | C5 | Semua tanggal snapshot berada di tahun pajak | blocker |
 | C6 | Laba sebelum pajak = jumlah negatif `debit_credit` baris laba rugi sebelum income tax | blocker |
 | C7 | Jenis PPh bersih (tanpa `pph_kosong` / `pph_bukan_jenis`) | peringatan |
 | C8 | Snapshot masih sesuai sync GL terakhir (hash) | peringatan |
+| C9 | `category_lk` / `category_spt` pada baris GL = hasil Pemetaan | peringatan |
 
 ### 14.8 Tampilan
 - `GET /spt-badan/`: daftar periode dan tombol **Buat periode** (admin).
 - `GET /spt-badan/<id>`: ringkasan langkah (status per langkah), banner usang, kartu ringkasan (baris GL, rentang tanggal, laba sebelum pajak), tombol **Ambil snapshot GL**.
 - `GET /spt-badan/<id>/pengecualian`: daftar pengecualian dengan filter jenis, tingkat, dan pencarian; dapat diunduh xlsx untuk dikirim ke pemilik sumber GL.
 - `GET /spt-badan/<id>/laba-rugi`: laporan laba rugi + drill-down.
-- `GET /spt-badan/<id>/kontrol`: tabel kontrol C1–C8.
+- `GET /spt-badan/<id>/kontrol`: tabel kontrol C1–C9.
 - Gaya mengikuti modul lain (unified header, tab modul, paginasi dinamis).
 
 ### 14.9 Pengujian
 - `classify.py` dan `income_statement.py`: unit test murni (tabel nilai mentah → hasil, tanda pendapatan/beban, label baris).
 - Servis: snapshot atomik (gagal di tengah tidak menyisakan data), snapshot ulang menonaktifkan yang lama, deteksi usang saat sync GL berubah, batas 3 snapshot.
 - Route: akses admin vs non-admin, validasi tahun/entitas, 404 periode tidak ada.
-- Integrasi: periode SMT 2026 dari data uji kecil, kontrol C1–C8 dihitung benar; total drill-down = angka laporan.
+- Integrasi: periode SMT 2026 dari data uji kecil, kontrol C1–C9 dihitung benar; total drill-down = angka laporan.
 
 ### 14.10 Risiko khusus F1
 - Pengecualian `pph_*` jumlahnya besar (±2.200 baris kosong) dan dapat membanjiri tampilan; daftar dikelompokkan per akun dan job, bukan hanya per baris.
 - Bergantung pada label kategori dari sumber yang belum bersih: perubahan label di GL - MASTER membuat C3 gagal; ini disengaja agar terdeteksi.
 - Angka 2026 tidak dapat diverifikasi eksternal; label **Simulasi YTD** wajib tampil di setiap halaman dan ekspor.
+
+### 14.11 Kebutuhan pada menu Pemetaan Management Report
+
+Menu Pemetaan (`/management-report/pemetaan`) menjadi **satu-satunya tempat** mapping yang dipakai SPT. Saat ini menu itu hanya memuat akun → `coa_ho`, `category` (CATEGORIES 2), `code`, dan cost center, dibaca dari sheet `COA` dan `CC` pada `Management Report - MASTER.xlsb`. Yang perlu ditambahkan:
+
+| # | Mapping | Isi | Sumber data | Pengelolaan |
+|---|---|---|---|---|
+| M1 | **Akun → kategori** | Tambah kolom `category_lk`, `category_spt`, `categories_expense` pada `gl_coa_map` (kunci: sumber SMT/ETF + akun) | Sheet `COA` pada `GL - MASTER.xlsb` (kolom *CATEGORIES EXPENSE (6-****)*, *Category LK*, *Category SPT*). Sheet `COA` pada `Management Report - MASTER.xlsb` tidak memuat kolom ini | Sync dari Excel, mengikuti pola sync Pemetaan yang ada |
+| M2 | **Kategori LK → laporan** | Daftar nilai `category_lk` dengan jenis laporan (Neraca / Laba rugi), urutan, label, dan sifat (pendapatan / beban / lainnya) | Nilai berbeda dari M1 (±20 nilai, termasuk `Laba (Rugi) ditahan`, `MODAL SAHAM`, `AKTIVA TIDAK LANCAR LAINNYA`, `PIUTANG LAIN-LAIN PIHAK BERELASI`, `TBA`) | Daftar awal diisi otomatis dari M1; jenis laporan, urutan, dan sifat diatur di aplikasi |
+| M3 | **Jenis PPh** | Nilai baku {`PPh 21`, `PPh 23`, `PPh 4(2)`, `Non PPh`} dan tabel alias (`non pph`, `pph 23`, ...) | Tidak ada di Excel | Diatur di aplikasi; alias baru ditambahkan dari daftar pengecualian SPT |
+| M4 | **Cost center** | Sudah ada (`gl_cc_map`, 89 baris); dipakai F2 untuk reklas HPP vs Biaya Usaha Lainnya | Sheet `CC` | Sync Excel (tetap) |
+
+Dampak pada Pemetaan:
+- Sync Pemetaan perlu membaca `COA` dari `GL - MASTER.xlsb` (atau menerima dua file). Keputusan sumber ada di Bagian 12 no. 10.
+- Panel "belum terpetakan" yang sudah ada diperluas: akun bersaldo tanpa `category_lk` / `category_spt` (atau bernilai `TBA`) ikut tampil, sehingga mapping yang kurang dikerjakan di satu tempat.
+- Pemetaan versi sinkron dicatat pada setiap snapshot SPT (`gl_coa_sync_log.id`), agar hasil SPT dapat dilacak ke versi mapping yang dipakai.
+- Perubahan mapping setelah snapshot membuat snapshot ditandai usang (kontrol C8 diperluas: hash GL **dan** versi Pemetaan).
+
+Pekerjaan Pemetaan ini adalah **prasyarat F1** dan dikerjakan sebagai bagian F0.
