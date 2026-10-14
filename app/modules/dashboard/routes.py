@@ -14,6 +14,7 @@ DASHBOARD_TABS = [
     ("Payment Approval Memo", "payment_memo.index",            "payment_memo"),
     ("Payment Application",   "etf_payment_application.index", "etf_payment_app"),
     ("Budget",                "budget.index",                  "budget"),
+    ("Management Report",     "management_report.index",       "management_report"),
     ("Bank",                  "bank.index",                    "bank"),
     ("General Ledger",        "general_ledger.index",          "general_ledger"),
     ("Sponsorship",           "sponsorship.index",             "sponsorship"),

@@ -63,6 +63,9 @@ def create_app(testing=False):
     from modules.general_ledger.routes import bp as gl_bp
     app.register_blueprint(gl_bp)
 
+    from modules.management_report.routes import bp as mr_bp
+    app.register_blueprint(mr_bp)
+
     from modules.beasiswa.api import beasiswa_api
     app.register_blueprint(beasiswa_api)
 
