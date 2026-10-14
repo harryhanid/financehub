@@ -274,3 +274,54 @@ def sync_coa(filename, user, rows, cc_rows=()) -> dict:
     finally:
         conn.close()
     return {"changed": True, "rows_smt": n_smt, "rows_etf": n_etf, "rows_cc": n_cc}
+
+
+def list_syncs(limit=10) -> list:
+    """Newest sync-log rows first; rows_cc of old rows (NULL) is reported as 0."""
+    limit = max(1, limit)
+    conn = get_conn()
+    try:
+        ensure_schema(conn)
+        out = []
+        for r in conn.execute("SELECT * FROM gl_coa_sync_log ORDER BY id DESC LIMIT ?", (limit,)):
+            d = dict(r)
+            d["rows_cc"] = d["rows_cc"] or 0
+            out.append(d)
+        return out
+    finally:
+        conn.close()
+
+
+def _page(rows, page, per_page) -> dict:
+    per_page = max(1, per_page)
+    total = len(rows)
+    pages = max(1, -(-total // per_page))
+    page = min(max(1, page), pages)
+    start = (page - 1) * per_page
+    return {"rows": rows[start:start + per_page], "total": total, "page": page,
+            "pages": pages, "per_page": per_page}
+
+
+def search_coa(source=None, q=None, page=1, per_page=100) -> dict:
+    needle = (q or "").strip().lower()
+    rows = []
+    for (src, account), (coa_ho, category, code) in sorted(get_map().items()):
+        if source in ("SMT", "ETF") and src != source:
+            continue
+        if needle and not any(needle in f.lower() for f in (account, coa_ho, category, code)):
+            continue
+        rows.append({"source": src, "account": account, "coa_ho": coa_ho,
+                     "category": category, "code": code})
+    return _page(rows, page, per_page)
+
+
+def search_cc(q=None, page=1, per_page=100) -> dict:
+    needle = (q or "").strip().lower()
+    rows = []
+    for cc, v in sorted(get_cc_map().items()):
+        if needle and not any(needle in f.lower() for f in
+                              (cc, v["total"], v["description"], str(v["seq"]))):
+            continue
+        rows.append({"cost_center": cc, "total_cc": v["total"], "seq": v["seq"],
+                     "description": v["description"]})
+    return _page(rows, page, per_page)

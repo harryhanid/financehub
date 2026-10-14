@@ -399,3 +399,152 @@ def test_read_coa_sheet_wraps_unexpected_normalise_errors(monkeypatch):
     monkeypatch.setattr(cm, "normalise_coa", boom)
     with pytest.raises(cm.CoaParseError, match="kaboom"):
         cm.read_coa_sheet(object())
+
+
+# ---- read helpers for the Pemetaan tab: list_syncs / search_coa / search_cc ----
+
+def _coa_seed():
+    return [
+        {"source": "SMT", "account": "6-1810", "coa_ho": "70108100", "category": "10 - Office Supplies", "code": "-10-"},
+        {"source": "SMT", "account": "6-1720", "coa_ho": "70107200", "category": "06 - Entertainment & Gift", "code": "-06-"},
+        {"source": "ETF", "account": "6-2150", "coa_ho": "70107200", "category": "06 - Entertainment & Gift", "code": "-06-"},
+        {"source": "ETF", "account": "6-1810", "coa_ho": "70108155", "category": "10 - office supplies", "code": "-10-"},
+        {"source": "SMT", "account": "6-3000", "coa_ho": "70130000", "category": "30 - Travel", "code": "-30-"},
+    ]
+
+
+def _accounts(result):
+    return [(r["source"], r["account"]) for r in result["rows"]]
+
+
+def test_list_syncs_empty_before_any_sync():
+    assert cm.list_syncs() == []
+
+
+def test_list_syncs_newest_first_with_counts_and_limit():
+    cm.sync_coa("one.xlsb", "admin", rows_a(), cc_a())
+    two = rows_a()
+    two[0]["coa_ho"] = "1"
+    cm.sync_coa("two.xlsb", "boss", two, cc_a()[:1])
+    cm.sync_coa("three.xlsb", "admin", two[:1], [])
+    out = cm.list_syncs()
+    assert [(s["filename"], s["synced_by"], s["rows_smt"], s["rows_etf"], s["rows_cc"])
+            for s in out] == [("three.xlsb", "admin", 1, 0, 0),
+                              ("two.xlsb", "boss", 1, 1, 1),
+                              ("one.xlsb", "admin", 1, 1, 2)]
+    assert out[0]["id"] > out[1]["id"] > out[2]["id"]
+    assert set(out[0]) == {"id", "synced_at", "synced_by", "filename", "content_hash",
+                           "rows_smt", "rows_etf", "rows_cc"}
+    assert [s["filename"] for s in cm.list_syncs(limit=2)] == ["three.xlsb", "two.xlsb"]
+    assert [s["filename"] for s in cm.list_syncs(limit=0)] == ["three.xlsb"]
+    assert [s["filename"] for s in cm.list_syncs(limit=-5)] == ["three.xlsb"]
+
+
+def test_list_syncs_null_rows_cc_becomes_zero():
+    conn = get_conn()
+    cm.ensure_schema(conn)
+    conn.execute("INSERT INTO gl_coa_sync_log (filename, content_hash, rows_smt, rows_etf, rows_cc) "
+                 "VALUES ('old.xlsb', 'h', 3, 4, NULL)")
+    conn.commit()
+    conn.close()
+    out = cm.list_syncs()
+    assert len(out) == 1 and out[0]["rows_cc"] == 0 and out[0]["rows_smt"] == 3
+
+
+def test_search_coa_empty_database():
+    assert cm.search_coa() == {"rows": [], "total": 0, "page": 1, "pages": 1, "per_page": 100}
+
+
+def test_search_coa_unfiltered_sorted_and_source_filter():
+    cm.sync_coa("m.xlsb", "admin", _coa_seed())
+    out = cm.search_coa()
+    assert _accounts(out) == [("ETF", "6-1810"), ("ETF", "6-2150"), ("SMT", "6-1720"),
+                              ("SMT", "6-1810"), ("SMT", "6-3000")]
+    assert out["total"] == 5 and out["page"] == 1 and out["pages"] == 1 and out["per_page"] == 100
+    assert out["rows"][3] == {"source": "SMT", "account": "6-1810", "coa_ho": "70108100",
+                              "category": "10 - Office Supplies", "code": "-10-"}
+    assert _accounts(cm.search_coa(source="ETF")) == [("ETF", "6-1810"), ("ETF", "6-2150")]
+    assert cm.search_coa(source="SMT")["total"] == 3
+    assert cm.search_coa(source="NOPE")["total"] == 5
+    assert cm.search_coa(source="smt")["total"] == 5   # only exact "SMT"/"ETF"
+
+
+def test_search_coa_q_over_each_field_case_insensitive_and_trimmed():
+    cm.sync_coa("m.xlsb", "admin", _coa_seed())
+    assert _accounts(cm.search_coa(q="6-3000")) == [("SMT", "6-3000")]
+    assert _accounts(cm.search_coa(q="70108155")) == [("ETF", "6-1810")]
+    assert _accounts(cm.search_coa(q="TRAVEL")) == [("SMT", "6-3000")]
+    assert _accounts(cm.search_coa(q="office supplies")) == [("ETF", "6-1810"), ("SMT", "6-1810")]
+    assert _accounts(cm.search_coa(q="-10-")) == [("ETF", "6-1810"), ("SMT", "6-1810")]
+    assert _accounts(cm.search_coa(q="  -06-  ")) == [("ETF", "6-2150"), ("SMT", "6-1720")]
+    assert _accounts(cm.search_coa(q="gift", source="ETF")) == [("ETF", "6-2150")]
+    assert cm.search_coa(q="   ")["total"] == 5
+    assert cm.search_coa(q=None)["total"] == 5
+    assert cm.search_coa(q="%")["total"] == 0          # LIKE wildcard is literal
+
+
+def test_search_coa_no_match():
+    cm.sync_coa("m.xlsb", "admin", _coa_seed())
+    assert cm.search_coa(q="zzz") == {"rows": [], "total": 0, "page": 1, "pages": 1,
+                                      "per_page": 100}
+
+
+def test_search_coa_pagination_and_clamping():
+    cm.sync_coa("m.xlsb", "admin", _coa_seed())
+    p1 = cm.search_coa(per_page=2)
+    assert (p1["total"], p1["pages"], p1["page"], p1["per_page"]) == (5, 3, 1, 2)
+    assert _accounts(p1) == [("ETF", "6-1810"), ("ETF", "6-2150")]
+    assert _accounts(cm.search_coa(page=2, per_page=2)) == [("SMT", "6-1720"), ("SMT", "6-1810")]
+    last = cm.search_coa(page=3, per_page=2)
+    assert _accounts(last) == [("SMT", "6-3000")] and last["page"] == 3
+    for bad, want in ((0, 1), (-3, 1), (999, 3)):
+        out = cm.search_coa(page=bad, per_page=2)
+        assert out["page"] == want and out["pages"] == 3
+    assert _accounts(cm.search_coa(page=999, per_page=2)) == [("SMT", "6-3000")]
+    assert _accounts(cm.search_coa(page=0, per_page=2)) == _accounts(p1)
+
+
+def _cc_seed():
+    return [{"cost_center": "POITEC", "total_cc": "$POITEC", "seq": 16, "description": "IT Dept"},
+            {"cost_center": "alpha", "total_cc": "$GRP", "seq": 2, "description": "Alpha Unit"},
+            {"cost_center": "TFOPEX", "total_cc": "", "seq": 0, "description": "Opex"},
+            {"cost_center": "PULPP", "total_cc": "$GRP", "seq": 7, "description": "Pulpp"},
+            {"cost_center": "ZED", "total_cc": "$Z", "seq": 123, "description": "Last"}]
+
+
+def _ccs(result):
+    return [r["cost_center"] for r in result["rows"]]
+
+
+def test_search_cc_empty_database():
+    assert cm.search_cc() == {"rows": [], "total": 0, "page": 1, "pages": 1, "per_page": 100}
+
+
+def test_search_cc_sorted_and_q_over_each_field():
+    cm.sync_coa("m.xlsb", "admin", [], _cc_seed())
+    out = cm.search_cc()
+    assert _ccs(out) == ["POITEC", "PULPP", "TFOPEX", "ZED", "alpha"]   # plain string order
+    assert out["rows"][0] == {"cost_center": "POITEC", "total_cc": "$POITEC", "seq": 16,
+                              "description": "IT Dept"}
+    assert out["total"] == 5 and out["pages"] == 1 and out["page"] == 1 and out["per_page"] == 100
+    assert _ccs(cm.search_cc(q="poi")) == ["POITEC"]
+    assert _ccs(cm.search_cc(q="$grp")) == ["PULPP", "alpha"]
+    assert _ccs(cm.search_cc(q="  unit ")) == ["alpha"]
+    assert _ccs(cm.search_cc(q="123")) == ["ZED"]
+    assert _ccs(cm.search_cc(q="16")) == ["POITEC"]
+    assert cm.search_cc(q="")["total"] == 5
+    assert cm.search_cc(q=None)["total"] == 5
+    assert cm.search_cc(q="nothing") == {"rows": [], "total": 0, "page": 1, "pages": 1,
+                                         "per_page": 100}
+
+
+def test_search_cc_pagination_and_clamping():
+    cm.sync_coa("m.xlsb", "admin", [], _cc_seed())
+    assert _ccs(cm.search_cc(per_page=2)) == ["POITEC", "PULPP"]
+    assert _ccs(cm.search_cc(page=2, per_page=2)) == ["TFOPEX", "ZED"]
+    last = cm.search_cc(page=3, per_page=2)
+    assert _ccs(last) == ["alpha"] and (last["page"], last["pages"], last["total"]) == (3, 3, 5)
+    for bad, want in ((0, 1), (-3, 1), (999, 3)):
+        out = cm.search_cc(page=bad, per_page=2)
+        assert out["page"] == want and out["pages"] == 3
+    assert _ccs(cm.search_cc(page=999, per_page=2)) == ["alpha"]
