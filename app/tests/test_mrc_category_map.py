@@ -114,3 +114,91 @@ def test_failed_sync_keeps_previous_mapping():
         cm.sync_categories("b.xlsb", "admin", [{"source": "SMT", "account": "x"}])
     assert list(cm.get_category_map()) == [("SMT", "6-1810")]
     assert cm.last_sync()["filename"] == "a.xlsb"
+
+
+# ---------- M2: Kategori LK ----------
+
+def _rows_with(*lks):
+    return cm.normalise_categories(sheet(*[row(f"6-{i}", None, "", lk, "BIAYA LAINNYA")
+                                          for i, lk in enumerate(lks, 1)]))
+
+
+def test_sync_seeds_lk_list_with_defaults_and_skips_tba_and_empty():
+    cm.sync_categories("a", "u", _rows_with("Beban Operasional", "Kategori Baru", "tba"))
+    lk = cm.get_lk_list()
+    assert set(lk) == {"Beban Operasional", "Kategori Baru"}
+    bo = lk["Beban Operasional"]
+    assert (bo["statement"], bo["kind"], bo["needs_spt"]) == ("laba_rugi", "beban", 1)
+    assert lk["Kategori Baru"]["statement"] == "" and lk["Kategori Baru"]["label"] == "Kategori Baru"
+
+
+def test_known_defaults_cover_pnl_and_balance_sheet_categories():
+    assert cm.DEFAULT_LK["Jasa Konsultasi & Advokasi"][:2] == ("laba_rugi", "pendapatan")
+    assert cm.DEFAULT_LK["HUTANG PAJAK"][0] == "neraca"
+    assert cm.DEFAULT_LK["MODAL SAHAM"][0] == "neraca"
+    assert cm.DEFAULT_LK["Income Tax Expense"][:2] == ("laba_rugi", "beban")
+
+
+def test_resync_keeps_manual_lk_edits():
+    cm.sync_categories("a", "u", _rows_with("Kategori Baru"))
+    cm.update_lk("Kategori Baru", statement="neraca", kind="lainnya", seq=50, label="Baru", needs_spt=0)
+    cm.sync_categories("b", "u", _rows_with("Kategori Baru", "Beban Operasional"))
+    lk = cm.get_lk_list()["Kategori Baru"]
+    assert (lk["statement"], lk["kind"], lk["seq"], lk["label"]) == ("neraca", "lainnya", 50, "Baru")
+
+
+def test_lk_list_is_ordered_by_seq_then_name():
+    cm.sync_categories("a", "u", _rows_with("Beban Operasional", "HARGA POKOK PENJUALAN", "Zeta", "Alfa"))
+    assert list(cm.get_lk_list())[:2] == ["HARGA POKOK PENJUALAN", "Beban Operasional"]
+    assert list(cm.get_lk_list())[2:] == ["Alfa", "Zeta"]          # unknown ones share seq 999
+
+
+def test_update_lk_validates_and_bumps_version():
+    cm.sync_categories("a", "u", _rows_with("Kategori Baru"))
+    v = cm.get_version()
+    with pytest.raises(ValueError):
+        cm.update_lk("Kategori Baru", statement="salah", kind="", seq=1, label="x", needs_spt=0)
+    with pytest.raises(ValueError):
+        cm.update_lk("Kategori Baru", statement="neraca", kind="salah", seq=1, label="x", needs_spt=0)
+    with pytest.raises(ValueError):
+        cm.update_lk("Kategori Baru", statement="neraca", kind="", seq="abc", label="x", needs_spt=0)
+    with pytest.raises(KeyError):
+        cm.update_lk("tidak ada", statement="neraca", kind="", seq=1, label="x", needs_spt=0)
+    assert cm.get_version() == v                                     # nothing changed
+    cm.update_lk("Kategori Baru", statement="neraca", kind="", seq=3, label=" Baru ", needs_spt=1)
+    got = cm.get_lk_list()["Kategori Baru"]
+    assert (got["statement"], got["seq"], got["label"], got["needs_spt"]) == ("neraca", 3, "Baru", 1)
+    assert cm.get_version() == v + 1
+
+
+# ---------- M3: alias jenis PPh ----------
+
+def test_alias_key_ignores_case_spaces_and_dashes():
+    assert cm.alias_key(" PPh 4 (2) ") == "pph4(2)"
+    assert cm.alias_key("non-PPH") == "nonpph"
+    assert cm.alias_key("Non  PPh") == "nonpph"
+
+
+def test_default_aliases_cover_the_four_types():
+    assert cm.get_pph_aliases() == {"pph21": "PPh 21", "pph23": "PPh 23",
+                                    "pph4(2)": "PPh 4(2)", "nonpph": "Non PPh"}
+
+
+def test_add_and_delete_alias_bump_version():
+    v = cm.get_version()
+    key = cm.add_pph_alias("PPh 4 ayat 2", "PPh 4(2)")
+    assert key == "pph4ayat2" and cm.get_pph_aliases()[key] == "PPh 4(2)"
+    assert cm.get_version() == v + 1
+    cm.delete_pph_alias(key)
+    assert key not in cm.get_pph_aliases() and cm.get_version() == v + 2
+
+
+def test_alias_validation_and_default_alias_is_protected():
+    for bad_alias, bad_type in (("", "PPh 21"), ("  ", "PPh 21"), ("x", "PPh 99")):
+        with pytest.raises(ValueError):
+            cm.add_pph_alias(bad_alias, bad_type)
+    with pytest.raises(ValueError):
+        cm.delete_pph_alias("pph21")
+    assert "pph21" in cm.get_pph_aliases()
+    with pytest.raises(KeyError):
+        cm.delete_pph_alias("tidak-ada")
