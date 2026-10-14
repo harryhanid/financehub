@@ -1,0 +1,5 @@
+<div class="spt-pager">
+  {% if data.page > 1 %}<a class="btn btn-sm" href="{{ pager_url(data.page - 1) }}">&laquo; Sebelumnya</a>{% endif %}
+  <span class="spt-muted">Halaman {{ data.page }} dari {{ data.pages }} · {{ data.total | spt_num }} baris</span>
+  {% if data.page < data.pages %}<a class="btn btn-sm" href="{{ pager_url(data.page + 1) }}">Berikutnya &raquo;</a>{% endif %}
+</div>

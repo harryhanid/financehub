@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}SPT Badan · Baris GL{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/spt_badan.css') }}">{% endblock %}
+{% block module_tabs %}{% include "spt_badan/_tabs.html" %}{% endblock %}
+
+{% block content %}
+{% include "spt_badan/_banner.html" %}
+<section class="card spt-section">
+  <strong>Baris GL pembentuk</strong>
+  <div class="spt-muted" style="margin:.25rem 0">
+    Kategori LK: {{ cats | join(', ') if cats else '-' }}{% if spt is not none %} · Category SPT: {{ spt or '(kosong)' }}{% endif %}
+    · <a href="{{ url_for('spt_badan.income_statement', pid=period.id) }}">kembali ke laba rugi</a>
+  </div>
+  {% if data %}
+  <div class="spt-cards">
+    <div class="spt-card">Baris<b>{{ data.total | spt_num }}</b></div>
+    <div class="spt-card">Jumlah (debit − credit)<b>{{ data.amount | spt_num }}</b></div>
+    <div class="spt-card">Angka di laporan<b>{{ (sign * data.amount) | spt_num }}</b></div>
+  </div>
+  <div class="spt-wrap">
+  <table class="spt-table" id="spt-lines">
+    <thead><tr><th>Tanggal</th><th>ID#</th><th>Akun</th><th>Job</th><th>Memo</th><th>Category SPT</th><th>PPh</th><th class="num">Debit − Credit</th></tr></thead>
+    <tbody>
+    {% for r in data.rows %}
+    <tr><td>{{ r.tgl }}</td><td>{{ r.id_no }}</td><td>{{ r.acc_statutory }}</td><td>{{ r.job_name }}</td><td>{{ r.memo }}</td>
+        <td>{{ r.category_spt }}</td><td>{{ r.pph_type }}</td><td class="num">{{ r.debit_credit | spt_num }}</td></tr>
+    {% else %}
+    <tr><td colspan="8" class="spt-muted">Tidak ada baris.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% include "spt_badan/_pager.html" %}
+  {% else %}
+  <div class="spt-muted">Belum ada snapshot.</div>
+  {% endif %}
+</section>
+{% endblock %}

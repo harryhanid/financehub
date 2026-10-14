@@ -1,0 +1,7 @@
+<div class="tabs" style="margin-bottom:0">
+  <a class="tab-btn" href="{{ url_for('spt_badan.index') }}">&laquo; Periode</a>
+  <a class="tab-btn{{ ' active' if active_tab == 'detail' else '' }}" href="{{ url_for('spt_badan.detail', pid=period.id) }}">Ringkasan</a>
+  <a class="tab-btn{{ ' active' if active_tab == 'laba_rugi' else '' }}" href="{{ url_for('spt_badan.income_statement', pid=period.id) }}">Laba Rugi</a>
+  <a class="tab-btn{{ ' active' if active_tab == 'pengecualian' else '' }}" href="{{ url_for('spt_badan.exceptions', pid=period.id) }}">Pengecualian</a>
+  <a class="tab-btn{{ ' active' if active_tab == 'kontrol' else '' }}" href="{{ url_for('spt_badan.controls_page', pid=period.id) }}">Kontrol</a>
+</div>

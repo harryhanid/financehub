@@ -90,3 +90,37 @@ def test_load_mr_source_defaults_to_the_latest_year():
     assert [r["id_no"] for r in svc.load_mr_source("smt")] == ["NEW"]
     assert [r["id_no"] for r in svc.load_mr_source("smt", 2025)] == ["OLD"]
     assert svc.load_mr_source("etf") == []
+
+
+def test_account_totals_groups_by_account_and_year():
+    log = dict(synced_by="u", filename="f", content_hash="h", rows_before=0, rows_after=1,
+               total_debit=0, total_credit=0, dropped=0, summary={})
+    svc.replace_year("smt", 2025, [mkrow(acc_statutory="6-1", tgl="2025-02-02", debit_credit=9.0)], log)
+    svc.replace_year("smt", 2026, [
+        mkrow(acc_statutory="6-1", tgl="2026-01-02", debit_credit=10.0),
+        mkrow(acc_statutory="6-1", tgl="2026-01-03", debit_credit=-4.0),
+        mkrow(acc_statutory="6-2", tgl="2026-01-04", debit_credit=1.0)], log)
+    assert svc.account_totals("smt", 2026) == [{"account": "6-1", "n": 2, "amount": 6.0},
+                                               {"account": "6-2", "n": 1, "amount": 1.0}]
+    assert svc.account_totals("smt", 2025) == [{"account": "6-1", "n": 1, "amount": 9.0}]
+    assert svc.account_totals("etf", 2026) == []
+
+
+def test_load_lines_returns_the_year_with_ids_and_classification_columns():
+    log = dict(synced_by="u", filename="f", content_hash="h", rows_before=0, rows_after=1,
+               total_debit=0, total_credit=0, dropped=0, summary={})
+    svc.replace_year("smt", 2025, [mkrow(id_no="OLD", tgl="2025-02-02")], log)
+    svc.replace_year("smt", 2026, [
+        mkrow(id_no="A", tgl="2026-01-02", debit=5.0, credit=0.0, debit_credit=5.0, category_lk="Beban Operasional",
+              category_spt="BIAYA LAINNYA", pph_non_pph="PPh 21", accrual_actual="Actual"),
+        mkrow(id_no="B", tgl="2026-01-03")], log)
+    lines = svc.load_lines("smt", 2026)
+    assert [l["id_no"] for l in lines] == ["A", "B"]
+    first = lines[0]
+    assert isinstance(first["id"], int) and first["debit"] == 5.0
+    assert (first["category_lk"], first["category_spt"], first["pph_non_pph"], first["accrual_actual"]) == \
+           ("Beban Operasional", "BIAYA LAINNYA", "PPh 21", "Actual")
+    assert set(first) == {"id", "tgl", "id_no", "acc_statutory", "acc_management", "job_name", "memo",
+                          "debit", "credit", "debit_credit", "category_lk", "category_spt",
+                          "pph_non_pph", "accrual_actual"}
+    assert svc.load_lines("smt", 2024) == [] and svc.load_lines("etf", 2026) == []

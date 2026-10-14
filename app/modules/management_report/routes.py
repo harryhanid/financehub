@@ -8,6 +8,8 @@ from flask_jwt_extended import get_jwt
 import config
 from auth.middleware import is_admin, json_admin_required, jwt_html_required
 from modules.management_report import bgt_report, exports, ho_report, service
+from modules.general_ledger import service as gl_service
+from modules.management_report import category_map
 from modules.management_report import coa_map, combine_columns, combine_query, combine_rows, combine_sources
 from modules.management_report import sync as mr_sync
 from modules.management_report.formatting import id_amount, id_number, id_percent
@@ -476,3 +478,87 @@ def mapping_page():
         active_page="management_report", use_unified_header=True,
         **_ctx(),
     )
+
+
+@bp.route("/pemetaan/kategori")
+@jwt_html_required
+def category_page():
+    view = request.args.get("view") if request.args.get("view") in ("akun", "lk", "pph") else "akun"
+    source = request.args.get("source") if request.args.get("source") in ("SMT", "ETF") else ""
+    q = (request.args.get("q") or "").strip()
+    page = max(1, _page_arg())
+    year = _to_int(request.args.get("year")) or gl_service.latest_year("smt") or date.today().year
+    last_cat = category_map.last_sync()
+    return render_template(
+        "management_report/kategori.html",
+        active_tab="kategori", view=view, source=source, q=q, year=year,
+        data=category_map.search_accounts(source or None, q, page) if view == "akun" else None,
+        lk_list=category_map.get_lk_list(), aliases=category_map.get_pph_aliases(),
+        default_aliases=category_map.DEFAULT_ALIASES, pph_types=category_map.PPH_TYPES,
+        statements=category_map.STATEMENTS, kinds=category_map.KINDS,
+        unmapped=category_map.unmapped_accounts(year) if last_cat else [], limit=50,
+        last_cat=last_cat, history=category_map.list_syncs(10), version=category_map.get_version(),
+        active_page="management_report", use_unified_header=True,
+        **_ctx(),
+    )
+
+
+@bp.route("/pemetaan/kategori/sync", methods=["POST"])
+@json_admin_required
+def category_sync():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "pesan": "File belum dipilih."}), 400
+    if not f.filename.lower().endswith(".xlsb"):
+        return jsonify({"ok": False, "pesan": "File harus berformat .xlsb."}), 400
+    try:
+        rows = category_map.read_category_sheet(io.BytesIO(f.read()))
+        if not rows:
+            raise coa_map.CoaParseError("Tidak ada kategori akun yang valid di sheet COA.")
+    except coa_map.CoaParseError as e:
+        return jsonify({"ok": False, "pesan": str(e)}), 400
+    try:
+        out = category_map.sync_categories(f.filename, get_jwt().get("username", ""), rows)
+    except Exception as e:
+        return jsonify({"ok": False, "pesan": f"Sync gagal, kategori lama tidak berubah: {e}"}), 500
+    counts = f"SMT {out['rows_smt']} akun, ETF {out['rows_etf']} akun"
+    pesan = (f"Sudah sinkron: kategori tidak berubah ({counts})." if not out["changed"]
+             else f"Sync kategori selesai: {counts}.")
+    return jsonify({"ok": True, "pesan": pesan, **out})
+
+
+@bp.route("/pemetaan/kategori/lk", methods=["POST"])
+@json_admin_required
+def category_lk_update():
+    d = request.get_json(silent=True) or {}
+    try:
+        category_map.update_lk(d.get("name", ""), d.get("statement", ""), d.get("kind", ""),
+                               d.get("seq", 999), d.get("label", ""), bool(d.get("needs_spt")))
+    except KeyError:
+        return jsonify({"ok": False, "pesan": "Kategori LK tidak ditemukan."}), 404
+    except ValueError as e:
+        return jsonify({"ok": False, "pesan": str(e)}), 400
+    return jsonify({"ok": True, "pesan": "Kategori LK disimpan."})
+
+
+@bp.route("/pemetaan/kategori/pph", methods=["POST"])
+@json_admin_required
+def category_pph_add():
+    d = request.get_json(silent=True) or {}
+    try:
+        key = category_map.add_pph_alias(d.get("alias", ""), d.get("pph_type", ""))
+    except ValueError as e:
+        return jsonify({"ok": False, "pesan": str(e)}), 400
+    return jsonify({"ok": True, "pesan": "Alias disimpan.", "alias": key})
+
+
+@bp.route("/pemetaan/kategori/pph/<path:alias>", methods=["DELETE"])
+@json_admin_required
+def category_pph_delete(alias):
+    try:
+        category_map.delete_pph_alias(alias)
+    except KeyError:
+        return jsonify({"ok": False, "pesan": "Alias tidak ditemukan."}), 404
+    except ValueError as e:
+        return jsonify({"ok": False, "pesan": str(e)}), 400
+    return jsonify({"ok": True, "pesan": "Alias dihapus."})

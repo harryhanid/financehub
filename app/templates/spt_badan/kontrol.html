@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}SPT Badan · Kontrol{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/spt_badan.css') }}">{% endblock %}
+{% block module_tabs %}{% include "spt_badan/_tabs.html" %}{% endblock %}
+
+{% block content %}
+{% include "spt_badan/_banner.html" %}
+<section class="card spt-section">
+  <strong>Kontrol C1–C9</strong>
+  {% if not controls %}
+  <div class="spt-muted">Belum ada snapshot.</div>
+  {% else %}
+  <table class="spt-table" id="spt-controls" style="margin-top:.4rem">
+    <thead><tr><th>Kode</th><th>Kontrol</th><th class="num">Kiri</th><th class="num">Kanan</th><th class="num">Selisih</th><th>Status</th><th>Sifat</th></tr></thead>
+    <tbody>
+    {% for c in controls %}
+    <tr><td>{{ c.code }}</td><td>{{ c.name }}</td><td class="num">{{ c.left_value | spt_num }}</td><td class="num">{{ c.right_value | spt_num }}</td>
+        <td class="num">{{ c.diff | spt_num }}</td><td><span class="spt-badge {{ c.status }}">{{ c.status }}</span></td>
+        <td>{{ 'wajib' if c.blocking else 'peringatan' }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

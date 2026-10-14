@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Management Report - Kategori SPT{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mr_combine.css') }}">
+<style>
+.mc-table { border-collapse:collapse; width:100%; font-size:.8125rem; white-space:nowrap; }
+.mc-table th, .mc-table td { padding:.3rem .5rem; border-bottom:1px solid var(--sl-200); }
+.mc-table th { text-align:left; background:var(--sl-50); position:sticky; top:0; }
+.mc-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.mc-wrap { overflow:auto; max-height:65vh; }
+.mc-muted { color:var(--sl-500); font-size:.8125rem; }
+.mc-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:.75rem; }
+.mc-filter label { display:flex; flex-direction:column; font-size:.75rem; }
+.mc-pager { display:flex; align-items:center; gap:.75rem; margin:.6rem 0; }
+.mc-warn { margin-bottom:.75rem; padding:.7rem .9rem; font-size:.8125rem; border:1px solid var(--danger); border-radius:8px; }
+.mc-section { margin-bottom:1rem; }
+.mc-switch { display:inline-block; padding:.3rem .8rem; border:1px solid var(--sl-200); border-radius:999px; font-size:.8rem; text-decoration:none; margin-right:.35rem; }
+.mc-switch.active { font-weight:700; border-color:var(--accent); }
+.mc-table input[type=text], .mc-table input[type=number], .mc-table select { font-size:.8rem; padding:.15rem .3rem; }
+</style>
+{% endblock %}
+
+{% block module_tabs %}
+{% include "management_report/_linktabs.html" %}
+{% endblock %}
+
+{% block content %}
+<section class="card mc-section">
+  <strong>Kategori akun untuk SPT Badan</strong>
+  <div class="mc-muted" style="margin:.25rem 0">
+    Versi pemetaan: <b>{{ version }}</b> ·
+    {% if last_cat %}Terakhir sync: {{ last_cat.synced_at }} · {{ last_cat.synced_by }} · {{ last_cat.filename }} · SMT {{ last_cat.rows_smt }} akun, ETF {{ last_cat.rows_etf }} akun
+    {% else %}Kategori belum pernah disync.{% endif %}
+  </div>
+  {% if can_manage %}
+  <div style="margin:.5rem 0">
+    <input type="file" id="mr-cat-file" accept=".xlsb">
+    <button class="btn btn-primary btn-sm" id="mr-cat-sync-btn" onclick="mrSyncCategories()">Sync kategori dari GL - MASTER</button>
+    <span id="mr-cat-msg" class="mc-muted"></span>
+  </div>
+  <div class="mc-muted">Pilih file <code>GL - MASTER.xlsb</code>; hanya sheet <b>COA</b> yang dibaca (kolom Category LK, Category SPT, dan CATEGORIES EXPENSE).</div>
+  {% endif %}
+</section>
+
+{% if last_cat %}
+<section class="card mc-section">
+  <strong>Akun belum dipetakan (GL {{ year }})</strong>
+  {% if unmapped %}
+  <div class="mc-warn">{{ unmapped | length }} akun di GL {{ year }} belum lengkap pemetaannya. SPT Badan akan memblokir sampai ini kosong.</div>
+  <div class="mc-wrap" style="max-height:40vh">
+  <table class="mc-table" id="mr-cat-unmapped">
+    <thead><tr><th>Sumber</th><th>Akun</th><th class="num">Baris</th><th class="num">Jumlah (debit − credit)</th><th>Alasan</th></tr></thead>
+    <tbody>
+    {% for u in unmapped[:limit] %}
+    <tr><td>{{ u.source }}</td><td>{{ u.account }}</td><td class="num">{{ u.rows }}</td><td class="num">{{ '{:,.0f}'.format(u.amount).replace(',', '.') }}</td><td>{{ u.reason }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if unmapped | length > limit %}<div class="mc-muted">… dan {{ unmapped | length - limit }} lainnya</div>{% endif %}
+  {% else %}
+  <div class="mc-muted">Semua akun bersaldo di GL {{ year }} sudah terpetakan.</div>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card mc-section">
+  <div style="margin:.25rem 0 .5rem">
+    <a class="mc-switch{{ ' active' if view == 'akun' else '' }}" href="?view=akun">Akun → Kategori</a>
+    <a class="mc-switch{{ ' active' if view == 'lk' else '' }}" href="?view=lk">Kategori LK</a>
+    <a class="mc-switch{{ ' active' if view == 'pph' else '' }}" href="?view=pph">Jenis PPh</a>
+  </div>
+
+  {% if view == 'akun' %}
+  <form class="mc-filter" method="get">
+    <input type="hidden" name="view" value="akun">
+    <label>Sumber
+      <select name="source"><option value="">Semua</option>{% for s in ('SMT', 'ETF') %}<option value="{{ s }}"{{ ' selected' if s == source else '' }}>{{ s }}</option>{% endfor %}</select>
+    </label>
+    <label>Cari<input type="text" name="q" value="{{ q }}" placeholder="akun / kategori"></label>
+    <button class="btn btn-primary btn-sm" type="submit">Terapkan</button>
+  </form>
+  <div class="mc-muted" style="margin-bottom:.5rem">{{ data.total }} baris</div>
+  <div class="mc-wrap">
+  <table class="mc-table" id="mr-cat-table">
+    <thead><tr><th>Sumber</th><th>Akun</th><th>Categories Expense</th><th>Category LK</th><th>Category SPT</th></tr></thead>
+    <tbody>
+    {% for r in data.rows %}
+    <tr><td>{{ r.source }}</td><td>{{ r.account }}</td><td>{{ r.categories_expense }}</td><td>{{ r.category_lk }}</td><td>{{ r.category_spt }}</td></tr>
+    {% else %}
+    <tr><td colspan="5" class="mc-muted">Tidak ada baris yang cocok.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <div class="mc-pager">
+    {% set qs = request.args.to_dict() %}{% set _ = qs.pop('page', none) %}
+    {% if data.page > 1 %}<a class="btn btn-sm" href="?{{ (qs | urlencode) ~ ('&' if qs else '') }}page={{ data.page - 1 }}">&laquo; Sebelumnya</a>{% endif %}
+    <span class="mc-muted">Halaman {{ data.page }} dari {{ data.pages }}</span>
+    {% if data.page < data.pages %}<a class="btn btn-sm" href="?{{ (qs | urlencode) ~ ('&' if qs else '') }}page={{ data.page + 1 }}">Berikutnya &raquo;</a>{% endif %}
+  </div>
+
+  {% elif view == 'lk' %}
+  <div class="mc-muted" style="margin-bottom:.5rem">Daftar diisi otomatis dari sync; jenis laporan, sifat, urutan, label, dan kewajiban Category SPT diatur di sini. Kategori tanpa jenis laporan memblokir SPT Badan.</div>
+  <div class="mc-wrap">
+  <table class="mc-table" id="mr-lk-table">
+    <thead><tr><th>Category LK</th><th>Jenis laporan</th><th>Sifat</th><th class="num">Urutan</th><th>Label</th><th>Wajib SPT</th><th></th></tr></thead>
+    <tbody>
+    {% for name, m in lk_list.items() %}
+    <tr data-name="{{ name }}">
+      <td>{{ name }}</td>
+      <td>{% if can_manage %}<select class="lk-statement"><option value=""></option>{% for s in statements %}<option value="{{ s }}"{{ ' selected' if s == m.statement else '' }}>{{ s }}</option>{% endfor %}</select>{% else %}{{ m.statement }}{% endif %}</td>
+      <td>{% if can_manage %}<select class="lk-kind"><option value=""></option>{% for k in kinds %}<option value="{{ k }}"{{ ' selected' if k == m.kind else '' }}>{{ k }}</option>{% endfor %}</select>{% else %}{{ m.kind }}{% endif %}</td>
+      <td class="num">{% if can_manage %}<input type="number" class="lk-seq" value="{{ m.seq }}" style="width:5rem">{% else %}{{ m.seq }}{% endif %}</td>
+      <td>{% if can_manage %}<input type="text" class="lk-label" value="{{ m.label }}">{% else %}{{ m.label }}{% endif %}</td>
+      <td>{% if can_manage %}<input type="checkbox" class="lk-needs"{{ ' checked' if m.needs_spt else '' }}>{% else %}{{ 'ya' if m.needs_spt else '' }}{% endif %}</td>
+      <td>{% if can_manage %}<button class="btn btn-sm" onclick="mrSaveLk(this)">Simpan</button> <span class="mc-muted lk-msg"></span>{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="mc-muted">Belum ada kategori. Sync kategori dari GL - MASTER dulu.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {% else %}
+  <div class="mc-muted" style="margin-bottom:.5rem">Nilai kolom PPh di GL dicocokkan ke jenis baku lewat alias (huruf besar/kecil, spasi, dan tanda hubung diabaikan). Alias yang belum dikenal muncul sebagai pengecualian di SPT Badan.</div>
+  <div class="mc-wrap" style="max-height:none">
+  <table class="mc-table" id="mr-pph-table">
+    <thead><tr><th>Alias</th><th>Jenis PPh</th><th></th></tr></thead>
+    <tbody>
+    {% for alias, t in aliases.items() %}
+    <tr><td>{{ alias }}</td><td>{{ t }}</td><td>{% if can_manage and alias not in default_aliases %}<button class="btn btn-sm" data-alias="{{ alias }}" onclick="mrDeleteAlias(this.dataset.alias)">Hapus</button>{% else %}<span class="mc-muted">{{ 'baku' if alias in default_aliases else '' }}</span>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if can_manage %}
+  <div class="mc-filter" style="margin-top:.75rem">
+    <label>Alias baru<input type="text" id="mr-pph-alias" placeholder="mis. PPh 4 ayat 2"></label>
+    <label>Jenis PPh
+      <select id="mr-pph-type">{% for t in pph_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select>
+    </label>
+    <button class="btn btn-primary btn-sm" onclick="mrAddAlias()">Tambah alias</button>
+    <span id="mr-pph-msg" class="mc-muted"></span>
+  </div>
+  {% endif %}
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if can_manage %}
+<script>
+const MR_CAT = '/management-report/pemetaan/kategori';
+async function mrPost(url, body, method) {
+  const r = await fetch(url, {method: method || 'POST', credentials: 'same-origin',
+    headers: {'Content-Type': 'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  return {ok: r.ok && j.ok, pesan: j.pesan || (r.ok ? 'Selesai.' : 'Gagal.'), j};
+}
+async function mrSyncCategories() {
+  const f = document.getElementById('mr-cat-file').files[0];
+  const msg = document.getElementById('mr-cat-msg');
+  if (!f) { msg.textContent = 'Pilih file GL - MASTER.xlsb dulu.'; return; }
+  const btn = document.getElementById('mr-cat-sync-btn');
+  btn.disabled = true; msg.textContent = 'Menyinkronkan...';
+  const fd = new FormData(); fd.append('file', f);
+  try {
+    const r = await fetch(MR_CAT + '/sync', {method: 'POST', body: fd, credentials: 'same-origin'});
+    const j = await r.json();
+    msg.textContent = j.pesan || (r.ok ? 'Selesai.' : 'Gagal.');
+    if (j.ok && j.changed) setTimeout(() => location.reload(), 1200);
+  } catch (e) { msg.textContent = 'Gagal sync: ' + e; }
+  btn.disabled = false;
+}
+async function mrSaveLk(btn) {
+  const tr = btn.closest('tr'), msg = tr.querySelector('.lk-msg');
+  const res = await mrPost(MR_CAT + '/lk', {
+    name: tr.dataset.name, statement: tr.querySelector('.lk-statement').value,
+    kind: tr.querySelector('.lk-kind').value, seq: tr.querySelector('.lk-seq').value,
+    label: tr.querySelector('.lk-label').value, needs_spt: tr.querySelector('.lk-needs').checked});
+  msg.textContent = res.pesan;
+}
+async function mrAddAlias() {
+  const msg = document.getElementById('mr-pph-msg');
+  const res = await mrPost(MR_CAT + '/pph', {alias: document.getElementById('mr-pph-alias').value,
+                                             pph_type: document.getElementById('mr-pph-type').value});
+  msg.textContent = res.pesan;
+  if (res.ok) setTimeout(() => location.reload(), 600);
+}
+async function mrDeleteAlias(alias) {
+  const res = await mrPost(MR_CAT + '/pph/' + encodeURIComponent(alias), null, 'DELETE');
+  if (res.ok) location.reload(); else alert(res.pesan);
+}
+</script>
+{% endif %}
+{% endblock %}

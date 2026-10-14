@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}SPT Badan · Laba Rugi{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/spt_badan.css') }}">{% endblock %}
+{% block module_tabs %}{% include "spt_badan/_tabs.html" %}{% endblock %}
+
+{% block content %}
+{% include "spt_badan/_banner.html" %}
+<section class="card spt-section">
+  <strong>Laporan laba rugi komersial</strong>
+  {% if not statement %}
+  <div class="spt-muted">Belum ada snapshot.</div>
+  {% else %}
+  <div class="spt-wrap" style="max-height:none">
+  <table class="spt-table" id="spt-statement">
+    <thead><tr><th>Uraian</th><th class="num">Jumlah (Rp)</th></tr></thead>
+    <tbody>
+    {% for r in statement.rows %}
+    <tr class="{{ r.kind }}">
+      <td>{{ r.label }}</td>
+      <td class="num">
+        {% if r.cats %}<a href="{{ url_for('spt_badan.drill', pid=period.id, cats=r.cats, spt=r.spt, sign=r.sign) if r.spt is not none else url_for('spt_badan.drill', pid=period.id, cats=r.cats, sign=r.sign) }}">{{ r.amount | spt_num }}</a>
+        {% else %}{{ r.amount | spt_num }}{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
