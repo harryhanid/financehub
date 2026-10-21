@@ -1130,11 +1130,34 @@ def _year_filter_sql(years, column):
     placeholders = ",".join("?" for _ in years)
     return f" AND strftime('%Y', {column}) IN ({placeholders})", [str(y) for y in years]
 
+def _expand_pillars(pillars):
+    if not pillars:
+        return None
+    expanded = set()
+    for p in pillars:
+        if p == "PROPERTY":
+            expanded.add("PROPERTY")
+            expanded.add("LAND")
+        elif p == "EFIN":
+            expanded.add("EFIN")
+            expanded.add("FINANCE")
+            expanded.add("ENERGY & FINANCE")
+        elif p == "LAND":
+            expanded.add("LAND")
+            expanded.add("PROPERTY")
+        elif p in ("FINANCE", "ENERGY & FINANCE"):
+            expanded.add(p)
+            expanded.add("EFIN")
+        else:
+            expanded.add(p)
+    return list(expanded)
+
 def _pillar_filter_sql(pillars, column):
     if not pillars:
         return "", []
-    placeholders = ",".join("?" for _ in pillars)
-    return f" AND {column} IN ({placeholders})", list(pillars)
+    expanded = _expand_pillars(pillars)
+    placeholders = ",".join("?" for _ in expanded)
+    return f" AND {column} IN ({placeholders})", list(expanded)
 
 def _program_filter_sql(programs, column):
     if not programs:
@@ -1452,15 +1475,20 @@ def get_dashboard_pillar_yearly(company_id: int, pillars: list = None, programs:
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
     angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     status_sql, status_params = _status_filter_sql(statuses, "p.status")
+    mapped_pillar_expr = """CASE 
+        WHEN p.pillar = 'LAND' THEN 'PROPERTY'
+        WHEN p.pillar IN ('FINANCE', 'EFIN', 'ENERGY & FINANCE') THEN 'EFIN'
+        ELSE p.pillar 
+    END"""
     rows = conn.execute(
         f"""
-        SELECT strftime('%Y', p.tanggal) AS tahun, p.pillar, SUM(p.amount) AS realisasi
+        SELECT strftime('%Y', p.tanggal) AS tahun, ({mapped_pillar_expr}) AS pillar, SUM(p.amount) AS realisasi
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         WHERE p.company_id = ?
               AND p.tanggal IS NOT NULL AND p.tanggal != ''{year_sql}{pillar_sql}{program_sql}{jenjang_sql}{angkatan_sql}{status_sql}
-        GROUP BY tahun, p.pillar
-        ORDER BY tahun DESC, p.pillar ASC
+        GROUP BY tahun, ({mapped_pillar_expr})
+        ORDER BY tahun DESC, pillar ASC
         """,
         [company_id, *year_params, *pillar_params, *program_params, *jenjang_params, *angkatan_params, *status_params],
     ).fetchall()
@@ -1500,11 +1528,16 @@ def get_dashboard_trend_transactions(company_id: int, years: list = None, pillar
         bulan_sql = " AND CAST(strftime('%m', p.tanggal) AS INTEGER) = ?"
         bulan_params = [int(bulan)]
 
+    mapped_pillar_expr = """CASE 
+        WHEN p.pillar = 'LAND' THEN 'PROPERTY'
+        WHEN p.pillar IN ('FINANCE', 'EFIN', 'ENERGY & FINANCE') THEN 'EFIN'
+        ELSE p.pillar 
+    END"""
     rows = conn.execute(
         f"""
         SELECT p.id, p.tanggal, strftime('%Y', p.tanggal) AS tahun, CAST(strftime('%m', p.tanggal) AS INTEGER) AS bulan,
                p.siswa_code, s.nama, 
-               p.pillar, s.program, s.jenjang, s.angkatan, s.universitas, p.cat1, p.cat2, 
+               ({mapped_pillar_expr}) AS pillar, s.program, s.jenjang, s.angkatan, s.universitas, p.cat1, p.cat2, 
                p.amount, p.pam, p.perusahaan, p.status
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id

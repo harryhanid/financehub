@@ -236,7 +236,7 @@ def export_dashboard_trend_tahunan_excel(
     for row in yearly_data:
         pillar_set.update(row["pillars"].keys())
     # Sort pillars alphabetically, but keep common ones nicely ordered
-    known_order = ["AGRI", "APP", "ENERGY & FINANCE", "FINANCE", "EFIN", "LAND", "PROPERTY", "SETF"]
+    known_order = ["AGRI", "APP", "EFIN", "PROPERTY", "SETF"]
     sorted_pillars = sorted(
         list(pillar_set),
         key=lambda p: (known_order.index(p) if p in known_order else 99, p),

@@ -95,6 +95,7 @@ def index():
         program=config.PROGRAM,
         status_siswa=config.STATUS_SISWA,
         pillar=config.PILLAR,
+        dashboard_pillars=config.DASHBOARD_PILLAR,
         cat1_bgt=config.CAT1_BGT,
         cat2_sem=config.CAT2_SEM,
         perusahaan=config.PERUSAHAAN,

@@ -48,7 +48,8 @@ PROGRAM = [
 
 STATUS_SISWA = ["Aktif", "lulus", "gugur", "undur diri"]
 
-PILLAR = ["AGRI", "APP", "ENERGY & FINANCE", "PROPERTY", "SETF", "NON PILLAR", "NON ALLOCATED"]
+PILLAR = ["AGRI", "APP", "EFIN", "ENERGY & FINANCE", "PROPERTY", "SETF", "NON PILLAR", "NON ALLOCATED"]
+DASHBOARD_PILLAR = ["AGRI", "APP", "EFIN", "PROPERTY", "SETF"]
 
 SPONSORSHIP_CAT = ["Sponsorship", "CSR Gedung"]
 

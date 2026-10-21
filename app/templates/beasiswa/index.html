@@ -97,7 +97,7 @@
                 </div>
                 <div class="panel-search" style="padding:0.4rem;border-bottom:1px solid var(--border);"><input type="text" class="dash-filter-search dm-inp" placeholder="Cari..." style="width:100%;font-size:0.75rem;" onkeyup="dashFilterSearch(this)"></div>
                 <div class="panel-opts" id="dash-filter-pillar">
-                  {% for p in pillar %}
+                  {% for p in dashboard_pillars or pillar %}
                   <label><input type="checkbox" class="dash-pillar-cb" value="{{ p }}" checked> <span class="filter-text">{{ p }}</span></label>
                   {% endfor %}
                 </div>
