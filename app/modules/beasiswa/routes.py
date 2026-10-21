@@ -313,6 +313,42 @@ def budget_list():
     return jsonify({"ok": True, **data})
 
 
+@bp.route("/budget/export/xlsx")
+@bp.route("/budget/export/excel")
+@jwt_html_required
+@etf_company_required
+def budget_export_xlsx():
+    from modules.beasiswa.exports import export_budget_excel
+    import io
+    from flask import send_file
+    from datetime import datetime
+
+    search = request.args.get("search", "")
+    cat1 = request.args.get("cat1", "")
+    pillar = request.args.get("pillar", "")
+    bulan = request.args.get("bulan", "")
+    tahun = request.args.get("tahun", "")
+    program = request.args.get("program", "")
+
+    xls_bytes = export_budget_excel(
+        _cid(),
+        search=search,
+        cat1=cat1,
+        pillar=pillar,
+        bulan=bulan,
+        tahun=tahun,
+        program=program,
+    )
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"Budget_Beasiswa_ETF_{timestamp}.xlsx"
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )
+
+
 @bp.route("/budget/export/csv")
 @jwt_html_required
 @etf_company_required
@@ -969,6 +1005,42 @@ def rekap_data():
         jenjang=request.args.get("jenjang", ""),
         angkatan=request.args.get("angkatan", ""))
     return jsonify({"ok": True, "rows": rows})
+
+
+@bp.route("/rekap/export/xlsx")
+@bp.route("/rekap/export/excel")
+@jwt_html_required
+@etf_company_required
+def rekap_export_xlsx():
+    from modules.beasiswa.exports import export_rekap_excel
+    import io
+    from flask import send_file
+    from datetime import datetime
+
+    program = request.args.get("program", "")
+    pillar = request.args.get("pillar", "")
+    status = request.args.get("status", "")
+    search = request.args.get("search", "")
+    jenjang = request.args.get("jenjang", "")
+    angkatan = request.args.get("angkatan", "")
+
+    xls_bytes = export_rekap_excel(
+        _cid(),
+        search=search,
+        program=program,
+        pillar=pillar,
+        status=status,
+        jenjang=jenjang,
+        angkatan=angkatan,
+    )
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"Data_Siswa_Beasiswa_ETF_{timestamp}.xlsx"
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )
 
 
 @bp.route("/rekap/export/csv")
