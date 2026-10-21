@@ -5,9 +5,12 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+from database import get_conn
 from modules.beasiswa.service import (
     get_dashboard_pillar_yearly,
     get_dashboard_trend_transactions,
+    get_dashboard_breakdown,
+    get_dashboard_monthly,
 )
 
 # --- Styling Constants ---
@@ -46,7 +49,156 @@ BORDER_TOTAL = Border(
     bottom=DOUBLE_BOTTOM_SIDE,
 )
 
-NUM_FMT_CURRENCY = '#,##0;(#,##0);"-"'
+NUM_FMT_CURRENCY = '#,##0;(#,##0);"-'
+NUM_FMT_PERCENT = '0.0%'
+
+BULAN_NAMES = [
+    "",
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+]
+
+
+def _build_drill_through_detail_sheet(wb, trx_rows, filter_desc, title_suffix=""):
+    ws2 = wb.create_sheet("Detail Transaksi")
+    ws2.views.sheetView[0].showGridLines = True
+
+    # Title block
+    ws2["A1"] = f"DETAIL TRANSAKSI REALISASI BEASISWA{title_suffix} (DRILL-THROUGH)"
+    ws2["A1"].font = FONT_MAIN_TITLE
+    ws2["A2"] = f"Eka Tjipta Foundation (ETF) — Total: {len(trx_rows):,} Transaksi"
+    ws2["A2"].font = FONT_SUBTITLE
+    ws2["A3"] = f"Filter: {'; '.join(filter_desc) if filter_desc else 'Semua Data'}"
+    ws2["A3"].font = FONT_META
+    ws2["A4"] = f"Tanggal Unduh: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
+    ws2["A4"].font = FONT_META
+
+    headers2 = [
+        "No",
+        "Tahun",
+        "Tanggal Payment",
+        "Kode Siswa",
+        "Nama Mahasiswa",
+        "Universitas",
+        "Pillar",
+        "Program",
+        "Jenjang",
+        "Angkatan",
+        "Kategori (Cat 1)",
+        "Kategori 2 (Cat 2)",
+        "No PAM",
+        "Perusahaan",
+        "Status",
+        "Amount (Rp)",
+    ]
+
+    start_row = 6
+    ws2.row_dimensions[start_row].height = 24
+    for col_idx, h in enumerate(headers2, 1):
+        cell = ws2.cell(row=start_row, column=col_idx, value=h)
+        cell.font = FONT_HEADER
+        cell.fill = FILL_HEADER
+        cell.alignment = ALIGN_CENTER
+        cell.border = BORDER_DATA
+
+    curr_row = start_row + 1
+    for no, r in enumerate(trx_rows, 1):
+        ws2.row_dimensions[curr_row].height = 19
+        is_alt = (no % 2 == 0)
+        row_fill = FILL_ROW_ALT if is_alt else None
+
+        row_vals = [
+            (no, ALIGN_CENTER, FONT_ROW, None),
+            (r.get("tahun") or "", ALIGN_CENTER, FONT_ROW, None),
+            (r.get("tanggal") or "", ALIGN_CENTER, FONT_ROW, None),
+            (r.get("siswa_code") or "", ALIGN_CENTER, FONT_ROW, None),
+            (r.get("nama") or "", ALIGN_LEFT, FONT_ROW, None),
+            (r.get("universitas") or "", ALIGN_LEFT, FONT_ROW, None),
+            (r.get("pillar") or "", ALIGN_CENTER, FONT_ROW, None),
+            (r.get("program") or "", ALIGN_LEFT, FONT_ROW, None),
+            (r.get("jenjang") or "", ALIGN_CENTER, FONT_ROW, None),
+            (r.get("angkatan") or "", ALIGN_CENTER, FONT_ROW, None),
+            (r.get("cat1") or "", ALIGN_LEFT, FONT_ROW, None),
+            (r.get("cat2") or "", ALIGN_LEFT, FONT_ROW, None),
+            (r.get("pam") or "", ALIGN_CENTER, FONT_ROW, None),
+            (r.get("perusahaan") or "", ALIGN_LEFT, FONT_ROW, None),
+            (r.get("status") or "", ALIGN_CENTER, FONT_ROW, None),
+            (float(r.get("amount") or 0), ALIGN_RIGHT, FONT_ROW_BOLD, NUM_FMT_CURRENCY),
+        ]
+
+        for col_idx, (val, align, font, num_fmt) in enumerate(row_vals, 1):
+            cell = ws2.cell(row=curr_row, column=col_idx, value=val)
+            cell.alignment = align
+            cell.font = font
+            cell.border = BORDER_DATA
+            if num_fmt:
+                cell.number_format = num_fmt
+            if row_fill:
+                cell.fill = row_fill
+
+        curr_row += 1
+
+    # Total Summary Row for Sheet 2
+    if trx_rows:
+        ws2.row_dimensions[curr_row].height = 22
+        for col_idx in range(1, 16):
+            c_empty = ws2.cell(row=curr_row, column=col_idx, value="")
+            c_empty.fill = FILL_TOTAL
+            c_empty.border = BORDER_TOTAL
+
+        ws2.cell(row=curr_row, column=15, value="TOTAL").alignment = ALIGN_RIGHT
+        ws2.cell(row=curr_row, column=15).font = FONT_ROW_BOLD
+        ws2.cell(row=curr_row, column=15).fill = FILL_TOTAL
+        ws2.cell(row=curr_row, column=15).border = BORDER_TOTAL
+
+        amt_col_letter = get_column_letter(16)
+        first_trx_row = start_row + 1
+        last_trx_row = curr_row - 1
+        c_amt_total = ws2.cell(row=curr_row, column=16)
+        c_amt_total.value = f"=SUM({amt_col_letter}{first_trx_row}:{amt_col_letter}{last_trx_row})"
+        c_amt_total.font = FONT_ROW_BOLD
+        c_amt_total.alignment = ALIGN_RIGHT
+        c_amt_total.fill = FILL_TOTAL
+        c_amt_total.border = BORDER_TOTAL
+        c_amt_total.number_format = NUM_FMT_CURRENCY
+
+        # Enable auto filter on Sheet 2
+        last_row_filter = curr_row - 1
+        ws2.auto_filter.ref = f"A{start_row}:P{last_row_filter}"
+
+    # Auto-adjust column widths for Sheet 2
+    col_min_widths = {
+        "A": 8,   # No
+        "B": 10,  # Tahun
+        "C": 14,  # Tanggal
+        "D": 14,  # Kode Siswa
+        "E": 26,  # Nama
+        "F": 26,  # Universitas
+        "G": 12,  # Pillar
+        "H": 18,  # Program
+        "I": 10,  # Jenjang
+        "J": 10,  # Angkatan
+        "K": 18,  # Cat 1
+        "L": 18,  # Cat 2
+        "M": 22,  # No PAM
+        "N": 20,  # Perusahaan
+        "O": 12,  # Status
+        "P": 18,  # Amount
+    }
+    for col_letter, width in col_min_widths.items():
+        ws2.column_dimensions[col_letter].width = width
+
+    return ws2
 
 
 def export_dashboard_trend_tahunan_excel(
@@ -214,9 +366,6 @@ def export_dashboard_trend_tahunan_excel(
     # -------------------------------------------------------------
     # 2. SHEET 2: Detail Transaksi (Drill-Through)
     # -------------------------------------------------------------
-    ws2 = wb.create_sheet("Detail Transaksi")
-    ws2.views.sheetView[0].showGridLines = True
-
     trx_rows = get_dashboard_trend_transactions(
         company_id,
         years=years,
@@ -226,130 +375,387 @@ def export_dashboard_trend_tahunan_excel(
         statuses=statuses,
         angkatans=angkatans,
     )
+    _build_drill_through_detail_sheet(wb, trx_rows, filter_desc)
+
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+def export_dashboard_kategori_excel(
+    company_id: int,
+    cat1: str = None,
+    years: list = None,
+    pillars: list = None,
+    programs: list = None,
+    jenjangs: list = None,
+    statuses: list = None,
+    angkatans: list = None,
+) -> bytes:
+    wb = openpyxl.Workbook()
+
+    # 1. SHEET 1: Realisasi per Kategori
+    ws1 = wb.active
+    ws1.title = "Realisasi per Kategori"
+    ws1.views.sheetView[0].showGridLines = True
+
+    breakdown_data = get_dashboard_breakdown(
+        company_id,
+        years=years,
+        pillars=pillars,
+        programs=programs,
+        jenjangs=jenjangs,
+        statuses=statuses,
+        angkatans=angkatans,
+    )
+    kategori_data = breakdown_data.get("kategori", [])
+    if cat1:
+        kategori_data = [k for k in kategori_data if k.get("cat1") == cat1]
+
+    # Sort standard categories first
+    known_cats = ["By Pendidikan", "By Tunjangan", "By Penelitian", "By Medical"]
+    kategori_data = sorted(
+        kategori_data,
+        key=lambda k: (known_cats.index(k["cat1"]) if k.get("cat1") in known_cats else 99, k.get("cat1") or "")
+    )
 
     # Title block
-    ws2["A1"] = "DETAIL TRANSAKSI REALISASI BEASISWA (DRILL-THROUGH)"
-    ws2["A1"].font = FONT_MAIN_TITLE
-    ws2["A2"] = f"Eka Tjipta Foundation (ETF) — Total: {len(trx_rows):,} Transaksi"
-    ws2["A2"].font = FONT_SUBTITLE
-    ws2["A3"] = f"Filter: {'; '.join(filter_desc) if filter_desc else 'Semua Data'}"
-    ws2["A3"].font = FONT_META
-    ws2["A4"] = f"Tanggal Unduh: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
-    ws2["A4"].font = FONT_META
+    ws1["A1"] = "REALISASI BEASISWA PER KATEGORI" + (f" - {cat1.upper()}" if cat1 else "")
+    ws1["A1"].font = FONT_MAIN_TITLE
+    ws1["A2"] = "Eka Tjipta Foundation (ETF)"
+    ws1["A2"].font = FONT_SUBTITLE
 
-    headers2 = [
-        "No",
-        "Tahun",
-        "Tanggal Payment",
-        "Kode Siswa",
-        "Nama Mahasiswa",
-        "Universitas",
-        "Pillar",
-        "Program",
-        "Jenjang",
-        "Angkatan",
-        "Kategori (Cat 1)",
-        "Kategori 2 (Cat 2)",
-        "No PAM",
-        "Perusahaan",
-        "Status",
-        "Amount (Rp)",
-    ]
+    filter_desc = []
+    if cat1:
+        filter_desc.append(f"Kategori: {cat1}")
+    if years:
+        filter_desc.append(f"Tahun: {', '.join(str(y) for y in sorted(years))}")
+    if pillars:
+        filter_desc.append(f"Pillar: {', '.join(pillars)}")
+    if programs:
+        filter_desc.append(f"Program: {', '.join(programs)}")
+    if jenjangs:
+        filter_desc.append(f"Jenjang: {', '.join(jenjangs)}")
+    if angkatans:
+        filter_desc.append(f"Angkatan: {', '.join(str(a) for a in angkatans)}")
+    if statuses:
+        filter_desc.append(f"Status: {', '.join(statuses)}")
 
-    ws2.row_dimensions[start_row].height = 24
-    for col_idx, h in enumerate(headers2, 1):
-        cell = ws2.cell(row=start_row, column=col_idx, value=h)
+    ws1["A3"] = f"Filter: {'; '.join(filter_desc) if filter_desc else 'Semua Data'}"
+    ws1["A3"].font = FONT_META
+    ws1["A4"] = f"Tanggal Unduh: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
+    ws1["A4"].font = FONT_META
+
+    headers1 = ["No", "Kategori", "Budget (Rp)", "Realisasi (Rp)", "Sisa Budget (Rp)", "% Realisasi"]
+    start_row = 6
+    ws1.row_dimensions[start_row].height = 24
+
+    for col_idx, h in enumerate(headers1, 1):
+        cell = ws1.cell(row=start_row, column=col_idx, value=h)
         cell.font = FONT_HEADER
         cell.fill = FILL_HEADER
         cell.alignment = ALIGN_CENTER
         cell.border = BORDER_DATA
 
     curr_row = start_row + 1
-    for no, r in enumerate(trx_rows, 1):
-        ws2.row_dimensions[curr_row].height = 19
+    for no, row in enumerate(kategori_data, 1):
+        ws1.row_dimensions[curr_row].height = 20
         is_alt = (no % 2 == 0)
         row_fill = FILL_ROW_ALT if is_alt else None
 
-        row_vals = [
-            (no, ALIGN_CENTER, FONT_ROW, None),
-            (r.get("tahun") or "", ALIGN_CENTER, FONT_ROW, None),
-            (r.get("tanggal") or "", ALIGN_CENTER, FONT_ROW, None),
-            (r.get("siswa_code") or "", ALIGN_CENTER, FONT_ROW, None),
-            (r.get("nama") or "", ALIGN_LEFT, FONT_ROW, None),
-            (r.get("universitas") or "", ALIGN_LEFT, FONT_ROW, None),
-            (r.get("pillar") or "", ALIGN_CENTER, FONT_ROW, None),
-            (r.get("program") or "", ALIGN_LEFT, FONT_ROW, None),
-            (r.get("jenjang") or "", ALIGN_CENTER, FONT_ROW, None),
-            (r.get("angkatan") or "", ALIGN_CENTER, FONT_ROW, None),
-            (r.get("cat1") or "", ALIGN_LEFT, FONT_ROW, None),
-            (r.get("cat2") or "", ALIGN_LEFT, FONT_ROW, None),
-            (r.get("pam") or "", ALIGN_CENTER, FONT_ROW, None),
-            (r.get("perusahaan") or "", ALIGN_LEFT, FONT_ROW, None),
-            (r.get("status") or "", ALIGN_CENTER, FONT_ROW, None),
-            (float(r.get("amount") or 0), ALIGN_RIGHT, FONT_ROW_BOLD, NUM_FMT_CURRENCY),
-        ]
+        # No
+        c_no = ws1.cell(row=curr_row, column=1, value=no)
+        c_no.alignment = ALIGN_CENTER
+        c_no.font = FONT_ROW
+        c_no.border = BORDER_DATA
+        if row_fill: c_no.fill = row_fill
 
-        for col_idx, (val, align, font, num_fmt) in enumerate(row_vals, 1):
-            cell = ws2.cell(row=curr_row, column=col_idx, value=val)
-            cell.alignment = align
-            cell.font = font
-            cell.border = BORDER_DATA
-            if num_fmt:
-                cell.number_format = num_fmt
-            if row_fill:
-                cell.fill = row_fill
+        # Kategori
+        c_cat = ws1.cell(row=curr_row, column=2, value=row.get("cat1") or "(Tanpa Kategori)")
+        c_cat.alignment = ALIGN_LEFT
+        c_cat.font = FONT_ROW_BOLD
+        c_cat.border = BORDER_DATA
+        if row_fill: c_cat.fill = row_fill
+
+        # Budget
+        c_bgt = ws1.cell(row=curr_row, column=3, value=float(row.get("budget") or 0))
+        c_bgt.alignment = ALIGN_RIGHT
+        c_bgt.font = FONT_ROW
+        c_bgt.number_format = NUM_FMT_CURRENCY
+        c_bgt.border = BORDER_DATA
+        if row_fill: c_bgt.fill = row_fill
+
+        # Realisasi
+        c_rea = ws1.cell(row=curr_row, column=4, value=float(row.get("realisasi") or 0))
+        c_rea.alignment = ALIGN_RIGHT
+        c_rea.font = FONT_ROW
+        c_rea.number_format = NUM_FMT_CURRENCY
+        c_rea.border = BORDER_DATA
+        if row_fill: c_rea.fill = row_fill
+
+        # Sisa Budget: =C{curr_row}-D{curr_row}
+        c_sisa = ws1.cell(row=curr_row, column=5, value=f"=C{curr_row}-D{curr_row}")
+        c_sisa.alignment = ALIGN_RIGHT
+        c_sisa.font = FONT_ROW_BOLD
+        c_sisa.number_format = NUM_FMT_CURRENCY
+        c_sisa.border = BORDER_DATA
+        if row_fill: c_sisa.fill = row_fill
+
+        # % Realisasi: =IF(C{curr_row}>0, D{curr_row}/C{curr_row}, 0)
+        c_pct = ws1.cell(row=curr_row, column=6, value=f"=IF(C{curr_row}>0, D{curr_row}/C{curr_row}, 0)")
+        c_pct.alignment = ALIGN_RIGHT
+        c_pct.font = FONT_ROW_BOLD
+        c_pct.number_format = NUM_FMT_PERCENT
+        c_pct.border = BORDER_DATA
+        if row_fill: c_pct.fill = row_fill
 
         curr_row += 1
 
-    # Total Summary Row for Sheet 2
-    if trx_rows:
-        ws2.row_dimensions[curr_row].height = 22
-        for col_idx in range(1, 16):
-            c_empty = ws2.cell(row=curr_row, column=col_idx, value="")
-            c_empty.fill = FILL_TOTAL
-            c_empty.border = BORDER_TOTAL
+    # Total Summary Row for Sheet 1
+    if kategori_data:
+        ws1.row_dimensions[curr_row].height = 22
+        ws1.cell(row=curr_row, column=1, value="")
+        c_lbl = ws1.cell(row=curr_row, column=2, value="TOTAL")
+        c_lbl.font = FONT_ROW_BOLD
+        c_lbl.alignment = ALIGN_CENTER
+        c_lbl.fill = FILL_TOTAL
+        c_lbl.border = BORDER_TOTAL
 
-        ws2.cell(row=curr_row, column=15, value="TOTAL").alignment = ALIGN_RIGHT
-        ws2.cell(row=curr_row, column=15).font = FONT_ROW_BOLD
-        ws2.cell(row=curr_row, column=15).fill = FILL_TOTAL
-        ws2.cell(row=curr_row, column=15).border = BORDER_TOTAL
+        first_data_row = start_row + 1
+        last_data_row = curr_row - 1
 
-        amt_col_letter = get_column_letter(16)
-        first_trx_row = start_row + 1
-        last_trx_row = curr_row - 1
-        c_amt_total = ws2.cell(row=curr_row, column=16)
-        c_amt_total.value = f"=SUM({amt_col_letter}{first_trx_row}:{amt_col_letter}{last_trx_row})"
-        c_amt_total.font = FONT_ROW_BOLD
-        c_amt_total.alignment = ALIGN_RIGHT
-        c_amt_total.fill = FILL_TOTAL
-        c_amt_total.border = BORDER_TOTAL
-        c_amt_total.number_format = NUM_FMT_CURRENCY
+        # Budget Total
+        c_tot_bgt = ws1.cell(row=curr_row, column=3, value=f"=SUM(C{first_data_row}:C{last_data_row})")
+        c_tot_bgt.font = FONT_ROW_BOLD
+        c_tot_bgt.alignment = ALIGN_RIGHT
+        c_tot_bgt.fill = FILL_TOTAL
+        c_tot_bgt.border = BORDER_TOTAL
+        c_tot_bgt.number_format = NUM_FMT_CURRENCY
 
-        # Enable auto filter on Sheet 2
-        last_row_filter = curr_row - 1
-        ws2.auto_filter.ref = f"A{start_row}:P{last_row_filter}"
+        # Realisasi Total
+        c_tot_rea = ws1.cell(row=curr_row, column=4, value=f"=SUM(D{first_data_row}:D{last_data_row})")
+        c_tot_rea.font = FONT_ROW_BOLD
+        c_tot_rea.alignment = ALIGN_RIGHT
+        c_tot_rea.fill = FILL_TOTAL
+        c_tot_rea.border = BORDER_TOTAL
+        c_tot_rea.number_format = NUM_FMT_CURRENCY
 
-    # Auto-adjust column widths for Sheet 2
-    col_min_widths = {
-        "A": 8,   # No
-        "B": 10,  # Tahun
-        "C": 14,  # Tanggal
-        "D": 14,  # Kode Siswa
-        "E": 26,  # Nama
-        "F": 26,  # Universitas
-        "G": 12,  # Pillar
-        "H": 18,  # Program
-        "I": 10,  # Jenjang
-        "J": 10,  # Angkatan
-        "K": 18,  # Cat 1
-        "L": 18,  # Cat 2
-        "M": 22,  # No PAM
-        "N": 20,  # Perusahaan
-        "O": 12,  # Status
-        "P": 18,  # Amount
-    }
-    for col_letter, width in col_min_widths.items():
-        ws2.column_dimensions[col_letter].width = width
+        # Sisa Total
+        c_tot_sisa = ws1.cell(row=curr_row, column=5, value=f"=SUM(E{first_data_row}:E{last_data_row})")
+        c_tot_sisa.font = FONT_ROW_BOLD
+        c_tot_sisa.alignment = ALIGN_RIGHT
+        c_tot_sisa.fill = FILL_TOTAL
+        c_tot_sisa.border = BORDER_TOTAL
+        c_tot_sisa.number_format = NUM_FMT_CURRENCY
+
+        # % Realisasi Total
+        c_tot_pct = ws1.cell(row=curr_row, column=6, value=f"=IF(C{curr_row}>0, D{curr_row}/C{curr_row}, 0)")
+        c_tot_pct.font = FONT_ROW_BOLD
+        c_tot_pct.alignment = ALIGN_RIGHT
+        c_tot_pct.fill = FILL_TOTAL
+        c_tot_pct.border = BORDER_TOTAL
+        c_tot_pct.number_format = NUM_FMT_PERCENT
+
+    # Auto-adjust column widths
+    ws1.column_dimensions["A"].width = 8
+    ws1.column_dimensions["B"].width = 24
+    ws1.column_dimensions["C"].width = 20
+    ws1.column_dimensions["D"].width = 20
+    ws1.column_dimensions["E"].width = 20
+    ws1.column_dimensions["F"].width = 16
+
+    # 2. SHEET 2: Detail Transaksi
+    trx_rows = get_dashboard_trend_transactions(
+        company_id,
+        years=years,
+        pillars=pillars,
+        programs=programs,
+        jenjangs=jenjangs,
+        statuses=statuses,
+        angkatans=angkatans,
+        cat1=cat1,
+    )
+    title_suffix = f" - {cat1.upper()}" if cat1 else ""
+    _build_drill_through_detail_sheet(wb, trx_rows, filter_desc, title_suffix=title_suffix)
+
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+def export_dashboard_bulanan_excel(
+    company_id: int,
+    bulan: int = None,
+    years: list = None,
+    pillars: list = None,
+    programs: list = None,
+    jenjangs: list = None,
+    statuses: list = None,
+    angkatans: list = None,
+) -> bytes:
+    wb = openpyxl.Workbook()
+
+    # If years not provided, fetch all distinct years in database
+    if not years:
+        conn = get_conn()
+        y_rows = conn.execute(
+            "SELECT DISTINCT strftime('%Y', tanggal) AS y FROM payment_beasiswa WHERE company_id = ? AND tanggal IS NOT NULL AND tanggal != '' ORDER BY y ASC",
+            (company_id,),
+        ).fetchall()
+        conn.close()
+        years = [int(r["y"]) for r in y_rows if r["y"] and str(r["y"]).isdigit()]
+
+    if not years:
+        current_year = datetime.now().year
+        years = [current_year - 1, current_year]
+
+    years = sorted(list(set(years)))
+
+    # 1. SHEET 1: Trend Realisasi Bulanan
+    ws1 = wb.active
+    ws1.title = "Trend per Bulan"
+    ws1.views.sheetView[0].showGridLines = True
+
+    monthly_data = get_dashboard_monthly(
+        company_id,
+        years=years,
+        pillars=pillars,
+        programs=programs,
+        jenjangs=jenjangs,
+        statuses=statuses,
+        angkatans=angkatans,
+    )
+    comparison = monthly_data.get("comparison", [])
+    if bulan and 1 <= bulan <= 12:
+        comparison = [row for row in comparison if row.get("bulan") == bulan]
+
+    # Title block
+    ws1["A1"] = "TREND REALISASI BEASISWA PER BULAN" + (f" - {BULAN_NAMES[bulan].upper()}" if (bulan and 1 <= bulan <= 12) else "")
+    ws1["A1"].font = FONT_MAIN_TITLE
+    ws1["A2"] = "Eka Tjipta Foundation (ETF)"
+    ws1["A2"].font = FONT_SUBTITLE
+
+    filter_desc = []
+    if bulan and 1 <= bulan <= 12:
+        filter_desc.append(f"Bulan: {BULAN_NAMES[bulan]}")
+    if years:
+        filter_desc.append(f"Tahun: {', '.join(str(y) for y in years)}")
+    if pillars:
+        filter_desc.append(f"Pillar: {', '.join(pillars)}")
+    if programs:
+        filter_desc.append(f"Program: {', '.join(programs)}")
+    if jenjangs:
+        filter_desc.append(f"Jenjang: {', '.join(jenjangs)}")
+    if angkatans:
+        filter_desc.append(f"Angkatan: {', '.join(str(a) for a in angkatans)}")
+    if statuses:
+        filter_desc.append(f"Status: {', '.join(statuses)}")
+
+    ws1["A3"] = f"Filter: {'; '.join(filter_desc) if filter_desc else 'Semua Data'}"
+    ws1["A3"].font = FONT_META
+    ws1["A4"] = f"Tanggal Unduh: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
+    ws1["A4"].font = FONT_META
+
+    headers1 = ["No", "Bulan"] + [str(y) for y in years] + ["Total Realisasi (Rp)"]
+    start_row = 6
+    ws1.row_dimensions[start_row].height = 24
+
+    for col_idx, h in enumerate(headers1, 1):
+        cell = ws1.cell(row=start_row, column=col_idx, value=h)
+        cell.font = FONT_HEADER
+        cell.fill = FILL_HEADER
+        cell.alignment = ALIGN_CENTER
+        cell.border = BORDER_DATA
+
+    curr_row = start_row + 1
+    for no, row in enumerate(comparison, 1):
+        ws1.row_dimensions[curr_row].height = 20
+        is_alt = (no % 2 == 0)
+        row_fill = FILL_ROW_ALT if is_alt else None
+
+        b_num = row.get("bulan", 1)
+        b_name = BULAN_NAMES[b_num] if (1 <= b_num <= 12) else f"Bulan {b_num}"
+
+        # No
+        c_no = ws1.cell(row=curr_row, column=1, value=no)
+        c_no.alignment = ALIGN_CENTER
+        c_no.font = FONT_ROW
+        c_no.border = BORDER_DATA
+        if row_fill: c_no.fill = row_fill
+
+        # Bulan
+        c_bln = ws1.cell(row=curr_row, column=2, value=b_name)
+        c_bln.alignment = ALIGN_LEFT
+        c_bln.font = FONT_ROW_BOLD
+        c_bln.border = BORDER_DATA
+        if row_fill: c_bln.fill = row_fill
+
+        # Years
+        for y_idx, y in enumerate(years):
+            val = float(row.get("per_tahun", {}).get(str(y)) or 0)
+            c_y = ws1.cell(row=curr_row, column=3 + y_idx, value=val)
+            c_y.alignment = ALIGN_RIGHT
+            c_y.font = FONT_ROW
+            c_y.number_format = NUM_FMT_CURRENCY
+            c_y.border = BORDER_DATA
+            if row_fill: c_y.fill = row_fill
+
+        # Total Realisasi
+        tot_col = 3 + len(years)
+        first_y_letter = get_column_letter(3)
+        last_y_letter = get_column_letter(2 + len(years))
+        c_tot = ws1.cell(row=curr_row, column=tot_col, value=f"=SUM({first_y_letter}{curr_row}:{last_y_letter}{curr_row})")
+        c_tot.alignment = ALIGN_RIGHT
+        c_tot.font = FONT_ROW_BOLD
+        c_tot.number_format = NUM_FMT_CURRENCY
+        c_tot.border = BORDER_DATA
+        if row_fill: c_tot.fill = row_fill
+
+        curr_row += 1
+
+    # Total Summary Row for Sheet 1
+    if comparison:
+        ws1.row_dimensions[curr_row].height = 22
+        ws1.cell(row=curr_row, column=1, value="")
+        c_lbl = ws1.cell(row=curr_row, column=2, value="TOTAL")
+        c_lbl.font = FONT_ROW_BOLD
+        c_lbl.alignment = ALIGN_CENTER
+        c_lbl.fill = FILL_TOTAL
+        c_lbl.border = BORDER_TOTAL
+
+        first_data_row = start_row + 1
+        last_data_row = curr_row - 1
+
+        for col_idx in range(3, 3 + len(years) + 1):
+            col_letter = get_column_letter(col_idx)
+            c_sum = ws1.cell(row=curr_row, column=col_idx)
+            c_sum.value = f"=SUM({col_letter}{first_data_row}:{col_letter}{last_data_row})"
+            c_sum.font = FONT_ROW_BOLD
+            c_sum.alignment = ALIGN_RIGHT
+            c_sum.fill = FILL_TOTAL
+            c_sum.border = BORDER_TOTAL
+            c_sum.number_format = NUM_FMT_CURRENCY
+
+    # Column widths
+    ws1.column_dimensions["A"].width = 8
+    ws1.column_dimensions["B"].width = 16
+    for col_idx in range(3, 3 + len(years) + 1):
+        col_letter = get_column_letter(col_idx)
+        ws1.column_dimensions[col_letter].width = 18
+
+    # 2. SHEET 2: Detail Transaksi
+    trx_rows = get_dashboard_trend_transactions(
+        company_id,
+        years=years,
+        pillars=pillars,
+        programs=programs,
+        jenjangs=jenjangs,
+        statuses=statuses,
+        angkatans=angkatans,
+        bulan=bulan,
+    )
+    title_suffix = f" - BULAN {BULAN_NAMES[bulan].upper()}" if (bulan and 1 <= bulan <= 12) else ""
+    _build_drill_through_detail_sheet(wb, trx_rows, filter_desc, title_suffix=title_suffix)
 
     out = io.BytesIO()
     wb.save(out)

@@ -187,7 +187,20 @@
             <div class="beasiswa-dash-section-panel">
               <div class="beasiswa-dash-section-title">Breakdown Realisasi</div>
               <div class="beasiswa-dash-grafik-grid">
-                <div class="beasiswa-dash-chart-card"><h3>Realisasi per Kategori</h3><canvas id="dash-chart-kategori"></canvas></div>
+                <div class="beasiswa-dash-chart-card">
+                  <div class="beasiswa-dash-card-header">
+                    <h3>Realisasi per Kategori</h3>
+                    <button type="button" class="dash-card-icon-btn" id="btn-export-kategori" title="Drill Through & Export Excel" onclick="dashExportKategori()">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <path d="M12 18v-6"></path>
+                        <path d="m9 15 3 3 3-3"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <canvas id="dash-chart-kategori"></canvas>
+                </div>
               </div>
               <div class="beasiswa-dash-grafik-grid">
                 <div class="beasiswa-dash-chart-card compact">
@@ -234,7 +247,20 @@
             <div class="beasiswa-dash-section-panel">
               <div class="beasiswa-dash-section-title">Trend</div>
               <div class="beasiswa-dash-grafik-grid">
-                <div class="beasiswa-dash-chart-card"><h3>Trend per Bulan</h3><canvas id="dash-chart-bulanan"></canvas></div>
+                <div class="beasiswa-dash-chart-card">
+                  <div class="beasiswa-dash-card-header">
+                    <h3>Trend per Bulan</h3>
+                    <button type="button" class="dash-card-icon-btn" id="btn-export-trend-bulan" title="Drill Through & Export Excel" onclick="dashExportTrendBulan()">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <path d="M12 18v-6"></path>
+                        <path d="m9 15 3 3 3-3"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <canvas id="dash-chart-bulanan"></canvas>
+                </div>
                 <div class="beasiswa-dash-chart-card">
                   <div class="beasiswa-dash-card-header">
                     <h3>Trend per Tahun</h3>

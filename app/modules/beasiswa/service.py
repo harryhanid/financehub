@@ -1479,7 +1479,7 @@ def get_dashboard_pillar_yearly(company_id: int, pillars: list = None, programs:
     return result
 
 
-def get_dashboard_trend_transactions(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None, angkatans: list = None) -> list:
+def get_dashboard_trend_transactions(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None, angkatans: list = None, cat1: str = None, bulan: int = None) -> list:
     conn = get_conn()
     year_sql, year_params = _year_filter_sql(years, "p.tanggal")
     pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
@@ -1487,18 +1487,32 @@ def get_dashboard_trend_transactions(company_id: int, years: list = None, pillar
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
     angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     status_sql, status_params = _status_filter_sql(statuses, "p.status")
+
+    cat1_sql = ""
+    cat1_params = []
+    if cat1:
+        cat1_sql = " AND p.cat1 = ?"
+        cat1_params = [cat1]
+
+    bulan_sql = ""
+    bulan_params = []
+    if bulan:
+        bulan_sql = " AND CAST(strftime('%m', p.tanggal) AS INTEGER) = ?"
+        bulan_params = [int(bulan)]
+
     rows = conn.execute(
         f"""
-        SELECT p.id, p.tanggal, strftime('%Y', p.tanggal) AS tahun, p.siswa_code, s.nama, 
+        SELECT p.id, p.tanggal, strftime('%Y', p.tanggal) AS tahun, CAST(strftime('%m', p.tanggal) AS INTEGER) AS bulan,
+               p.siswa_code, s.nama, 
                p.pillar, s.program, s.jenjang, s.angkatan, s.universitas, p.cat1, p.cat2, 
                p.amount, p.pam, p.perusahaan, p.status
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         WHERE p.company_id = ?
-              AND p.tanggal IS NOT NULL AND p.tanggal != ''{year_sql}{pillar_sql}{program_sql}{jenjang_sql}{angkatan_sql}{status_sql}
+              AND p.tanggal IS NOT NULL AND p.tanggal != ''{year_sql}{pillar_sql}{program_sql}{jenjang_sql}{angkatan_sql}{status_sql}{cat1_sql}{bulan_sql}
         ORDER BY p.tanggal DESC, p.id DESC
         """,
-        [company_id, *year_params, *pillar_params, *program_params, *jenjang_params, *angkatan_params, *status_params],
+        [company_id, *year_params, *pillar_params, *program_params, *jenjang_params, *angkatan_params, *status_params, *cat1_params, *bulan_params],
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]

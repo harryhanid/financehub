@@ -349,6 +349,107 @@ def budget_export_xlsx():
     )
 
 
+@bp.route("/api/dashboard/export_kategori")
+@jwt_html_required
+@etf_company_required
+def api_dashboard_export_kategori():
+    from modules.beasiswa.exports import export_dashboard_kategori_excel
+    import io
+    from flask import send_file
+    from datetime import datetime
+
+    cat1 = request.args.get("cat1", "").strip() or None
+
+    years_str = request.args.get("years", "")
+    years = [int(y) for y in years_str.split(",") if y.isdigit()] if years_str else None
+
+    pillars_str = request.args.get("pillars", "")
+    pillars = [p for p in pillars_str.split(",") if p]
+    programs_str = request.args.get("programs", "")
+    programs = [p for p in programs_str.split(",") if p]
+    jenjangs_str = request.args.get("jenjangs", "")
+    jenjangs = [j for j in jenjangs_str.split(",") if j]
+    angkatans_str = request.args.get("angkatans", "")
+    angkatans = [a for a in angkatans_str.split(",") if a]
+    statuses_str = request.args.get("statuses", "")
+    statuses = [s for s in statuses_str.split(",") if s]
+
+    xls_bytes = export_dashboard_kategori_excel(
+        _cid(),
+        cat1=cat1,
+        years=years,
+        pillars=pillars,
+        programs=programs,
+        jenjangs=jenjangs,
+        statuses=statuses,
+        angkatans=angkatans,
+    )
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if cat1:
+        cat_clean = cat1.replace(" ", "_").replace("/", "_")
+        filename = f"Realisasi_Kategori_{cat_clean}_{timestamp}.xlsx"
+    else:
+        filename = f"Realisasi_Per_Kategori_ETF_{timestamp}.xlsx"
+
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )
+
+
+@bp.route("/api/dashboard/export_trend_bulanan")
+@jwt_html_required
+@etf_company_required
+def api_dashboard_export_trend_bulanan():
+    from modules.beasiswa.exports import export_dashboard_bulanan_excel
+    import io
+    from flask import send_file
+    from datetime import datetime
+
+    bulan_str = request.args.get("bulan", "").strip()
+    bulan = int(bulan_str) if (bulan_str and bulan_str.isdigit()) else None
+
+    years_str = request.args.get("years", "")
+    years = [int(y) for y in years_str.split(",") if y.isdigit()] if years_str else None
+
+    pillars_str = request.args.get("pillars", "")
+    pillars = [p for p in pillars_str.split(",") if p]
+    programs_str = request.args.get("programs", "")
+    programs = [p for p in programs_str.split(",") if p]
+    jenjangs_str = request.args.get("jenjangs", "")
+    jenjangs = [j for j in jenjangs_str.split(",") if j]
+    angkatans_str = request.args.get("angkatans", "")
+    angkatans = [a for a in angkatans_str.split(",") if a]
+    statuses_str = request.args.get("statuses", "")
+    statuses = [s for s in statuses_str.split(",") if s]
+
+    xls_bytes = export_dashboard_bulanan_excel(
+        _cid(),
+        bulan=bulan,
+        years=years,
+        pillars=pillars,
+        programs=programs,
+        jenjangs=jenjangs,
+        statuses=statuses,
+        angkatans=angkatans,
+    )
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    bulan_names = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+    if bulan and 1 <= bulan <= 12:
+        filename = f"Trend_Realisasi_Bulanan_{bulan_names[bulan]}_{timestamp}.xlsx"
+    else:
+        filename = f"Trend_Realisasi_Bulanan_ETF_{timestamp}.xlsx"
+
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )
+
+
 @bp.route("/budget/export/csv")
 @jwt_html_required
 @etf_company_required

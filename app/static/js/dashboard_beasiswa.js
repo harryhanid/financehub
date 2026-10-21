@@ -166,6 +166,16 @@ function dashRenderBudgetVsRealisasiChart(canvasId, labels, budgets, realisasis)
         mode: 'index',
         intersect: false,
       },
+      onClick: function (evt, elements) {
+        if (!elements || !elements.length) return;
+        const idx = elements[0].index;
+        if (labels && labels[idx]) {
+          dashExportKategori(labels[idx]);
+        }
+      },
+      onHover: function (evt, elements) {
+        evt.native.target.style.cursor = elements && elements.length ? "pointer" : "default";
+      },
       plugins: {
         legend: { position: "top", labels: { color: textColor } },
         datalabels: {
@@ -425,7 +435,12 @@ function dashRenderMonthlyChart(months, currentYear) {
   dashRenderBarChart("dash-chart-bulanan", months.map(function (m) { return DASH_BULAN_LABEL[m.bulan - 1]; }), [
     { type: "line", label: "Realisasi " + prevYear, data: months.map(function (m) { return m.realisasi_last_year || 0; }), borderColor: "#f97316", backgroundColor: "transparent", borderWidth: 2, tension: 0.3 },
     { type: "bar", label: "Realisasi " + currentYear, data: months.map(function (m) { return m.realisasi; }), backgroundColor: "#818cf8" }
-  ], dashHighlightMonthlyRow);
+  ], function (index) {
+    dashHighlightMonthlyRow(index);
+    if (months && months[index]) {
+      dashExportTrendBulan(months[index].bulan);
+    }
+  });
 }
 
 function dashRenderMonthlyTable(comparison, years) {
@@ -484,6 +499,24 @@ function dashExportTrendTahun(specificYear) {
     params.set("year", specificYear);
   }
   window.location.href = "/beasiswa/api/dashboard/export_trend_tahunan?" + params.toString();
+}
+
+function dashExportTrendBulan(specificBulan) {
+  const filters = dashGetSelectedFilters();
+  const params = new URLSearchParams(dashBuildQueryString(filters));
+  if (specificBulan) {
+    params.set("bulan", specificBulan);
+  }
+  window.location.href = "/beasiswa/api/dashboard/export_trend_bulanan?" + params.toString();
+}
+
+function dashExportKategori(specificCat1) {
+  const filters = dashGetSelectedFilters();
+  const params = new URLSearchParams(dashBuildQueryString(filters));
+  if (specificCat1) {
+    params.set("cat1", specificCat1);
+  }
+  window.location.href = "/beasiswa/api/dashboard/export_kategori?" + params.toString();
 }
 
 
