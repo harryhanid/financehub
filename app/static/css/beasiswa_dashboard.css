@@ -296,3 +296,39 @@
   width: 14px;
   height: 14px;
 }
+
+/* ── Icon Excel Button ─────────────────────────────────────────────────── */
+.btn-icon-excel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.5rem;
+  height: 31px;
+  min-width: 32px;
+  color: #059669;
+  border-color: #a7f3d0;
+  background: #f0fdf4;
+  border-radius: var(--r-sm, 6px);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+.btn-icon-excel:hover {
+  background: #dcfce7;
+  border-color: #10b981;
+  color: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.15);
+}
+.btn-icon-excel:active {
+  transform: translateY(0);
+}
+[data-theme="dark"] .btn-icon-excel {
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.1);
+}
+[data-theme="dark"] .btn-icon-excel:hover {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #6ee7b7;
+}

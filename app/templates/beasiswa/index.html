@@ -607,8 +607,15 @@
             <option value="complete">Complete</option>
           </select>
         </div>
-        <div style="align-self:flex-end;display:flex;gap:.375rem">
-          <button class="btn btn-secondary btn-sm" onclick="exportPayment('csv')">📥 CSV</button>
+        <div style="align-self:flex-end;display:flex;gap:.375rem;align-items:center;">
+          <button class="btn btn-secondary btn-sm btn-icon-excel" onclick="exportPayment('xlsx')" title="Export Excel">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <path d="M9 13l6 6"></path>
+              <path d="M15 13l-6 6"></path>
+            </svg>
+          </button>
           <button class="btn btn-secondary btn-sm" onclick="exportPayment('pdf')">📄 PDF</button>
         </div>
       </div>

@@ -403,6 +403,44 @@ def payment_list():
     return jsonify({"ok": True, **data})
 
 
+@bp.route("/payment/export/xlsx")
+@bp.route("/payment/export/excel")
+@jwt_html_required
+@etf_company_required
+def payment_export_xlsx():
+    from modules.beasiswa.exports import export_payment_excel
+    import io
+    from flask import send_file
+    from datetime import datetime
+
+    search = request.args.get("search", "")
+    cat1 = request.args.get("cat1", "")
+    pillar = request.args.get("pillar", "")
+    bulan = request.args.get("bulan", "")
+    tahun = request.args.get("tahun", "")
+    status = request.args.get("status", "")
+    program = request.args.get("program", "")
+
+    xls_bytes = export_payment_excel(
+        _cid(),
+        search=search,
+        cat1=cat1,
+        pillar=pillar,
+        bulan=bulan,
+        tahun=tahun,
+        status=status,
+        program=program,
+    )
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"Payment_Beasiswa_ETF_{timestamp}.xlsx"
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )
+
+
 @bp.route("/payment/export/csv")
 @jwt_html_required
 @etf_company_required
