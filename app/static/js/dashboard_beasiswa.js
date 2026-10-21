@@ -478,7 +478,8 @@ function dashRenderYearlyChart(yearly) {
 
 function dashExportTrendTahun(specificYear) {
   const filters = dashGetSelectedFilters();
-  const params = new URLSearchParams(dashBuildQueryString(filters));
+  const exportFilters = { ...filters, years: [] };
+  const params = new URLSearchParams(dashBuildQueryString(exportFilters));
   if (specificYear) {
     params.set("year", specificYear);
   }

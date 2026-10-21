@@ -1248,12 +1248,7 @@ def api_dashboard_export_trend_tahunan():
     from datetime import datetime
 
     year_single = request.args.get("year", "").strip()
-    years_str = request.args.get("years", "").strip()
-    years = None
-    if year_single and year_single.isdigit():
-        years = [int(year_single)]
-    elif years_str:
-        years = [int(y) for y in years_str.split(",") if y.strip().isdigit()]
+    years = [int(year_single)] if (year_single and year_single.isdigit()) else None
 
     pillars_str = request.args.get("pillars", "")
     pillars = [p for p in pillars_str.split(",") if p]
