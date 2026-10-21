@@ -64,6 +64,11 @@ function dashRenderBarChart(canvasId, labels, datasets, onBarClick) {
     plugins: [ChartDataLabels],
     options: {
       responsive: true,
+      onHover: function (evt, elements) {
+        if (onBarClick && evt.native && evt.native.target) {
+          evt.native.target.style.cursor = elements.length ? "pointer" : "default";
+        }
+      },
       onClick: function (evt, elements) {
         if (!elements.length || !onBarClick) return;
         onBarClick(elements[0].index);
@@ -462,9 +467,22 @@ function dashRenderYearlyChart(yearly) {
     if (dashCharts["dash-chart-tahunan"]) { dashCharts["dash-chart-tahunan"].destroy(); delete dashCharts["dash-chart-tahunan"]; }
     return;
   }
-  dashRenderBarChart("dash-chart-tahunan", yearly.map(function (y) { return y.tahun; }), [
+  const years = yearly.map(function (y) { return y.tahun; });
+  dashRenderBarChart("dash-chart-tahunan", years, [
     { label: "Realisasi", data: yearly.map(function (y) { return y.realisasi; }), backgroundColor: "#10b981" },
-  ]);
+  ], function (index) {
+    const selectedYear = years[index];
+    dashExportTrendTahun(selectedYear);
+  });
+}
+
+function dashExportTrendTahun(specificYear) {
+  const filters = dashGetSelectedFilters();
+  const params = new URLSearchParams(dashBuildQueryString(filters));
+  if (specificYear) {
+    params.set("year", specificYear);
+  }
+  window.location.href = "/beasiswa/api/dashboard/export_trend_tahunan?" + params.toString();
 }
 
 
@@ -499,15 +517,19 @@ function dashGetSelectedFilters() {
   const pillars = Array.from(document.querySelectorAll(".dash-pillar-cb:checked")).map(function (cb) { return cb.value; });
   const programs = Array.from(document.querySelectorAll(".dash-program-cb:checked")).map(function (cb) { return cb.value; });
   const jenjangs = Array.from(document.querySelectorAll(".dash-jenjang-cb:checked")).map(function (cb) { return cb.value; });
-  return { years: years, pillars: pillars, programs: programs, jenjangs: jenjangs };
+  const angkatans = Array.from(document.querySelectorAll(".dash-angkatan-cb:checked")).map(function (cb) { return cb.value; });
+  const statuses = Array.from(document.querySelectorAll(".dash-status-cb:checked")).map(function (cb) { return cb.value; });
+  return { years: years, pillars: pillars, programs: programs, jenjangs: jenjangs, angkatans: angkatans, statuses: statuses };
 }
 
 function dashBuildQueryString(filters) {
   const params = new URLSearchParams();
-  if (filters.years.length) params.set("years", filters.years.join(","));
-  if (filters.pillars.length) params.set("pillars", filters.pillars.join(","));
+  if (filters.years && filters.years.length) params.set("years", filters.years.join(","));
+  if (filters.pillars && filters.pillars.length) params.set("pillars", filters.pillars.join(","));
   if (filters.programs && filters.programs.length) params.set("programs", filters.programs.join(","));
   if (filters.jenjangs && filters.jenjangs.length) params.set("jenjangs", filters.jenjangs.join(","));
+  if (filters.angkatans && filters.angkatans.length) params.set("angkatans", filters.angkatans.join(","));
+  if (filters.statuses && filters.statuses.length) params.set("statuses", filters.statuses.join(","));
   return params.toString();
 }
 

@@ -1,3 +1,4 @@
+import uuid
 # modules/beasiswa/service.py
 from datetime import datetime
 from database import get_conn
@@ -64,6 +65,12 @@ def generate_kode_siswa(jenjang: str, angkatan: int, company_id: int) -> str:
 
     return prefix + str(max_urut + 1).zfill(4)
 
+
+def get_distinct_angkatan(company_id: int) -> list:
+    conn = get_conn()
+    rows = conn.execute("SELECT DISTINCT angkatan FROM siswa WHERE company_id=? AND angkatan IS NOT NULL ORDER BY angkatan DESC", (company_id,)).fetchall()
+    conn.close()
+    return [r[0] for r in rows if r[0]]
 
 def get_distinct_universitas(company_id: int) -> list:
     conn = get_conn()
@@ -237,16 +244,7 @@ def delete_siswa(company_id: int, code: str) -> dict:
     return {"ok": True, "pesan": f"Siswa '{code}' berhasil dihapus{detail}."}
 
 
-def delete_budget_row(company_id: int, row_id: int) -> dict:
-    conn = get_conn()
-    row  = conn.execute("SELECT id FROM budget_beasiswa WHERE id=? AND company_id=?", (row_id, company_id)).fetchone()
-    if not row:
-        conn.close()
-        return {"ok": False, "pesan": "Baris budget tidak ditemukan."}
-    conn.execute("DELETE FROM budget_beasiswa WHERE id=? AND company_id=?", (row_id, company_id))
-    conn.commit()
-    conn.close()
-    return {"ok": True, "pesan": "Baris budget dihapus."}
+
 
 
 def update_budget_row(company_id: int, row_id: int, data: dict) -> dict:
@@ -263,41 +261,16 @@ def update_budget_row(company_id: int, row_id: int, data: dict) -> dict:
         conn.close()
         return {"ok": False, "pesan": "Amount harus lebih dari 0."}
     conn.execute(
-        "UPDATE budget_beasiswa SET cat1=?,cat2=?,tanggal=?,pillar=?,amount=? WHERE id=? AND company_id=?",
+        "UPDATE budget_beasiswa SET cat1=?,cat2=?,tanggal=?,pillar=?,amount=?,tgl_expired=? WHERE id=? AND company_id=?",
         (data.get("cat1",""), data.get("cat2",""), data.get("tanggal",""),
-         data.get("pillar",""), amount, row_id, company_id)
+         data.get("pillar",""), amount, data.get("tgl_expired") or None, row_id, company_id)
     )
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": "Baris budget diupdate."}
 
 
-def add_budget_batch(company_id: int, siswa_code: str, tanggal: str,
-                     pillar: str, items: list) -> dict:
-    conn  = get_conn()
-    saved = 0
-    for item in items:
-        try:
-            amount = float(str(item.get("amount", 0)).replace(",", ""))
-        except (ValueError, TypeError):
-            amount = 0
-        if amount <= 0:
-            continue
-        conn.execute(
-            "INSERT INTO budget_beasiswa (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (company_id, siswa_code, item.get("cat1",""), item.get("cat2",""),
-             tanggal, amount, pillar)
-        )
-        saved += 1
 
-    if saved == 0:
-        conn.close()
-        return {"ok": False, "pesan": "Tidak ada item dengan amount > 0.", "saved": 0}
-
-    conn.commit()
-    conn.close()
-    return {"ok": True, "pesan": f"{saved} baris budget berhasil disimpan.", "saved": saved}
 
 
 def get_budget(company_id: int, siswa_code: str) -> dict:
@@ -328,12 +301,12 @@ def add_payment_batch(company_id: int, siswa_code: str, tanggal: str,
             continue
         conn.execute(
             """INSERT INTO payment_beasiswa
-               (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,cat3,cat4,status)
-               VALUES (?,?,?,?,?,?,?,?,?,?,'open')""",
+               (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,cat3,cat4,status,klasifikasi_pa)
+               VALUES (?,?,?,?,?,?,?,?,?,?,'open',?)""",
             (company_id, siswa_code,
              item.get("cat1",""), item.get("cat2",""),
              tanggal, amount, pillar, perusahaan,
-             item.get("cat3",""), item.get("cat4",""))
+             item.get("cat3",""), item.get("cat4",""), item.get("klasifikasi_pa","Normal"))
         )
         saved += 1
 
@@ -388,8 +361,8 @@ def insert_payment_rows(conn, company_id: int, company_code: str,
             """INSERT INTO payment_beasiswa
                (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,
                 tgl_pengajuan,tgl_receive,tgl_pa,tgl_final,cat3,cat4,etf_pa_line_id,
-                advance_amount,status)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'open')""",
+                advance_amount,status,klasifikasi_pa)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,\'open\',?)""",
             (company_id, siswa_code,
              row.get("cat1", ""), row.get("cat2", ""),
              tanggal, amount, pillar, perusahaan,
@@ -397,7 +370,7 @@ def insert_payment_rows(conn, company_id: int, company_code: str,
              row.get("tgl_pa", ""),        row.get("tgl_final", ""),
              row.get("cat3", ""),          row.get("cat4", ""),
              etf_pa_line_id,
-             amount if route == "advance" else None)
+             amount if route == "advance" else None, row.get("klasifikasi_pa") or "Normal")
         )
         payment_ids.append(cur.lastrowid)
         total += amount
@@ -921,7 +894,7 @@ def get_sisa_budget(company_id: int, siswa_code: str) -> dict:
     bgt  = {}
     for r in conn.execute(
         "SELECT cat1, SUM(amount) as total FROM budget_beasiswa "
-        "WHERE company_id=? AND siswa_code=? GROUP BY cat1",
+        "WHERE company_id=? AND siswa_code=? AND (tgl_expired IS NULL OR tgl_expired >= date('now', 'localtime')) GROUP BY cat1",
         (company_id, siswa_code)
     ).fetchall():
         bgt[r["cat1"]] = r["total"]
@@ -998,12 +971,13 @@ def add_klaim_multi(company_id: int, pam: str, pillar: str,
         diagnosa     = row.get("diagnosa", "")
         spesialisasi = row.get("spesialisasi", "")
 
+        etf_pa_line_id = row.get("etf_pa_line_id") or None
         cur = conn.execute(
             """INSERT INTO payment_beasiswa
-               (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,pam,status)
-               VALUES (?,?,?,?,?,?,?,?,?,'open')""",
+               (company_id,siswa_code,cat1,cat2,tanggal,amount,pillar,perusahaan,pam,status,etf_pa_line_id)
+               VALUES (?,?,?,?,?,?,?,?,?,'open',?)""",
             (company_id, siswa_code, "By Medical", perawatan,
-             tanggal, amount, pillar, perusahaan, pam)
+             tanggal, amount, pillar, perusahaan, pam, etf_pa_line_id)
         )
         payment_id = cur.lastrowid
 
@@ -1174,6 +1148,12 @@ def _jenjang_filter_sql(jenjangs, column):
     placeholders = ",".join("?" for _ in jenjangs)
     return f" AND {column} IN ({placeholders})", list(jenjangs)
 
+def _angkatan_filter_sql(angkatans, column):
+    if not angkatans:
+        return "", []
+    placeholders = ",".join("?" for _ in angkatans)
+    return f" AND {column} IN ({placeholders})", list(angkatans)
+
 def _status_filter_sql(statuses, column):
     if not statuses:
         return "", []
@@ -1187,13 +1167,14 @@ def _status_case_sql(statuses, column):
     return f"{column} IN ({placeholders})", list(statuses)
 
 
-def get_dashboard_summary(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None) -> list:
+def get_dashboard_summary(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None, angkatans: list = None) -> list:
     conn = get_conn()
     budget_year_sql, budget_year_params = _year_filter_sql(years, "tanggal")
     payment_year_sql, payment_year_params = _year_filter_sql(years, "tanggal")
     pillar_sql, pillar_params = _pillar_filter_sql(pillars, "pillar")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     status_case_frag, status_case_params = _status_case_sql(statuses, "status")
 
     rows = conn.execute(
@@ -1217,10 +1198,10 @@ def get_dashboard_summary(company_id: int, years: list = None, pillars: list = N
             WHERE company_id = ?{payment_year_sql}{pillar_sql}
             GROUP BY siswa_code
         ) p ON p.siswa_code = s.code
-        WHERE s.company_id = ?{program_sql}{jenjang_sql}
+        WHERE s.company_id = ?{program_sql}{jenjang_sql}{angkatan_sql}
         ORDER BY s.nama
         """,
-        [company_id, *budget_year_params, *status_case_params, company_id, *payment_year_params, *pillar_params, company_id, *program_params, *jenjang_params],
+        [company_id, *budget_year_params, *status_case_params, company_id, *payment_year_params, *pillar_params, company_id, *program_params, *jenjang_params, *angkatan_params],
     ).fetchall()
     conn.close()
 
@@ -1243,19 +1224,23 @@ def get_dashboard_summary(company_id: int, years: list = None, pillars: list = N
     return result
 
 
-def get_dashboard_breakdown(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None) -> dict:
+def get_dashboard_breakdown(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None, angkatans: list = None) -> dict:
     conn = get_conn()
     budget_year_sql, budget_year_params = _year_filter_sql(years, "b.tanggal")
     payment_year_sql, payment_year_params = _year_filter_sql(years, "p.tanggal")
     pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     status_case_frag, status_case_params = _status_case_sql(statuses, "p.status")
 
     budget_rows = conn.execute(
@@ -1263,10 +1248,10 @@ def get_dashboard_breakdown(company_id: int, years: list = None, pillars: list =
         SELECT b.cat1, SUM(b.amount) AS total
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
-        WHERE b.company_id = ?{budget_year_sql}{program_sql}{jenjang_sql}
+        WHERE b.company_id = ?{budget_year_sql}{program_sql}{jenjang_sql}{angkatan_sql}
         GROUP BY b.cat1
         """,
-        [company_id, *budget_year_params, *program_params, *jenjang_params],
+        [company_id, *budget_year_params, *program_params, *jenjang_params, *angkatan_params],
     ).fetchall()
     payment_rows = conn.execute(
         f"""
@@ -1275,10 +1260,10 @@ def get_dashboard_breakdown(company_id: int, years: list = None, pillars: list =
                SUM(CASE WHEN {status_case_frag} THEN p.amount ELSE 0 END) AS realisasi
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
-        WHERE p.company_id = ?{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}
+        WHERE p.company_id = ?{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}{angkatan_sql}
         GROUP BY p.cat1
         """,
-        [*status_case_params, company_id, *payment_year_params, *pillar_params, *program_params, *jenjang_params],
+        [*status_case_params, company_id, *payment_year_params, *pillar_params, *program_params, *jenjang_params, *angkatan_params],
     ).fetchall()
 
     budget_jenjang_rows = conn.execute(
@@ -1286,10 +1271,10 @@ def get_dashboard_breakdown(company_id: int, years: list = None, pillars: list =
         SELECT s.jenjang, SUM(b.amount) AS total
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
-        WHERE b.company_id = ?{budget_year_sql}{program_sql}{jenjang_sql}
+        WHERE b.company_id = ?{budget_year_sql}{program_sql}{jenjang_sql}{angkatan_sql}
         GROUP BY s.jenjang
         """,
-        [company_id, *budget_year_params, *program_params, *jenjang_params],
+        [company_id, *budget_year_params, *program_params, *jenjang_params, *angkatan_params],
     ).fetchall()
 
     payment_jenjang_rows = conn.execute(
@@ -1299,10 +1284,10 @@ def get_dashboard_breakdown(company_id: int, years: list = None, pillars: list =
                SUM(CASE WHEN {status_case_frag} THEN p.amount ELSE 0 END) AS realisasi
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
-        WHERE p.company_id = ?{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}
+        WHERE p.company_id = ?{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}{angkatan_sql}
         GROUP BY s.jenjang
         """,
-        [*status_case_params, company_id, *payment_year_params, *pillar_params, *program_params, *jenjang_params],
+        [*status_case_params, company_id, *payment_year_params, *pillar_params, *program_params, *jenjang_params, *angkatan_params],
     ).fetchall()
     conn.close()
 
@@ -1343,7 +1328,7 @@ def get_dashboard_breakdown(company_id: int, years: list = None, pillars: list =
     return {"kategori": list(kategori.values()), "jenjang": list(jenjang.values()), "over_budget": over_budget}
 
 
-def get_dashboard_monthly(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None) -> dict:
+def get_dashboard_monthly(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None, angkatans: list = None) -> dict:
     if not years:
         return {"chart_year": None, "months": [], "comparison": []}
 
@@ -1355,6 +1340,7 @@ def get_dashboard_monthly(company_id: int, years: list = None, pillars: list = N
     pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     status_sql, status_params = _status_filter_sql(statuses, "p.status")
 
     budget_rows = conn.execute(
@@ -1362,10 +1348,10 @@ def get_dashboard_monthly(company_id: int, years: list = None, pillars: list = N
         SELECT CAST(strftime('%m', b.tanggal) AS INTEGER) AS bulan, SUM(b.amount) AS total
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
-        WHERE b.company_id = ? AND strftime('%Y', b.tanggal) = ?{program_sql}{jenjang_sql}
+        WHERE b.company_id = ? AND strftime('%Y', b.tanggal) = ?{program_sql}{jenjang_sql}{angkatan_sql}
         GROUP BY bulan
         """,
-        [company_id, str(chart_year), *program_params, *jenjang_params],
+        [company_id, str(chart_year), *program_params, *jenjang_params, *angkatan_params],
     ).fetchall()
 
     year_placeholders = ",".join("?" for _ in years_to_fetch)
@@ -1376,10 +1362,10 @@ def get_dashboard_monthly(company_id: int, years: list = None, pillars: list = N
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         WHERE p.company_id = ?
-              AND strftime('%Y', p.tanggal) IN ({year_placeholders}){pillar_sql}{program_sql}{jenjang_sql}{status_sql}
+              AND strftime('%Y', p.tanggal) IN ({year_placeholders}){pillar_sql}{program_sql}{jenjang_sql}{angkatan_sql}{status_sql}
         GROUP BY tahun, bulan
         """,
-        [company_id, *[str(y) for y in years_to_fetch], *pillar_params, *program_params, *jenjang_params, *status_params],
+        [company_id, *[str(y) for y in years_to_fetch], *pillar_params, *program_params, *jenjang_params, *angkatan_params, *status_params],
     ).fetchall()
     conn.close()
 
@@ -1407,18 +1393,24 @@ def get_dashboard_monthly(company_id: int, years: list = None, pillars: list = N
     return {"chart_year": chart_year, "months": months, "comparison": comparison}
 
 
-def get_dashboard_latest_payments(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None, limit: int = 20) -> list:
+def get_dashboard_latest_payments(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None, angkatans: list = None, limit: int = 20) -> list:
     conn = get_conn()
     payment_year_sql, payment_year_params = _year_filter_sql(years, "p.tanggal")
     pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     status_sql, status_params = _status_filter_sql(statuses, "p.status")
 
     rows = conn.execute(
@@ -1426,19 +1418,19 @@ def get_dashboard_latest_payments(company_id: int, years: list = None, pillars: 
         SELECT p.tanggal, s.nama, p.cat1, p.cat2, p.amount, p.status
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
-        WHERE p.company_id = ?{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}{status_sql}
+        WHERE p.company_id = ?{payment_year_sql}{pillar_sql}{program_sql}{jenjang_sql}{angkatan_sql}{status_sql}
         ORDER BY p.tanggal DESC, p.id DESC
         LIMIT ?
         """,
-        [company_id, *payment_year_params, *pillar_params, *program_params, *jenjang_params, *status_params, limit],
+        [company_id, *payment_year_params, *pillar_params, *program_params, *jenjang_params, *angkatan_params, *status_params, limit],
     ).fetchall()
     conn.close()
 
     return [dict(r) for r in rows]
 
 
-def get_dashboard_program_summary(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None) -> list:
-    summary = get_dashboard_summary(company_id, years, pillars, programs, jenjangs, statuses)
+def get_dashboard_program_summary(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None, angkatans: list = None) -> list:
+    summary = get_dashboard_summary(company_id, years, pillars, programs, jenjangs, statuses, angkatans)
     by_program = {}
     for s in summary:
         prog = s["program"] or "(Tanpa Program)"
@@ -1452,17 +1444,13 @@ def get_dashboard_program_summary(company_id: int, years: list = None, pillars: 
     return sorted(list(by_program.values()), key=lambda x: x["program"])
 
 
-def get_dashboard_pillar_yearly(company_id: int, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None) -> list:
+def get_dashboard_pillar_yearly(company_id: int, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None, angkatans: list = None, years: list = None) -> list:
     conn = get_conn()
+    year_sql, year_params = _year_filter_sql(years, "p.tanggal")
     pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
     program_sql, program_params = _program_filter_sql(programs, "s.program")
     jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
-    program_sql, program_params = _program_filter_sql(programs, "s.program")
-    jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
-    program_sql, program_params = _program_filter_sql(programs, "s.program")
-    jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
-    program_sql, program_params = _program_filter_sql(programs, "s.program")
-    jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
     status_sql, status_params = _status_filter_sql(statuses, "p.status")
     rows = conn.execute(
         f"""
@@ -1470,11 +1458,11 @@ def get_dashboard_pillar_yearly(company_id: int, pillars: list = None, programs:
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         WHERE p.company_id = ?
-              AND p.tanggal IS NOT NULL AND p.tanggal != ''{pillar_sql}{program_sql}{jenjang_sql}{status_sql}
+              AND p.tanggal IS NOT NULL AND p.tanggal != ''{year_sql}{pillar_sql}{program_sql}{jenjang_sql}{angkatan_sql}{status_sql}
         GROUP BY tahun, p.pillar
         ORDER BY tahun DESC, p.pillar ASC
         """,
-        [company_id, *pillar_params, *program_params, *jenjang_params, *status_params],
+        [company_id, *year_params, *pillar_params, *program_params, *jenjang_params, *angkatan_params, *status_params],
     ).fetchall()
     conn.close()
     
@@ -1489,3 +1477,204 @@ def get_dashboard_pillar_yearly(company_id: int, pillars: list = None, programs:
     for y, pillar_dict in sorted(by_year.items(), key=lambda x: x[0], reverse=True):
         result.append({"tahun": y, "pillars": pillar_dict})
     return result
+
+
+def get_dashboard_trend_transactions(company_id: int, years: list = None, pillars: list = None, programs: list = None, jenjangs: list = None, statuses: list = None, angkatans: list = None) -> list:
+    conn = get_conn()
+    year_sql, year_params = _year_filter_sql(years, "p.tanggal")
+    pillar_sql, pillar_params = _pillar_filter_sql(pillars, "p.pillar")
+    program_sql, program_params = _program_filter_sql(programs, "s.program")
+    jenjang_sql, jenjang_params = _jenjang_filter_sql(jenjangs, "s.jenjang")
+    angkatan_sql, angkatan_params = _angkatan_filter_sql(angkatans, "s.angkatan")
+    status_sql, status_params = _status_filter_sql(statuses, "p.status")
+    rows = conn.execute(
+        f"""
+        SELECT p.id, p.tanggal, strftime('%Y', p.tanggal) AS tahun, p.siswa_code, s.nama, 
+               p.pillar, s.program, s.jenjang, s.angkatan, s.universitas, p.cat1, p.cat2, 
+               p.amount, p.pam, p.perusahaan, p.status
+        FROM payment_beasiswa p
+        JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
+        WHERE p.company_id = ?
+              AND p.tanggal IS NOT NULL AND p.tanggal != ''{year_sql}{pillar_sql}{program_sql}{jenjang_sql}{angkatan_sql}{status_sql}
+        ORDER BY p.tanggal DESC, p.id DESC
+        """,
+        [company_id, *year_params, *pillar_params, *program_params, *jenjang_params, *angkatan_params, *status_params],
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def check_budget_sufficient(company_id: int, rows: list, default_cat1: str = None) -> dict:
+    req = {}
+    for r in rows:
+        sc = r.get("siswa_code")
+        c1 = r.get("cat1") or default_cat1
+        try:
+            amt = float(str(r.get("amount", 0)).replace(",", ""))
+        except:
+            amt = 0
+        if not sc or not c1 or amt <= 0:
+            continue
+        req[(sc, c1)] = req.get((sc, c1), 0) + amt
+
+    if not req:
+        return {"ok": True}
+
+    for (sc, c1), total_req in req.items():
+        sisa_info = get_sisa_budget(company_id, sc)
+        sisa = sisa_info["sisa"].get(c1, 0)
+        if total_req > sisa:
+            return {"ok": False, "pesan": f"Budget tidak cukup untuk {sc} (Kategori {c1}). Diminta: Rp {total_req:,.0f}, Sisa: Rp {sisa:,.0f}."}
+    return {"ok": True}
+
+
+# ================= BUDGET APPROVAL =================
+
+def delete_budget_row(company_id: int, row_id: int, created_by: str) -> dict:
+    conn = get_conn()
+    row  = conn.execute("SELECT * FROM budget_beasiswa WHERE id=? AND company_id=?", (row_id, company_id)).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Baris budget tidak ditemukan."}
+    conn.execute(
+        "INSERT INTO budget_beasiswa_requests (company_id, siswa_code, action_type, budget_id, cat1, cat2, tanggal, amount, pillar, tgl_expired, created_by, batch_id) VALUES (?, ?, 'DELETE', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (company_id, row["siswa_code"], row["id"], row["cat1"], row["cat2"], row["tanggal"], row["amount"], row["pillar"], row["tgl_expired"], created_by, str(uuid.uuid4())[:8])
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Pengajuan hapus budget telah dikirim ke BC."}
+
+def update_budget_row(company_id: int, row_id: int, data: dict, created_by: str) -> dict:
+    conn = get_conn()
+    row  = conn.execute("SELECT * FROM budget_beasiswa WHERE id=? AND company_id=?", (row_id, company_id)).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "Baris budget tidak ditemukan."}
+    try:
+        amount = float(str(data.get("amount", 0)).replace(",", ""))
+    except (ValueError, TypeError):
+        amount = 0
+    if amount <= 0:
+        conn.close()
+        return {"ok": False, "pesan": "Amount harus lebih dari 0."}
+    conn.execute(
+        "INSERT INTO budget_beasiswa_requests (company_id, siswa_code, action_type, budget_id, cat1, cat2, tanggal, amount, pillar, tgl_expired, created_by, batch_id) VALUES (?, ?, 'EDIT', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (company_id, row["siswa_code"], row["id"], data.get("cat1",""), data.get("cat2",""), data.get("tanggal",""), amount, data.get("pillar",""), data.get("tgl_expired") or None, created_by, str(uuid.uuid4())[:8])
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": "Pengajuan edit budget telah dikirim ke BC."}
+
+def add_budget_batch(company_id: int, siswa_code: str, tanggal: str, pillar: str, items: list, created_by: str) -> dict:
+    conn  = get_conn()
+    batch_id = str(uuid.uuid4())[:8]
+    saved = 0
+    for item in items:
+        try:
+            amount = float(str(item.get("amount", 0)).replace(",", ""))
+        except (ValueError, TypeError):
+            amount = 0
+        if amount <= 0:
+            continue
+        conn.execute(
+            "INSERT INTO budget_beasiswa_requests (company_id, siswa_code, action_type, cat1, cat2, tanggal, amount, pillar, tgl_expired, created_by, batch_id) VALUES (?, ?, 'ADD', ?, ?, ?, ?, ?, ?, ?, ?)",
+            (company_id, siswa_code, item.get("cat1",""), item.get("cat2",""), tanggal, amount, pillar, item.get("tgl_expired") or None, created_by, batch_id)
+        )
+        saved += 1
+    conn.commit()
+    conn.close()
+    if saved == 0:
+        return {"ok": False, "pesan": "Tidak ada baris budget valid yang dikirim."}
+    return {"ok": True, "pesan": f"{saved} baris pengajuan budget telah dikirim ke BC."}
+
+def get_budget_requests(company_id: int) -> list:
+    conn = get_conn()
+    rows = [dict(r) for r in conn.execute(
+        "SELECT req.*, s.nama as siswa_nama "
+        "FROM budget_beasiswa_requests req "
+        "LEFT JOIN siswa s ON s.company_id=req.company_id AND s.code=req.siswa_code "
+        "WHERE req.company_id=? ORDER BY req.id DESC",
+        (company_id,)
+    ).fetchall()]
+    conn.close()
+    
+    # Group by batch_id
+    batches = {}
+    for r in rows:
+        bid = r.get("batch_id")
+        if not bid:
+            bid = str(r["id"]) # fallback
+        if bid not in batches:
+            batches[bid] = {
+                "batch_id": bid,
+                "created_at": r["created_at"],
+                "siswa_code": r["siswa_code"],
+                "siswa_nama": r["siswa_nama"],
+                "action_type": r["action_type"],
+                "created_by": r["created_by"],
+                "total_amount": 0,
+                "lines": [],
+                "status": "PENDING", # compute aggregate status later
+            }
+        batches[bid]["lines"].append(r)
+        batches[bid]["total_amount"] += r["amount"]
+    
+    result = []
+    for bid, data in batches.items():
+        statuses = set([l["status"] for l in data["lines"]])
+        if "PENDING" in statuses and ("APPROVED" in statuses or "REJECTED" in statuses):
+            data["status"] = "PARTIAL"
+        elif len(statuses) == 1:
+            data["status"] = statuses.pop()
+        else:
+            data["status"] = "PROCESSED"
+        result.append(data)
+        
+    return sorted(result, key=lambda x: x["created_at"], reverse=True)
+
+def approve_budget_request_batch(company_id: int, request_ids: list, processed_by: str) -> dict:
+    conn = get_conn()
+    approved = 0
+    for req_id in request_ids:
+        req = conn.execute("SELECT * FROM budget_beasiswa_requests WHERE id=? AND company_id=?", (req_id, company_id)).fetchone()
+        if not req or req["status"] != 'PENDING':
+            continue
+        
+        action = req["action_type"]
+        if action == 'ADD':
+            conn.execute(
+                "INSERT INTO budget_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, tgl_expired) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (company_id, req["siswa_code"], req["cat1"], req["cat2"], req["tanggal"], req["amount"], req["pillar"], req["tgl_expired"])
+            )
+        elif action == 'EDIT':
+            conn.execute(
+                "UPDATE budget_beasiswa SET cat1=?, cat2=?, tanggal=?, amount=?, pillar=?, tgl_expired=? WHERE id=? AND company_id=?",
+                (req["cat1"], req["cat2"], req["tanggal"], req["amount"], req["pillar"], req["tgl_expired"], req["budget_id"], company_id)
+            )
+        elif action == 'DELETE':
+            conn.execute("DELETE FROM budget_beasiswa WHERE id=? AND company_id=?", (req["budget_id"], company_id))
+            
+        conn.execute("UPDATE budget_beasiswa_requests SET status='APPROVED', processed_by=?, processed_at=CURRENT_TIMESTAMP WHERE id=?", (processed_by, req_id))
+        approved += 1
+        
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"{approved} baris pengajuan disetujui."}
+
+def reject_budget_request_batch(company_id: int, request_ids: list, processed_by: str, reason: str) -> dict:
+    conn = get_conn()
+    rejected = 0
+    for req_id in request_ids:
+        req = conn.execute("SELECT * FROM budget_beasiswa_requests WHERE id=? AND company_id=?", (req_id, company_id)).fetchone()
+        if not req or req["status"] != 'PENDING':
+            continue
+            
+        conn.execute(
+            "UPDATE budget_beasiswa_requests SET status='REJECTED', processed_by=?, processed_at=CURRENT_TIMESTAMP, reject_reason=? WHERE id=?",
+            (processed_by, reason, req_id)
+        )
+        rejected += 1
+        
+    conn.commit()
+    conn.close()
+    return {"ok": True, "pesan": f"{rejected} baris pengajuan ditolak."}

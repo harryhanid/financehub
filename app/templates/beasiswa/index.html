@@ -1,8 +1,36 @@
+{% if current_role not in ['FC', 'Admin', 'admin'] and current_user != 'admin' %}
+<style>
+  button.btn-primary, 
+  button.btn-danger,
+  button[onclick*="edit" i], 
+  button[onclick*="hapus" i], 
+  button[onclick*="delete" i], 
+  button[onclick*="remove" i], 
+  button[onclick*="tambah" i], 
+  button[onclick*="add" i], 
+  button[onclick*="simpan" i], 
+  button[onclick*="save" i],
+  button[onclick*="Update" i],
+  button[onclick*="openEdit" i],
+  button[onclick*="bgt" i],
+  button[onclick*="ibgt" i],
+  button[onclick*="payDelete" i],
+  button[onclick*="submitEdit" i] {
+    display: none !important;
+  }
+  
+  /* Pengecualian jika ada tombol close yang secara tidak sengaja tersembunyi */
+  button.modal-close, button[onclick*="closeModal"] {
+    display: block !important;
+  }
+</style>
+{% endif %}
+
 {% extends "base.html" %}
 {% block title %}Beasiswa{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/beasiswa_dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/beasiswa_dashboard.css') }}?v=10">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/patternomaly@1.3.2/dist/patternomaly.min.js"></script>
@@ -17,7 +45,8 @@
   <button class="tab-btn" data-tab="tab-payment" onclick="loadPaymentList()">Data Payment</button>
   <button class="tab-btn" data-tab="tab-laporan" onclick="lprReset()">Report Siswa</button>
   <button class="tab-btn" data-tab="tab-rekam" onclick="loadRekamMedis()">Rekam Medis</button>
-  <button class="tab-btn" data-tab="tab-sahabat" onclick="initSahabatEtf()">Sahabat ETF</button>
+    <button class="tab-btn" data-tab="tab-sahabat" onclick="initSahabatEtf()">Sahabat ETF</button>
+  <button class="tab-btn" onclick="location.href='/beasiswa/approval-budget'">Approval Budget</button>
 </div>
 {% endif %}
 {% endblock %}
@@ -48,9 +77,10 @@
                   <button type="button" data-act="all">Semua</button>
                   <button type="button" data-act="none">Kosongkan</button>
                 </div>
+                <div class="panel-search" style="padding:0.4rem;border-bottom:1px solid var(--border);"><input type="text" class="dash-filter-search dm-inp" placeholder="Cari..." style="width:100%;font-size:0.75rem;" onkeyup="dashFilterSearch(this)"></div>
                 <div class="panel-opts" id="dash-filter-tahun">
                   {% for y in range(2023, 2027) %}
-                  <label><input type="checkbox" class="dash-year-cb" value="{{ y }}" checked> {{ y }}</label>
+                  <label><input type="checkbox" class="dash-year-cb" value="{{ y }}" checked> <span class="filter-text">{{ y }}</span></label>
                   {% endfor %}
                 </div>
               </div>
@@ -65,9 +95,10 @@
                   <button type="button" data-act="all">Semua</button>
                   <button type="button" data-act="none">Kosongkan</button>
                 </div>
+                <div class="panel-search" style="padding:0.4rem;border-bottom:1px solid var(--border);"><input type="text" class="dash-filter-search dm-inp" placeholder="Cari..." style="width:100%;font-size:0.75rem;" onkeyup="dashFilterSearch(this)"></div>
                 <div class="panel-opts" id="dash-filter-pillar">
                   {% for p in pillar %}
-                  <label><input type="checkbox" class="dash-pillar-cb" value="{{ p }}" checked> {{ p }}</label>
+                  <label><input type="checkbox" class="dash-pillar-cb" value="{{ p }}" checked> <span class="filter-text">{{ p }}</span></label>
                   {% endfor %}
                 </div>
               </div>
@@ -82,9 +113,10 @@
                   <button type="button" data-act="all">Semua</button>
                   <button type="button" data-act="none">Kosongkan</button>
                 </div>
+                <div class="panel-search" style="padding:0.4rem;border-bottom:1px solid var(--border);"><input type="text" class="dash-filter-search dm-inp" placeholder="Cari..." style="width:100%;font-size:0.75rem;" onkeyup="dashFilterSearch(this)"></div>
                 <div class="panel-opts" id="dash-filter-program">
                   {% for p in program %}
-                  <label><input type="checkbox" class="dash-program-cb" value="{{ p }}" checked> {{ p }}</label>
+                  <label><input type="checkbox" class="dash-program-cb" value="{{ p }}" checked> <span class="filter-text">{{ p }}</span></label>
                   {% endfor %}
                 </div>
               </div>
@@ -99,13 +131,33 @@
                   <button type="button" data-act="all">Semua</button>
                   <button type="button" data-act="none">Kosongkan</button>
                 </div>
+                <div class="panel-search" style="padding:0.4rem;border-bottom:1px solid var(--border);"><input type="text" class="dash-filter-search dm-inp" placeholder="Cari..." style="width:100%;font-size:0.75rem;" onkeyup="dashFilterSearch(this)"></div>
                 <div class="panel-opts" id="dash-filter-jenjang">
                   {% for j in jenjang %}
-                  <label><input type="checkbox" class="dash-jenjang-cb" value="{{ j }}" checked> {{ j }}</label>
+                  <label><input type="checkbox" class="dash-jenjang-cb" value="{{ j }}" checked> <span class="filter-text">{{ j }}</span></label>
                   {% endfor %}
                 </div>
               </div>
             </div>
+            
+            <div class="beasiswa-dash-filter-chip">
+              <span class="lbl">Angkatan</span>
+              <span class="val">Semua</span>
+              <span class="caret">▼</span>
+              <div class="beasiswa-dash-filter-panel">
+                <div class="panel-head">
+                  <button type="button" data-act="all">Semua</button>
+                  <button type="button" data-act="none">Kosongkan</button>
+                </div>
+                <div class="panel-search" style="padding:0.4rem;border-bottom:1px solid var(--border);"><input type="text" class="dash-filter-search dm-inp" placeholder="Cari Angkatan..." style="width:100%;font-size:0.75rem;" onkeyup="dashFilterSearch(this)"></div>
+                <div class="panel-opts" id="dash-filter-angkatan">
+                  {% for a in angkatan_list %}
+                  <label><input type="checkbox" class="dash-angkatan-cb" value="{{ a }}" checked> <span class="filter-text">{{ a }}</span></label>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
             <div class="beasiswa-dash-filter-chip">
               <span class="lbl">Status</span>
               <span class="val">Semua</span>
@@ -115,9 +167,10 @@
                   <button type="button" data-act="all">Semua</button>
                   <button type="button" data-act="none">Kosongkan</button>
                 </div>
+                <div class="panel-search" style="padding:0.4rem;border-bottom:1px solid var(--border);"><input type="text" class="dash-filter-search dm-inp" placeholder="Cari..." style="width:100%;font-size:0.75rem;" onkeyup="dashFilterSearch(this)"></div>
                 <div class="panel-opts" id="dash-filter-status">
-                  <label><input type="checkbox" class="dash-status-cb" value="open" checked> Open</label>
-                  <label><input type="checkbox" class="dash-status-cb" value="complete" checked> Complete</label>
+                  <label><input type="checkbox" class="dash-status-cb" value="open" checked> <span class="filter-text">Open</span></label>
+                  <label><input type="checkbox" class="dash-status-cb" value="complete" checked> <span class="filter-text">Complete</span></label>
                 </div>
               </div>
             </div>
@@ -182,7 +235,20 @@
               <div class="beasiswa-dash-section-title">Trend</div>
               <div class="beasiswa-dash-grafik-grid">
                 <div class="beasiswa-dash-chart-card"><h3>Trend per Bulan</h3><canvas id="dash-chart-bulanan"></canvas></div>
-                <div class="beasiswa-dash-chart-card"><h3>Trend per Tahun</h3><canvas id="dash-chart-tahunan"></canvas></div>
+                <div class="beasiswa-dash-chart-card">
+                  <div class="beasiswa-dash-card-header">
+                    <h3>Trend per Tahun</h3>
+                    <button type="button" class="dash-card-icon-btn" id="btn-export-trend-tahun" title="Drill Through & Export Excel" onclick="dashExportTrendTahun()">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <path d="M12 18v-6"></path>
+                        <path d="m9 15 3 3 3-3"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <canvas id="dash-chart-tahunan"></canvas>
+                </div>
               </div>
               <div class="beasiswa-dash-grafik-grid">
                 <div class="beasiswa-dash-chart-card compact">
@@ -214,7 +280,7 @@
                           <th>Status</th>
                         </tr>
                       </thead>
-                      <tbody><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
+                      <tbody><tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Memuat data...</td></tr></tbody>
                     </table>
                   </div>
                 </div>
@@ -285,7 +351,7 @@
         <tbody id="rekap-tbody"><tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr></tbody>
         <tfoot>
           <tr>
-            <td colspan="6"><strong>Total</strong></td>
+            <td colspan="7"><strong>Total</strong></td>
             <td class="num-right" id="rekap-total-b"></td>
             <td class="num-right" id="rekap-total-p"></td>
             <td class="num-right" id="rekap-total-s"></td>
@@ -385,11 +451,11 @@
         <thead>
           <tr>
             <th>Kode</th><th>Nama Siswa</th><th>Program</th><th>Kategori 1</th><th>Kategori 2</th>
-            <th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th><th>Aksi</th>
+            <th>Tanggal</th><th>Expired</th><th>Pillar</th><th class="num-right">Amount</th><th>Aksi</th>
           </tr>
         </thead>
         <tbody id="bgt-list-tbody">
-          <tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Klik tab Data Budget untuk memuat data.</td></tr>
+          <tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Klik tab Data Budget untuk memuat data.</td></tr>
         </tbody>
       </table>
     </div>
@@ -435,9 +501,9 @@
         <div class="card-title">Detail Budget</div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th></tr></thead>
+            <thead><tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>Expired</th><th>Pillar</th><th class="num-right">Amount</th></tr></thead>
             <tbody id="lpr-bgt-tbody"></tbody>
-            <tfoot><tr><th colspan="4" style="text-align:right">Subtotal</th><th class="num-right" id="lpr-bgt-subtotal"></th></tr></tfoot>
+            <tfoot><tr><th colspan="5" style="text-align:right">Subtotal</th><th class="num-right" id="lpr-bgt-subtotal"></th></tr></tfoot>
           </table>
         </div>
       </div>
@@ -447,7 +513,7 @@
           <table>
             <thead><tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>PAM</th><th>Perusahaan</th><th>Pillar</th><th class="num-right">Amount</th><th>Status</th><th>Tanggal Bayar</th></tr></thead>
             <tbody id="lpr-pay-tbody"></tbody>
-            <tfoot><tr><th colspan="6" style="text-align:right">Subtotal</th><th class="num-right" id="lpr-pay-subtotal"></th><th></th><th></th></tr></tfoot>
+            <tfoot><tr><th colspan="7" style="text-align:right">Subtotal</th><th class="num-right" id="lpr-pay-subtotal"></th><th></th><th></th></tr></tfoot>
           </table>
         </div>
       </div>
@@ -739,7 +805,7 @@
 
       <!-- EDIT SINGLE row section -->
       <div id="bgt-edit-section" style="display:none">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:.5rem;margin-bottom:.5rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;gap:.5rem;margin-bottom:.5rem">
           <div class="form-group" style="margin:0">
             <label>Kategori 1</label>
             <select id="bgt-cat1">{% for c in cat1_bgt %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
@@ -759,6 +825,7 @@
             </div>
           </div>
           <div class="form-group" style="margin:0"><label>Tanggal</label><input type="date" id="bgt-edit-tgl" onclick="this.showPicker()" onkeydown="return false"></div>
+          <div class="form-group" style="margin:0"><label>Expired</label><input type="date" id="bgt-edit-expired" onclick="this.showPicker()" onkeydown="return false"></div>
           <div class="form-group" style="margin:0">
             <label>Pillar</label>
             <select id="bgt-edit-pillar">{% for p in pillar %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select>
@@ -831,13 +898,13 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>Pillar</th><th class="num-right">Amount</th><th>Aksi</th></tr>
+            <tr><th>Kategori 1</th><th>Kategori 2</th><th>Tanggal</th><th>Expired</th><th>Pillar</th><th class="num-right">Amount</th><th>Aksi</th></tr>
           </thead>
           <tbody id="ibgt-tbody">
-            <tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>
           </tbody>
           <tfoot>
-            <tr><th colspan="4">Total</th><th class="num-right" id="ibgt-total">—</th><th></th></tr>
+            <tr><th colspan="5">Total</th><th class="num-right" id="ibgt-total">—</th><th></th></tr>
           </tfoot>
         </table>
       </div>
@@ -1121,7 +1188,7 @@ function bgtOpenAdd() {
   openModal("modal-bgt-form");
 }
 
-function bgtEditRow(id, cat1, cat2, tanggal, pillar, amount) {
+function bgtEditRow(id, cat1, cat2, tanggal, pillar, amount, tgl_expired) {
   document.getElementById("bgt-modal-title").textContent = "Edit Budget";
   document.getElementById("bgt-modal-siswa").style.display = "none";
   document.getElementById("bgt-add-section").style.display = "none";
@@ -1132,6 +1199,7 @@ function bgtEditRow(id, cat1, cat2, tanggal, pillar, amount) {
   document.getElementById("bgt-edit-tgl").value = tanggal;
   document.getElementById("bgt-edit-pillar").value = pillar;
   document.getElementById("bgt-amount").value = amount ? parseInt(amount, 10).toLocaleString('en-US') : "";
+  document.getElementById("bgt-edit-expired").value = tgl_expired || "";
   document.querySelector("#modal-bgt-form .modal").style.overflow = "visible";
   openModal("modal-bgt-form");
 }
@@ -1148,11 +1216,11 @@ async function loadBudgetList() {
     const program = document.getElementById("bgt-list-program")?.value || "";
     const params  = new URLSearchParams({ search, cat1, pillar, bulan, tahun, program });
     const tbody   = document.getElementById("bgt-list-tbody");
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
     const d = await (await apiFetch(`/beasiswa/budget/list?${params}`)).json();
     _renderTabSummary('bgt', d.totals, d.payment_totals);
     if (!d.ok || !d.rows?.length) {
-      tbody.innerHTML = _emptyHtml(9, 'Tidak ada data');
+      tbody.innerHTML = _emptyHtml(10, 'Tidak ada data');
       document.getElementById("bgt-list-info").textContent = "";
       return;
     }
@@ -1167,10 +1235,11 @@ async function loadBudgetList() {
         <td>${row.cat1||""}</td>
         <td>${row.cat2||""}</td>
         <td style="white-space:nowrap">${row.tanggal||""}</td>
+        <td style="white-space:nowrap">${row.tgl_expired||"-"}</td>
         <td>${row.pillar||""}</td>
         <td class="num-right">${fmtRupiah(a)}</td>
         <td style="white-space:nowrap">
-          <button class="btn btn-secondary btn-sm" onclick="bgtEditRow(${row.id},'${(row.cat1||"").replace(/'/g,"\\'")}','${(row.cat2||"").replace(/'/g,"\\'")}','${row.tanggal||""}','${row.pillar||""}',${a})">Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick="bgtEditRow(${row.id},'${(row.cat1||"").replace(/'/g,"\\'")}','${(row.cat2||"").replace(/'/g,"\\'")}','${row.tanggal||""}','${row.pillar||""}',${a},'${row.tgl_expired||""}')">Edit</button>
           <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="bgtDeleteRow(${row.id})">Hapus</button>
         </td>
       </tr>`;
@@ -1268,9 +1337,10 @@ async function bgtSaveRow() {
   const tanggal= document.getElementById("bgt-edit-tgl").value;
   const pillar = document.getElementById("bgt-edit-pillar").value;
   const amount = parseFloat(document.getElementById("bgt-amount").value.replace(/,/g, '')) || 0;
+  const tgl_expired = document.getElementById("bgt-edit-expired").value || null;
   if (!tanggal) { showToast("Tanggal wajib diisi.", "error"); return; }
   if (amount <= 0) { showToast("Amount harus lebih dari 0.", "error"); return; }
-  const body = JSON.stringify({ cat1, cat2, tanggal, pillar, amount });
+  const body = JSON.stringify({ cat1, cat2, tanggal, pillar, amount, tgl_expired });
   showLoading("Memperbarui budget...");
   try {
     const d = await (await apiFetch(`/beasiswa/budget/${id}/update`, { method: "POST", body })).json();
@@ -1366,7 +1436,7 @@ function _mkDrop(opts, ph) {
 function _bgtAddItemRow() {
   const row = document.createElement("div");
   row.className = "bgt-item-row";
-  row.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end";
+  row.style.cssText = "display:grid;grid-template-columns:1fr 1fr 1fr 130px auto;gap:.5rem;margin-bottom:.5rem;align-items:end";
   function fg(txt, el) {
     const d = document.createElement("div"); d.className = "form-group"; d.style.margin = "0";
     const l = document.createElement("label"); l.textContent = txt;
@@ -1384,6 +1454,11 @@ function _bgtAddItemRow() {
     this.value = v ? parseInt(v, 10).toLocaleString('en-US') : '';
   });
   amtFg.appendChild(amtLbl); amtFg.appendChild(amtInp);
+  const expInp = document.createElement("input");
+  expInp.type = "date"; expInp.className = "bgt-row-expired";
+  expInp.onclick = function(){ this.showPicker() };
+  expInp.onkeydown = function(){ return false };
+  expInp.style.width = "100%";
   const rmBtn = document.createElement("button");
   rmBtn.className = "btn btn-sm";
   rmBtn.style.cssText = "background:#ef4444;color:#fff;margin-bottom:0";
@@ -1392,6 +1467,7 @@ function _bgtAddItemRow() {
   row.appendChild(fg("Kategori 1", cat1));
   row.appendChild(fg("Kategori 2", cat2));
   row.appendChild(amtFg);
+  row.appendChild(fg("Expired", expInp));
   row.appendChild(rmBtn);
   document.getElementById("bgt-items").appendChild(row);
 }
@@ -1408,6 +1484,7 @@ async function bgtSaveRows() {
     cat1:   r.querySelector(".bgt-row-cat1")._hid.value,
     cat2:   r.querySelector(".bgt-row-cat2")._hid.value,
     amount: parseFloat(r.querySelector(".bgt-row-amount").value.replace(/,/g, '')) || 0,
+    tgl_expired: r.querySelector(".bgt-row-expired").value || null,
   })).filter(it => it.amount > 0);
   if (!items.length) { showToast("Minimal 1 baris dengan amount > 0.", "error"); return; }
   const body = JSON.stringify({ code: _bgtCode, tanggal, pillar, items });
@@ -1461,7 +1538,7 @@ async function loadInputBudget(code) {
   const content = document.getElementById("ibgt-content");
   content.style.display = "block";
   const tbody = document.getElementById("ibgt-tbody");
-  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
   const d = await (await apiFetch(`/beasiswa/budget/siswa/${code}`)).json();
   document.getElementById("ibgt-title").textContent = `${d.nama || ""} (${code})`;
   document.getElementById("ibgt-total").textContent = fmtRupiah(d.grand || 0);
@@ -1472,7 +1549,7 @@ async function loadInputBudget(code) {
   document.getElementById("ibgt-catatan-view").style.display = "block";
   document.getElementById("ibgt-catatan-form").style.display = "none";
   if (!d.ok || !d.rows?.length) {
-    tbody.innerHTML = _emptyHtml(6, 'Belum ada data budget', 'Tambahkan budget menggunakan tombol + di atas.');
+    tbody.innerHTML = _emptyHtml(7, 'Belum ada data budget', 'Tambahkan budget menggunakan tombol + di atas.');
     return;
   }
   tbody.innerHTML = d.rows.map(r => {
@@ -1481,10 +1558,11 @@ async function loadInputBudget(code) {
       <td>${r.cat1||""}</td>
       <td>${r.cat2||""}</td>
       <td style="white-space:nowrap">${r.tanggal||""}</td>
+      <td style="white-space:nowrap">${r.tgl_expired||"-"}</td>
       <td>${r.pillar||""}</td>
       <td class="num-right">${fmtRupiah(a)}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-secondary btn-sm" onclick="ibgtEditRow(${r.id},'${(r.cat1||"").replace(/'/g,"\\'")}','${(r.cat2||"").replace(/'/g,"\\'")}','${r.tanggal||""}','${r.pillar||""}',${a})">Edit</button>
+        <button class="btn btn-secondary btn-sm" onclick="ibgtEditRow(${r.id},'${(r.cat1||"").replace(/'/g,"\\'")}','${(r.cat2||"").replace(/'/g,"\\'")}','${r.tanggal||""}','${r.pillar||""}',${a},'${r.tgl_expired||""}')">Edit</button>
         <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="ibgtDeleteRow(${r.id})">Hapus</button>
       </td>
     </tr>`;
@@ -1537,9 +1615,9 @@ function ibgtOpenAdd() {
   openModal("modal-bgt-form");
 }
 
-function ibgtEditRow(id, cat1, cat2, tanggal, pillar, amount) {
+function ibgtEditRow(id, cat1, cat2, tanggal, pillar, amount, tgl_expired) {
   _bgtContext = "input";
-  bgtEditRow(id, cat1, cat2, tanggal, pillar, amount);
+  bgtEditRow(id, cat1, cat2, tanggal, pillar, amount, tgl_expired);
 }
 
 async function ibgtDeleteRow(id) {
@@ -2013,6 +2091,7 @@ async function loadLaporan(code) {
   document.getElementById("lpr-bgt-tbody").innerHTML = bgtRows.map(r => `<tr>
     <td>${r.cat1 || ""}</td><td>${r.cat2 || ""}</td>
     <td style="white-space:nowrap">${r.tanggal || ""}</td>
+    <td style="white-space:nowrap">${r.tgl_expired || "-"}</td>
     <td>${r.pillar || ""}</td>
     <td class="num-right">${fmtRupiah(r.amount || 0)}</td>
   </tr>`).join("") || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Tidak ada data.</td></tr>`;
@@ -2106,5 +2185,32 @@ function rekamShowDetail(paymentId, rowId) {
     </table>`;
   openModal("modal-rekam-detail");
 }
+
+</script>
+
+<script>
+function dashFilterSearch(input) {
+  const filter = input.value.toLowerCase();
+  const panel = input.closest('.beasiswa-dash-filter-panel');
+  const labels = panel.querySelectorAll('.panel-opts label');
+  labels.forEach(lbl => {
+    const text = lbl.textContent.toLowerCase();
+    if (text.includes(filter)) {
+      lbl.style.display = 'flex';
+    } else {
+      lbl.style.display = 'none';
+    }
+  });
+}
 </script>
 {% endblock %}
+
+
+
+
+
+
+
+
+
+

@@ -125,12 +125,48 @@
 }
 .beasiswa-dash-filter-panel .panel-opts label {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  gap: 0.5rem !important;
   font-size: 0.78rem;
   color: var(--text);
   font-weight: 500;
   white-space: nowrap;
+  width: 100% !important;
+  padding: 4px 0;
+  line-height: 1.2;
+}
+.beasiswa-dash-filter-panel .panel-opts label input[type="checkbox"] {
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+}
+.beasiswa-dash-filter-panel .panel-opts label span.filter-text {
+  flex: 1 1 auto !important;
+  text-align: left !important;
+  white-space: normal !important;
+}
+.beasiswa-dash-filter-panel .panel-opts label input[type="checkbox"] {
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  width: 16px !important;
+  height: 16px !important;
+  appearance: auto !important;
+}
+.beasiswa-dash-filter-panel .panel-opts label span.filter-text {
+  flex: 1 1 auto !important;
+  text-align: left !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.beasiswa-dash-filter-panel .panel-opts label input {
+  margin: 0 !important;
+  flex-shrink: 0;
+  margin-right: 0.4rem !important;
+}
+.beasiswa-dash-filter-panel .panel-opts label input {
+  margin: 0;
+  flex-shrink: 0;
 }
 
 /* ── Section panels — wrap each Grafik card group ────────────────────────── */
@@ -216,4 +252,47 @@
   position: sticky;
   top: 0;
   background: var(--card);
+}
+
+/* ── Card Header with Action Button (Drill-Through / Export) ─────────────── */
+.beasiswa-dash-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.beasiswa-dash-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.dash-card-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--r-sm, 6px);
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.dash-card-icon-btn:hover {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: #10b981;
+  color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+.dash-card-icon-btn:active {
+  transform: translateY(0);
+}
+.dash-card-icon-btn svg {
+  width: 14px;
+  height: 14px;
 }

@@ -3,8 +3,8 @@ from format_utils import format_rupiah
 from functools import wraps
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, Response
 from flask_jwt_extended import get_jwt
-from auth.middleware import jwt_html_required
-from modules.beasiswa.service import (
+from auth.middleware import jwt_html_required, role_required
+from modules.beasiswa.service import (get_budget_requests, approve_budget_request_batch, reject_budget_request_batch,
     generate_kode_siswa, get_siswa_list, get_siswa_detail,
     add_siswa, update_siswa, update_siswa_catatan, update_siswa_catatan_payment, delete_siswa,
     add_budget_batch, get_budget, delete_budget_row, update_budget_row,
@@ -13,7 +13,7 @@ from modules.beasiswa.service import (
     get_sisa_budget, get_rekap, get_budget_list, get_laporan_siswa,
     get_financial_summary,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
-    get_vendors, get_distinct_universitas,
+    get_vendors, get_distinct_universitas, get_distinct_angkatan,
     get_dashboard_summary, get_dashboard_breakdown, get_dashboard_monthly,
     get_dashboard_latest_payments, get_dashboard_program_summary, get_dashboard_pillar_yearly,
 )
@@ -100,6 +100,7 @@ def index():
         perusahaan=config.PERUSAHAAN,
         vendor_list=get_vendors(),
         universitas_list=get_distinct_universitas(_cid()) if not wrong_company else [],
+        angkatan_list=get_distinct_angkatan(_cid()) if not wrong_company else [],
         cat3_medical=config.CAT3_MEDICAL,
         active_page="beasiswa",
         use_unified_header=True,
@@ -123,7 +124,7 @@ def siswa_generate_kode():
 
 
 @bp.route("/siswa/tambah", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def siswa_tambah():
     return jsonify(add_siswa(_cid(), request.get_json(force=True) or {}))
@@ -140,14 +141,14 @@ def siswa_detail(code):
 
 
 @bp.route("/siswa/<code>/update", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Fin", "Admin")
 @etf_company_required
 def siswa_update(code):
     return jsonify(update_siswa(_cid(), code, request.get_json(force=True) or {}))
 
 
 @bp.route("/siswa/<code>/catatan", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def siswa_catatan_update(code):
     data = request.get_json(force=True) or {}
@@ -155,7 +156,7 @@ def siswa_catatan_update(code):
 
 
 @bp.route("/siswa/<code>/catatan-payment", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def siswa_catatan_payment_update(code):
     data = request.get_json(force=True) or {}
@@ -163,7 +164,7 @@ def siswa_catatan_payment_update(code):
 
 
 @bp.route("/siswa/<code>/hapus", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def siswa_hapus(code):
     return jsonify(delete_siswa(_cid(), code))
@@ -258,29 +259,28 @@ def budget_siswa_export(code, fmt):
 
 
 @bp.route("/budget/<int:row_id>/hapus", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def budget_hapus(row_id):
-    return jsonify(delete_budget_row(_cid(), row_id))
+    return jsonify(delete_budget_row(_cid(), row_id, _ctx()["current_user"]))
 
 
 @bp.route("/budget/<int:row_id>/update", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def budget_update_row(row_id):
-    return jsonify(update_budget_row(_cid(), row_id, request.get_json(force=True) or {}))
+    return jsonify(update_budget_row(_cid(), row_id, request.get_json(force=True) or {}, _ctx()["current_user"]))
 
 
 @bp.route("/budget/tambah", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def budget_tambah():
     data   = request.get_json(force=True) or {}
     code   = (data.get("code") or "").strip()
     if not code:
         return jsonify({"ok": False, "pesan": "Code siswa wajib diisi."})
-    return jsonify(add_budget_batch(_cid(), code,
-        data.get("tanggal", ""), data.get("pillar", ""), data.get("items", [])))
+    return jsonify(add_budget_batch(_cid(), code, data.get("tanggal", ""), data.get("pillar", ""), data.get("items", []), _ctx()["current_user"]))
 
 
 @bp.route("/vendors")
@@ -479,14 +479,14 @@ def payment_export_pdf():
 
 
 @bp.route("/payment/<int:row_id>/hapus", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def payment_hapus(row_id):
     return jsonify(delete_payment_row(_cid(), row_id))
 
 
 @bp.route("/payment/<int:row_id>/edit", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def payment_edit(row_id):
     data = request.get_json(force=True) or {}
@@ -498,7 +498,7 @@ def payment_edit(row_id):
 
 
 @bp.route("/payment/tambah", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def payment_tambah():
     data   = request.get_json(force=True) or {}
@@ -511,7 +511,7 @@ def payment_tambah():
 
 
 @bp.route("/payment/tambah-multi", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def payment_tambah_multi():
     data = request.get_json(force=True) or {}
@@ -543,7 +543,7 @@ def klaim_list():
 
 
 @bp.route("/klaim/tambah-multi", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def klaim_tambah_multi():
     data = request.get_json(force=True) or {}
@@ -560,7 +560,7 @@ def klaim_tambah_multi():
 
 
 @bp.route("/klaim/<int:row_id>/hapus", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 @etf_company_required
 def klaim_hapus(row_id):
     return jsonify(delete_klaim_row(_cid(), row_id))
@@ -1025,12 +1025,14 @@ def api_dashboard_summary():
     years = [int(y) for y in years_str.split(",")] if years_str else []
     pillars = [p for p in pillars_str.split(",") if p]
     programs_str = request.args.get("programs", "")
-    jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
+    jenjangs_str = request.args.get("jenjangs", "")
     jenjangs = [j for j in jenjangs_str.split(",") if j]
+    angkatans_str = request.args.get("angkatans", "")
+    angkatans = [a for a in angkatans_str.split(",") if a]
     statuses_str = request.args.get("statuses", "")
     statuses = [s for s in statuses_str.split(",") if s]
-    return jsonify({"ok": True, "data": get_dashboard_summary(_cid(), years, pillars, programs, jenjangs, statuses)})
+    return jsonify({"ok": True, "data": get_dashboard_summary(_cid(), years, pillars, programs, jenjangs, statuses, angkatans)})
 
 
 @bp.route("/api/dashboard/breakdown")
@@ -1042,12 +1044,14 @@ def api_dashboard_breakdown():
     years = [int(y) for y in years_str.split(",")] if years_str else []
     pillars = [p for p in pillars_str.split(",") if p]
     programs_str = request.args.get("programs", "")
-    jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
+    jenjangs_str = request.args.get("jenjangs", "")
     jenjangs = [j for j in jenjangs_str.split(",") if j]
+    angkatans_str = request.args.get("angkatans", "")
+    angkatans = [a for a in angkatans_str.split(",") if a]
     statuses_str = request.args.get("statuses", "")
     statuses = [s for s in statuses_str.split(",") if s]
-    return jsonify({"ok": True, "data": get_dashboard_breakdown(_cid(), years, pillars, programs, jenjangs, statuses)})
+    return jsonify({"ok": True, "data": get_dashboard_breakdown(_cid(), years, pillars, programs, jenjangs, statuses, angkatans)})
 
 
 @bp.route("/api/dashboard/monthly")
@@ -1059,12 +1063,14 @@ def api_dashboard_monthly():
     years = [int(y) for y in years_str.split(",")] if years_str else []
     pillars = [p for p in pillars_str.split(",") if p]
     programs_str = request.args.get("programs", "")
-    jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
+    jenjangs_str = request.args.get("jenjangs", "")
     jenjangs = [j for j in jenjangs_str.split(",") if j]
+    angkatans_str = request.args.get("angkatans", "")
+    angkatans = [a for a in angkatans_str.split(",") if a]
     statuses_str = request.args.get("statuses", "")
     statuses = [s for s in statuses_str.split(",") if s]
-    return jsonify({"ok": True, "data": get_dashboard_monthly(_cid(), years, pillars, programs, jenjangs, statuses)})
+    return jsonify({"ok": True, "data": get_dashboard_monthly(_cid(), years, pillars, programs, jenjangs, statuses, angkatans)})
 
 
 @bp.route("/api/dashboard/latest_payments")
@@ -1076,12 +1082,14 @@ def api_dashboard_latest_payments():
     years = [int(y) for y in years_str.split(",")] if years_str else []
     pillars = [p for p in pillars_str.split(",") if p]
     programs_str = request.args.get("programs", "")
-    jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
+    jenjangs_str = request.args.get("jenjangs", "")
     jenjangs = [j for j in jenjangs_str.split(",") if j]
+    angkatans_str = request.args.get("angkatans", "")
+    angkatans = [a for a in angkatans_str.split(",") if a]
     statuses_str = request.args.get("statuses", "")
     statuses = [s for s in statuses_str.split(",") if s]
-    return jsonify({"ok": True, "data": get_dashboard_latest_payments(_cid(), years, pillars, programs, jenjangs, statuses)})
+    return jsonify({"ok": True, "data": get_dashboard_latest_payments(_cid(), years, pillars, programs, jenjangs, statuses, angkatans)})
 
 
 @bp.route("/api/dashboard/program_summary")
@@ -1093,12 +1101,14 @@ def api_dashboard_program_summary():
     years = [int(y) for y in years_str.split(",")] if years_str else []
     pillars = [p for p in pillars_str.split(",") if p]
     programs_str = request.args.get("programs", "")
-    jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
+    jenjangs_str = request.args.get("jenjangs", "")
     jenjangs = [j for j in jenjangs_str.split(",") if j]
+    angkatans_str = request.args.get("angkatans", "")
+    angkatans = [a for a in angkatans_str.split(",") if a]
     statuses_str = request.args.get("statuses", "")
     statuses = [s for s in statuses_str.split(",") if s]
-    return jsonify({"ok": True, "data": get_dashboard_program_summary(_cid(), years, pillars, programs, jenjangs, statuses)})
+    return jsonify({"ok": True, "data": get_dashboard_program_summary(_cid(), years, pillars, programs, jenjangs, statuses, angkatans)})
 
 
 @bp.route("/api/dashboard/pillar_yearly")
@@ -1108,10 +1118,99 @@ def api_dashboard_pillar_yearly():
     pillars_str = request.args.get("pillars", "")
     pillars = [p for p in pillars_str.split(",") if p]
     programs_str = request.args.get("programs", "")
-    jenjangs_str = request.args.get("jenjangs", "")
     programs = [p for p in programs_str.split(",") if p]
+    jenjangs_str = request.args.get("jenjangs", "")
     jenjangs = [j for j in jenjangs_str.split(",") if j]
+    angkatans_str = request.args.get("angkatans", "")
+    angkatans = [a for a in angkatans_str.split(",") if a]
     statuses_str = request.args.get("statuses", "")
     statuses = [s for s in statuses_str.split(",") if s]
-    return jsonify({"ok": True, "data": get_dashboard_pillar_yearly(_cid(), pillars, programs, jenjangs, statuses)})
+    return jsonify({"ok": True, "data": get_dashboard_pillar_yearly(_cid(), pillars, programs, jenjangs, statuses, angkatans)})
+
+
+@bp.route("/api/dashboard/export_trend_tahunan")
+@jwt_html_required
+@etf_company_required
+def api_dashboard_export_trend_tahunan():
+    from modules.beasiswa.exports import export_dashboard_trend_tahunan_excel
+    import io
+    from flask import send_file
+    from datetime import datetime
+
+    year_single = request.args.get("year", "").strip()
+    years_str = request.args.get("years", "").strip()
+    years = None
+    if year_single and year_single.isdigit():
+        years = [int(year_single)]
+    elif years_str:
+        years = [int(y) for y in years_str.split(",") if y.strip().isdigit()]
+
+    pillars_str = request.args.get("pillars", "")
+    pillars = [p for p in pillars_str.split(",") if p]
+    programs_str = request.args.get("programs", "")
+    programs = [p for p in programs_str.split(",") if p]
+    jenjangs_str = request.args.get("jenjangs", "")
+    jenjangs = [j for j in jenjangs_str.split(",") if j]
+    angkatans_str = request.args.get("angkatans", "")
+    angkatans = [a for a in angkatans_str.split(",") if a]
+    statuses_str = request.args.get("statuses", "")
+    statuses = [s for s in statuses_str.split(",") if s]
+
+    xls_bytes = export_dashboard_trend_tahunan_excel(
+        _cid(),
+        years=years,
+        pillars=pillars,
+        programs=programs,
+        jenjangs=jenjangs,
+        statuses=statuses,
+        angkatans=angkatans,
+    )
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if years and len(years) == 1:
+        filename = f"Trend_Realisasi_Tahunan_ETF_{years[0]}_{timestamp}.xlsx"
+    else:
+        filename = f"Trend_Realisasi_Tahunan_ETF_{timestamp}.xlsx"
+
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True,
+    )
+
+
+
+from modules.beasiswa.service import get_budget_requests, approve_budget_request_batch, reject_budget_request_batch
+
+
+@bp.route("/approval-budget", methods=["GET"])
+@jwt_html_required
+@etf_company_required
+def approval_budget_page():
+    return render_template("beasiswa/approval.html", ctx=_ctx(), requests=get_budget_requests(_cid()))
+
+@bp.route("/approval-budget/approve", methods=["POST"])
+@role_required("BC", "Admin")
+@etf_company_required
+def approval_budget_approve():
+    data = request.get_json(force=True) or {}
+    req_ids = data.get("request_ids", [])
+    if not req_ids:
+        return jsonify({"ok": False, "pesan": "Tidak ada baris yang dipilih."})
+    return jsonify(approve_budget_request_batch(_cid(), req_ids, _ctx()["current_user"]))
+
+@bp.route("/approval-budget/reject", methods=["POST"])
+@role_required("BC", "Admin")
+@etf_company_required
+def approval_budget_reject():
+    data = request.get_json(force=True) or {}
+    req_ids = data.get("request_ids", [])
+    reason = data.get("reason", "").strip()
+    if not req_ids:
+        return jsonify({"ok": False, "pesan": "Tidak ada baris yang dipilih."})
+    if not reason:
+        return jsonify({"ok": False, "pesan": "Alasan penolakan wajib diisi."})
+    return jsonify(reject_budget_request_batch(_cid(), req_ids, _ctx()["current_user"], reason))
+
+
 
