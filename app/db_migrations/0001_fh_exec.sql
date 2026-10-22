@@ -28,8 +28,12 @@ begin
             using errcode = '42501';
     end if;
     perform set_config('search_path', schema || ',public', true);
+    -- bind() meng-quote teks dengan asumsi standard_conforming_strings=on (backslash literal).
+    perform set_config('standard_conforming_strings', 'on', true);
 
     for s in select jsonb_array_elements_text(stmts) loop
+        -- Buang ';' dan spasi di ujung: statement dibungkus CTE/view, 'select 1;' akan jadi '(select 1;)'.
+        s := regexp_replace(s, '[\s;]+$', '');
         -- Klasifikasi pada "kerangka" statement: literal '...' (escape ''), identifier "..." (escape ""),
         -- komentar -- dan /* */ diganti spasi dulu, supaya teks bebas user (diinline oleh bind)
         -- seperti 'returning goods' atau 'insert into' tidak mengubah rute.
@@ -39,7 +43,8 @@ begin
             ' ', 'g');
         is_sel := skel ~* '^\s*(select|with)\M';
         if is_sel or skel ~* '\mreturning\M' then
-            execute format('with _q as (%s) select json_agg(_q)::text from _q', s) into r;
+            -- newline sebelum ')': komentar -- di akhir s tidak boleh menelan kurung penutup
+            execute format(E'with _q as (%s\n) select json_agg(_q)::text from _q', s) into r;
             if r is not null then
                 parts := parts || ('{"rows":' || r || '}');
             else
@@ -49,7 +54,7 @@ begin
                     -- Sub-blok (subtransaksi): kalau view tidak bisa dibuat (mis. nama kolom kembar,
                     -- atau WITH berisi DML), columns = [] dan view tidak tertinggal.
                     begin
-                        execute format('create temp view _fh_v as %s', s);
+                        execute format(E'create temp view _fh_v as %s\n', s);
                         -- dinamis: regclass literal di SQL statis plpgsql bisa ter-cache ke OID view lama
                         execute 'select coalesce(json_agg(a.attname order by a.attnum), ''[]''::json)::text
                                    from pg_attribute a

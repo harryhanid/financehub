@@ -148,6 +148,49 @@ def test_keywords_in_identifiers_and_comments_ignored(backend):
     assert r == [{"rowcount": 1}, {"columns": ["returning"], "rows": [[1]]}]
 
 
+def test_select_ending_in_line_comment_returns_rows(backend):
+    b, schema = backend
+    r = b.execute_batch(["select 1 as a -- note"], schema)
+    assert r == [{"columns": ["a"], "rows": [[1]]}]
+
+
+def test_insert_returning_with_trailing_semicolon(backend):
+    b, schema = backend
+    r = b.execute_batch(["insert into t (\"Nama\") values ('a') returning id;  \n"], schema)
+    assert r[0]["columns"] == ["id"] and isinstance(r[0]["rows"][0][0], int)
+
+
+def test_empty_select_ending_in_line_comment_keeps_columns(backend):
+    b, schema = backend
+    r = b.execute_batch(["select id, \"Nama\" from t where false -- x"], schema)
+    assert r == [{"columns": ["id", "Nama"], "rows": []}]
+
+
+def test_value_ending_in_backslash_roundtrips(backend):
+    from fhdb.sqlbind import bind
+    b, schema = backend
+    v = "C:" + chr(92) + "data" + chr(92)
+    r = b.execute_batch([bind("insert into t (\"Nama\") values (?) returning \"Nama\"", (v,))], schema)
+    assert r[0]["rows"] == [[v]]
+    got = b.execute_batch([bind("select count(*) from t where \"Nama\" = ?", (v,))], schema)
+    assert got[0]["rows"] == [[1]]
+
+
+def test_fh_exec_forces_standard_conforming_strings(pg_dsn):
+    """Walau sesi dibuka dengan standard_conforming_strings=off, fh_exec memaksa 'on'."""
+    from fhdb.backends import PgBackend
+    from fhdb.sqlbind import bind
+    b = PgBackend(pg_dsn + "?options=-c%20standard_conforming_strings%3Doff")
+    try:
+        v = "x" + chr(92)
+        r = b.execute_batch([bind("select ? as v", (v,)),
+                             "select current_setting('standard_conforming_strings') as s"],
+                            "financehub_test")
+        assert r == [{"columns": ["v"], "rows": [[v]]}, {"columns": ["s"], "rows": [["on"]]}]
+    finally:
+        b.close()
+
+
 def test_unique_violation_message_has_sqlstate(backend):
     b, schema = backend
     with pytest.raises(IntegrityError) as ei:
