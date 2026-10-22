@@ -303,3 +303,88 @@ def test_column_order_and_duplicates_contract(backend):
     r = b.execute_batch(["select 3 as z, 1 as a, 2 as id, 9 as id"], schema)
     assert r[0]["columns"] == ["z", "a", "id", "id"]
     assert r[0]["rows"] == [[3, 1, 2, 9]]
+
+
+# --- Task 5b (R48): tipe kolom hasil -> float untuk double precision/real ---
+
+def test_result_types_float_vs_int(backend):
+    b, schema = backend
+    r = b.execute_batch(["select 10.0::float8 as a, 3::bigint as b, 2.5::float8 as c, null::float8 as d"], schema)
+    assert r == [{"columns": ["a", "b", "c", "d"], "rows": [[10.0, 3, 2.5, None]]}]
+    a, bb, c, d = r[0]["rows"][0]
+    assert type(a) is float and type(bb) is int and type(c) is float and d is None
+
+
+def test_result_types_real_int_smallint_numeric(backend):
+    b, schema = backend
+    r = b.execute_batch(["select 4::real as r, 7::int as i, 2::smallint as s, "
+                         "6::numeric as n_int, 6.0::numeric as n_int2, 1.25::numeric as n_frac"], schema)
+    vals = r[0]["rows"][0]
+    assert vals == [4.0, 7, 2, 6, 6, 1.25]
+    assert [type(v) for v in vals] == [float, int, int, int, int, float]
+
+
+def test_insert_returning_double_precision_is_float(backend):
+    b, schema = backend
+    r = b.execute_batch(["insert into t (\"Nama\", jumlah) values ('a', 10) returning id, jumlah"], schema)
+    i, j = r[0]["rows"][0]
+    assert type(i) is int and type(j) is float and j == 10.0
+
+
+def test_sum_double_is_float_sum_bigint_is_int(backend):
+    b, schema = backend
+    b.execute_batch(["insert into t (\"Nama\", jumlah) values ('a', 4), ('b', 6)"], schema)
+    r = b.execute_batch(["select sum(jumlah) as sj, sum(id) as si from t",
+                         "select jumlah from t order by id"], schema)
+    sj, si = r[0]["rows"][0]
+    assert type(sj) is float and sj == 10.0
+    assert type(si) is int and si == 3   # sum(bigint) = numeric integral -> int (SQLite SUM int -> int)
+    assert [type(v) for (v,) in r[1]["rows"]] == [float, float]
+
+
+def test_with_cte_and_dml_returning_and_duplicates_typed(backend):
+    b, schema = backend
+    r = b.execute_batch([
+        "with x as (select 5::float8 as v) select v, v from x",
+        # (WITH berisi DML tidak didukung fh_exec sejak awal: dibungkus CTE -> 0A000; di luar R48)
+        "insert into t (\"Nama\", jumlah) values ('w', 8) returning jumlah",
+        "update t set jumlah = 9 returning jumlah",
+        "delete from t returning jumlah",
+        "select jumlah from t where false",
+    ], schema)
+    assert r[0] == {"columns": ["v", "v"], "rows": [[5.0, 5.0]]}
+    assert [type(v) for v in r[0]["rows"][0]] == [float, float]
+    assert type(r[1]["rows"][0][0]) is float
+    assert type(r[2]["rows"][0][0]) is float and type(r[3]["rows"][0][0]) is float
+    assert r[4] == {"columns": ["jumlah"], "rows": []}
+
+
+def test_typed_statements_repeat_in_one_batch_and_across_calls(backend):
+    """Nama prepared statement tidak bentrok di dalam satu panggilan maupun antar panggilan."""
+    b, schema = backend
+    stmts = ["select 1.0::float8 as a"] * 5
+    for _ in range(2):
+        r = b.execute_batch(stmts, schema)
+        assert all(type(x["rows"][0][0]) is float for x in r)
+
+
+def test_prepared_statements_not_left_behind(pg_backend):
+    r = pg_backend.execute_batch(["select 1.0::float8 as a",
+                                  "select count(*) as n from pg_prepared_statements where name like 'fh\_exec\_%'"],
+                                 "financehub_test")
+    assert r[1]["rows"] == [[0]]
+    r = pg_backend.execute_batch(["select count(*) as n from pg_prepared_statements"], "financehub_test")
+    assert r[0]["rows"] == [[0]]
+
+
+def test_parse_results_types_conversion_unit():
+    from fhdb.backends import parse_results
+    text = ('[{"rows":[{"a":10,"b":3,"c":null,"d":"NaN","e":2.0}],'
+            '"types":["double precision","bigint","double precision","double precision","numeric"]},'
+            '{"rows":[{"a":1}]},'
+            '{"rows":[],"columns":["x"],"types":["real"]}]')
+    r = parse_results(text)
+    a, b, c, d, e = r[0]["rows"][0]
+    assert type(a) is float and type(b) is int and c is None and d != d and type(e) is int
+    assert r[1] == {"columns": ["a"], "rows": [[1]]}      # tanpa types: apa adanya
+    assert r[2] == {"columns": ["x"], "rows": []}

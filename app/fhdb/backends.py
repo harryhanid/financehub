@@ -18,8 +18,37 @@ from .errors import DatabaseError, OperationalError, from_sqlstate
 Result = dict
 
 
+_FLOAT_TYPES = frozenset({"double precision", "real"})
+
+
+def _to_float(v):
+    return float(v)  # termasuk "NaN" / "Infinity" (json menulis float non-finite sebagai string)
+
+
+def _numeric(v):
+    # numeric integral -> int (SQLite SUM(integer) -> int); pecahan -> float
+    if isinstance(v, float) and v.is_integer():
+        return int(v)
+    if isinstance(v, str):  # numeric NaN dikirim sebagai string
+        return float(v)
+    return v
+
+
+def _converters(types) -> list | None:
+    """Konverter per posisi kolom dari "types" fh_exec (R48). None = tidak ada yang perlu diubah."""
+    if not types:
+        return None
+    conv = [_to_float if t in _FLOAT_TYPES else _numeric if t == "numeric" else None for t in types]
+    return conv if any(conv) else None
+
+
 def parse_results(text: str) -> list[Result]:
-    """Parse teks hasil fh_exec. object_pairs_hook=list menjaga urutan kolom dan nama kolom kembar."""
+    """Parse teks hasil fh_exec. object_pairs_hook=list menjaga urutan kolom dan nama kolom kembar.
+
+    Kalau fh_exec menyertakan "types" (R48): nilai kolom double precision/real -> float (json_agg
+    menulis 10.0 sebagai 10; sqlite3 mengembalikan float untuk REAL), numeric integral -> int,
+    numeric pecahan -> float; tipe lain dan None apa adanya. Sama untuk PgBackend dan HttpBackend.
+    """
     items = json.loads(text, object_pairs_hook=list)
     out: list[Result] = []
     for pairs in items:
@@ -30,7 +59,12 @@ def parse_results(text: str) -> list[Result]:
         rows = d.get("rows") or []
         if rows:
             columns = [k for k, _ in rows[0]]
-            out.append({"columns": columns, "rows": [[v for _, v in row] for row in rows]})
+            values = [[v for _, v in row] for row in rows]
+            conv = _converters(d.get("types"))
+            if conv is not None and len(conv) == len(columns):
+                values = [[v if c is None or v is None else c(v) for c, v in zip(conv, row)]
+                          for row in values]
+            out.append({"columns": columns, "rows": values})
         else:
             out.append({"columns": list(d.get("columns") or []), "rows": []})
     return out

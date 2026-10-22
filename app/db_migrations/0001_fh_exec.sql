@@ -4,9 +4,13 @@
 -- Kalau satu statement error, seluruh daftar dibatalkan.
 --
 -- Hasil: TEXT berisi array JSON, satu elemen per statement:
---   statement yang mengembalikan baris (SELECT/WITH/RETURNING) -> {"rows": [...]}            (ada baris)
---                                                              -> {"rows": [], "columns": [...]} (kosong)
+--   statement yang mengembalikan baris (SELECT/WITH/RETURNING) -> {"rows": [...], "types": [...]}            (ada baris)
+--                                                              -> {"rows": [], "columns": [...], "types": [...]} (kosong)
 --   statement lain                                             -> {"rowcount": n}
+-- "types" = tipe kolom hasil (format_type, mis. "bigint", "double precision"), urut posisi kolom; dipakai
+-- client agar nilai double precision/real utuh (10.0 -> json 10) kembali sebagai float seperti sqlite3 REAL.
+-- Diambil dengan PREPARE + pg_prepared_statements.result_types (PG >= 14) sebelum statement dijalankan.
+-- Kalau PREPARE gagal, "types" tidak ada (client memakai nilai apa adanya); error aslinya muncul saat execute.
 -- rows dibuat dengan json_agg (tipe json, bukan jsonb) agar urutan key dan key kembar tetap.
 -- Return type text: PostgREST mengirimnya sebagai string JSON tanpa memformat ulang isinya.
 
@@ -22,6 +26,9 @@ declare
     cols   text;
     n      bigint;
     is_sel boolean;
+    i      int := 0;
+    pname  text;
+    typs   text;
 begin
     if schema is null or schema not in ('financehub', 'financehub_staging', 'financehub_test') then
         raise exception 'fh_exec: schema % tidak diizinkan', coalesce(schema, '<null>')
@@ -42,11 +49,32 @@ begin
             $re$'([^']|'')*'|"([^"]|"")*"|--[^\n]*|/\*([^*]|\*+[^*/])*\*+/$re$,
             ' ', 'g');
         is_sel := skel ~* '^\s*(select|with)\M';
+        i := i + 1;
         if is_sel or skel ~* '\mreturning\M' then
+            -- Tipe kolom hasil. PREPARE sesudah search_path diset (resolusi nama memakai schema ini).
+            -- Prepared statement bersifat per sesi dan TIDAK ikut rollback: nama unik per posisi dalam
+            -- panggilan ini, dan sisa dari panggilan sebelumnya (mis. batal di tengah) dibuang dulu.
+            -- Sub-blok: PREPARE yang gagal tidak membatalkan transaksi; typs = null (tanpa "types").
+            pname := 'fh_exec_t' || i;
+            typs := null;
+            begin
+                if exists (select 1 from pg_prepared_statements where name = pname) then
+                    execute format('deallocate %I', pname);
+                end if;
+                execute format(E'prepare %I as %s\n', pname, s);
+                select coalesce(json_agg(format_type(t.typ::oid, null) order by t.ord), '[]'::json)::text
+                  into typs
+                  from pg_prepared_statements p,
+                       unnest(p.result_types) with ordinality as t(typ, ord)
+                 where p.name = pname;
+                execute format('deallocate %I', pname);
+            exception when others then
+                typs := null;
+            end;
             -- newline sebelum ')': komentar -- di akhir s tidak boleh menelan kurung penutup
             execute format(E'with _q as (%s\n) select json_agg(_q)::text from _q', s) into r;
             if r is not null then
-                parts := parts || ('{"rows":' || r || '}');
+                parts := parts || ('{"rows":' || r || coalesce(',"types":' || typs, '') || '}');
             else
                 cols := '[]';
                 if is_sel then
@@ -67,7 +95,7 @@ begin
                         cols := '[]';
                     end;
                 end if;
-                parts := parts || ('{"rows":[],"columns":' || cols || '}');
+                parts := parts || ('{"rows":[],"columns":' || cols || coalesce(',"types":' || typs, '') || '}');
             end if;
         else
             execute s;

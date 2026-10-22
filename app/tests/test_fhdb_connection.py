@@ -178,3 +178,16 @@ def test_config_new_settings_exist():
     import config
     for name in ("DB_BACKEND", "DB_SCHEMA", "SUPABASE_URL", "SUPABASE_SERVICE_KEY", "FH_PG_DSN"):
         assert hasattr(config, name)
+
+
+# --- Task 5b (R48): REAL/double precision -> float seperti sqlite3 ---
+
+def test_row_double_precision_whole_value_is_float(conn):
+    conn.execute('insert into t ("Nama", jumlah) values (?, ?)', ("a", 10))
+    row = conn.execute('select id, jumlah, sum(jumlah) over () as s from t').fetchone()
+    assert type(row["id"]) is int and type(row["jumlah"]) is float and type(row["s"]) is float
+    assert row["jumlah"] == 10.0
+
+def test_cursor_returning_double_precision_is_float(conn):
+    cur = conn.execute('insert into t ("Nama", jumlah) values (?, ?) returning jumlah', ("a", 3))
+    assert type(cur.fetchone()[0]) is float
