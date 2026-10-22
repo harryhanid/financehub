@@ -51,3 +51,28 @@ def pg_backend(pg_dsn):
         yield backend
     finally:
         backend.close()
+
+
+@pytest.fixture
+def conn(pg_backend):
+    """`fhdb.Connection` di atas PgBackend, schema financehub_test, tabel t kosong.
+
+    Setup memakai backend langsung supaya tidak menambah `fhdb.stats.calls`.
+    """
+    from fhdb.connection import Connection
+
+    pg_backend.execute_batch(["truncate t restart identity", "drop table if exists noid"], TEST_SCHEMA)
+    c = Connection(pg_backend, TEST_SCHEMA)
+    try:
+        yield c
+    finally:
+        c.close()
+
+
+@pytest.fixture
+def fhdb_stats():
+    """`fhdb.stats` dengan `calls` direset ke 0 untuk thread ini."""
+    import fhdb
+
+    fhdb.reset_stats()
+    return fhdb.stats

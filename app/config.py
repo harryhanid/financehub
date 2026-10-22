@@ -8,6 +8,14 @@ env_path = os.path.join(BASE_DIR, ".env")
 load_dotenv(env_path)
 
 DB_PATH  = os.path.join(BASE_DIR, "finance_hub.db")
+
+# Supabase/Postgres lewat fhdb (public.fh_exec). DB_BACKEND: "http" (produksi) | "pg" (test);
+# default "sqlite" = jalur lama (database.get_conn masih SQLite sampai migrasi dialihkan).
+DB_BACKEND           = os.environ.get("DB_BACKEND", "sqlite")
+DB_SCHEMA            = os.environ.get("DB_SCHEMA", "financehub")
+SUPABASE_URL         = os.environ.get("SUPABASE_URL", "")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+FH_PG_DSN            = os.environ.get("FH_PG_DSN", "")
 SOP_STORAGE_DIR = os.path.join(BASE_DIR, "storage", "sop")
 BACKUP_ROOT = r"Y:\Seagate\Flow"
 
