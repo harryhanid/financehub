@@ -2,6 +2,7 @@
 from datetime import datetime
 import config
 from database import get_conn
+from fhdb.errors import OperationalError
 
 PILLAR_COLUMNS = {
     "APP": "app_amount",
@@ -37,15 +38,17 @@ def get_perusahaan(cat1: str):
 
 
 def seed_perusahaan(rows) -> int:
+    # Satu panggilan executemany = satu transaksi (fhdb): sama seperti SQLite dulu, error di
+    # baris mana pun (mis. cat2 NULL) membatalkan semuanya. rowcount sudah dijumlah fhdb.
     conn = get_conn()
+    params = [(cat1, cat2, cat3) for cat1, cat2, cat3 in rows]
     inserted = 0
-    for cat1, cat2, cat3 in rows:
-        cur = conn.execute(
-            "INSERT OR IGNORE INTO sponsorship_perusahaan (cat1, cat2, cat3) VALUES (?, ?, ?)",
-            (cat1, cat2, cat3),
+    if params:
+        cur = conn.executemany(
+            "INSERT INTO sponsorship_perusahaan (cat1, cat2, cat3) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+            params,
         )
-        inserted += cur.rowcount
-    conn.commit()
+        inserted = cur.rowcount
     conn.close()
     return inserted
 
@@ -145,8 +148,8 @@ def create_transaksi(company_id: int, payload: dict) -> dict:
              cat1, cat2, cat3, lembaga_perorangan, perihal, amount_request, reff,
              status, cat4, coa, cc_total, cc, source)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                COALESCE(?, '701078002'), COALESCE(?, 'SMT - Corporate Communication'),
-                COALESCE(?, 'POSPON'), COALESCE(?, 'Sponsor'))
+                COALESCE(?::text, '701078002'), COALESCE(?::text, 'SMT - Corporate Communication'),
+                COALESCE(?::text, 'POSPON'), COALESCE(?::text, 'Sponsor'))
         """,
         (
             company_id, payload["cat"], payload["description"],
@@ -323,15 +326,15 @@ def _apply_filters(query: str, params: list, company_id: int, filters: dict):
     if filters.get("keyword"):
         kw = f"%{filters['keyword']}%"
         query += """ AND (
-            status LIKE ? OR
-            cat LIKE ? OR
-            description LIKE ? OR
-            cat1 LIKE ? OR
-            cat2 LIKE ? OR
-            cat3 LIKE ? OR
-            lembaga_perorangan LIKE ? OR
-            perihal LIKE ? OR
-            reff LIKE ?
+            status ILIKE ? OR
+            cat ILIKE ? OR
+            description ILIKE ? OR
+            cat1 ILIKE ? OR
+            cat2 ILIKE ? OR
+            cat3 ILIKE ? OR
+            lembaga_perorangan ILIKE ? OR
+            perihal ILIKE ? OR
+            reff ILIKE ?
         )"""
         params.extend([kw] * 9)
     if filters.get("outstanding"):
@@ -339,16 +342,17 @@ def _apply_filters(query: str, params: list, company_id: int, filters: dict):
     if filters.get("tahun"):
         years = filters["tahun"]
         if isinstance(years, list) and years:
-            placeholders = ",".join(["?"] * len(years))
-            query += f" AND strftime('%Y', tanggal_form_sponsor) IN ({placeholders})"
+            # ?::text: tahun bisa dikirim sebagai int; Postgres tidak membandingkan text = int
+            placeholders = ",".join(["?::text"] * len(years))
+            query += f" AND fh_strftime('%Y', tanggal_form_sponsor) IN ({placeholders})"
             params.extend(years)
         else:
-            query += " AND strftime('%Y', tanggal_form_sponsor) = ?"
+            query += " AND fh_strftime('%Y', tanggal_form_sponsor) = ?"
             params.extend([str(years)])
     bulan = normalise_bulan(filters.get("bulan"))
     if bulan:
         placeholders = ",".join(["?"] * len(bulan))
-        query += f" AND strftime('%m', tanggal_form_sponsor) IN ({placeholders})"
+        query += f" AND fh_strftime('%m', tanggal_form_sponsor) IN ({placeholders})"
         params.extend(bulan)
     return query, params
 
@@ -378,8 +382,8 @@ def count_transaksi(company_id: int, filters: dict = None) -> int:
 def get_available_years(company_id: int) -> list:
     conn = get_conn()
     rows = conn.execute(
-        "SELECT DISTINCT strftime('%Y', tanggal_form_sponsor) AS yy FROM sponsorship_transaksi "
-        "WHERE company_id = ? ORDER BY yy DESC",
+        "SELECT DISTINCT fh_strftime('%Y', tanggal_form_sponsor) AS yy FROM sponsorship_transaksi "
+        "WHERE company_id = ? ORDER BY yy DESC NULLS LAST",
         (company_id,),
     ).fetchall()
     conn.close()
@@ -831,42 +835,45 @@ def create_transaksi_bulk(company_id: int, payload: dict) -> dict:
     cc = payload.get("cc")
     source = payload.get("source")
 
-    conn = get_conn()
+    # Validasi semua baris dulu, lalu satu batch INSERT (all-or-nothing, R22). Di SQLite dulu
+    # rollback() di tengah loop membatalkan baris sebelumnya; fhdb tidak bisa rollback.
     try:
+        items = []
         for idx, line in enumerate(lines):
             cat1 = line.get("cat1")
             perusahaan = get_perusahaan(cat1)
             if not perusahaan:
-                conn.rollback()
                 return {"ok": False, "pesan": f"Baris {idx+1}: Cat1 '{cat1}' tidak ditemukan."}
-            
+
             try:
                 amt = float(line.get("amount_request", 0) or 0)
             except (TypeError, ValueError):
-                conn.rollback()
                 return {"ok": False, "pesan": f"Baris {idx+1}: Amount Request harus berupa angka."}
-            
-            conn.execute(
+
+            items.append((
                 """
                 INSERT INTO sponsorship_transaksi
                     (company_id, cat, description, tanggal_form_sponsor, tanggal_payment,
                      cat1, cat2, cat3, lembaga_perorangan, perihal, amount_request, reff,
                      status, cat4, coa, cc_total, cc, source)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                        COALESCE(?, '701078002'), COALESCE(?, 'SMT - Corporate Communication'),
-                        COALESCE(?, 'POSPON'), COALESCE(?, 'Sponsor'))
+                        COALESCE(?::text, '701078002'), COALESCE(?::text, 'SMT - Corporate Communication'),
+                        COALESCE(?::text, 'POSPON'), COALESCE(?::text, 'Sponsor'))
+                RETURNING id
                 """,
                 (
                     company_id, cat, desc, tgl_form, tgl_pay,
                     perusahaan["cat1"], perusahaan["cat2"], perusahaan["cat3"],
                     lembaga, perihal, amt, reff, status, line.get("cat4"),
                     coa, cc_total, cc, source
-                )
-            )
-        conn.commit()
+                ),
+            ))
+        conn = get_conn()
+        conn.batch(items)
         return {"ok": True, "pesan": f"Berhasil menyimpan {len(lines)} transaksi Sponsorship."}
+    except OperationalError:
+        raise  # R25: DB tidak terjangkau -> handler 503 aplikasi
     except Exception as e:
-        conn.rollback()
         return {"ok": False, "pesan": f"Gagal menyimpan transaksi: {str(e)}"}
 
 
@@ -887,6 +894,8 @@ def delete_transaksi(transaksi_id: int, company_id: int = None) -> dict:
         conn.execute("DELETE FROM sponsorship_transaksi WHERE id = ?", (transaksi_id,))
         conn.commit()
         return {"ok": True, "pesan": "Transaksi berhasil dihapus."}
+    except OperationalError:
+        raise  # R25: DB tidak terjangkau -> handler 503 aplikasi
     except Exception as e:
         conn.rollback()
         return {"ok": False, "pesan": f"Gagal menghapus transaksi: {str(e)}"}
@@ -912,6 +921,9 @@ def sync_transaksi_excel(company_id: int, file_bytes: bytes) -> dict:
         
         updated_count = 0
         inserted_count = 0
+        # Seluruh sheet diparse dan divalidasi dulu, lalu semua tulisan dikirim sebagai SATU batch
+        # (all-or-nothing, R22). Di SQLite dulu rollback() di tengah loop membatalkan baris sebelumnya.
+        items = []
         
         for idx, row in enumerate(rows[1:], start=2):
             # Row structure: 0:ID, 1:Cat, 2:Desc, 3:Tgl Form, 4:Tgl Pay, 5:Cat1, 6:Cat2, 7:Cat3, 8:Lembaga, 9:Perihal, 10:Amount, 11:APP, 12:ENERGY, 13:PROPERTY, 14:AGRI, 15:Reff, 16:Status, 17:Cat4, 18:COA, 19:CC Total, 20:CC, 21:Source
@@ -949,10 +961,8 @@ def sync_transaksi_excel(company_id: int, file_bytes: bytes) -> dict:
             if not cat1:
                 if not tx_id and not tgl_form and not amt:
                     continue # Baris benar-benar kosong
-                conn.rollback()
                 return {"ok": False, "pesan": f"Baris {idx}: Cat1 (Perusahaan) wajib diisi."}
             if not tgl_form:
-                conn.rollback()
                 return {"ok": False, "pesan": f"Baris {idx}: Tanggal Form wajib diisi."}
                 
             lembaga = str(lembaga).strip() if lembaga else ""
@@ -967,19 +977,22 @@ def sync_transaksi_excel(company_id: int, file_bytes: bytes) -> dict:
             perusahaan = get_perusahaan(cat1)
             if not perusahaan:
                 if not cat2 or not cat3:
-                    conn.rollback()
                     return {"ok": False, "pesan": f"Baris {idx}: Cat1 '{cat1}' baru, namun Cat2 atau Cat3 kosong di Excel."}
-                conn.execute(
-                    "INSERT INTO sponsorship_perusahaan (cat1, cat2, cat3) VALUES (?, ?, ?)",
+                # Cat1 baru yang muncul di beberapa baris: baris berikutnya menimpa cat2/cat3
+                # (dedupe lewat ON CONFLICT, lihat atomic-flows.md Task 13).
+                items.append((
+                    "INSERT INTO sponsorship_perusahaan (cat1, cat2, cat3) VALUES (?, ?, ?) "
+                    "ON CONFLICT (cat1) DO UPDATE SET cat2 = EXCLUDED.cat2, cat3 = EXCLUDED.cat3 "
+                    "RETURNING cat1",
                     (cat1, cat2, cat3)
-                )
+                ))
             else:
                 # Update vendor info in DB if excel has different cat2/cat3
                 if (cat2 and cat2 != perusahaan["cat2"]) or (cat3 and cat3 != perusahaan["cat3"]):
-                    conn.execute(
+                    items.append((
                         "UPDATE sponsorship_perusahaan SET cat2=?, cat3=? WHERE cat1=?",
                         (cat2, cat3, cat1)
-                    )
+                    ))
             
             try:
                 amt = float(amt) if amt else 0
@@ -988,7 +1001,7 @@ def sync_transaksi_excel(company_id: int, file_bytes: bytes) -> dict:
                 
             if tx_id:
                 # Update
-                conn.execute(
+                items.append((
                     """
                     UPDATE sponsorship_transaksi 
                     SET cat=?, description=?, tanggal_form_sponsor=?, tanggal_payment=?,
@@ -997,25 +1010,28 @@ def sync_transaksi_excel(company_id: int, file_bytes: bytes) -> dict:
                     WHERE id=? AND company_id=?
                     """,
                     (cat, desc, tgl_form, tgl_pay, cat1, cat2, cat3, lembaga, perihal, amt, reff, status, cat4, coa, cc_total, cc, source, tx_id, company_id)
-                )
+                ))
                 updated_count += 1
             else:
                 # Insert
-                conn.execute(
+                items.append((
                     """
                     INSERT INTO sponsorship_transaksi
                         (company_id, cat, description, tanggal_form_sponsor, tanggal_payment,
                          cat1, cat2, cat3, lembaga_perorangan, perihal, amount_request, reff,
                          status, cat4, coa, cc_total, cc, source)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, '701078002'), COALESCE(?, 'SMT - Corporate Communication'), COALESCE(?, 'POSPON'), COALESCE(?, 'Sponsor'))
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?::text, '701078002'), COALESCE(?::text, 'SMT - Corporate Communication'), COALESCE(?::text, 'POSPON'), COALESCE(?::text, 'Sponsor'))
+                    RETURNING id
                     """,
                     (company_id, cat, desc, tgl_form, tgl_pay, cat1, cat2, cat3, lembaga, perihal, amt, reff, status, cat4, coa, cc_total, cc, source)
-                )
+                ))
                 inserted_count += 1
                 
-        conn.commit()
+        if items:
+            conn.batch(items)
         return {"ok": True, "pesan": f"Sync sukses: {updated_count} di-update, {inserted_count} ditambah."}
-        
+
+    except OperationalError:
+        raise  # R25: DB tidak terjangkau -> handler 503 aplikasi
     except Exception as e:
-        conn.rollback()
         return {"ok": False, "pesan": f"Gagal sync transaksi: {str(e)}"}

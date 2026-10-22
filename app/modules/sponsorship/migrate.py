@@ -49,31 +49,57 @@ def migrate_sponsorship_from_excel(perusahaan_xlsx_path: str, transaksi_xlsx_pat
     header = [c.value for c in next(transaksi_ws.iter_rows(min_row=1, max_row=1))]
     idx = {name: i for i, name in enumerate(header)}
 
+    # fhdb: tiap execute = satu transaksi. Dulu (SQLite) error non-IntegrityError di tengah loop
+    # membuat seluruh transaksi tidak ter-commit. Supaya hasilnya sama, semua parameter dihitung
+    # dulu (error Python seperti float() gagal terjadi sebelum ada tulisan), baru INSERT per baris.
+    # Skip per baris karena IntegrityError tetap jalan: fhdb.errors.IntegrityError subclass
+    # sqlite3.IntegrityError, dan baris yang gagal memang tidak tersimpan (sama seperti SQLite).
+    # Urutan pesan skipped tetap urutan baris: pending memuat ("skip", pesan) dan ("insert", row, params).
+    pending = []
+    for row in transaksi_ws.iter_rows(min_row=2, values_only=True):
+        cat = _normalize_cat(row[idx["Cat"]])
+        if cat is None:
+            pending.append(("skip", f"row with invalid Cat: {row[idx['Cat']]!r}"))
+            continue
+
+        tanggal_form = row[idx["Tanggal Form Sponsor"]]
+        if not hasattr(tanggal_form, "strftime"):
+            year = row[idx["Year"]]
+            if isinstance(year, int):
+                tanggal_form_str = f"{year}-01-01"
+            else:
+                pending.append(("skip", f"row with lembaga={row[idx['Lembaga/Perorangan']]!r}: Tanggal Form Sponsor is not a date ({tanggal_form!r}) and Year is also missing/invalid ({year!r})"))
+                continue
+        else:
+            tanggal_form_str = _cell_date(tanggal_form)
+
+        if not row[idx["Description"]] or not row[idx["Lembaga/Perorangan"]]:
+            pending.append(("skip", f"row with lembaga={row[idx['Lembaga/Perorangan']]!r}: missing required Description or Lembaga/Perorangan"))
+            continue
+
+        pending.append((
+            "insert", row,
+            (
+                company_id, cat, row[idx["Description"]],
+                tanggal_form_str, _cell_date(row[idx["Tanggal Payment"]]),
+                row[idx["Cat1"]], row[idx["Cat2"]], row[idx["Cat3"]],
+                row[idx["Lembaga/Perorangan"]], row[idx["Perihal"]],
+                float(row[idx["Amount Request"]] or 0),
+                None if row[idx["Reff"]] == "-" else row[idx["Reff"]],
+                row[idx["Status"]], row[idx["Cat4"]],
+                row[idx["COA"]], row[idx["CC Total"]], row[idx["CC"]], row[idx["Source"]],
+            ),
+        ))
+
     conn = get_conn()
     transaksi_count = 0
-    skipped = []
     try:
-        for row in transaksi_ws.iter_rows(min_row=2, values_only=True):
-            cat = _normalize_cat(row[idx["Cat"]])
-            if cat is None:
-                skipped.append(f"row with invalid Cat: {row[idx['Cat']]!r}")
+        skipped = []
+        for item in pending:
+            if item[0] == "skip":
+                skipped.append(item[1])
                 continue
-
-            tanggal_form = row[idx["Tanggal Form Sponsor"]]
-            if not hasattr(tanggal_form, "strftime"):
-                year = row[idx["Year"]]
-                if isinstance(year, int):
-                    tanggal_form_str = f"{year}-01-01"
-                else:
-                    skipped.append(f"row with lembaga={row[idx['Lembaga/Perorangan']]!r}: Tanggal Form Sponsor is not a date ({tanggal_form!r}) and Year is also missing/invalid ({year!r})")
-                    continue
-            else:
-                tanggal_form_str = _cell_date(tanggal_form)
-
-            if not row[idx["Description"]] or not row[idx["Lembaga/Perorangan"]]:
-                skipped.append(f"row with lembaga={row[idx['Lembaga/Perorangan']]!r}: missing required Description or Lembaga/Perorangan")
-                continue
-
+            _, row, params = item
             try:
                 conn.execute(
                     """
@@ -82,22 +108,13 @@ def migrate_sponsorship_from_excel(perusahaan_xlsx_path: str, transaksi_xlsx_pat
                          cat1, cat2, cat3, lembaga_perorangan, perihal, amount_request, reff,
                          status, cat4, coa, cc_total, cc, source)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    RETURNING id
                     """,
-                    (
-                        company_id, cat, row[idx["Description"]],
-                        tanggal_form_str, _cell_date(row[idx["Tanggal Payment"]]),
-                        row[idx["Cat1"]], row[idx["Cat2"]], row[idx["Cat3"]],
-                        row[idx["Lembaga/Perorangan"]], row[idx["Perihal"]],
-                        float(row[idx["Amount Request"]] or 0),
-                        None if row[idx["Reff"]] == "-" else row[idx["Reff"]],
-                        row[idx["Status"]], row[idx["Cat4"]],
-                        row[idx["COA"]], row[idx["CC Total"]], row[idx["CC"]], row[idx["Source"]],
-                    ),
+                    params,
                 )
                 transaksi_count += 1
             except sqlite3.IntegrityError as e:
                 skipped.append(f"row with lembaga={row[idx['Lembaga/Perorangan']]!r}: {e}")
-        conn.commit()
     finally:
         conn.close()
 
