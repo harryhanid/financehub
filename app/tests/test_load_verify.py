@@ -169,3 +169,81 @@ def test_schema_allowlist(small, pg_backend):
     db = _make_sqlite(small)
     with pytest.raises(ValueError):
         load(db, pg_backend, "public")
+
+
+# --- R39: penolakan schema produksi dan jumlah numerik yang tidak bergantung urutan ---------------
+
+class _NoTouchBackend:
+    """Backend palsu: panggilan apa pun = gagal test (penolakan harus terjadi sebelum backend disentuh)."""
+
+    def execute_batch(self, stmts, schema):
+        raise AssertionError("backend tidak boleh dipanggil")
+
+    def close(self):
+        pass
+
+
+class _Reached(Exception):
+    pass
+
+
+class _ReachedBackend:
+    def execute_batch(self, stmts, schema):
+        raise _Reached(schema)
+
+    def close(self):
+        pass
+
+
+def test_load_refuses_production_without_confirm(small):
+    db = _make_sqlite(small)
+    with pytest.raises(PermissionError) as ei:
+        load(db, _NoTouchBackend(), "financehub")
+    assert "--confirm-production" in str(ei.value)
+
+
+def test_load_production_allowed_with_confirm(small):
+    db = _make_sqlite(small)
+    with pytest.raises(_Reached):  # lolos pengecekan schema, sampai ke backend
+        load(db, _ReachedBackend(), "financehub", confirm_production=True)
+
+
+@pytest.mark.parametrize("backend", ["pg", "http"])
+def test_load_cli_refuses_production(small, capsys, monkeypatch, backend):
+    db = _make_sqlite(small)
+    monkeypatch.setattr(load_data, "make_backend", lambda kind, dsn: _NoTouchBackend())
+    with pytest.raises(SystemExit) as ei:
+        load_data.main(["--sqlite", db, "--schema", "financehub", "--backend", backend, "--dsn", "x"])
+    assert ei.value.code == 2
+    assert "--confirm-production" in capsys.readouterr().err
+
+
+def test_load_cli_production_with_flag(small, monkeypatch):
+    db = _make_sqlite(small)
+    monkeypatch.setattr(load_data, "make_backend", lambda kind, dsn: _ReachedBackend())
+    with pytest.raises(_Reached):
+        load_data.main(["--sqlite", db, "--schema", "financehub", "--backend", "http", "--confirm-production"])
+
+
+def test_numeric_sum_is_order_independent():
+    s = verify_mod.sum_values
+    assert s([1e16, 0.03, -1e16], "double precision") == s([1e16, -1e16, 0.03], "double precision")
+    assert verify_mod._norm(s([1e16, 0.03, -1e16], "double precision")) == verify_mod._norm(0.03)
+    assert s([2 ** 62, 2 ** 62, -1], "bigint") == 2 ** 63 - 1  # int dijumlah eksak
+    assert s([None, None], "bigint") is None and s([], "double precision") is None
+
+
+def test_verify_no_false_mismatch_when_summation_order_differs(small, pg_backend):
+    # Postgres sum(float8) menjumlah naif urut heap: 1e16+0.03-1e16 = 0; SQLite (>= 3.43) memakai
+    # penjumlahan terkompensasi -> 0.03. Dulu: mismatch palsu. Sekarang fsum di kedua sisi: 0.03 = 0.03.
+    db = _make_sqlite(small, pb_rows=[(1, 1, 1e16, None), (2, 1, 0.03, None), (3, 1, -1e16, None)],
+                      child_rows=[(1, 1, 1, "a")])
+    load(db, pg_backend, SCHEMA)
+    naive_pg = _rows(pg_backend, "select sum(jumlah) from pb")[0][0]
+    c = sqlite3.connect(db)
+    sqlite_sum = c.execute("select sum(jumlah) from pb").fetchone()[0]
+    c.close()
+    assert verify_mod._norm(naive_pg) != verify_mod._norm(sqlite_sum)  # urutan/cara jumlah memang beda
+    assert verify(db, pg_backend, SCHEMA) == []
+    pg_backend.execute_batch(["update pb set jumlah = 0.04 where id = 2"], SCHEMA)
+    assert [(m.table, m.column) for m in verify(db, pg_backend, SCHEMA)] == [("pb", "jumlah")]

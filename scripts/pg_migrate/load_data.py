@@ -20,6 +20,8 @@ Alur `load()`:
 
 Langkah 5-7 tidak satu transaksi: kalau gagal di tengah, jalankan ulang (langkah 5 mengosongkan lagi).
 Catatan: TRUNCATE ... CASCADE ikut mengosongkan refresh_tokens (FK ke users) -- sesi login lama hangus.
+
+Schema produksi `financehub` ditolak kecuali `--confirm-production` (R39), apa pun backend-nya.
 """
 import argparse
 import math
@@ -37,6 +39,7 @@ sys.path.insert(0, str(APP_DIR))
 from fhdb.sqlbind import bind  # noqa: E402
 
 ALLOWED_SCHEMAS = ("financehub", "financehub_staging", "financehub_test")
+PRODUCTION_SCHEMA = "financehub"
 SKIP_TABLES = ("refresh_tokens",)
 MAX_STMT_BYTES = 256_000  # jauh di bawah ~1 MB per panggilan HTTPS
 
@@ -52,6 +55,24 @@ class OrphanError(Exception):
 def check_schema(schema):
     if schema not in ALLOWED_SCHEMAS:
         raise ValueError(f"schema {schema!r} tidak diizinkan (hanya {', '.join(ALLOWED_SCHEMAS)})")
+
+
+def check_write_schema(schema, confirm_production=False):
+    """Allowlist + pengaman produksi (R39) untuk skrip yang MENIMPA isi schema."""
+    check_schema(schema)
+    if schema == PRODUCTION_SCHEMA and not confirm_production:
+        raise PermissionError(
+            f"DITOLAK: schema {schema!r} adalah database PRODUKSI dan isinya akan dikosongkan lalu ditimpa. "
+            "Jalankan ulang dengan --confirm-production kalau memang itu maksudnya.")
+
+
+def refuse_production_cli(schema, confirm_production):
+    """Versi CLI check_write_schema: pesan jelas ke stderr, exit code 2, backend belum dibuat."""
+    try:
+        check_write_schema(schema, confirm_production)
+    except PermissionError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(2)
 
 
 def qi(name: str) -> str:
@@ -196,8 +217,6 @@ def insert_order(tables, fks) -> list[str]:
 
 
 def build_inserts(sq, table, cols, types, chunk) -> tuple[list[str], int]:
-    head = f"insert into {qi(table)} ({', '.join(qi(c) for c in cols)}) values "
-    row_sql = "(" + ", ".join("?" for _ in cols) + ")"
     has_rowid = True
     try:
         cur = sq.execute(f"select {', '.join(qi(c) for c in cols)} from {qi(table)} order by rowid")
@@ -205,8 +224,15 @@ def build_inserts(sq, table, cols, types, chunk) -> tuple[list[str], int]:
         has_rowid = False
     if not has_rowid:
         cur = sq.execute(f"select {', '.join(qi(c) for c in cols)} from {qi(table)}")
+    return rows_to_inserts(table, cols, types, cur, chunk)
+
+
+def rows_to_inserts(table, cols, types, rows, chunk) -> tuple[list[str], int]:
+    """INSERT multi-baris (literal, nilai dikonversi ke tipe target) dari iterable baris sesuai `cols`."""
+    head = f"insert into {qi(table)} ({', '.join(qi(c) for c in cols)}) values "
+    row_sql = "(" + ", ".join("?" for _ in cols) + ")"
     stmts, parts, size, n = [], [], len(head), 0
-    for row in cur:
+    for row in rows:
         n += 1
         vals = [convert(v, types[i], f"{table}.{cols[i]} (baris {n})") for i, v in enumerate(row)]
         lit = bind(row_sql, vals)
@@ -221,8 +247,9 @@ def build_inserts(sq, table, cols, types, chunk) -> tuple[list[str], int]:
     return stmts, n
 
 
-def load(sqlite_path: str, backend, schema: str, chunk: int = 500, log=None) -> dict[str, int]:
-    check_schema(schema)
+def load(sqlite_path: str, backend, schema: str, chunk: int = 500, log=None,
+         confirm_production: bool = False) -> dict[str, int]:
+    check_write_schema(schema, confirm_production)
     log = log or (lambda msg: None)
     tmpdir = tempfile.mkdtemp(prefix="fh_load_")
     try:
@@ -253,6 +280,13 @@ def load(sqlite_path: str, backend, schema: str, chunk: int = 500, log=None) -> 
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
+    write_tables(backend, schema, tables, plan, counts, tcols, log)
+    return counts
+
+
+def write_tables(backend, schema, tables, plan, counts, tcols, log) -> None:
+    """Langkah 5-7 (non-transaksional, aman diulang): TRUNCATE semua `tables` ... CASCADE, INSERT per
+    statement sesuai `plan` [(tabel, [stmt, ...])] (urut induk dulu), lalu setval tiap kolom identity."""
     log(f"truncate {len(tables)} tabel")
     backend.execute_batch(
         [f"truncate {', '.join(qi(t) for t in sorted(tables))} restart identity cascade"], schema)
@@ -270,7 +304,6 @@ def load(sqlite_path: str, backend, schema: str, chunk: int = 500, log=None) -> 
     if seq:
         backend.execute_batch(seq, schema)
     log(f"setval {len(seq)} identity")
-    return counts
 
 
 def make_backend(kind, dsn):
@@ -296,11 +329,15 @@ def main(argv=None):
     ap.add_argument("--backend", required=True, choices=("pg", "http"))
     ap.add_argument("--dsn", default=os.environ.get("FH_PG_DSN", ""))
     ap.add_argument("--chunk", type=int, default=500)
+    ap.add_argument("--confirm-production", action="store_true",
+                    help="wajib untuk --schema financehub (menimpa database produksi)")
     args = ap.parse_args(argv)
+    refuse_production_cli(args.schema, args.confirm_production)
     backend = make_backend(args.backend, args.dsn)
     t0 = time.perf_counter()
     try:
-        counts = load(args.sqlite, backend, args.schema, chunk=args.chunk, log=print)
+        counts = load(args.sqlite, backend, args.schema, chunk=args.chunk, log=print,
+                      confirm_production=args.confirm_production)
     finally:
         backend.close()
     print(f"Selesai: {len(counts)} tabel, {sum(counts.values())} baris, {time.perf_counter() - t0:.1f} detik")
