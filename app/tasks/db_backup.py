@@ -39,17 +39,55 @@ def _today() -> datetime.date:
     return datetime.date.today()
 
 
+_STALE_DIR = re.compile(r"\.(\d{4}-\d{2}-\d{2})\.(partial|old)")
+
+
+def _parse_date(text: str):
+    try:
+        return datetime.datetime.strptime(text, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _recover_today(root: str, today: datetime.date) -> bool:
+    """Kalau folder hari ini hilang tapi `.<today>.old` ada (proses mati di antara dua rename),
+    kembalikan `.old` menjadi folder hari ini."""
+    name = today.isoformat()
+    final, old = os.path.join(root, name), os.path.join(root, f".{name}.old")
+    if not os.path.lexists(final) and os.path.isdir(old) and not os.path.islink(old):
+        os.rename(old, final)
+        return True
+    return False
+
+
+def _cleanup_stale(root: str, today: datetime.date) -> None:
+    """Hapus `.<tanggal>.partial` / `.<tanggal>.old` untuk tanggal SEBELUM hari ini. `.old` yang folder
+    bertanggalnya hilang dikembalikan (bukan dihapus). Nama lain tidak pernah disentuh."""
+    for name in sorted(os.listdir(root)):
+        m = _STALE_DIR.fullmatch(name)
+        full = os.path.join(root, name)
+        if not m or os.path.islink(full) or not os.path.isdir(full):
+            continue
+        d = _parse_date(m.group(1))
+        if d is None or d >= today:
+            continue
+        if m.group(2) == "old" and not os.path.lexists(os.path.join(root, m.group(1))):
+            os.rename(full, os.path.join(root, m.group(1)))
+        else:
+            shutil.rmtree(full, ignore_errors=True)
+
+
 def _cleanup_old_folders(root: str, keep_days: int, today: datetime.date) -> list[str]:
-    """Hapus sub-folder langsung `root` bernama YYYY-MM-DD yang lebih tua dari keep_days hari.
-    File, symlink, dan folder dengan nama lain tidak pernah disentuh."""
+    """Bersihkan sisa `.partial`/`.old` basi, lalu hapus sub-folder langsung `root` bernama YYYY-MM-DD
+    yang lebih tua dari keep_days hari. File, symlink, dan folder dengan nama lain tidak pernah disentuh."""
+    _cleanup_stale(root, today)
     removed = []
     for name in sorted(os.listdir(root)):
         full = os.path.join(root, name)
         if not _DATE_DIR.fullmatch(name) or os.path.islink(full) or not os.path.isdir(full):
             continue
-        try:
-            d = datetime.datetime.strptime(name, "%Y-%m-%d").date()
-        except ValueError:
+        d = _parse_date(name)
+        if d is None:
             continue
         if (today - d).days > keep_days:
             shutil.rmtree(full)
@@ -94,6 +132,7 @@ def run_db_backup(dest_root: str | None = None, keep_days: int = 30) -> str:
     final = os.path.join(root, name)
     partial = os.path.join(root, f".{name}.partial")
     old = os.path.join(root, f".{name}.old")
+    _recover_today(root, today)
     for leftover in (partial, old):
         shutil.rmtree(leftover, ignore_errors=True)
     os.makedirs(partial)
@@ -113,17 +152,43 @@ def run_db_backup(dest_root: str | None = None, keep_days: int = 30) -> str:
         raise
     shutil.rmtree(old, ignore_errors=True)
     removed = _cleanup_old_folders(root, keep_days, today)
-    logger.info("db_backup: %d tabel, %d baris -> %s (dihapus: %s)", len(manifest),
+    logger.debug("db_backup: %d tabel, %d baris -> %s (dihapus: %s)", len(manifest),
                 sum(m["rows"] for m in manifest.values()), final, ", ".join(removed) or "-")
     return final
 
 
-def scheduled_db_backup():
-    """Pembungkus job APScheduler: tidak pernah melempar exception (scheduler tetap hidup)."""
+def job_logger() -> logging.Logger:
+    """Logger job backup yang pasti punya handler (logger modul tidak: app tidak mengonfigurasi root)."""
+    lg = logging.getLogger("financehub.db_backup")
+    lg.setLevel(logging.INFO)
+    if not lg.handlers:
+        h = logging.StreamHandler()
+        h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        lg.addHandler(h)
+    return lg
+
+
+def scheduled_db_backup(log: logging.Logger | None = None):
+    """Pembungkus job APScheduler: tidak pernah melempar exception (scheduler tetap hidup).
+    Baris sukses ("N tabel, N baris -> path") dikirim lewat `log` (default job_logger())."""
+    log = log or job_logger()
     try:
-        return run_db_backup()
+        path = run_db_backup()
+        with open(os.path.join(path, "manifest.json"), encoding="utf-8") as f:
+            manifest = json.load(f)
+        log.info("db_backup: %d tabel, %d baris -> %s", len(manifest),
+                 sum(m["rows"] for m in manifest.values()), path)
+        return path
     except fhdb.OperationalError as e:
-        logger.warning("db_backup dilewati, database tidak terjangkau: %s", e)
+        log.warning("db_backup dilewati, database tidak terjangkau: %s", e)
     except Exception:
-        logger.exception("db_backup gagal")
+        log.exception("db_backup gagal")
     return None
+
+
+def register_db_backup_job(scheduler) -> None:
+    """Daftarkan job harian 18:00. misfire_grace_time 1 jam + coalesce: PC tidur/sibuk jam 18:00 tetap
+    menjalankan backup sekali dalam satu jam."""
+    scheduler.add_job(func=scheduled_db_backup, trigger="cron", id="db_backup",
+                      day_of_week="mon-sun", hour=18, minute=0,
+                      misfire_grace_time=3600, coalesce=True, replace_existing=True)

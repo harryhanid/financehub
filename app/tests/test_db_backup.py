@@ -235,3 +235,89 @@ def test_restore_rejects_corrupt_row_count(tmp_path, pg_backend):
     with pytest.raises(ValueError):
         restore(str(folder), pg_backend, SCHEMA)
     assert _rows(pg_backend, "select count(*) from companies") == before  # belum ada yang ditulis
+
+
+# --- R43 hardening -------------------------------------------------------------------------------
+
+class _StubScheduler:
+    def __init__(self):
+        self.jobs = []
+
+    def add_job(self, **kwargs):
+        self.jobs.append(kwargs)
+
+
+def test_register_job_kwargs():
+    sched = _StubScheduler()
+    db_backup.register_db_backup_job(sched)
+    assert len(sched.jobs) == 1
+    job = sched.jobs[0]
+    assert {k: v for k, v in job.items() if k != "func"} == {
+        "trigger": "cron", "id": "db_backup", "day_of_week": "mon-sun", "hour": 18, "minute": 0,
+        "misfire_grace_time": 3600, "coalesce": True, "replace_existing": True}
+    assert callable(job["func"])
+
+
+def test_app_registers_job_through_helper():
+    src = (ROOT / "app" / "app.py").read_text(encoding="utf-8")
+    assert "register_db_backup_job(scheduler" in src
+
+
+def test_job_logger_emits_info():
+    lg = db_backup.job_logger()
+    assert lg.isEnabledFor(logging.INFO)
+    assert any(isinstance(h, logging.StreamHandler) for h in lg.handlers)
+    assert db_backup.job_logger() is lg and len(lg.handlers) == 1  # idempotent
+
+
+def test_scheduled_job_logs_success_info_line(tmp_path, monkeypatch, caplog):
+    monkeypatch.setattr(config, "DB_BACKUP_ROOT", str(tmp_path))
+    lg = logging.getLogger("test.db_backup.success")
+    with caplog.at_level(logging.INFO, logger=lg.name):
+        path = db_backup.scheduled_db_backup(lg)
+    msgs = [r for r in caplog.records if r.name == lg.name and r.levelno == logging.INFO]
+    assert len(msgs) == 1
+    text = msgs[0].getMessage()
+    assert "tabel" in text and "baris" in text and path in text
+
+
+def test_startup_recovers_today_from_old(tmp_path, monkeypatch):
+    today = datetime.date.today().isoformat()
+    old = tmp_path / f".{today}.old"
+    old.mkdir()
+    (old / "manifest.json").write_text("{}")
+
+    def boom(*a, **k):
+        raise fhdb.OperationalError("putus")
+
+    monkeypatch.setattr(db_backup, "_dump", boom)
+    with pytest.raises(fhdb.OperationalError):
+        run_db_backup(str(tmp_path))
+    # kill di antara dua rename -> folder hari ini dipulihkan dari .old, bukan dibuang
+    assert (tmp_path / today / "manifest.json").exists()
+    assert not old.exists()
+
+
+def test_cleanup_removes_stale_partial_and_old(tmp_path):
+    today = datetime.date.today()
+    y = (today - datetime.timedelta(days=1)).isoformat()
+    t = today.isoformat()
+    (tmp_path / y).mkdir()
+    (tmp_path / f".{y}.partial").mkdir()
+    (tmp_path / f".{y}.old").mkdir()  # folder tanggalnya ada -> .old basi, dihapus
+    orphan = (today - datetime.timedelta(days=2)).isoformat()
+    (tmp_path / f".{orphan}.old").mkdir()  # folder tanggalnya hilang -> dikembalikan, bukan dihapus
+    (tmp_path / f".{orphan}.old" / "manifest.json").write_text("{}")
+    (tmp_path / f".{t}.partial").mkdir()  # hari ini: tidak disentuh cleanup (milik run yang berjalan)
+    (tmp_path / ".notes.partial").mkdir()
+    db_backup._cleanup_old_folders(str(tmp_path), 30, today)
+    names = sorted(p.name for p in tmp_path.iterdir())
+    assert names == sorted([y, orphan, f".{t}.partial", ".notes.partial"])
+    assert (tmp_path / orphan / "manifest.json").exists()
+
+
+def test_backup_run_leaves_only_dated_folders(tmp_path):
+    y = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    (tmp_path / f".{y}.partial").mkdir()
+    folder = Path(run_db_backup(str(tmp_path)))
+    assert sorted(p.name for p in tmp_path.iterdir()) == [folder.name]

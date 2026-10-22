@@ -161,9 +161,8 @@ def create_app(testing=False):
 
                 # Backup harian isi database ke config.DB_BACKUP_ROOT (Y:), retensi 30 hari.
                 # scheduled_db_backup tidak pernah melempar: DB tidak terjangkau -> warning, error lain -> log.
-                from tasks.db_backup import scheduled_db_backup
-                scheduler.add_job(func=scheduled_db_backup, trigger="cron", id="db_backup",
-                                  day_of_week="mon-sun", hour=18, minute=0)
+                from tasks.db_backup import register_db_backup_job
+                register_db_backup_job(scheduler)
                 scheduler.start()
                 app.logger.info("APScheduler started successfully.")
             except ImportError:
