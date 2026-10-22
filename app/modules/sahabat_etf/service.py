@@ -8,7 +8,7 @@ def _year_filter_sql(years, column):
     if not years:
         return "", []
     placeholders = ",".join("?" for _ in years)
-    return f" AND strftime('%Y', {column}) IN ({placeholders})", [str(y) for y in years]
+    return f" AND fh_strftime('%Y', {column}) IN ({placeholders})", [str(y) for y in years]
 
 
 def _pillar_filter_sql(pillars, column):
@@ -48,8 +48,8 @@ def _fetch_report_rows(company_id: int, pillars: list = None):
         """
         SELECT s.nama AS nama, s.jenjang AS jenjang, s.angkatan AS angkatan, s.group_setf AS group_setf,
                b.cat1 AS cat1, b.cat2 AS cat2,
-               b.pillar AS pillar, CAST(strftime('%Y', b.tanggal) AS INTEGER) AS tahun,
-               CAST(strftime('%m', b.tanggal) AS INTEGER) AS bulan,
+               b.pillar AS pillar, CAST(fh_strftime('%Y', b.tanggal) AS INTEGER) AS tahun,
+               CAST(fh_strftime('%m', b.tanggal) AS INTEGER) AS bulan,
                b.amount AS amount
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
@@ -69,8 +69,8 @@ def _fetch_report_rows(company_id: int, pillars: list = None):
                  WHEN 'ENERGY' THEN p."tgl_Paid_ENERGY" 
                  WHEN 'SETF' THEN p."tgl_Paid_SETF" 
                  END, pr.tanggal_bayar) AS tanggal_bayar, p.tanggal AS tanggal,
-               CAST(strftime('%Y', p.tanggal) AS INTEGER) AS tahun,
-               CAST(strftime('%m', p.tanggal) AS INTEGER) AS bulan, p.amount AS amount
+               CAST(fh_strftime('%Y', p.tanggal) AS INTEGER) AS tahun,
+               CAST(fh_strftime('%m', p.tanggal) AS INTEGER) AS bulan, p.amount AS amount
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         LEFT JOIN pam_records pr ON pr.pam_no = p.pam AND pr.company_id = p.company_id
@@ -732,12 +732,12 @@ def get_siswa_detail(company_id: int, siswa_code: str) -> list:
     conn = get_conn()
     budget_rows = conn.execute(
         "SELECT tanggal, cat1, cat2, amount FROM budget_beasiswa "
-        "WHERE company_id = ? AND siswa_code = ? ORDER BY tanggal",
+        "WHERE company_id = ? AND siswa_code = ? ORDER BY tanggal NULLS FIRST",
         (company_id, siswa_code),
     ).fetchall()
     payment_rows = conn.execute(
         "SELECT tanggal, cat1, cat2, amount, status FROM payment_beasiswa "
-        "WHERE company_id = ? AND siswa_code = ? ORDER BY tanggal",
+        "WHERE company_id = ? AND siswa_code = ? ORDER BY tanggal NULLS FIRST",
         (company_id, siswa_code),
     ).fetchall()
     conn.close()
@@ -768,7 +768,7 @@ def get_report_detail_transactions(company_id: int, report_year: int, report_mon
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
         WHERE b.company_id = ? AND s.program = ? AND b.tanggal <= ?
-        ORDER BY s.nama, b.tanggal
+        ORDER BY s.nama, b.tanggal NULLS FIRST
         """,
         [company_id, PROGRAM_NAME, cutoff_date],
     ).fetchall()
@@ -786,7 +786,7 @@ def get_report_detail_transactions(company_id: int, report_year: int, report_mon
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         LEFT JOIN pam_records pr ON pr.pam_no = p.pam AND pr.company_id = p.company_id
         WHERE p.company_id = ? AND s.program = ? AND p.tanggal <= ?{pillar_sql}
-        ORDER BY s.nama, p.tanggal
+        ORDER BY s.nama, p.tanggal NULLS FIRST
         """,
         [company_id, PROGRAM_NAME, cutoff_date, *pillar_params],
     ).fetchall()
@@ -821,7 +821,7 @@ def get_all_transactions(company_id: int, years: list = None, pillars: list = No
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
         WHERE b.company_id = ? AND s.program = ?{budget_year_sql}
-        ORDER BY s.nama, b.tanggal
+        ORDER BY s.nama, b.tanggal NULLS FIRST
         """,
         [company_id, PROGRAM_NAME, *budget_year_params],
     ).fetchall()
@@ -839,7 +839,7 @@ def get_all_transactions(company_id: int, years: list = None, pillars: list = No
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         LEFT JOIN pam_records pr ON pr.pam_no = p.pam AND pr.company_id = p.company_id
         WHERE p.company_id = ? AND s.program = ?{payment_year_sql}{pillar_sql}
-        ORDER BY s.nama, p.tanggal
+        ORDER BY s.nama, p.tanggal NULLS FIRST
         """,
         [company_id, PROGRAM_NAME, *payment_year_params, *pillar_params],
     ).fetchall()
@@ -870,7 +870,7 @@ def get_latest_payments(company_id: int, years: list = None, pillars: list = Non
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         WHERE p.company_id = ? AND s.program = ?{payment_year_sql}{pillar_sql}{kategori_sql}
-        ORDER BY p.tanggal DESC, p.id DESC
+        ORDER BY p.tanggal DESC NULLS LAST, p.id DESC
         LIMIT ?
         """,
         [company_id, PROGRAM_NAME, *payment_year_params, *pillar_params, *kategori_params, limit],
@@ -884,12 +884,12 @@ def get_available_years(company_id: int) -> list:
     conn = get_conn()
     rows = conn.execute(
         """
-        SELECT DISTINCT strftime('%Y', b.tanggal) AS y
+        SELECT DISTINCT fh_strftime('%Y', b.tanggal) AS y
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
         WHERE b.company_id = ? AND s.program = ? AND b.tanggal IS NOT NULL AND b.tanggal != ''
         UNION
-        SELECT DISTINCT strftime('%Y', p.tanggal) AS y
+        SELECT DISTINCT fh_strftime('%Y', p.tanggal) AS y
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         WHERE p.company_id = ? AND s.program = ? AND p.tanggal IS NOT NULL AND p.tanggal != ''
@@ -973,46 +973,46 @@ def get_yearly_breakdown(company_id: int, years: list = None, pillars: list = No
     
     budget_cat_rows = conn.execute(
         f"""
-        SELECT strftime('%Y', b.tanggal) AS tahun, b.cat1, SUM(b.amount) AS total
+        SELECT fh_strftime('%Y', b.tanggal) AS tahun, b.cat1, SUM(b.amount) AS total
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
         WHERE b.company_id = ? AND s.program = ? AND b.tanggal IS NOT NULL AND b.tanggal != ''{budget_year_sql}{b_pillar_sql}
-        GROUP BY tahun, b.cat1
+        GROUP BY 1, 2
         """,
         [company_id, PROGRAM_NAME, *budget_year_params, *b_pillar_params],
     ).fetchall()
     
     payment_cat_rows = conn.execute(
         f"""
-        SELECT strftime('%Y', p.tanggal) AS tahun, p.cat1, SUM(p.amount) AS total
+        SELECT fh_strftime('%Y', p.tanggal) AS tahun, p.cat1, SUM(p.amount) AS total
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         WHERE p.company_id = ? AND s.program = ? AND p.status = 'complete'
               AND p.tanggal IS NOT NULL AND p.tanggal != ''{payment_year_sql}{pillar_sql}
-        GROUP BY tahun, p.cat1
+        GROUP BY 1, 2
         """,
         [company_id, PROGRAM_NAME, *payment_year_params, *pillar_params],
     ).fetchall()
     
     budget_pil_rows = conn.execute(
         f"""
-        SELECT strftime('%Y', b.tanggal) AS tahun, b.pillar, SUM(b.amount) AS total
+        SELECT fh_strftime('%Y', b.tanggal) AS tahun, b.pillar, SUM(b.amount) AS total
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
         WHERE b.company_id = ? AND s.program = ? AND b.tanggal IS NOT NULL AND b.tanggal != ''{budget_year_sql}{b_pillar_sql}
-        GROUP BY tahun, b.pillar
+        GROUP BY 1, 2
         """,
         [company_id, PROGRAM_NAME, *budget_year_params, *b_pillar_params],
     ).fetchall()
     
     payment_pil_rows = conn.execute(
         f"""
-        SELECT strftime('%Y', p.tanggal) AS tahun, p.pillar, SUM(p.amount) AS total
+        SELECT fh_strftime('%Y', p.tanggal) AS tahun, p.pillar, SUM(p.amount) AS total
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         WHERE p.company_id = ? AND s.program = ? AND p.status = 'complete'
               AND p.tanggal IS NOT NULL AND p.tanggal != ''{payment_year_sql}{pillar_sql}
-        GROUP BY tahun, p.pillar
+        GROUP BY 1, 2
         """,
         [company_id, PROGRAM_NAME, *payment_year_params, *pillar_params],
     ).fetchall()
@@ -1089,11 +1089,11 @@ def get_monthly_breakdown(company_id: int, years: list = None, pillars: list = N
 
     budget_rows = conn.execute(
         f"""
-        SELECT CAST(strftime('%m', b.tanggal) AS INTEGER) AS bulan, SUM(b.amount) AS total
+        SELECT CAST(fh_strftime('%m', b.tanggal) AS INTEGER) AS bulan, SUM(b.amount) AS total
         FROM budget_beasiswa b
         JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
-        WHERE b.company_id = ? AND s.program = ? AND strftime('%Y', b.tanggal) = ?{budget_pillar_sql}
-        GROUP BY bulan
+        WHERE b.company_id = ? AND s.program = ? AND fh_strftime('%Y', b.tanggal) = ?{budget_pillar_sql}
+        GROUP BY 1
         """,
         [company_id, PROGRAM_NAME, str(chart_year), *budget_pillar_params],
     ).fetchall()
@@ -1102,13 +1102,13 @@ def get_monthly_breakdown(company_id: int, years: list = None, pillars: list = N
     year_placeholders = ",".join("?" for _ in years)
     realisasi_rows = conn.execute(
         f"""
-        SELECT strftime('%Y', p.tanggal) AS tahun, CAST(strftime('%m', p.tanggal) AS INTEGER) AS bulan,
+        SELECT fh_strftime('%Y', p.tanggal) AS tahun, CAST(fh_strftime('%m', p.tanggal) AS INTEGER) AS bulan,
                SUM(p.amount) AS total
         FROM payment_beasiswa p
         JOIN siswa s ON s.code = p.siswa_code AND s.company_id = p.company_id
         WHERE p.company_id = ? AND s.program = ? AND p.status = 'complete'
-              AND strftime('%Y', p.tanggal) IN ({year_placeholders}){pillar_sql}
-        GROUP BY tahun, bulan
+              AND fh_strftime('%Y', p.tanggal) IN ({year_placeholders}){pillar_sql}
+        GROUP BY 1, 2
         """,
         [company_id, PROGRAM_NAME, *[str(y) for y in years], *pillar_params],
     ).fetchall()

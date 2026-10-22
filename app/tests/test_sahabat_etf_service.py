@@ -1,10 +1,8 @@
-import os, sys, pytest, sqlite3
+import os, sys, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_sahabat_etf.db")
 
-from database import init_db, get_conn
-from modules.beasiswa.service import add_siswa, add_budget_batch, add_payment_batch
+from database import get_conn
+from modules.beasiswa.service import add_siswa, add_payment_batch
 from modules.sahabat_etf.service import (
     get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
     get_available_years, get_available_pillars, get_monthly_breakdown,
@@ -14,28 +12,18 @@ from modules.sahabat_etf.service import (
 COMPANY_ID = 2  # ETF
 
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    import time
-    # Clean and recreate tables for each test
-    # (Simpler than trying to fight Windows SQLite file locks with WAL mode)
-    if os.path.exists(config.DB_PATH):
-        try:
-            conn = sqlite3.connect(config.DB_PATH)
-            # Drop all data-bearing tables except schema tables
-            for table in ['siswa', 'budget_beasiswa', 'payment_beasiswa', 'payment_memo']:
-                try:
-                    conn.execute(f"DROP TABLE IF EXISTS {table}")
-                except Exception:
-                    pass
-            conn.commit()
-            conn.close()
-        except Exception:
-            pass
-    # Recreate tables
-    init_db()
-    yield
-    # No post-test cleanup needed - next test's setup will truncate
+def add_budget_batch(company_id, siswa_code, tanggal, pillar, items):
+    """Seed budget_beasiswa directly. beasiswa.service.add_budget_batch now only
+    creates approval requests (needs created_by), so the stale tests seeded nothing."""
+    conn = get_conn()
+    for item in items:
+        conn.execute(
+            "INSERT INTO budget_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, tgl_expired) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (company_id, siswa_code, item.get("cat1", ""), item.get("cat2", ""), tanggal,
+             float(item.get("amount", 0)), pillar, item.get("tgl_expired") or None),
+        )
+    conn.close()
 
 
 def _add_siswa(code, nama, program="Sahabat ETF", company_id=COMPANY_ID, jenjang="S1", angkatan=2024):

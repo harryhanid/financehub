@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import Blueprint, render_template, session, jsonify, request, redirect, url_for
 from flask_jwt_extended import get_jwt
+from fhdb.errors import OperationalError
 from auth.middleware import jwt_html_required
 from modules.sahabat_etf.service import (
     get_siswa_summary, get_kategori_breakdown, get_siswa_detail, get_all_transactions,
@@ -158,6 +159,8 @@ def api_report():
     try:
         data = build_report_data(_cid(), int(year_param), month, pillars)
         return jsonify({"ok": True, "data": data})
+    except OperationalError:
+        raise  # DB outage -> app-level 503 handler (R25)
     except Exception as e:
         import traceback
         with open("C:/Financehub/last_500_error.txt", "w") as errf:
