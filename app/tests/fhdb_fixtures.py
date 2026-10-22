@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-PG_TEST_PORT = 54330  # test_local_pg.py memakai 54331
+PG_TEST_PORT = int(os.environ.get("FH_TEST_PG_PORT", "54330"))  # test_local_pg.py memakai 54331 (FH_TEST_PG_PORT_LOCAL)
 TEST_SCHEMA = "financehub_test"
 MIGRATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "db_migrations")
 
