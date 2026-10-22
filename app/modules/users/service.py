@@ -7,7 +7,7 @@ VALID_ROLES = {"Admin", "FC", "Fin", "BC"}
 def get_users() -> list:
     conn = get_conn()
     rows = [dict(r) for r in conn.execute(
-        "SELECT id, username, role, is_active, must_change_pw, created_at, last_login FROM users ORDER BY created_at"
+        "SELECT id, username, role, is_active, must_change_pw, created_at, last_login FROM users ORDER BY created_at NULLS FIRST"
     ).fetchall()]
     conn.close()
     return rows

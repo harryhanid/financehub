@@ -154,3 +154,19 @@ def test_fh_strftime_more_specifiers_match_sqlite(pg_raw):
                    (None, "2025-03-15")]:
         expected = lite.execute("select strftime(?, ?)", (fmt, x)).fetchone()[0]
         assert pg_raw.scalar("select public.fh_strftime(%s, %s)", (fmt, x)) == expected, (fmt, x)
+
+
+def test_text_columns_use_binary_collation(tmp_path, pg_raw):
+    """R28: kolom text memakai COLLATE "C" -> urutan byte seperti BINARY di SQLite."""
+    db = _make_db(tmp_path / "coll.db",
+                  "create table t (id INTEGER PRIMARY KEY, nama TEXT UNIQUE);",
+                  [("insert into t (nama) values (?)", (v,)) for v in ("a", "b", "B")])
+    sql = generate(db).replace("{{schema}}", "gen_coll")
+    pg_raw.execute("create schema gen_coll"); pg_raw.execute(sql)
+    assert pg_raw.scalar(
+        "select collation_name from information_schema.columns "
+        "where table_schema='gen_coll' and table_name='t' and column_name='nama'") == "C"
+    for v in ("a", "b", "B"):
+        pg_raw.execute("insert into gen_coll.t (nama) values (%s)", (v,))
+    assert pg_raw.scalar(
+        "select string_agg(nama, ',' order by nama) from gen_coll.t") == "B,a,b"

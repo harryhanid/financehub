@@ -19,7 +19,7 @@ def get_applications(company_id: int, month: int = None, year: int = None) -> li
     if year:
         query += " AND fh_strftime('%Y', pa.submitted_at) = ?"
         params.append(str(year))
-    query += " ORDER BY pa.created_at DESC"
+    query += " ORDER BY pa.created_at DESC NULLS LAST"
     rows = [dict(r) for r in conn.execute(query, params).fetchall()]
     conn.close()
     for r in rows:

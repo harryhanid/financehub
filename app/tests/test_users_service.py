@@ -43,3 +43,13 @@ def test_change_user_role():
 def test_cannot_change_admin_role():
     result = change_user_role("admin", "Fin")
     assert result["ok"] is False
+
+
+def test_get_users_null_created_at_first():
+    """R29: SQLite mengurutkan NULL lebih dulu pada ASC."""
+    from database import get_conn
+    add_user("staff_null", "Pass@word1", "Fin")
+    conn = get_conn()
+    conn.execute("UPDATE users SET created_at=NULL WHERE username=?", ("staff_null",))
+    conn.close()
+    assert get_users()[0]["username"] == "staff_null"

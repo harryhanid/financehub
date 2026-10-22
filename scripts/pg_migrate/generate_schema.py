@@ -6,7 +6,7 @@ Output SQL uses the placeholder ``{{schema}}`` (substituted by apply_migrations.
 
 Rules:
 - Every identifier is quoted exactly as in SQLite (mixed case, '-').
-- Types: TEXT -> text, INTEGER -> bigint, REAL -> double precision; untyped -> from data kinds.
+- Types: TEXT -> text collate "C" (R28, byte order seperti SQLite BINARY), INTEGER -> bigint, REAL -> double precision; untyped -> from data kinds.
   If the declared type's mapping would lose values present in the data (INTEGER holding reals,
   INTEGER/REAL holding non-numeric text), the column falls back to a type that holds all observed
   values (double precision, else text). Each override is listed in a comment at the top.
@@ -260,6 +260,8 @@ def _generate(conn, prof):
                 overrides.append(f"{tname}.{cname}: {typ} ({why})")
             types[cname] = typ
             line = f"    {q(cname)} {typ}"
+            if typ == "text":
+                line += ' collate "C"'  # R28: urutan byte seperti BINARY di SQLite
             if notnull or pk:
                 line += " not null"
             d = pg_default(dflt, typ)

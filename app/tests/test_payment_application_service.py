@@ -107,3 +107,15 @@ def test_get_applications_filters_by_month_and_year():
     assert [r["notes"] for r in get_applications(COMPANY_ID, month=7, year=2026)] == ["jul"]
     assert [r["notes"] for r in get_applications(COMPANY_ID, month=8)] == ["aug"]
     assert len(get_applications(COMPANY_ID)) == 3
+
+
+def test_get_applications_null_created_at_last():
+    """R29: SQLite mengurutkan NULL terakhir pada DESC."""
+    memo_id = _memo()
+    r1 = create_application(COMPANY_ID, memo_id, "2026-07-01", "2026-07-10", "a")
+    r2 = create_application(COMPANY_ID, memo_id, "2026-07-02", "2026-07-11", "b")
+    conn = get_conn()
+    conn.execute("UPDATE payment_application SET created_at=NULL WHERE id=?", (r2["application_id"],))
+    conn.close()
+    ids = [a["id"] for a in get_applications(COMPANY_ID)]
+    assert ids == [r1["application_id"], r2["application_id"]]
