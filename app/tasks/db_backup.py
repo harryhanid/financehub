@@ -7,7 +7,8 @@ Isi `<dest_root>/YYYY-MM-DD/`:
 - `0002_schema.sql`: salinan skema (template `{{schema}}`) untuk membangun ulang schema kosong.
 Pulihkan dengan `scripts/pg_migrate/restore_backup.py`.
 
-Dibaca lewat fhdb (backend dari config; produksi HTTPS). `refresh_tokens` tidak di-backup (token sesi;
+Dibaca lewat fhdb (backend dari config; produksi HTTPS). `refresh_tokens` dan tabel staging `fh_stage_*`
+(sementara, UNLOGGED) tidak di-backup (token sesi;
 restore ikut mengosongkannya lewat CASCADE). Isinya data bisnis (termasuk users.password_hash bcrypt),
 tidak ada rahasia konfigurasi. Folder ditulis dulu sebagai `.YYYY-MM-DD.partial` lalu di-rename, jadi
 folder bertanggal selalu lengkap. Retensi (folder bertanggal > keep_days hari) hanya dijalankan setelah
@@ -25,6 +26,7 @@ import shutil
 import config
 import fhdb
 from fhdb import paging
+from modules.general_ledger import staging
 
 PAGE_ROWS = paging.PAGE_ROWS
 SKIP_TABLES = ("refresh_tokens",)
@@ -106,7 +108,8 @@ def _dump(conn, out_dir: str) -> dict:
     pks = paging.primary_keys(run, schema)
     manifest = {}
     for table in sorted(tables):
-        if table in SKIP_TABLES:
+        # fh_stage_*: tabel UNLOGGED sementara milik run GL/SPT yang sedang jalan (bisa di-drop kapan saja)
+        if table in SKIP_TABLES or table.startswith(staging.PREFIX):
             continue
         cols = [c for c, _ in tables[table]]
         n = 0

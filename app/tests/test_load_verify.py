@@ -247,3 +247,17 @@ def test_verify_no_false_mismatch_when_summation_order_differs(small, pg_backend
     assert verify(db, pg_backend, SCHEMA) == []
     pg_backend.execute_batch(["update pb set jumlah = 0.04 where id = 2"], SCHEMA)
     assert [(m.table, m.column) for m in verify(db, pg_backend, SCHEMA)] == [("pb", "jumlah")]
+
+
+def test_target_columns_skips_staging_tables(small, pg_backend):
+    from modules.general_ledger import staging
+    name = f"{staging.PREFIX}spt_test_verify"
+    pg_backend.execute_batch([f'create unlogged table if not exists "{name}" (id bigint, v text)'], SCHEMA)
+    try:
+        tcols = load_data.target_columns(pg_backend, SCHEMA)
+        assert "pb" in tcols and name not in tcols
+        db = _make_sqlite(small)
+        load(db, pg_backend, SCHEMA)
+        assert verify(db, pg_backend, SCHEMA) == []
+    finally:
+        pg_backend.execute_batch([f'drop table if exists "{name}"'], SCHEMA)

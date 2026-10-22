@@ -321,3 +321,54 @@ def test_backup_run_leaves_only_dated_folders(tmp_path):
     (tmp_path / f".{y}.partial").mkdir()
     folder = Path(run_db_backup(str(tmp_path)))
     assert sorted(p.name for p in tmp_path.iterdir()) == [folder.name]
+
+
+# --- Final fix 2: tabel staging (fh_stage_*) tidak di-backup / di-restore / di-verify ---
+
+from modules.general_ledger import staging as gl_staging  # noqa: E402
+
+STAGE = f"{gl_staging.PREFIX}gl_test_backup"
+
+
+@pytest.fixture
+def stage_table(pg_backend):
+    pg_backend.execute_batch([f'drop table if exists "{STAGE}"',
+                              f'create unlogged table "{STAGE}" (id bigint primary key, v text)',
+                              f"insert into \"{STAGE}\" values (1, 'x')"], SCHEMA)
+    try:
+        yield STAGE
+    finally:
+        pg_backend.execute_batch([f'drop table if exists "{STAGE}"'], SCHEMA)
+
+
+def test_backup_skips_staging_tables_and_restore_works(tmp_path, pg_backend, extra_tables, stage_table):
+    _seed(pg_backend)
+    before_pm = _rows(pg_backend, "select * from payment_memo order by id")
+    folder = run_db_backup(str(tmp_path))
+    manifest = json.loads((Path(folder) / "manifest.json").read_text(encoding="utf-8"))
+    assert not [t for t in manifest if t.startswith(gl_staging.PREFIX)]
+    assert not (Path(folder) / f"{STAGE}.jsonl.gz").exists()
+
+    pg_backend.execute_batch(["truncate payment_memo, companies, bk_nopk, bk_comp restart identity cascade"], SCHEMA)
+    logs = []
+    restore(folder, pg_backend, SCHEMA, log=logs.append)
+    assert not any(STAGE in m for m in logs)          # staging tidak dilaporkan "tanpa data backup"
+    assert verify_against_manifest(folder, pg_backend, SCHEMA) == []
+    assert _rows(pg_backend, "select * from payment_memo order by id") == before_pm
+
+
+def test_backup_survives_staging_table_dropped_mid_dump(tmp_path, pg_backend, stage_table, monkeypatch):
+    real_iter = db_backup.paging.iter_rows
+    dropped = []
+
+    def iter_and_drop(*a, **kw):
+        if not dropped:
+            pg_backend.execute_batch([f'drop table if exists "{STAGE}"'], SCHEMA)
+            dropped.append(True)
+        return real_iter(*a, **kw)
+
+    monkeypatch.setattr(db_backup.paging, "iter_rows", iter_and_drop)
+    folder = run_db_backup(str(tmp_path))
+    assert dropped
+    manifest = json.loads((Path(folder) / "manifest.json").read_text(encoding="utf-8"))
+    assert STAGE not in manifest

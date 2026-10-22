@@ -37,6 +37,7 @@ APP_DIR = Path(__file__).resolve().parents[2] / "app"
 sys.path.insert(0, str(APP_DIR))
 
 from fhdb.sqlbind import bind  # noqa: E402
+from modules.general_ledger.staging import PREFIX as STAGING_PREFIX  # noqa: E402
 
 ALLOWED_SCHEMAS = ("financehub", "financehub_staging", "financehub_test")
 PRODUCTION_SCHEMA = "financehub"
@@ -116,6 +117,8 @@ def target_columns(backend, schema) -> dict[str, dict[str, tuple[str, bool]]]:
         (schema,))], schema)[0]
     out: dict = {}
     for table, col, dtype, ident in res["rows"]:
+        if table.startswith(STAGING_PREFIX):  # staging GL/SPT sementara: tidak di-load/restore/verify
+            continue
         out.setdefault(table, {})[col] = (dtype, ident == "YES")
     return out
 
