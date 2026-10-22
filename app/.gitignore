@@ -12,3 +12,4 @@ venv/
 dist/
 build/
 storage/
+tests/_pg/
