@@ -1,5 +1,3 @@
-import sqlite3
-
 import pytest
 
 from database import get_conn
@@ -110,20 +108,10 @@ def test_legacy_snapshot_without_hash_is_compared_by_content():
     assert svc.get_active_upload_id(1) == up
 
 
-def test_existing_database_gets_new_columns_without_data_loss():
-    conn = get_conn()
-    conn.executescript("""
-        CREATE TABLE mr_upload (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, company_id INTEGER NOT NULL,
-            filename TEXT, uploaded_by TEXT, uploaded_at TEXT,
-            row_count INTEGER DEFAULT 0, is_active INTEGER DEFAULT 0, purged INTEGER DEFAULT 0);
-        INSERT INTO mr_upload (company_id, filename, row_count, is_active) VALUES (1, 'legacy.xlsb', 5, 1);
-    """)
-    conn.close()
-    uploads = svc.list_uploads(1)                            # triggers ensure_schema migration
-    assert [u["filename"] for u in uploads] == ["legacy.xlsb"]
+def test_static_schema_has_the_sync_columns():
+    # Postgres: mr_upload comes from 0002_schema.sql with the columns old databases got by ALTER.
     conn = get_conn()
     cols = {r[1] for r in conn.execute("PRAGMA table_info(mr_upload)")}
     conn.close()
-    assert {"content_hash", "change_summary"} <= cols
-    assert svc.get_active_summary(1) is None
+    assert {"content_hash", "change_summary", "meta"} <= cols
+    assert svc.list_uploads(1) == [] and svc.get_active_summary(1) is None

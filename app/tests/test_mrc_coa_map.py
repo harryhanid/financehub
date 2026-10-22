@@ -146,7 +146,6 @@ def cc_a():
 def count(table):
     conn = get_conn()
     try:
-        cm.ensure_schema(conn)
         return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
     finally:
         conn.close()
@@ -261,10 +260,10 @@ def test_failed_sync_rolls_back_when_log_insert_fails(monkeypatch):
         def __init__(self, conn):
             self._c = conn
 
-        def execute(self, sql, *a):
-            if sql.lstrip().startswith("INSERT INTO gl_coa_sync_log"):
+        def batch(self, items):
+            if any(sql.lstrip().startswith("INSERT INTO gl_coa_sync_log") for sql, _ in items):
                 raise RuntimeError("log insert failed")
-            return self._c.execute(sql, *a)
+            return self._c.batch(items)
 
         def __getattr__(self, name):
             return getattr(self._c, name)
@@ -284,24 +283,15 @@ def test_get_map_and_last_sync_when_never_synced():
     assert cm.last_sync() is None
 
 
-def test_old_schema_is_migrated_in_place():
+def test_static_schema_has_the_columns_old_databases_got_by_migration():
+    # Postgres: the tables come from 0002_schema.sql (no runtime CREATE/ALTER any more).
     conn = get_conn()
-    conn.executescript("""
-        DROP TABLE IF EXISTS gl_coa_map; DROP TABLE IF EXISTS gl_coa_sync_log;
-        DROP TABLE IF EXISTS gl_cc_map;
-        CREATE TABLE gl_coa_map (source TEXT NOT NULL, account TEXT NOT NULL, coa_ho TEXT NOT NULL,
-            category TEXT NOT NULL DEFAULT '', PRIMARY KEY (source, account));
-        CREATE TABLE gl_coa_sync_log (id INTEGER PRIMARY KEY AUTOINCREMENT, synced_at TEXT,
-            synced_by TEXT, filename TEXT, content_hash TEXT, rows_smt INTEGER DEFAULT 0,
-            rows_etf INTEGER DEFAULT 0);
-        INSERT INTO gl_coa_map VALUES ('SMT', '6-1810', '70108100', '10 - Office');
-        INSERT INTO gl_coa_sync_log (filename, content_hash, rows_smt, rows_etf)
-            VALUES ('old.xlsb', 'oldhash', 1, 0);
-    """)
-    conn.commit()
-    conn.close()
-    assert cm.get_map() == {("SMT", "6-1810"): ("70108100", "10 - Office", "")}
-    assert cm.last_sync()["rows_cc"] == 0
+    try:
+        coa = {r[1] for r in conn.execute("PRAGMA table_info(gl_coa_map)")}
+        log = {r[1] for r in conn.execute("PRAGMA table_info(gl_coa_sync_log)")}
+    finally:
+        conn.close()
+    assert "code" in coa and "rows_cc" in log
     assert cm.sync_coa("new.xlsb", "admin", rows_a(), cc_a()) == {
         "changed": True, "rows_smt": 1, "rows_etf": 1, "rows_cc": 2}
     assert cm.get_map()[("SMT", "6-1810")] == ("70108100", "10 - Office", "-10-")
@@ -442,7 +432,6 @@ def test_list_syncs_newest_first_with_counts_and_limit():
 
 def test_list_syncs_null_rows_cc_becomes_zero():
     conn = get_conn()
-    cm.ensure_schema(conn)
     conn.execute("INSERT INTO gl_coa_sync_log (filename, content_hash, rows_smt, rows_etf, rows_cc) "
                  "VALUES ('old.xlsb', 'h', 3, 4, NULL)")
     conn.commit()
@@ -548,3 +537,35 @@ def test_search_cc_pagination_and_clamping():
         out = cm.search_cc(page=bad, per_page=2)
         assert out["page"] == want and out["pages"] == 3
     assert _ccs(cm.search_cc(page=999, per_page=2)) == ["alpha"]
+
+
+# ---------- Postgres atomicity (one batch per flow) ----------
+
+def test_sync_coa_atomic_on_failure(monkeypatch):
+    from tests.test_mr_service import fail_batch_after_writes
+    cm.sync_coa("m.xlsb", "admin", rows_a(), cc_a())
+    before = (_state(), count("gl_coa_map"), count("gl_cc_map"), count("gl_coa_sync_log"))
+    fail_batch_after_writes(monkeypatch, "INSERT INTO gl_coa_sync_log")
+    changed = rows_a()
+    changed[0]["coa_ho"] = "3"
+    with pytest.raises(Exception):
+        cm.sync_coa("bad.xlsb", "admin", changed, cc_a()[:1])
+    assert (_state(), count("gl_coa_map"), count("gl_cc_map"), count("gl_coa_sync_log")) == before
+
+
+def test_sync_coa_batch_starts_with_the_advisory_lock_and_handles_many_rows(monkeypatch):
+    from fhdb.connection import Connection
+    batches = []
+    real = Connection.batch
+
+    def spy(self, items):
+        batches.append(list(items))
+        return real(self, items)
+    monkeypatch.setattr(Connection, "batch", spy)
+    rows = [{"source": "SMT", "account": f"6-{i:05d}", "coa_ho": "70108100", "category": "c",
+             "code": ""} for i in range(2300)]
+    assert cm.sync_coa("m.xlsb", "admin", rows, cc_a())["changed"] is True
+    swap = batches[-1]
+    assert swap[0] == ("SELECT pg_advisory_xact_lock(hashtext(?))", ("mr:coa_map",))
+    assert sum(1 for sql, _ in swap if sql.startswith('INSERT INTO "gl_coa_map"')) == 3
+    assert count("gl_coa_map") == 2300 and count("gl_cc_map") == 2

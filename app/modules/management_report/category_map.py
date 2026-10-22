@@ -9,6 +9,7 @@ import re
 from datetime import datetime
 
 from database import get_conn
+from modules.general_ledger import staging
 from modules.general_ledger import service as gl_service
 from modules.management_report.coa_map import CoaParseError, _cell, _page, _read_sheets, _text
 
@@ -67,56 +68,25 @@ def read_category_sheet(fileobj) -> list:
     return _read_sheets(fileobj, [SHEET_NAME], lambda r: normalise_categories(r))[0]
 
 
-_DDL = """
-CREATE TABLE IF NOT EXISTS gl_category_map (
-    source             TEXT NOT NULL,
-    account            TEXT NOT NULL,
-    categories_expense TEXT NOT NULL DEFAULT '',
-    category_lk        TEXT NOT NULL DEFAULT '',
-    category_spt       TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (source, account)
-);
-CREATE TABLE IF NOT EXISTS gl_category_sync_log (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    synced_at    TEXT,
-    synced_by    TEXT,
-    filename     TEXT,
-    content_hash TEXT,
-    rows_smt     INTEGER DEFAULT 0,
-    rows_etf     INTEGER DEFAULT 0
-);
-CREATE TABLE IF NOT EXISTS gl_mapping_meta (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS gl_category_lk (
-    category_lk TEXT PRIMARY KEY,
-    statement   TEXT NOT NULL DEFAULT '',
-    kind        TEXT NOT NULL DEFAULT '',
-    seq         INTEGER NOT NULL DEFAULT 999,
-    label       TEXT NOT NULL DEFAULT '',
-    needs_spt   INTEGER NOT NULL DEFAULT 0
-);
-CREATE TABLE IF NOT EXISTS gl_pph_alias (
-    alias    TEXT PRIMARY KEY,
-    pph_type TEXT NOT NULL
-);
-"""
-
-
 DEFAULT_ALIASES = {"pph21": "PPh 21", "pph23": "PPh 23", "pph4(2)": "PPh 4(2)", "nonpph": "Non PPh"}
 
 
 def ensure_schema(conn) -> None:
-    conn.execute("INSERT INTO gl_mapping_meta (key, value) VALUES ('version', '1') ON CONFLICT DO NOTHING")
-    conn.executemany("INSERT INTO gl_pph_alias (alias, pph_type) VALUES (?, ?) ON CONFLICT DO NOTHING",
-                     list(DEFAULT_ALIASES.items()))
-    conn.commit()
+    """The tables are static (0002_schema.sql); only the idempotent seeds remain, in one batch."""
+    conn.batch([
+        ("INSERT INTO gl_mapping_meta (key, value) VALUES ('version', '1') ON CONFLICT DO NOTHING", ()),
+        *staging.insert_items("gl_pph_alias", ("alias", "pph_type"), list(DEFAULT_ALIASES.items()),
+                              "ON CONFLICT DO NOTHING"),
+    ])
 
 
-def bump_version(conn) -> None:
-    conn.execute("UPDATE gl_mapping_meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) "
-                 "WHERE key = 'version'")
+_BUMP_SQL = ("UPDATE gl_mapping_meta SET value = CAST(CAST(value AS bigint) + 1 AS text) "
+             "WHERE key = 'version'")
+
+
+def _bump_item(where: str = "", params=()):
+    """Batch item bumping the mapping version; `where` adds a condition (e.g. the row exists)."""
+    return (_BUMP_SQL + (f" AND {where}" if where else ""), params)
 
 
 def get_version() -> int:
@@ -192,24 +162,23 @@ def sync_categories(filename, user, rows) -> dict:
     conn = get_conn()
     try:
         ensure_schema(conn)
-        try:
-            conn.execute("DELETE FROM gl_category_map")
-            conn.executemany(
-                "INSERT INTO gl_category_map (source, account, categories_expense, category_lk, "
-                "category_spt) VALUES (?,?,?,?,?)",
+        # ONE batch (all-or-nothing): replace the map, seed the LK list, log, bump the version. The
+        # lock serialises two concurrent replace-all syncs (READ COMMITTED does not).
+        conn.batch([
+            staging.lock("mr:category_map"),
+            ("DELETE FROM gl_category_map", ()),
+            *staging.insert_items(
+                "gl_category_map",
+                ("source", "account", "categories_expense", "category_lk", "category_spt"),
                 [(r["source"], r["account"], r["categories_expense"], r["category_lk"],
-                  r["category_spt"]) for r in rows])
-            _on_synced(conn, rows)
-            conn.execute(
-                "INSERT INTO gl_category_sync_log (synced_at, synced_by, filename, content_hash, "
-                "rows_smt, rows_etf) VALUES (?,?,?,?,?,?)",
-                (datetime.now().isoformat(timespec="seconds"), user, filename, content_hash,
-                 n_smt, n_etf))
-            bump_version(conn)
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
+                  r["category_spt"]) for r in rows]),
+            *_on_synced_items(rows),
+            ("INSERT INTO gl_category_sync_log (synced_at, synced_by, filename, content_hash, "
+             "rows_smt, rows_etf) VALUES (?,?,?,?,?,?)",
+             (datetime.now().isoformat(timespec="seconds"), user, filename, content_hash,
+              n_smt, n_etf)),
+            _bump_item(),
+        ])
     finally:
         conn.close()
     return {"changed": True, "rows_smt": n_smt, "rows_etf": n_etf}
@@ -241,12 +210,16 @@ DEFAULT_LK = {
 }
 
 
-def _on_synced(conn, rows) -> None:
-    """Seed the Kategori LK list with every category seen in the sheet; never overwrite edits."""
+def _on_synced_items(rows) -> list:
+    """Batch items seeding the Kategori LK list with every category seen in the sheet; never
+    overwrite edits."""
+    seeds = []
     for name in sorted({r["category_lk"] for r in rows if not is_unmapped(r["category_lk"])}):
         statement, kind, seq, needs_spt = DEFAULT_LK.get(name, ("", "", 999, 0))
-        conn.execute("INSERT INTO gl_category_lk (category_lk, statement, kind, seq, label, "
-                     "needs_spt) VALUES (?,?,?,?,?,?) ON CONFLICT DO NOTHING", (name, statement, kind, seq, name, needs_spt))
+        seeds.append((name, statement, kind, seq, name, needs_spt))
+    return staging.insert_items(
+        "gl_category_lk", ("category_lk", "statement", "kind", "seq", "label", "needs_spt"), seeds,
+        "ON CONFLICT DO NOTHING")
 
 
 def get_lk_list() -> dict:
@@ -274,13 +247,15 @@ def update_lk(name, statement, kind, seq, label, needs_spt) -> None:
     conn = get_conn()
     try:
         ensure_schema(conn)
-        if not conn.execute("SELECT 1 FROM gl_category_lk WHERE category_lk=?", (name,)).fetchone():
+        # One batch: the bump only happens when the row exists, so an unknown name writes nothing.
+        curs = conn.batch([
+            _bump_item("EXISTS (SELECT 1 FROM gl_category_lk WHERE category_lk=?)", (name,)),
+            ("UPDATE gl_category_lk SET statement=?, kind=?, seq=?, label=?, needs_spt=? "
+             "WHERE category_lk=?",
+             (statement, kind, seq, (label or "").strip() or name, 1 if needs_spt else 0, name)),
+        ])
+        if curs[1].rowcount == 0:
             raise KeyError(name)
-        conn.execute("UPDATE gl_category_lk SET statement=?, kind=?, seq=?, label=?, needs_spt=? "
-                     "WHERE category_lk=?",
-                     (statement, kind, seq, (label or "").strip() or name, 1 if needs_spt else 0, name))
-        bump_version(conn)
-        conn.commit()
     finally:
         conn.close()
 
@@ -310,9 +285,12 @@ def add_pph_alias(alias, pph_type) -> str:
     conn = get_conn()
     try:
         ensure_schema(conn)
-        conn.execute("INSERT INTO gl_pph_alias (alias, pph_type) VALUES (?, ?) ON CONFLICT (alias) DO UPDATE SET pph_type = EXCLUDED.pph_type", (key, pph_type))
-        bump_version(conn)
-        conn.commit()
+        conn.batch([
+            ("INSERT INTO gl_pph_alias (alias, pph_type) VALUES (?, ?) "
+             "ON CONFLICT (alias) DO UPDATE SET pph_type = EXCLUDED.pph_type RETURNING alias",
+             (key, pph_type)),
+            _bump_item(),
+        ])
     finally:
         conn.close()
     return key
@@ -324,11 +302,14 @@ def delete_pph_alias(key) -> None:
     conn = get_conn()
     try:
         ensure_schema(conn)
-        cur = conn.execute("DELETE FROM gl_pph_alias WHERE alias=?", (key,))
-        if cur.rowcount == 0:
+        # One batch: the bump only happens when the alias exists (a concurrent delete between the
+        # two statements can at worst cost one extra cache-busting bump).
+        curs = conn.batch([
+            _bump_item("EXISTS (SELECT 1 FROM gl_pph_alias WHERE alias=?)", (key,)),
+            ("DELETE FROM gl_pph_alias WHERE alias=?", (key,)),
+        ])
+        if curs[1].rowcount == 0:
             raise KeyError(key)
-        bump_version(conn)
-        conn.commit()
     finally:
         conn.close()
 

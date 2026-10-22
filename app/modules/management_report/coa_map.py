@@ -8,6 +8,7 @@ from datetime import datetime
 from pyxlsb import open_workbook
 
 from database import get_conn
+from modules.general_ledger import staging
 
 SHEET_NAME = "COA"
 _HEADER_ROW = 1                                   # 0-based; row 0 is a numbering row
@@ -141,47 +142,6 @@ def read_mapping_sheets(fileobj) -> tuple:
                         lambda r: normalise_coa(r), lambda r: normalise_cc(r))
 
 
-_DDL = """
-CREATE TABLE IF NOT EXISTS gl_coa_map (
-    source   TEXT NOT NULL,
-    account  TEXT NOT NULL,
-    coa_ho   TEXT NOT NULL,
-    category TEXT NOT NULL DEFAULT '',
-    code     TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (source, account)
-);
-CREATE TABLE IF NOT EXISTS gl_cc_map (
-    cost_center TEXT PRIMARY KEY,
-    total_cc    TEXT NOT NULL DEFAULT '',
-    seq         INTEGER NOT NULL DEFAULT 0,
-    description TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE IF NOT EXISTS gl_coa_sync_log (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    synced_at    TEXT,
-    synced_by    TEXT,
-    filename     TEXT,
-    content_hash TEXT,
-    rows_smt     INTEGER DEFAULT 0,
-    rows_etf     INTEGER DEFAULT 0,
-    rows_cc      INTEGER DEFAULT 0
-);
-"""
-
-
-def _add_column_if_missing(conn, table, column, ddl) -> None:
-    cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
-    if column not in cols:
-        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
-
-
-def ensure_schema(conn) -> None:
-    conn.executescript(_DDL)
-    _add_column_if_missing(conn, "gl_coa_map", "code", "TEXT NOT NULL DEFAULT ''")
-    _add_column_if_missing(conn, "gl_coa_sync_log", "rows_cc", "INTEGER DEFAULT 0")
-    conn.commit()
-
-
 def compute_hash(rows, cc_rows=()) -> str:
     lines = sorted(json.dumps(["coa", r["source"], r["account"], r["coa_ho"], r["category"],
                                r.get("code", "")], ensure_ascii=False) for r in rows)
@@ -197,7 +157,6 @@ def compute_hash(rows, cc_rows=()) -> str:
 def get_map() -> dict:
     conn = get_conn()
     try:
-        ensure_schema(conn)
         return {(r["source"], r["account"]): (r["coa_ho"], r["category"], r["code"])
                 for r in conn.execute(
                     "SELECT source, account, coa_ho, category, code FROM gl_coa_map")}
@@ -208,7 +167,6 @@ def get_map() -> dict:
 def get_cc_map() -> dict:
     conn = get_conn()
     try:
-        ensure_schema(conn)
         return {r["cost_center"]: {"total": r["total_cc"], "seq": r["seq"],
                                    "description": r["description"]}
                 for r in conn.execute(
@@ -220,7 +178,6 @@ def get_cc_map() -> dict:
 def last_sync():
     conn = get_conn()
     try:
-        ensure_schema(conn)
         row = conn.execute("SELECT * FROM gl_coa_sync_log ORDER BY id DESC LIMIT 1").fetchone()
         return dict(row) if row else None
     finally:
@@ -230,7 +187,6 @@ def last_sync():
 def _count_rows() -> tuple:
     conn = get_conn()
     try:
-        ensure_schema(conn)
         return (conn.execute("SELECT COUNT(*) FROM gl_coa_map").fetchone()[0],
                 conn.execute("SELECT COUNT(*) FROM gl_cc_map").fetchone()[0])
     finally:
@@ -250,27 +206,24 @@ def sync_coa(filename, user, rows, cc_rows=()) -> dict:
         return {"changed": False, "rows_smt": n_smt, "rows_etf": n_etf, "rows_cc": n_cc}
     conn = get_conn()
     try:
-        ensure_schema(conn)
-        try:
-            conn.execute("DELETE FROM gl_coa_map")
-            conn.execute("DELETE FROM gl_cc_map")
-            conn.executemany(
-                "INSERT INTO gl_coa_map (source, account, coa_ho, category, code) "
-                "VALUES (?,?,?,?,?)",
+        # ONE batch (all-or-nothing): replace both maps and write the log. The lock serialises two
+        # concurrent replace-all syncs (READ COMMITTED would let the second hit duplicate keys).
+        conn.batch([
+            staging.lock("mr:coa_map"),
+            ("DELETE FROM gl_coa_map", ()),
+            ("DELETE FROM gl_cc_map", ()),
+            *staging.insert_items(
+                "gl_coa_map", ("source", "account", "coa_ho", "category", "code"),
                 [(r["source"], r["account"], r["coa_ho"], r["category"], r.get("code", ""))
-                 for r in rows])
-            conn.executemany(
-                "INSERT INTO gl_cc_map (cost_center, total_cc, seq, description) VALUES (?,?,?,?)",
-                [(r["cost_center"], r["total_cc"], r["seq"], r["description"]) for r in cc_rows])
-            conn.execute(
-                "INSERT INTO gl_coa_sync_log (synced_at, synced_by, filename, content_hash, "
-                "rows_smt, rows_etf, rows_cc) VALUES (?,?,?,?,?,?,?)",
-                (datetime.now().isoformat(timespec="seconds"), user, filename, content_hash,
-                 n_smt, n_etf, n_cc))
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
+                 for r in rows]),
+            *staging.insert_items(
+                "gl_cc_map", ("cost_center", "total_cc", "seq", "description"),
+                [(r["cost_center"], r["total_cc"], r["seq"], r["description"]) for r in cc_rows]),
+            ("INSERT INTO gl_coa_sync_log (synced_at, synced_by, filename, content_hash, "
+             "rows_smt, rows_etf, rows_cc) VALUES (?,?,?,?,?,?,?)",
+             (datetime.now().isoformat(timespec="seconds"), user, filename, content_hash,
+              n_smt, n_etf, n_cc)),
+        ])
     finally:
         conn.close()
     return {"changed": True, "rows_smt": n_smt, "rows_etf": n_etf, "rows_cc": n_cc}
@@ -281,7 +234,6 @@ def list_syncs(limit=10) -> list:
     limit = max(1, limit)
     conn = get_conn()
     try:
-        ensure_schema(conn)
         out = []
         for r in conn.execute("SELECT * FROM gl_coa_sync_log ORDER BY id DESC LIMIT ?", (limit,)):
             d = dict(r)

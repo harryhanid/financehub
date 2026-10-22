@@ -3,101 +3,72 @@ import json
 from datetime import datetime
 
 from database import get_conn
+from modules.general_ledger import staging
 
 KEEP_SNAPSHOTS = 5
 
-_DDL = """
-CREATE TABLE IF NOT EXISTS mr_upload (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    company_id  INTEGER NOT NULL REFERENCES companies(id),
-    filename    TEXT,
-    uploaded_by TEXT,
-    uploaded_at TEXT,
-    row_count   INTEGER DEFAULT 0,
-    is_active   INTEGER DEFAULT 0,
-    purged      INTEGER DEFAULT 0,
-    content_hash   TEXT,
-    change_summary TEXT,
-    meta           TEXT
-);
-CREATE TABLE IF NOT EXISTS mr_append (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    upload_id   INTEGER NOT NULL REFERENCES mr_upload(id),
-    coa         TEXT,
-    mm          INTEGER,
-    yy          INTEGER,
-    cc          TEXT,
-    category    TEXT,
-    activity    TEXT,
-    description TEXT,
-    pta         REAL DEFAULT 0,
-    custom      TEXT,
-    mm1         INTEGER,
-    act         REAL DEFAULT 0,
-    bgt         REAL DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS idx_mr_append_upload_cc ON mr_append(upload_id, cc);
-"""
-
-
 _ROW_FIELDS = ("coa", "mm", "yy", "cc", "category", "activity", "description",
                "pta", "custom", "mm1", "act", "bgt")
-
-
-def ensure_schema(conn) -> None:
-    conn.executescript(_DDL)
-    # Databases created before sync was added lack these two columns.
-    cols = {r[1] for r in conn.execute("PRAGMA table_info(mr_upload)")}
-    for col in ("content_hash", "change_summary", "meta"):
-        if col not in cols:
-            conn.execute(f"ALTER TABLE mr_upload ADD COLUMN {col} TEXT")
-    conn.commit()
 
 
 def _ts() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def _purge_old(conn, company_id: int, keep: int) -> None:
-    ids = [r["id"] for r in conn.execute(
-        "SELECT id FROM mr_upload WHERE company_id=? AND purged=0 ORDER BY id DESC",
-        (company_id,))]
-    for uid in ids[keep:]:
-        active = conn.execute("SELECT is_active FROM mr_upload WHERE id=?", (uid,)).fetchone()
-        if active["is_active"]:
-            continue
-        conn.execute("DELETE FROM mr_append WHERE upload_id=?", (uid,))
-        conn.execute("UPDATE mr_upload SET purged=1 WHERE id=?", (uid,))
+# Staging column types = mr_append's (0002_schema.sql), so the copy is a plain INSERT ... SELECT.
+_STAGE_COLS = (("coa", "text"), ("mm", "bigint"), ("yy", "bigint"), ("cc", "text"),
+               ("category", "text"), ("activity", "text"), ("description", "text"),
+               ("pta", "double precision"), ("custom", "text"), ("mm1", "bigint"),
+               ("act", "double precision"), ("bgt", "double precision"))
+_UPLOAD_ID = "currval(pg_get_serial_sequence(quote_ident(current_schema()) || '.\"mr_upload\"', 'id'))"
+
+
+def _purge_items(company_id: int, keep: int) -> list:
+    """Batch items: drop the rows of non-active snapshots beyond the newest `keep` and mark them
+    purged (set-based form of the old per-upload loop; runs after the new snapshot is active)."""
+    old = ("SELECT id FROM mr_upload WHERE company_id=? AND purged=0 AND COALESCE(is_active, 0)=0 "
+           "AND id NOT IN (SELECT id FROM mr_upload WHERE company_id=? AND purged=0 "
+           "ORDER BY id DESC LIMIT ?)")
+    args = (company_id, company_id, max(keep, 0))
+    return [(f"DELETE FROM mr_append WHERE upload_id IN ({old})", args),
+            (f"UPDATE mr_upload SET purged=1 WHERE id IN ({old})", args)]
 
 
 def save_upload(company_id: int, filename: str, uploaded_by: str, rows: list,
                 keep: int = KEEP_SNAPSHOTS, content_hash: str = None,
                 change_summary: dict = None, meta: dict = None) -> int:
+    """Store `rows` as the new active snapshot, all-or-nothing (R21).
+
+    A snapshot can be ~62k rows, more than one request carries: the rows go in chunks into a
+    per-run staging table, then ONE batch (under an advisory lock per company) inserts the upload,
+    copies the rows, switches the active snapshot, purges old ones and drops the staging table."""
     if not rows:
         raise ValueError("Tidak ada baris data yang valid.")
+    values = [tuple(r[c] for c in _ROW_FIELDS) for r in rows]      # KeyError before any write
     conn = get_conn()
+    stage = staging.new_name("mr")
     try:
-        ensure_schema(conn)
-        cur = conn.execute(
-            "INSERT INTO mr_upload (company_id, filename, uploaded_by, uploaded_at, row_count, "
-            "is_active, content_hash, change_summary, meta) VALUES (?,?,?,?,?,0,?,?,?)",
-            (company_id, filename, uploaded_by, _ts(), len(rows), content_hash,
-             json.dumps(change_summary) if change_summary is not None else None,
-             json.dumps(meta) if meta else None))
-        upload_id = cur.lastrowid
-        conn.executemany(
-            "INSERT INTO mr_append (upload_id, coa, mm, yy, cc, category, activity, description, "
-            "pta, custom, mm1, act, bgt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            [(upload_id, r["coa"], r["mm"], r["yy"], r["cc"], r["category"], r["activity"],
-              r["description"], r["pta"], r["custom"], r["mm1"], r["act"], r["bgt"])
-             for r in rows])
-        conn.execute("UPDATE mr_upload SET is_active=0 WHERE company_id=?", (company_id,))
-        conn.execute("UPDATE mr_upload SET is_active=1 WHERE id=?", (upload_id,))
-        _purge_old(conn, company_id, keep)
-        conn.commit()
-        return upload_id
+        staging.drop_orphans(conn, "mr")
+        staging.create(conn, stage, _STAGE_COLS)
+        n = staging.load(conn, stage, _ROW_FIELDS, values)
+        curs = conn.batch([
+            staging.lock(f"mr:upload:{company_id}"),
+            staging.guard(stage, n),
+            ("INSERT INTO mr_upload (company_id, filename, uploaded_by, uploaded_at, row_count, "
+             "is_active, content_hash, change_summary, meta) VALUES (?,?,?,?,?,0,?,?,?) RETURNING id",
+             (company_id, filename, uploaded_by, _ts(), len(rows), content_hash,
+              json.dumps(change_summary) if change_summary is not None else None,
+              json.dumps(meta) if meta else None)),
+            staging.copy("mr_append", stage, _ROW_FIELDS, head_cols=("upload_id",),
+                         head_exprs=(_UPLOAD_ID,)),
+            ("UPDATE mr_upload SET is_active=0 WHERE company_id=?", (company_id,)),
+            (f"UPDATE mr_upload SET is_active=1 WHERE id={_UPLOAD_ID}", ()),
+            *_purge_items(company_id, keep),
+            staging.drop(stage),
+        ])
+        return curs[2].lastrowid
     except Exception:
-        conn.rollback()
+        staging.discard(conn, stage)
         raise
     finally:
         conn.close()
@@ -106,7 +77,6 @@ def save_upload(company_id: int, filename: str, uploaded_by: str, rows: list,
 def get_active_upload_id(company_id: int):
     conn = get_conn()
     try:
-        ensure_schema(conn)
         row = conn.execute(
             "SELECT id FROM mr_upload WHERE company_id=? AND is_active=1", (company_id,)).fetchone()
         return row["id"] if row else None
@@ -123,16 +93,29 @@ def load_active_rows(company_id: int) -> list:
     try:
         cur = conn.execute(
             f"SELECT {', '.join(_ROW_FIELDS)} FROM mr_append WHERE upload_id=?", (uid,))
-        return [dict(r) for r in cur.fetchall()]
+        return [_as_row(r) for r in cur.fetchall()]
     finally:
         conn.close()
+
+
+_REAL_COLS = ("pta", "act", "bgt")
+
+
+def _as_row(r) -> dict:
+    """Row as a dict with the REAL columns as float, like SQLite returned them: fhdb's JSON
+    transport gives a whole double precision value back as int (10.0 -> 10), which would change
+    sync.compute_hash of a stored snapshot (json '10' vs '10.0')."""
+    d = dict(r)
+    for c in _REAL_COLS:
+        if isinstance(d.get(c), int) and not isinstance(d[c], bool):
+            d[c] = float(d[c])
+    return d
 
 
 def get_active_hash(company_id: int):
     """Stored content hash of the active snapshot; None if absent (pre-sync snapshots)."""
     conn = get_conn()
     try:
-        ensure_schema(conn)
         row = conn.execute(
             "SELECT content_hash FROM mr_upload WHERE company_id=? AND is_active=1",
             (company_id,)).fetchone()
@@ -145,7 +128,6 @@ def get_active_summary(company_id: int):
     """Change summary recorded when the active snapshot was synced, or None."""
     conn = get_conn()
     try:
-        ensure_schema(conn)
         row = conn.execute(
             "SELECT change_summary FROM mr_upload WHERE company_id=? AND is_active=1",
             (company_id,)).fetchone()
@@ -159,7 +141,6 @@ def get_active_meta(company_id: int) -> dict:
     empty = {"cc_names": {}, "period": None}
     conn = get_conn()
     try:
-        ensure_schema(conn)
         row = conn.execute(
             "SELECT meta FROM mr_upload WHERE company_id=? AND is_active=1", (company_id,)).fetchone()
         if not row or not row["meta"]:
@@ -173,7 +154,6 @@ def get_active_meta(company_id: int) -> dict:
 def list_uploads(company_id: int) -> list:
     conn = get_conn()
     try:
-        ensure_schema(conn)
         rows = conn.execute(
             "SELECT id, filename, uploaded_by, uploaded_at, row_count, is_active, purged "
             "FROM mr_upload WHERE company_id=? ORDER BY id DESC", (company_id,)).fetchall()
@@ -186,15 +166,18 @@ def list_uploads(company_id: int) -> list:
 def activate_upload(company_id: int, upload_id: int) -> bool:
     conn = get_conn()
     try:
-        ensure_schema(conn)
         row = conn.execute(
             "SELECT id FROM mr_upload WHERE id=? AND company_id=? AND purged=0",
             (upload_id, company_id)).fetchone()
         if not row:
             return False
-        conn.execute("UPDATE mr_upload SET is_active=0 WHERE company_id=?", (company_id,))
-        conn.execute("UPDATE mr_upload SET is_active=1 WHERE id=?", (upload_id,))
-        conn.commit()
+        # One batch: a failure never leaves the company without an active snapshot. Same lock as
+        # save_upload, so a concurrent save cannot end up with two active snapshots.
+        conn.batch([
+            staging.lock(f"mr:upload:{company_id}"),
+            ("UPDATE mr_upload SET is_active=0 WHERE company_id=?", (company_id,)),
+            ("UPDATE mr_upload SET is_active=1 WHERE id=?", (upload_id,)),
+        ])
         return True
     finally:
         conn.close()
@@ -338,6 +321,7 @@ def query_append(company_id: int, cc=None, yy=None, mm=None, coas=None, q=None,
     where, params = _where(uid, cc, yy, mm, coas, cats)
     if q:
         like = f"%{_like_escape(q.lower())}%"
+        # LIKE (not ILIKE) on purpose: both sides are already lower-cased.
         where += (" AND (LOWER(coa) LIKE ? ESCAPE '\\' OR LOWER(category) LIKE ? ESCAPE '\\'"
                   " OR LOWER(activity) LIKE ? ESCAPE '\\' OR LOWER(description) LIKE ? ESCAPE '\\')")
         params = params + [like] * 4
@@ -349,7 +333,7 @@ def query_append(company_id: int, cc=None, yy=None, mm=None, coas=None, q=None,
         if limit is not None:
             sql += " LIMIT ? OFFSET ?"
             args += [limit, offset]
-        rows = [dict(r) for r in conn.execute(sql, args).fetchall()]
+        rows = [_as_row(r) for r in conn.execute(sql, args).fetchall()]
         return {"rows": rows, "total": total}
     finally:
         conn.close()

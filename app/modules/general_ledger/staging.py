@@ -78,6 +78,28 @@ def load(conn, name: str, columns, rows) -> int:
     return n
 
 
+def insert_items(table: str, columns, rows, conflict: str = "") -> list:
+    """Batch items inserting `rows` (tuples in `columns` order) into `table`, <= CHUNK_ROWS rows per
+    multi-row INSERT, each with a tiny explicit RETURNING (R13). For replace-all flows whose rows all
+    fit in one request (Management Report COA / category maps); `conflict` e.g. "ON CONFLICT DO NOTHING"."""
+    col_list = ", ".join(q(c) for c in columns)
+    marks = "(" + ",".join("?" * len(columns)) + ")"
+    rows = list(rows)
+    items = []
+    for i in range(0, len(rows), CHUNK_ROWS):
+        chunk = rows[i:i + CHUNK_ROWS]
+        params = [v for row in chunk for v in row]
+        items.append((f"INSERT INTO {q(table)} ({col_list}) VALUES {','.join([marks] * len(chunk))} "
+                      f"{conflict} RETURNING NULL AS r", params))
+    return items
+
+
+def lock(key: str):
+    """Batch item (put it FIRST): serialise flows that replace the same slice (Postgres READ
+    COMMITTED does not, unlike SQLite's single writer); held until the batch commits."""
+    return ("SELECT pg_advisory_xact_lock(hashtext(?))", (key,))
+
+
 def guard(name: str, expected: int):
     """Batch item that aborts the batch (division by zero) unless staging holds `expected` rows."""
     return (f"SELECT 1 / (CASE WHEN (SELECT count(*) FROM {q(name)}) = ? THEN 1 ELSE 0 END)", (expected,))

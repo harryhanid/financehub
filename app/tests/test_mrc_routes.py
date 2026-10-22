@@ -251,3 +251,34 @@ def test_mc_filters():
     assert mr_routes._mc_num(-957910.0) == "-957.910" and mr_routes._mc_num(None) == ""
     assert mr_routes._mc_mio(1234.56) == "1.234,6" and mr_routes._mc_mio(-1e-17) == "0,0"
     assert mr_routes._mc_date("2026-01-15") == "15/01/2026" and mr_routes._mc_date("") == ""
+
+
+# ---------- R25: a database outage reaches the app's 503 handler ----------
+
+def _outage(*a, **k):
+    from fhdb.errors import OperationalError
+    raise OperationalError("database unreachable")
+
+
+def test_sync_mapping_database_outage_is_503(client, monkeypatch):
+    login(client)
+    monkeypatch.setattr(mr_routes.coa_map, "read_mapping_sheets", lambda f: (CMAP_ROWS, CC_ROWS))
+    monkeypatch.setattr(mr_routes.coa_map, "sync_coa", _outage)
+    assert upload(client).status_code == 503
+
+
+def test_category_sync_database_outage_is_503(client, monkeypatch):
+    login(client)
+    monkeypatch.setattr(mr_routes.category_map, "read_category_sheet",
+                        lambda f: [{"source": "SMT", "account": "6-1"}])
+    monkeypatch.setattr(mr_routes.category_map, "sync_categories", _outage)
+    r = client.post("/management-report/pemetaan/kategori/sync",
+                    data={"file": (io.BytesIO(b"x"), "GL - MASTER.xlsb")}, content_type="multipart/form-data")
+    assert r.status_code == 503
+
+
+def test_mapping_page_database_outage_is_503_not_panel_error(client, monkeypatch):
+    seed()
+    login(client)
+    monkeypatch.setattr(mr_routes.combine_sources, "gl_rows", _outage)
+    assert client.get("/management-report/pemetaan").status_code == 503

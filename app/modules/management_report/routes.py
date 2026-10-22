@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, redirect, render_template, request, sessio
 from flask_jwt_extended import get_jwt
 
 import config
+from fhdb.errors import OperationalError
 from auth.middleware import is_admin, json_admin_required, jwt_html_required
 from modules.management_report import bgt_report, exports, ho_report, service
 from modules.general_ledger import service as gl_service
@@ -432,6 +433,8 @@ def sync_mapping():
         return jsonify({"ok": False, "pesan": str(e)}), 400
     try:
         out = coa_map.sync_coa(f.filename, get_jwt().get("username", ""), rows, cc_rows)
+    except OperationalError:
+        raise                                          # DB unreachable -> app's 503 handler (R25)
     except Exception as e:
         return jsonify({"ok": False, "pesan": f"Sync gagal, pemetaan lama tidak berubah: {e}"}), 500
     counts = f"SMT {out['rows_smt']} akun, ETF {out['rows_etf']} akun, {out['rows_cc']} cost center"
@@ -464,6 +467,8 @@ def mapping_page():
             has_rows = bool(built.rows)
             unmapped = combine_rows.unmapped_summary(built.rows)
             unmapped_cc = [] if needs_resync else combine_rows.unmapped_cc_summary(built.rows)
+        except OperationalError:
+            raise                                      # DB unreachable -> app's 503 handler (R25)
         except Exception as e:
             unmapped, unmapped_cc = [], []
             panel_error = (str(e) or type(e).__name__)[:200]
@@ -519,6 +524,8 @@ def category_sync():
         return jsonify({"ok": False, "pesan": str(e)}), 400
     try:
         out = category_map.sync_categories(f.filename, get_jwt().get("username", ""), rows)
+    except OperationalError:
+        raise                                          # DB unreachable -> app's 503 handler (R25)
     except Exception as e:
         return jsonify({"ok": False, "pesan": f"Sync gagal, kategori lama tidak berubah: {e}"}), 500
     counts = f"SMT {out['rows_smt']} akun, ETF {out['rows_etf']} akun"

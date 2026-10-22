@@ -285,3 +285,101 @@ def test_default_alias_cannot_be_remapped():
     with pytest.raises(ValueError, match="Alias baku"):
         cm.add_pph_alias("PPh 21", "PPh 23")
     assert cm.get_pph_aliases()["pph21"] == "PPh 21"
+
+
+# ---------- Postgres atomicity (one batch per flow) ----------
+
+from database import get_conn
+
+
+def cat_state():
+    conn = get_conn()
+    try:
+        def rows(sql):
+            return [tuple(r) for r in conn.execute(sql)]
+        return (rows("SELECT * FROM gl_category_map ORDER BY source, account"),
+                rows("SELECT * FROM gl_category_lk ORDER BY category_lk"),
+                rows("SELECT filename, content_hash FROM gl_category_sync_log ORDER BY id"),
+                rows("SELECT * FROM gl_pph_alias ORDER BY alias"),
+                rows("SELECT * FROM gl_mapping_meta ORDER BY key"))
+    finally:
+        conn.close()
+
+
+def test_ensure_schema_atomic_on_failure(monkeypatch):
+    from tests.test_mr_service import fail_batch_after_writes
+    before = cat_state()
+    assert before[3] == [] and before[4] == []                    # fresh database: nothing seeded
+    fail_batch_after_writes(monkeypatch, "INSERT INTO gl_mapping_meta")
+    conn = get_conn()
+    try:
+        with pytest.raises(Exception):
+            cm.ensure_schema(conn)
+    finally:
+        conn.close()
+    assert cat_state() == before
+    monkeypatch.undo()
+    assert cm.get_version() == 1 and cm.get_pph_aliases() == {
+        k: v for k, v in sorted(cm.DEFAULT_ALIASES.items())}
+
+
+def test_sync_categories_atomic_on_failure(monkeypatch):
+    from tests.test_mr_service import fail_batch_after_writes
+    cm.sync_categories("a.xlsb", "admin", RO)
+    before = cat_state()
+    fail_batch_after_writes(monkeypatch, "INSERT INTO gl_category_sync_log")
+    with pytest.raises(Exception):
+        cm.sync_categories("b.xlsb", "admin", _rows_with("Kategori Baru", "Beban Operasional"))
+    assert cat_state() == before
+
+
+def test_sync_categories_batch_starts_with_the_advisory_lock(monkeypatch):
+    from fhdb.connection import Connection
+    batches = []
+    real = Connection.batch
+
+    def spy(self, items):
+        batches.append(list(items))
+        return real(self, items)
+    monkeypatch.setattr(Connection, "batch", spy)
+    cm.sync_categories("a.xlsb", "admin", RO)
+    swap = [b for b in batches if any("gl_category_sync_log" in sql for sql, _ in b)][-1]
+    assert swap[0] == ("SELECT pg_advisory_xact_lock(hashtext(?))", ("mr:category_map",))
+
+
+def test_update_lk_atomic_on_failure(monkeypatch):
+    from tests.test_mr_service import fail_batch_after_writes
+    cm.sync_categories("a", "u", _rows_with("Kategori Baru"))
+    before = cat_state()
+    fail_batch_after_writes(monkeypatch, "UPDATE gl_category_lk")
+    with pytest.raises(Exception):
+        cm.update_lk("Kategori Baru", statement="neraca", kind="", seq=3, label="X", needs_spt=1)
+    assert cat_state() == before
+
+
+def test_add_pph_alias_atomic_on_failure(monkeypatch):
+    from tests.test_mr_service import fail_batch_after_writes
+    cm.get_version()                                              # seeds version + default aliases
+    before = cat_state()
+    fail_batch_after_writes(monkeypatch, "ON CONFLICT (alias)")
+    with pytest.raises(Exception):
+        cm.add_pph_alias("PPh 4 ayat 2", "PPh 4(2)")
+    assert cat_state() == before
+
+
+def test_delete_pph_alias_atomic_on_failure(monkeypatch):
+    from tests.test_mr_service import fail_batch_after_writes
+    key = cm.add_pph_alias("PPh 4 ayat 2", "PPh 4(2)")
+    before = cat_state()
+    fail_batch_after_writes(monkeypatch, "DELETE FROM gl_pph_alias")
+    with pytest.raises(Exception):
+        cm.delete_pph_alias(key)
+    assert cat_state() == before
+
+
+def test_delete_unknown_alias_writes_nothing():
+    cm.get_version()
+    before = cat_state()
+    with pytest.raises(KeyError):
+        cm.delete_pph_alias("tidakada")
+    assert cat_state() == before                                  # no version bump either
