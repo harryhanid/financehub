@@ -39,6 +39,16 @@ config.SOP_STORAGE_DIR = _TEST_SOP_STORAGE_DIR
 
 from app import create_app
 
+# Fixture Postgres bersama (pg_dsn, pg_backend) untuk test fhdb.
+pytest_plugins = ["tests.fhdb_fixtures"]
+
+
+def pytest_configure(config):  # noqa: F811 -- `config` di sini objek pytest, bukan modul config app
+    config.addinivalue_line(
+        "markers",
+        "contract_http: test kontrak HttpBackend ke Supabase sungguhan; hanya jalan kalau FH_CONTRACT_HTTP=1",
+    )
+
 @pytest.fixture
 def app():
     application = create_app(testing=True)
