@@ -18,6 +18,8 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 FH_PG_DSN            = os.environ.get("FH_PG_DSN", "")
 SOP_STORAGE_DIR = os.path.join(BASE_DIR, "storage", "sop")
 BACKUP_ROOT = r"Y:\Seagate\Flow"
+# Backup harian isi database (tasks/db_backup.py): satu folder YYYY-MM-DD per hari, retensi 30 hari.
+DB_BACKUP_ROOT = r"Y:\Seagate\Flow\db-backup"
 
 def _load_or_create_secret(env_var: str, filename: str) -> str:
     val = os.environ.get(env_var)
