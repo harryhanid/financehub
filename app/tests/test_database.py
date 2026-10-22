@@ -73,7 +73,13 @@ def test_init_db_runs_no_ddl(monkeypatch):
     database.init_db()
     assert seen, "init_db harus menulis seed lewat fhdb"
     assert all(n != "executescript" for n, _ in seen)
-    sqls = [s for n, s in seen if isinstance(s, str)]
+    sqls = []
+    for n, arg in seen:
+        if n == "batch":  # list[(sql, params)]
+            sqls.extend(item[0] for item in arg)
+        elif isinstance(arg, str):
+            sqls.append(arg)
+    assert any("insert into vendors" in s.lower() for s in sqls), "statement batch harus ikut diperiksa"
     assert not any(s.lstrip().lower().startswith(("create", "alter", "drop")) for s in sqls)
     assert not hasattr(database, "DDL")
     assert not hasattr(database, "migrate_db")
@@ -125,3 +131,28 @@ def test_db_unreachable_html_page_returns_503(client, auth_headers, monkeypatch)
     assert resp.status_code == 503
     assert "text/html" in resp.content_type
     assert "Database tidak terjangkau" in resp.get_data(as_text=True)
+
+
+def test_app_starts_when_db_unreachable_then_503(auth_headers, monkeypatch):
+    """Startup (testing=False) dengan init_db gagal karena DB tidak terjangkau: app tetap dibuat,
+    request berikutnya mendapat 503 (bukan proses mati)."""
+    import apscheduler.schedulers.background as bg
+    import app as app_module
+    import fhdb.connection, fhdb.errors
+
+    class _NoScheduler:
+        def add_job(self, *a, **k): pass
+        def start(self): pass
+
+    monkeypatch.setattr(bg, "BackgroundScheduler", _NoScheduler)
+
+    def boom(*a, **k):
+        raise fhdb.errors.OperationalError("fh_exec HTTP koneksi gagal: gaierror")
+
+    monkeypatch.setattr(fhdb.connection.Connection, "execute", boom)
+    monkeypatch.setattr(fhdb.connection.Connection, "batch", boom)
+    application = app_module.create_app(testing=False)
+    assert application is not None
+    resp = application.test_client().get("/api/v1/payment-memo?company=SMT", headers=auth_headers)
+    assert resp.status_code == 503
+    assert "Database tidak terjangkau" in resp.get_json()["error"]

@@ -134,7 +134,13 @@ def create_app(testing=False):
         return redirect(url_for("auth.login_page"))
 
     if not testing:
-        init_db()
+        # DB tidak terjangkau saat start (internet putus / Supabase down): jangan matikan proses;
+        # tiap request yang butuh DB mendapat 503 dari db_unreachable(). Konfigurasi yang hilang
+        # (SUPABASE_URL / SUPABASE_SERVICE_KEY -> ValueError) sengaja tetap gagal cepat saat start.
+        try:
+            init_db()
+        except DbUnreachable as e:
+            app.logger.warning("init_db dilewati, database tidak terjangkau saat start: %s", e)
         
         # --- Scheduler Setup ---
         import os

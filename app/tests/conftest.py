@@ -112,6 +112,12 @@ def fhdb_schema(pg_dsn):
 
 @pytest.fixture(autouse=True)
 def clean_db(fhdb_schema):
+    # Pengaman: reset menghapus SEMUA baris; hanya boleh ke schema test di Postgres lokal.
+    from urllib.parse import urlparse
+    assert config.DB_BACKEND == "pg", f"clean_db: DB_BACKEND harus 'pg', bukan {config.DB_BACKEND!r}"
+    assert config.DB_SCHEMA == "financehub_test", f"clean_db: DB_SCHEMA harus financehub_test, bukan {config.DB_SCHEMA!r}"
+    assert urlparse(config.FH_PG_DSN).hostname in ("127.0.0.1", "localhost"), (
+        "clean_db: FH_PG_DSN harus ke Postgres lokal (127.0.0.1/localhost)")
     fhdb_schema.execute_batch([_RESET_ALL], config.DB_SCHEMA)
     shutil.rmtree(config.SOP_STORAGE_DIR, ignore_errors=True)
     from database import init_db
