@@ -261,3 +261,47 @@ def test_target_columns_skips_staging_tables(small, pg_backend):
         assert verify(db, pg_backend, SCHEMA) == []
     finally:
         pg_backend.execute_batch([f'drop table if exists "{name}"'], SCHEMA)
+
+
+# --- Final fix 4: checksum kolom teks per tabel ---
+
+def test_verify_text_identical_passes(small, pg_backend):
+    db = _make_sqlite(small)
+    load(db, pg_backend, SCHEMA)
+    assert verify(db, pg_backend, SCHEMA) == []
+
+
+def test_verify_detects_one_char_text_change(small, pg_backend):
+    db = _make_sqlite(small)
+    load(db, pg_backend, SCHEMA)
+    pg_backend.execute_batch(["update pb set catatan = 'a''c' where id = 1"], SCHEMA)
+    mm = verify(db, pg_backend, SCHEMA)
+    assert [(m.table, m.column) for m in mm] == [("pb", verify_mod.TEXT_CHECK)]
+    assert mm[0].row_key == (1,)
+    assert mm[0].sqlite != mm[0].pg
+
+
+def test_verify_text_null_vs_empty_distinguished(small, pg_backend):
+    db = _make_sqlite(small)
+    load(db, pg_backend, SCHEMA)
+    pg_backend.execute_batch(["update pb set catatan = '' where id = 2"], SCHEMA)  # sumber: NULL
+    mm = verify(db, pg_backend, SCHEMA)
+    assert [(m.table, m.column, m.row_key) for m in mm] == [("pb", verify_mod.TEXT_CHECK, (2,))]
+
+
+def test_verify_text_change_in_table_without_pk(small, pg_backend):
+    c = sqlite3.connect(_make_sqlite(small))
+    c.executescript("create table nopk (a text, b real); insert into nopk values ('x', 1.5), (null, 2), ('x', 1.5);")
+    c.commit()
+    c.close()
+    pg_backend.execute_batch(["drop table if exists nopk", "create table nopk (a text, b double precision)"], SCHEMA)
+    try:
+        db = str(small)
+        load(db, pg_backend, SCHEMA)
+        assert verify(db, pg_backend, SCHEMA) == []
+        pg_backend.execute_batch(["update nopk set a = 'y' where a is null"], SCHEMA)
+        mm = verify(db, pg_backend, SCHEMA)
+        assert [(m.table, m.column) for m in mm] == [("nopk", verify_mod.TEXT_CHECK)]
+        assert mm[0].row_key is not None
+    finally:
+        pg_backend.execute_batch(["drop table if exists nopk"], SCHEMA)

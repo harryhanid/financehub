@@ -6,6 +6,13 @@ fhdb.paging) lalu dijumlah di Python -- kolom integer eksak (int), kolom float d
 dibandingkan setelah Decimal 2 desimal ROUND_HALF_UP. `sum()` SQL tidak dipakai: Postgres menjumlah
 float8 naif menurut urutan heap, SQLite (>= 3.43) terkompensasi, hasilnya bisa beda di sen.
 
+Teks: per tabel satu checksum sha256 atas SEMUA kolom target bertipe text/varchar/char, dihitung di
+Python dari nilai yang diambil di kedua sisi (SQLite lewat sqlite3 + convert(), Postgres per halaman lewat
+fhdb.paging). Baris diurutkan di Python menurut primary key Postgres (tabel tanpa pk: kolom teks lalu
+seluruh baris), jadi urutan/collation database tidak berpengaruh. NULL dan '' berbeda. Mismatch dilaporkan
+per tabel dengan kunci baris pertama yang berbeda (row_key). Tabel yang jumlah barisnya sudah beda tidak
+dicek teksnya (mismatch baris sudah dilaporkan).
+
 Kolom yang dibandingkan (R35): SEMUA kolom target bertipe bigint/integer/smallint/double precision/real/
 numeric di setiap tabel sumber (kecuali refresh_tokens), selain kolom `id`, kolom identity, dan kolom yang
 namanya berakhiran `_id`. Daftar final dicetak dan ditulis ke --money-out.
@@ -17,6 +24,8 @@ Usage:
 Exit code 1 kalau ada mismatch.
 """
 import argparse
+import hashlib
+import json
 import math
 import os
 import shutil
@@ -30,13 +39,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import load_data  # noqa: E402
-from load_data import (ALLOWED_SCHEMAS, FLOAT_TYPES, INT_TYPES, check_schema, convert, qi, snapshot,  # noqa: E402
-                       source_tables, target_columns)
+from load_data import (ALLOWED_SCHEMAS, FLOAT_TYPES, INT_TYPES, TEXT_TYPES, check_schema, convert, qi,  # noqa: E402
+                       snapshot, source_columns, source_tables, target_columns)
 
 from fhdb import paging  # noqa: E402  (APP_DIR sudah di sys.path lewat load_data)
 from fhdb.sqlbind import bind  # noqa: E402
 
 NUMERIC_TYPES = ("bigint", "integer", "smallint", "double precision", "real", "numeric")
+TEXT_CHECK = "<text checksum>"
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MONEY_OUT = ROOT / "docs" / "pg-migration" / "money-columns.txt"
 
@@ -47,6 +57,7 @@ class Mismatch:
     column: str | None  # None = jumlah baris
     sqlite: object
     pg: object
+    row_key: tuple | None = None  # checksum teks: kunci baris pertama yang berbeda
 
 
 def _numeric_cols(tables, tcols) -> list[tuple[str, str]]:
@@ -132,6 +143,76 @@ def pg_stats(backend, schema, by_table, tcols) -> dict[str, tuple[int, list]]:
     return out
 
 
+def _canon(v, dtype):
+    """Nilai kanonik untuk kunci/encoding: angka float -> repr(float) (int/float sama), lainnya apa adanya."""
+    if v is None:
+        return None
+    if dtype in FLOAT_TYPES:
+        return repr(float(v))
+    if dtype in INT_TYPES:
+        return int(v)
+    return v
+
+
+def _enc(values) -> str:
+    return json.dumps(list(values), ensure_ascii=False, separators=(",", ":"))
+
+
+def _sort_part(v):
+    return (0, "", "") if v is None else (1, type(v).__name__, v)
+
+
+def text_plan(tcols, pks, table, src_cols=None):
+    """(kolom diambil, indeks kunci, indeks teks, dtypes) atau None kalau tabel tanpa kolom teks."""
+    cols = [c for c in tcols[table] if src_cols is None or c in src_cols]
+    text = [c for c in cols if tcols[table][c][0] in TEXT_TYPES]
+    if not text:
+        return None
+    pk = [c for c in pks.get(table, []) if c in cols]
+    return cols, pk, text
+
+
+def text_rows(rows, cols, pk, text, dtypes):
+    """[(sort key, kunci baris, digest baris)] urut; rows = list nilai sesuai cols (sudah dikonversi)."""
+    ki = [cols.index(c) for c in pk]
+    ti = [cols.index(c) for c in text]
+    out = []
+    for r in rows:
+        canon = [_canon(v, d) for v, d in zip(r, dtypes)]
+        texts = [canon[i] for i in ti]
+        if ki:
+            key = tuple(canon[i] for i in ki)
+            sort = tuple(_sort_part(v) for v in key)
+        else:  # tanpa pk: kolom teks dulu, lalu seluruh baris
+            key = tuple(canon)
+            sort = (tuple(_sort_part(v) for v in texts), _enc(canon))
+        out.append((sort, key, hashlib.sha256(_enc(texts).encode("utf-8")).hexdigest()))
+    out.sort(key=lambda x: x[0])
+    return out
+
+
+def text_checksum(trows) -> str:
+    h = hashlib.sha256()
+    for _, _, d in trows:
+        h.update(d.encode("ascii"))
+    return h.hexdigest()
+
+
+def compare_text(table, src_rows, pg_rows) -> Mismatch | None:
+    a, b = text_checksum(src_rows), text_checksum(pg_rows)
+    if a == b:
+        return None
+    key = None
+    for x, y in zip(src_rows, pg_rows):
+        if x[1:] != y[1:]:
+            key = x[1]
+            break
+    else:
+        longer = src_rows if len(src_rows) > len(pg_rows) else pg_rows
+        key = longer[min(len(src_rows), len(pg_rows))][1]
+    return Mismatch(table, TEXT_CHECK, a, b, key)
+
+
 def compare(expected: dict, actual: dict, by_table) -> list[Mismatch]:
     """expected/actual: {tabel: (rows, [sum per kolom])}; tabel yang tidak ada di actual -> mismatch baris."""
     out = []
@@ -168,9 +249,37 @@ def verify(sqlite_path, backend, schema, columns=None) -> list[Mismatch]:
             src[t] = (n, sums)
         return by_table, src
 
+    pks = paging.primary_keys(pg_run(backend, schema), schema)
+
+    def collect_text(sq):
+        out = {}
+        for t in source_tables(sq):
+            if t not in tcols:
+                continue
+            plan = text_plan(tcols, pks, t, set(source_columns(sq, t)))
+            if plan is None:
+                continue
+            cols, pk, text = plan
+            dtypes = [tcols[t][c][0] for c in cols]
+            rows = ([convert(v, d, f"{t}.{c}") for v, d, c in zip(r, dtypes, cols)]
+                    for r in sq.execute(f"select {', '.join(qi(c) for c in cols)} from {qi(t)}"))
+            out[t] = (plan, dtypes, text_rows(rows, cols, pk, text, dtypes))
+        return out
+
     by_table, src = _with_source(sqlite_path, collect)
     present = {t: by_table[t] for t in by_table if t in tcols}
-    return compare(src, pg_stats(backend, schema, present, tcols), by_table)
+    actual = pg_stats(backend, schema, present, tcols)
+    mm = compare(src, actual, by_table)
+    count_bad = {m.table for m in mm if m.column is None}
+    run = pg_run(backend, schema)
+    for t, ((cols, pk, text), dtypes, src_rows) in sorted(_with_source(sqlite_path, collect_text).items()):
+        if t in count_bad:
+            continue
+        pg_rows = text_rows(paging.iter_rows(run, t, cols, pks.get(t, []), list(tcols[t])), cols, pk, text, dtypes)
+        m = compare_text(t, src_rows, pg_rows)
+        if m:
+            mm.append(m)
+    return mm
 
 
 def main(argv=None):
@@ -197,7 +306,8 @@ def main(argv=None):
     finally:
         backend.close()
     for m in mm:
-        print(f"MISMATCH {m.table}.{m.column or '<rows>'}: sqlite={m.sqlite} pg={m.pg}")
+        key = f" baris pertama berbeda={m.row_key!r}" if m.row_key is not None else ""
+        print(f"MISMATCH {m.table}.{m.column or '<rows>'}: sqlite={m.sqlite} pg={m.pg}{key}")
     print(f"{len(mm)} mismatch")
     sys.exit(1 if mm else 0)
 
