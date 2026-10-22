@@ -4,7 +4,7 @@ from datetime import datetime
 from database import get_conn
 import config
 from fhdb.errors import OperationalError
-from modules.payment_memo.service import pam_record_insert_stmt
+from modules.payment_memo.service import _pb_lock_stmt, pam_record_insert_stmt
 
 
 def _ts():
@@ -238,7 +238,9 @@ def delete_siswa(company_id: int, code: str) -> dict:
         "SELECT COUNT(*) FROM payment_beasiswa WHERE company_id=? AND siswa_code=?", (company_id, code)
     ).fetchone()[0]
     # Atomik (atomic-flows.md Task 15): tiga DELETE dalam satu batch (satu transaksi).
+    # R51: kunci bersama payment_beasiswa/pam_records per company sebagai item pertama.
     conn.batch([
+        _pb_lock_stmt(company_id),
         ("DELETE FROM budget_beasiswa WHERE company_id=? AND siswa_code=?", (company_id, code)),
         ("DELETE FROM payment_beasiswa WHERE company_id=? AND siswa_code=?", (company_id, code)),
         ("DELETE FROM siswa WHERE company_id=? AND code=?", (company_id, code)),
@@ -297,8 +299,9 @@ def add_payment_batch(company_id: int, siswa_code: str, tanggal: str,
                       pillar: str, perusahaan: str, items: list) -> dict:
     conn  = get_conn()
     saved = 0
-    # Atomik (atomic-flows.md Task 15): semua INSERT dikumpulkan lalu dikirim dalam satu batch.
-    stmts = []
+    # Atomik (atomic-flows.md Task 15): semua INSERT dikumpulkan lalu dikirim dalam satu batch,
+    # diawali kunci R51.
+    stmts = [_pb_lock_stmt(company_id)]
     for item in items:
         try:
             amount = float(str(item.get("amount", 0)).replace(",", ""))
@@ -528,7 +531,7 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
             "source":       "beasiswa",
         })
         pam_no_sql = f"(SELECT pam_no FROM pam_records WHERE id = {_PAM_CURRVAL})"
-        stmts = [(pam_sql, pam_params)]
+        stmts = [_pb_lock_stmt(company_id), (pam_sql, pam_params)]  # R51 dulu, lalu kunci pam_no
         for row, amount in valid:
             stmts.append(_payment_insert_stmt(company_id, row, amount, tanggal, pillar,
                                               perusahaan, "gl", pam_sql=pam_no_sql))
@@ -553,7 +556,7 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
                     [ts_pam] + pa_line_ids + [company_id]
                 ))
 
-        pam_no = conn.batch(stmts)[0].fetchone()["pam_no"]
+        pam_no = conn.batch(stmts)[1].fetchone()["pam_no"]
         return {
             "ok":    True,
             "pesan": f"{saved} payment berhasil disimpan (status: open).",
@@ -776,7 +779,7 @@ def _delete_payment_cascade(conn, company_id: int, payment_id: int, pam_no, line
                 pa_targets.append((lines_tbl, pa_tbl, pa_row[0]))
 
     stmts = [
-        ("SELECT pg_advisory_xact_lock(hashtext(?))", (f"beasiswa_pb_delete:{company_id}",)),
+        _pb_lock_stmt(company_id),
         ("DELETE FROM rekam_medis WHERE payment_id=? AND company_id=?", (payment_id, company_id)),
         ("DELETE FROM payment_beasiswa WHERE id=? AND company_id=?", (payment_id, company_id)),
     ]
@@ -859,7 +862,10 @@ def update_payment_row(company_id: int, row_id: int, pam: str = None, tanggal_ba
 
     # Atomik (atomic-flows.md Task 15): semua validasi sebelum tulisan apa pun, lalu kedua UPDATE
     # dalam satu batch (dulu rollback() dimaksudkan membatalkan UPDATE payment_beasiswa.pam).
-    stmts = []
+    # R51: batch diawali kunci bersama; penghapusan pam_records (cascade beasiswa, payment_memo)
+    # memakai kunci yang sama, jadi cek EXISTS dan kedua UPDATE melihat keadaan PAM target yang sama.
+    stmts = [_pb_lock_stmt(company_id)]
+    pb_update_idx = None
     if pam is not None and pam != row["pam"]:
         target = conn.execute(
             "SELECT id FROM pam_records WHERE pam_no=? AND company_id=?",
@@ -871,6 +877,7 @@ def update_payment_row(company_id: int, row_id: int, pam: str = None, tanggal_ba
         # EXISTS: kalau PAM target hilang di antara validasi dan batch (race), UPDATE ini dan
         # UPDATE pam_records sama-sama mengenai 0 baris -> tidak ada yang tersimpan, sama dengan
         # maksud rollback() versi SQLite.
+        pb_update_idx = len(stmts)
         stmts.append((
             "UPDATE payment_beasiswa SET pam=? WHERE id=? AND EXISTS ("
             "SELECT 1 FROM pam_records WHERE pam_no=? AND company_id=?)",
@@ -889,9 +896,9 @@ def update_payment_row(company_id: int, row_id: int, pam: str = None, tanggal_ba
             (tanggal_bayar, ts, effective_pam, company_id)
         ))
 
-    if stmts:
+    if len(stmts) > 1:
         curs = conn.batch(stmts)
-        if pam_update_idx is not None and curs[pam_update_idx].rowcount == 0:
+        if (pb_update_idx is not None and curs[pb_update_idx].rowcount == 0) or                 (pam_update_idx is not None and curs[pam_update_idx].rowcount == 0):
             conn.close()
             return {"ok": False, "pesan": "Nomor PAM tidak ditemukan."}
 
@@ -996,7 +1003,7 @@ def add_klaim_multi(company_id: int, pam: str, pillar: str,
                     perusahaan: str, rows: list) -> dict:
     conn  = get_conn()
     saved = 0
-    stmts = []
+    stmts = [_pb_lock_stmt(company_id)]  # R51
     for row in rows:
         try:
             amount = float(str(row.get("amount", 0)).replace(",", ""))
@@ -1098,8 +1105,8 @@ def delete_klaim_row(company_id: int, row_id: int) -> dict:
         if pay and pay["status"] in ("complete", "rejected"):
             conn.close()
             return {"ok": False, "pesan": "Klaim yang sudah selesai atau di-reject tidak bisa dihapus."}
-    # Atomik (atomic-flows.md Task 15): kedua DELETE dalam satu batch.
-    stmts = []
+    # Atomik (atomic-flows.md Task 15): kedua DELETE dalam satu batch, diawali kunci R51.
+    stmts = [_pb_lock_stmt(company_id)]
     if row["payment_id"]:
         stmts.append(("DELETE FROM payment_beasiswa WHERE id=? AND company_id=?",
                       (row["payment_id"], company_id)))

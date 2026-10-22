@@ -1,6 +1,7 @@
 # modules/etf_payment_application/service.py
 from datetime import datetime
 from database import get_conn
+from modules.payment_memo.service import _pb_lock_stmt
 
 VALID_TABS = {"agri", "app", "sml", "setf", "energy"}
 
@@ -430,6 +431,18 @@ def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri",
             "pesan": f"Payment Application {pa_number} berhasil dibuat."}
 
 
+# Syarat SQL "PAM <pam_no> milik company masih open" (params: pam_no, company_id).
+_PAM_OPEN_GUARD = ("EXISTS (SELECT 1 FROM pam_records WHERE pam_no=? AND company_id=? "
+                   "AND status='open')")
+
+
+def _pam_not_open(pam_no, status) -> dict:
+    return {"ok": False, "pesan":
+            f"PAM {pam_no} sudah berstatus '{status}' "
+            "(sudah diproses/dibayar) — amount tidak bisa diubah dari sini. "
+            "Koreksi lewat modul Payment Memo."}
+
+
 def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dict:
     pa_tbl, lines_tbl, _, pam_prefix = _tbls(tab)
     conn = get_conn()
@@ -455,6 +468,7 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
     # Correction path in that case is manual, via the Payment Memo module.
     line_id    = data.get("line_id")
     new_amount = data.get("jumlah_pembayaran")
+    guard_pam  = None   # PAM yang harus masih 'open' saat batch jalan (amount berubah)
     if line_id and new_amount is not None:
         old_line = conn.execute(
             f"SELECT jumlah_pembayaran FROM {lines_tbl} WHERE id=? AND pa_id=?",
@@ -474,10 +488,9 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
                 ).fetchone()
                 if pam_row and pam_row["status"] != "open":
                     conn.close()
-                    return {"ok": False, "pesan":
-                        f"PAM {pb_row['pam']} sudah berstatus '{pam_row['status']}' "
-                        "(sudah diproses/dibayar) — amount tidak bisa diubah dari sini. "
-                        "Koreksi lewat modul Payment Memo."}
+                    return _pam_not_open(pb_row["pam"], pam_row["status"])
+                if pam_row:
+                    guard_pam = pb_row["pam"]
 
     if gen_nomor_pam:
         nomor_pam_sql, nomor_pam_params = _gen_nomor_pam_sql(company_id, pa_tbl, pam_prefix)
@@ -509,9 +522,18 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
     # Atomik (atomic-flows.md Task 11): header, line, payment_beasiswa dan total PAM dalam SATU batch.
     # Baris payment_beasiswa yang tertaut dibaca sebelum batch (tidak diubah oleh alur ini); total PAM
     # dihitung ulang dengan subquery SUM di statement terakhir, setelah UPDATE payment_beasiswa.
-    items = [(
-        f"UPDATE {pa_tbl} SET {', '.join(update_fields)} WHERE id=? AND company_id=? RETURNING nomor_pam",
-        tuple(values)
+    # R51: kunci bersama payment_beasiswa/pam_records per company sebagai item PERTAMA (kunci
+    # nomor_pam di fn_etf_pa_next_nomor_pam datang sesudahnya). Kalau amount berubah pada PAM yang
+    # open saat pre-check, SEMUA tulisan bersyarat PAM itu masih open: PAM yang diproses di antara
+    # pre-check dan batch -> tidak ada yang tersimpan, pesan sama dengan pre-check.
+    if guard_pam:
+        g_sql, g_params = " AND " + _PAM_OPEN_GUARD, (guard_pam, company_id)
+    else:
+        g_sql, g_params = "", ()
+    items = [_pb_lock_stmt(company_id), (
+        f"UPDATE {pa_tbl} SET {', '.join(update_fields)} WHERE id=? AND company_id=?{g_sql} "
+        "RETURNING nomor_pam",
+        tuple(values) + g_params
     )]
 
     if line_id:
@@ -522,13 +544,13 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
                  tahun_ajaran       = ?,
                  ipk_sem_sebelumnya = ?,
                  jumlah_pembayaran  = ?
-                WHERE id=? AND pa_id=?""",
+                WHERE id=? AND pa_id=?{g_sql}""",
             (data.get("jenis_pembayaran", ""),
              data.get("semester", ""),
              data.get("tahun_ajaran", ""),
              data.get("ipk_sem_sebelumnya") or 0,
              data.get("jumlah_pembayaran") or 0,
-             line_id, pa_id)
+             line_id, pa_id) + g_params
         ))
         # Propagate the amount into an already-drawn (still-open) PAM: update
         # the linked payment_beasiswa row, then re-sum the PAM's total from
@@ -538,19 +560,26 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
             (line_id, company_id)
         ).fetchone()
         if pb_row and pb_row["pam"]:
+            # Hanya ke PAM yang (masih) open di transaksi ini.
             items.append((
-                "UPDATE payment_beasiswa SET amount=? WHERE id=?",
-                (new_amount or 0, pb_row["id"])
+                "UPDATE payment_beasiswa SET amount=? WHERE id=? AND " + _PAM_OPEN_GUARD,
+                (new_amount or 0, pb_row["id"], pb_row["pam"], company_id)
             ))
             items.append((
                 """UPDATE pam_records SET (total_amount, dpp) = (
                        SELECT t.total, t.total FROM (
                            SELECT COALESCE(SUM(amount),0) AS total FROM payment_beasiswa
                            WHERE pam=? AND company_id=?) t)
-                   WHERE pam_no=? AND company_id=?""",
-                (pb_row["pam"], company_id, pb_row["pam"], company_id)
+                   WHERE pam_no=? AND company_id=? AND """ + _PAM_OPEN_GUARD,
+                (pb_row["pam"], company_id, pb_row["pam"], company_id, pb_row["pam"], company_id)
             ))
-    hdr = conn.batch(items)[0].fetchone()
+    hdr = conn.batch(items)[1].fetchone()
+    if guard_pam and hdr is None:
+        st = conn.execute("SELECT status FROM pam_records WHERE pam_no=? AND company_id=?",
+                          (guard_pam, company_id)).fetchone()
+        if st is None or st["status"] != "open":
+            conn.close()
+            return _pam_not_open(guard_pam, st["status"] if st else None)
     conn.close()
     if gen_nomor_pam:
         nomor_pam = hdr["nomor_pam"] if hdr else None

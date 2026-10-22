@@ -269,3 +269,58 @@ def test_get_pa_flat_filters_translated():
     # Case-insensitive seperti LIKE SQLite.
     assert len(get_pa_flat(COMPANY_ID, "agri", pam="etf", nama="BUDI")) == 1
     assert len(get_siswa_autocomplete(COMPANY_ID, "budi")) == 1
+
+
+# --- Final fix 3: kunci R51 + guard PAM masih open di update_pa ---
+
+def test_update_pa_takes_r51_lock_first(monkeypatch):
+    from fhdb.connection import Connection
+    from modules.payment_memo.service import _pb_lock_stmt
+    batches = []
+    real = Connection.batch
+
+    def spy(self, items):
+        items = list(items)
+        batches.append(items)
+        return real(self, items)
+    monkeypatch.setattr(Connection, "batch", spy)
+    sid = _sid("1230001")
+    pa_id, line_id = _pa_with_pam(sid)
+    for data in ({"status": "open", "line_id": line_id, "jumlah_pembayaran": 7000000},
+                 {"status": "on_process", "keterangan": "x"}):
+        batches.clear()
+        assert update_pa(pa_id, COMPANY_ID, data)["ok"] is True
+        assert len(batches) == 1
+        lock = _pb_lock_stmt(COMPANY_ID)
+        assert (batches[0][0][0], tuple(batches[0][0][1])) == (lock[0], tuple(lock[1]))
+
+
+def test_update_pa_pam_approved_after_precheck_writes_nothing(monkeypatch):
+    """PAM masih open saat pre-check, lalu diproses (on_process) sebelum batch: tidak ada yang
+    tersimpan (header, line, payment_beasiswa, total PAM) dan pesan sama dengan pre-check."""
+    import modules.etf_payment_application.service as etf_svc
+    sid = _sid("1230001")
+    pa_id, line_id = _pa_with_pam(sid)
+    before = _pa_state(pa_id, line_id)
+
+    class _Conn:
+        def __init__(self, real):
+            self._real = real
+
+        def execute(self, *a, **k):
+            return self._real.execute(*a, **k)
+
+        def batch(self, items):
+            self._real.execute("UPDATE pam_records SET status='on_process' WHERE pam_no='PAM/T11/1'")
+            return self._real.batch(items)
+
+        def close(self):
+            self._real.close()
+
+    monkeypatch.setattr(etf_svc, "get_conn", lambda: _Conn(get_conn()))
+    res = update_pa(pa_id, COMPANY_ID, {"status": "on_process", "keterangan": "ubah", "line_id": line_id,
+                                        "semester": "Semester 9", "jumlah_pembayaran": 7000000})
+    monkeypatch.undo()
+    assert res["ok"] is False
+    assert res["pesan"].startswith("PAM PAM/T11/1 sudah berstatus 'on_process'")
+    assert _pa_state(pa_id, line_id) == before

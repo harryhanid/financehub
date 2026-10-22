@@ -593,3 +593,97 @@ def test_get_sisa_budget_ignores_expired_rows(app):
     conn.close()
     s = get_sisa_budget(ETF, "1250001")
     assert s["total_budget"] == 125.0 and s["sisa"] == {"By Pendidikan": 125.0}
+
+
+# --- Final fix 3: kunci R51 di depan setiap batch yang menulis payment_beasiswa / pam_records ---
+
+def _spy_batches(monkeypatch):
+    from fhdb.connection import Connection
+    batches = []
+    real = Connection.batch
+
+    def spy(self, items):
+        items = list(items)
+        batches.append(items)
+        return real(self, items)
+    monkeypatch.setattr(Connection, "batch", spy)
+    return batches
+
+
+def _writes(sql, tables=("payment_beasiswa", "pam_records")):
+    s = sql.lstrip().upper()
+    return not s.startswith("SELECT") and any(t.upper() in s for t in tables)
+
+
+def test_beasiswa_batches_take_r51_lock_first(app, monkeypatch):
+    from modules.payment_memo.service import _pb_lock_stmt
+    lock = _pb_lock_stmt(ETF)
+    _siswa()
+    pa_id, (line_id,) = _pa_with_lines(1)
+    r1 = add_payment_multi(ETF, "ETF", "2026-06-08", "AGRI", "PT X", [_pb_row(etf_pa_line_id=line_id)])
+    r2 = add_payment_multi(ETF, "ETF", "2026-06-09", "AGRI", "PT X", [_pb_row()])
+    conn = get_conn()
+    pb_id = conn.execute("SELECT id FROM payment_beasiswa WHERE pam=?", (r1["pam_no"],)).fetchone()[0]
+    conn.close()
+    add_klaim_multi(ETF, "PAM-X", "AGRI", "PT X", [_klaim(100)])
+    conn = get_conn()
+    kid = conn.execute("SELECT id FROM klaim_medical").fetchone()[0]
+    conn.close()
+
+    conn = get_conn()
+    conn.execute("DELETE FROM etf_pa_lines")  # FK siswa <- etf_pa_lines menghalangi delete_siswa
+    conn.close()
+
+    batches = _spy_batches(monkeypatch)
+    calls = {
+        "add_payment_multi": lambda: add_payment_multi(ETF, "ETF", "2026-06-10", "AGRI", "PT X", [_pb_row()]),
+        "add_payment_batch": lambda: add_payment_batch(ETF, "1250001", "2026-06-01", "AGRI", "PT X",
+                                                       [{"cat1": "By Pendidikan", "amount": 100}]),
+        "update_payment_row": lambda: update_payment_row(ETF, pb_id, pam=r2["pam_no"], tanggal_bayar="2026-06-20"),
+        "add_klaim_multi": lambda: add_klaim_multi(ETF, "PAM-X", "AGRI", "PT X", [_klaim(200)]),
+        "delete_klaim_row": lambda: delete_klaim_row(ETF, kid),
+        "delete_siswa": lambda: delete_siswa(ETF, "1250001"),
+    }
+    for name, call in calls.items():
+        batches.clear()
+        assert call()["ok"] is True, name
+        writing = [b for b in batches if any(_writes(sql) for sql, _ in b)]
+        assert writing, name
+        for b in writing:
+            assert (b[0][0], tuple(b[0][1])) == (lock[0], tuple(lock[1])), name
+
+
+def test_update_payment_row_pam_only_target_vanished_reports_not_found(app, monkeypatch):
+    """Edit No PAM saja (tanpa tanggal bayar): PAM target hilang setelah validasi -> tidak ada yang
+    tersimpan dan pesan 'tidak ditemukan' (dulu: ok True padahal UPDATE mengenai 0 baris)."""
+    _siswa()
+    r1 = add_payment_multi(ETF, "ETF", "2026-06-08", "AGRI", "PT X", [_pb_row()])
+    r2 = add_payment_multi(ETF, "ETF", "2026-06-09", "AGRI", "PT X", [_pb_row()])
+    conn = get_conn()
+    pb_id = conn.execute("SELECT id FROM payment_beasiswa WHERE pam=?", (r1["pam_no"],)).fetchone()[0]
+    conn.close()
+
+    class _Conn:
+        def __init__(self, real):
+            self._real = real
+
+        def execute(self, *a, **k):
+            return self._real.execute(*a, **k)
+
+        def batch(self, items):
+            self._real.execute("DELETE FROM pam_records WHERE pam_no=?", (r2["pam_no"],))
+            return self._real.batch(items)
+
+        def commit(self):
+            pass
+
+        def close(self):
+            self._real.close()
+
+    monkeypatch.setattr(svc, "get_conn", lambda: _Conn(get_conn()))
+    result = update_payment_row(ETF, pb_id, pam=r2["pam_no"])
+    monkeypatch.undo()
+    assert result == {"ok": False, "pesan": "Nomor PAM tidak ditemukan."}
+    conn = get_conn()
+    assert conn.execute("SELECT pam FROM payment_beasiswa WHERE id=?", (pb_id,)).fetchone()[0] == r1["pam_no"]
+    conn.close()
