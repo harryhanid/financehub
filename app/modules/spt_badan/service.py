@@ -6,6 +6,7 @@ from datetime import datetime
 
 from database import get_conn
 from modules.general_ledger import service as gl_service
+from modules.general_ledger import staging
 from modules.management_report import category_map
 from modules.spt_badan import classify, controls, income_statement
 
@@ -13,77 +14,17 @@ ENTITIES = {"smt": {"label": "SMT", "source": "SMT"}}
 MAX_SNAPSHOTS = 3
 MIN_YEAR, MAX_YEAR = 2000, 2100
 
-_DDL = """
-CREATE TABLE IF NOT EXISTS spt_period (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    entity     TEXT NOT NULL,
-    tax_year   INTEGER NOT NULL,
-    status     TEXT NOT NULL DEFAULT 'draft',
-    label      TEXT NOT NULL DEFAULT '',
-    params     TEXT NOT NULL DEFAULT '{}',
-    created_at TEXT,
-    created_by TEXT,
-    UNIQUE (entity, tax_year)
-);
-CREATE TABLE IF NOT EXISTS spt_snapshot (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    period_id     INTEGER NOT NULL REFERENCES spt_period(id),
-    taken_at      TEXT,
-    taken_by      TEXT,
-    gl_hash       TEXT NOT NULL DEFAULT '',
-    map_version   INTEGER NOT NULL DEFAULT 0,
-    row_count     INTEGER NOT NULL DEFAULT 0,
-    total_debit   REAL NOT NULL DEFAULT 0,
-    total_credit  REAL NOT NULL DEFAULT 0,
-    date_min      TEXT,
-    date_max      TEXT,
-    is_current    INTEGER NOT NULL DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS idx_spt_snapshot_period ON spt_snapshot(period_id, is_current);
-CREATE TABLE IF NOT EXISTS spt_gl_line (
-    snapshot_id    INTEGER NOT NULL,
-    gl_id          INTEGER NOT NULL,
-    tgl            TEXT,
-    id_no          TEXT,
-    acc_statutory  TEXT,
-    acc_management TEXT,
-    job_name       TEXT,
-    memo           TEXT,
-    debit_credit   REAL,
-    category_lk    TEXT,
-    category_spt   TEXT,
-    pph_type_raw   TEXT,
-    pph_type       TEXT,
-    accrual_actual TEXT,
-    PRIMARY KEY (snapshot_id, gl_id)
-);
-CREATE INDEX IF NOT EXISTS idx_spt_line_cat ON spt_gl_line(snapshot_id, category_lk, category_spt);
-CREATE TABLE IF NOT EXISTS spt_exception (
-    snapshot_id INTEGER NOT NULL,
-    gl_id       INTEGER NOT NULL,
-    kind        TEXT NOT NULL,
-    severity    TEXT NOT NULL,
-    account     TEXT,
-    detail      TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_spt_exc_snapshot ON spt_exception(snapshot_id, kind);
-CREATE TABLE IF NOT EXISTS spt_control (
-    snapshot_id INTEGER NOT NULL,
-    code        TEXT NOT NULL,
-    name        TEXT NOT NULL,
-    left_value  REAL,
-    right_value REAL,
-    diff        REAL,
-    status      TEXT NOT NULL,
-    blocking    INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (snapshot_id, code)
-);
-"""
+# Tables: db_migrations/0004_fn_spt_badan.sql (static; the runtime ensure_schema/_DDL is gone).
 
-
-def ensure_schema(conn) -> None:
-    conn.executescript(_DDL)
-    conn.commit()
+_LINE_COLS = (("gl_id", "bigint"), ("tgl", 'text collate "C"'), ("id_no", 'text collate "C"'),
+              ("acc_statutory", 'text collate "C"'), ("acc_management", 'text collate "C"'),
+              ("job_name", 'text collate "C"'), ("memo", 'text collate "C"'),
+              ("debit_credit", "double precision"), ("category_lk", 'text collate "C"'),
+              ("category_spt", 'text collate "C"'), ("pph_type_raw", 'text collate "C"'),
+              ("pph_type", 'text collate "C"'), ("accrual_actual", 'text collate "C"'))
+_EXC_COLS = (("gl_id", "bigint"), ("kind", 'text collate "C"'), ("severity", 'text collate "C"'),
+             ("account", 'text collate "C"'), ("detail", 'text collate "C"'))
+_SID = "currval(pg_get_serial_sequence(quote_ident(current_schema()) || '.\"spt_snapshot\"', 'id'))"
 
 
 def _ts() -> str:
@@ -101,7 +42,6 @@ def create_period(entity, tax_year, user, label="Simulasi YTD", params=None) -> 
         raise ValueError(f"Tahun pajak harus antara {MIN_YEAR} dan {MAX_YEAR}.")
     conn = get_conn()
     try:
-        ensure_schema(conn)
         try:
             cur = conn.execute(
                 "INSERT INTO spt_period (entity, tax_year, status, label, params, created_at, created_by) "
@@ -126,7 +66,6 @@ def _period_row(r):
 def get_period(period_id):
     conn = get_conn()
     try:
-        ensure_schema(conn)
         row = conn.execute("SELECT * FROM spt_period WHERE id=?", (period_id,)).fetchone()
         return _period_row(row) if row else None
     finally:
@@ -136,21 +75,21 @@ def get_period(period_id):
 def list_periods() -> list:
     conn = get_conn()
     try:
-        ensure_schema(conn)
         return [_period_row(r) for r in conn.execute(
             "SELECT * FROM spt_period ORDER BY tax_year DESC, entity")]
     finally:
         conn.close()
 
 
-def _prune(conn, period_id) -> None:
-    old = [r[0] for r in conn.execute(
-        "SELECT id FROM spt_snapshot WHERE period_id=? ORDER BY id DESC LIMIT -1 OFFSET ?",
-        (period_id, MAX_SNAPSHOTS))]
-    for sid in old:
-        for table in ("spt_gl_line", "spt_exception", "spt_control"):
-            conn.execute(f"DELETE FROM {table} WHERE snapshot_id=?", (sid,))
-        conn.execute("DELETE FROM spt_snapshot WHERE id=?", (sid,))
+def _prune(conn, period_id) -> list:
+    """Batch items that delete all but the MAX_SNAPSHOTS newest snapshots of the period (children first).
+
+    Run inside the snapshot batch, after the new snapshot is inserted, so it is counted."""
+    old = ("SELECT id FROM spt_snapshot WHERE period_id=? ORDER BY id DESC OFFSET ?", (period_id, MAX_SNAPSHOTS))
+    items = [(f"DELETE FROM {table} WHERE snapshot_id IN ({old[0]})", old[1])
+             for table in ("spt_gl_line", "spt_exception", "spt_control")]
+    items.append((f"DELETE FROM spt_snapshot WHERE id IN ({old[0]})", old[1]))
+    return items
 
 
 def take_snapshot(period_id, user) -> int:
@@ -191,37 +130,44 @@ def take_snapshot(period_id, user) -> int:
         statement_pbt=statement["summary"]["pbt"], pnl_sum_excl_tax=pnl_sum)
     dates = sorted(l["tgl"] for l in classified if l["tgl"])
 
+    line_rows = [tuple(l[c] for c, _ in _LINE_COLS) for l in classified]
+    exc_rows = [tuple(e[c] for c, _ in _EXC_COLS) for e in exceptions]
+
+    # R21: lines and exceptions (one GL year, ~9k rows) go to staging tables in chunks; ONE batch then
+    # swaps the current flag, inserts the snapshot and its children, prunes old snapshots and drops
+    # the staging tables. All or nothing; a failure leaves the previous snapshot current.
     conn = get_conn()
+    st_lines, st_exc = staging.new_name("spt"), staging.new_name("spt")
     try:
-        ensure_schema(conn)
+        prune = _prune(conn, period_id)                 # before any write: a failure here writes nothing
+        staging.drop_orphans(conn, "spt")
         try:
-            conn.execute("UPDATE spt_snapshot SET is_current=0 WHERE period_id=?", (period_id,))
-            cur = conn.execute(
-                "INSERT INTO spt_snapshot (period_id, taken_at, taken_by, gl_hash, map_version, row_count, "
-                "total_debit, total_credit, date_min, date_max, is_current) VALUES (?,?,?,?,?,?,?,?,?,?,1)",
-                (period_id, _ts(), user, gl_hash, map_version, len(classified), total_debit, total_credit,
-                 dates[0] if dates else None, dates[-1] if dates else None))
-            sid = cur.lastrowid
-            conn.executemany(
-                "INSERT INTO spt_gl_line (snapshot_id, gl_id, tgl, id_no, acc_statutory, acc_management, "
-                "job_name, memo, debit_credit, category_lk, category_spt, pph_type_raw, pph_type, "
-                "accrual_actual) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                [(sid, l["gl_id"], l["tgl"], l["id_no"], l["acc_statutory"], l["acc_management"],
-                  l["job_name"], l["memo"], l["debit_credit"], l["category_lk"], l["category_spt"],
-                  l["pph_type_raw"], l["pph_type"], l["accrual_actual"]) for l in classified])
-            conn.executemany(
-                "INSERT INTO spt_exception (snapshot_id, gl_id, kind, severity, account, detail) "
-                "VALUES (?,?,?,?,?,?)",
-                [(sid, e["gl_id"], e["kind"], e["severity"], e["account"], e["detail"]) for e in exceptions])
-            conn.executemany(
-                "INSERT INTO spt_control (snapshot_id, code, name, left_value, right_value, diff, status, "
-                "blocking) VALUES (?,?,?,?,?,?,?,?)",
-                [(sid, c["code"], c["name"], c["left_value"], c["right_value"], c["diff"], c["status"],
-                  c["blocking"]) for c in computed])
-            _prune(conn, period_id)
-            conn.commit()
+            staging.create(conn, st_lines, _LINE_COLS)
+            staging.create(conn, st_exc, _EXC_COLS)
+            n_lines = staging.load(conn, st_lines, [c for c, _ in _LINE_COLS], line_rows)
+            n_exc = staging.load(conn, st_exc, [c for c, _ in _EXC_COLS], exc_rows)
+            items = [
+                staging.guard(st_lines, n_lines),
+                staging.guard(st_exc, n_exc),
+                ("UPDATE spt_snapshot SET is_current=0 WHERE period_id=?", (period_id,)),
+                ("INSERT INTO spt_snapshot (period_id, taken_at, taken_by, gl_hash, map_version, row_count, "
+                 "total_debit, total_credit, date_min, date_max, is_current) VALUES (?,?,?,?,?,?,?,?,?,?,1) "
+                 "RETURNING id",
+                 (period_id, _ts(), user, gl_hash, map_version, len(classified), total_debit, total_credit,
+                  dates[0] if dates else None, dates[-1] if dates else None)),
+                staging.copy("spt_gl_line", st_lines, [c for c, _ in _LINE_COLS], ("snapshot_id",), (_SID,)),
+                staging.copy("spt_exception", st_exc, [c for c, _ in _EXC_COLS], ("snapshot_id",), (_SID,)),
+            ]
+            items += [(f"INSERT INTO spt_control (snapshot_id, code, name, left_value, right_value, diff, "
+                       f"status, blocking) VALUES ({_SID},?,?,?,?,?,?,?) RETURNING snapshot_id",
+                       (c["code"], c["name"], c["left_value"], c["right_value"], c["diff"], c["status"],
+                        c["blocking"])) for c in computed]
+            items += prune
+            items += [staging.drop(st_lines), staging.drop(st_exc)]
+            sid = conn.batch(items)[3].lastrowid
         except Exception:
-            conn.rollback()
+            staging.discard(conn, st_lines)
+            staging.discard(conn, st_exc)
             raise
     finally:
         conn.close()
@@ -231,7 +177,6 @@ def take_snapshot(period_id, user) -> int:
 def get_current_snapshot(period_id):
     conn = get_conn()
     try:
-        ensure_schema(conn)
         row = conn.execute("SELECT * FROM spt_snapshot WHERE period_id=? AND is_current=1",
                            (period_id,)).fetchone()
         return dict(row) if row else None
@@ -242,7 +187,6 @@ def get_current_snapshot(period_id):
 def list_snapshots(period_id) -> list:
     conn = get_conn()
     try:
-        ensure_schema(conn)
         return [dict(r) for r in conn.execute(
             "SELECT * FROM spt_snapshot WHERE period_id=? ORDER BY id DESC", (period_id,))]
     finally:
@@ -262,7 +206,6 @@ def staleness(period, snapshot) -> list:
 def get_controls(period, snapshot) -> list:
     conn = get_conn()
     try:
-        ensure_schema(conn)
         stored = [dict(r) for r in conn.execute(
             "SELECT * FROM spt_control WHERE snapshot_id=?", (snapshot["id"],))]
     finally:
@@ -294,7 +237,6 @@ def step_statuses(snapshot, ctrls) -> list:
 def income_statement_for(snapshot_id) -> dict:
     conn = get_conn()
     try:
-        ensure_schema(conn)
         lines = [{"category_lk": r[0], "category_spt": r[1], "debit_credit": r[2]} for r in conn.execute(
             "SELECT category_lk, category_spt, SUM(debit_credit) FROM spt_gl_line "
             "WHERE snapshot_id=? AND category_lk <> '' GROUP BY category_lk, category_spt", (snapshot_id,))]
@@ -318,11 +260,10 @@ def _paged(total, page, per_page):
 def exception_groups(snapshot_id) -> list:
     conn = get_conn()
     try:
-        ensure_schema(conn)
         return [dict(r) for r in conn.execute(
             "SELECT kind, severity, account, COUNT(*) AS n FROM spt_exception WHERE snapshot_id=? "
             "GROUP BY kind, severity, account "
-            "ORDER BY CASE severity WHEN 'blocker' THEN 0 ELSE 1 END, n DESC, kind, account",
+            "ORDER BY CASE severity WHEN 'blocker' THEN 0 ELSE 1 END, n DESC, kind, account NULLS FIRST",
             (snapshot_id,))]
     finally:
         conn.close()
@@ -335,21 +276,20 @@ def list_exceptions(snapshot_id, kind="", severity="", q="", page=1, per_page=10
     if severity:
         clauses.append("e.severity = ?"); params.append(severity)
     if q:
-        clauses.append("(e.account LIKE ? ESCAPE '\\' OR l.memo LIKE ? ESCAPE '\\' OR l.id_no LIKE ? ESCAPE '\\' "
-                       "OR l.job_name LIKE ? ESCAPE '\\' OR e.detail LIKE ? ESCAPE '\\')")
+        clauses.append("(e.account ILIKE ? ESCAPE '\\' OR l.memo ILIKE ? ESCAPE '\\' OR l.id_no ILIKE ? ESCAPE '\\' "
+                       "OR l.job_name ILIKE ? ESCAPE '\\' OR e.detail ILIKE ? ESCAPE '\\')")
         params += [_like(q)] * 5
     where = " AND ".join(clauses)
     base = ("FROM spt_exception e LEFT JOIN spt_gl_line l "
             "ON l.snapshot_id = e.snapshot_id AND l.gl_id = e.gl_id WHERE " + where)
     conn = get_conn()
     try:
-        ensure_schema(conn)
         total = conn.execute(f"SELECT COUNT(*) {base}", params).fetchone()[0]
         page, pages, offset = _paged(total, page, per_page)
         rows = [dict(r) for r in conn.execute(
             f"SELECT e.kind, e.severity, e.detail, e.account, l.tgl, l.id_no, l.job_name, l.memo, "
             f"l.debit_credit, l.pph_type_raw {base} "
-            f"ORDER BY CASE e.severity WHEN 'blocker' THEN 0 ELSE 1 END, e.kind, e.account, l.tgl "
+            f"ORDER BY CASE e.severity WHEN 'blocker' THEN 0 ELSE 1 END, e.kind, e.account NULLS FIRST, l.tgl NULLS FIRST "
             f"LIMIT ? OFFSET ?", params + [per_page, offset])]
     finally:
         conn.close()
@@ -368,13 +308,12 @@ def drill_lines(snapshot_id, cats, spt=None, page=1, per_page=100) -> dict:
     where = " AND ".join(clauses)
     conn = get_conn()
     try:
-        ensure_schema(conn)
         total, amount = conn.execute(
             f"SELECT COUNT(*), COALESCE(SUM(debit_credit), 0) FROM spt_gl_line WHERE {where}", params).fetchone()
         page, pages, offset = _paged(total, page, per_page)
         rows = [dict(r) for r in conn.execute(
             f"SELECT tgl, id_no, acc_statutory, acc_management, job_name, memo, debit_credit, category_lk, "
-            f"category_spt, pph_type FROM spt_gl_line WHERE {where} ORDER BY tgl, gl_id LIMIT ? OFFSET ?",
+            f"category_spt, pph_type FROM spt_gl_line WHERE {where} ORDER BY tgl NULLS FIRST, gl_id LIMIT ? OFFSET ?",
             params + [per_page, offset])]
     finally:
         conn.close()

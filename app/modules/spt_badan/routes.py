@@ -7,6 +7,7 @@ from flask import Blueprint, abort, jsonify, render_template, request, send_file
 from flask_jwt_extended import get_jwt
 
 from auth.middleware import is_admin, json_admin_required, jwt_html_required
+from fhdb.errors import OperationalError
 from modules.spt_badan import service
 
 bp = Blueprint("spt_badan", __name__, url_prefix="/spt-badan")
@@ -115,6 +116,8 @@ def snapshot(pid):
         sid = service.take_snapshot(pid, get_jwt().get("username", ""))
     except ValueError as e:
         return jsonify({"ok": False, "pesan": str(e)}), 400
+    except OperationalError:
+        raise                                   # R25: database unreachable -> app-wide 503 handler
     except Exception as e:
         return jsonify({"ok": False, "pesan": f"Snapshot gagal, snapshot sebelumnya tidak berubah: {e}"}), 500
     snap = service.get_current_snapshot(pid)

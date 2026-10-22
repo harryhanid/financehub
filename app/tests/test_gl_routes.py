@@ -223,3 +223,20 @@ def test_sync_form_has_a_year_selector_for_admin(client):
     login(client)
     html = client.get("/general-ledger/smt").data.decode()
     assert 'id="gl-sync-year"' in html
+
+
+def test_report_tolerates_non_iso_dates(client):
+    # Review Focus 4: non-ISO / empty tgl must not break the year-grouped GL page (substr(tgl,1,4) per year).
+    from database import get_conn
+    conn = get_conn()
+    try:
+        for tgl in ("15/03/2025", "", "2025-03-01"):
+            conn.execute('INSERT INTO "GLSMT" (entry_no, id_no, tgl, debit, credit) VALUES (?,?,?,?,?)',
+                         (1, f"GJ-{tgl}", tgl, 1.0, 0.0))
+    finally:
+        conn.close()
+    login(client)
+    resp = client.get("/general-ledger/smt?year=2025")
+    assert resp.status_code == 200
+    assert svc.years_with_data("smt") == [2025]             # '15/0' and '' are not years
+    assert svc.query_rows("smt", {"year": 2025})["total"] == 1

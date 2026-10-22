@@ -108,9 +108,8 @@ DEFAULT_ALIASES = {"pph21": "PPh 21", "pph23": "PPh 23", "pph4(2)": "PPh 4(2)", 
 
 
 def ensure_schema(conn) -> None:
-    conn.executescript(_DDL)
-    conn.execute("INSERT OR IGNORE INTO gl_mapping_meta (key, value) VALUES ('version', '1')")
-    conn.executemany("INSERT OR IGNORE INTO gl_pph_alias (alias, pph_type) VALUES (?, ?)",
+    conn.execute("INSERT INTO gl_mapping_meta (key, value) VALUES ('version', '1') ON CONFLICT DO NOTHING")
+    conn.executemany("INSERT INTO gl_pph_alias (alias, pph_type) VALUES (?, ?) ON CONFLICT DO NOTHING",
                      list(DEFAULT_ALIASES.items()))
     conn.commit()
 
@@ -246,8 +245,8 @@ def _on_synced(conn, rows) -> None:
     """Seed the Kategori LK list with every category seen in the sheet; never overwrite edits."""
     for name in sorted({r["category_lk"] for r in rows if not is_unmapped(r["category_lk"])}):
         statement, kind, seq, needs_spt = DEFAULT_LK.get(name, ("", "", 999, 0))
-        conn.execute("INSERT OR IGNORE INTO gl_category_lk (category_lk, statement, kind, seq, label, "
-                     "needs_spt) VALUES (?,?,?,?,?,?)", (name, statement, kind, seq, name, needs_spt))
+        conn.execute("INSERT INTO gl_category_lk (category_lk, statement, kind, seq, label, "
+                     "needs_spt) VALUES (?,?,?,?,?,?) ON CONFLICT DO NOTHING", (name, statement, kind, seq, name, needs_spt))
 
 
 def get_lk_list() -> dict:
@@ -311,7 +310,7 @@ def add_pph_alias(alias, pph_type) -> str:
     conn = get_conn()
     try:
         ensure_schema(conn)
-        conn.execute("INSERT OR REPLACE INTO gl_pph_alias (alias, pph_type) VALUES (?, ?)", (key, pph_type))
+        conn.execute("INSERT INTO gl_pph_alias (alias, pph_type) VALUES (?, ?) ON CONFLICT (alias) DO UPDATE SET pph_type = EXCLUDED.pph_type", (key, pph_type))
         bump_version(conn)
         conn.commit()
     finally:

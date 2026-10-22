@@ -6,6 +6,7 @@ from flask import Blueprint, abort, jsonify, redirect, render_template, request,
 from flask_jwt_extended import get_jwt
 
 from auth.middleware import is_admin, json_admin_required, jwt_html_required
+from fhdb.errors import OperationalError
 from modules.general_ledger import service
 from modules.general_ledger import sync as gl_sync
 from modules.general_ledger.parser import COLUMNS, LABELS, ParseError, read_gl_sheet
@@ -111,6 +112,8 @@ def sync_excel(entity):
                                 result.rows, result.dropped)
     except gl_sync.NoRowsForYear as e:
         return jsonify({"ok": False, "pesan": str(e)}), 400
+    except OperationalError:
+        raise                                   # R25: database unreachable -> app-wide 503 handler
     except Exception as e:
         return jsonify({"ok": False, "pesan": f"Sync gagal, data lama tidak berubah: {e}"}), 500
     if not out["changed"]:

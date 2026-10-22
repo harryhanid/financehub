@@ -31,11 +31,10 @@ def test_list_periods_newest_year_first_and_label_is_kept():
     assert [(p["tax_year"], p["label"]) for p in sv.list_periods()] == [(2026, "Simulasi YTD"), (2025, "Final")]
 
 
-def test_schema_is_created_lazily_and_idempotent():
+def test_schema_comes_from_the_migration():
+    # Postgres: the tables are static (db_migrations/0004_fn_spt_badan.sql); no runtime ensure_schema.
     conn = get_conn()
-    sv.ensure_schema(conn)
-    sv.ensure_schema(conn)
-    names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    names = {r[0] for r in conn.execute("SELECT tablename::text FROM pg_tables WHERE schemaname = current_schema()")}
     conn.close()
     assert {"spt_period", "spt_snapshot", "spt_gl_line", "spt_exception", "spt_control"} <= names
 
@@ -267,3 +266,37 @@ def test_laba_rugi_category_without_kind_is_a_named_blocker():
     assert [g["account"] for g in blockers] == ["6-1000"]
     got = sv.list_exceptions(sid, kind="category_lk_tidak_dikenal")["rows"][0]["detail"]
     assert "belum diatur sifatnya" in got and "Beban Operasional" in got
+
+
+def _counts():
+    conn = get_conn()
+    try:
+        return {t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+                for t in ("spt_snapshot", "spt_gl_line", "spt_exception", "spt_control")}
+    finally:
+        conn.close()
+
+
+def test_take_snapshot_atomic_on_failure(monkeypatch):
+    seed_mapping(); seed_gl()
+    pid = new_period()
+    first = sv.take_snapshot(pid, "admin")
+    before = _counts()
+    real = sv.controls.compute_controls
+
+    def broken(**kw):           # the spt_control inserts come after the snapshot and its lines/exceptions
+        out = real(**kw)
+        out[-1] = {**out[-1], "status": None}                 # spt_control.status is NOT NULL
+        return out
+
+    monkeypatch.setattr(sv.controls, "compute_controls", broken)
+    with pytest.raises(Exception):
+        sv.take_snapshot(pid, "admin")
+    assert _counts() == before
+    assert sv.get_current_snapshot(pid)["id"] == first
+    conn = get_conn()
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM pg_tables WHERE schemaname = current_schema() "
+                            "AND left(tablename, 9) = 'fh_stage_'").fetchone()[0] == 0
+    finally:
+        conn.close()
