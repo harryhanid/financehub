@@ -52,10 +52,25 @@ def _bulk_payload(lines):
 def test_seed_perusahaan_atomic_on_failure(app):
     seed_perusahaan([("SMART", "AGRI", "AGRI")])
     before = _snapshot()
-    with pytest.raises(Exception):
-        # baris terakhir melanggar NOT NULL (cat2)
-        seed_perusahaan([("IKPP", "APP", "APP"), ("NEW1", "AGRI", "AGRI"), ("BAD", None, "APP")])
+    _add_check("sponsorship_perusahaan", "t13_no_fail_seed", "cat1 <> 'BAD'")
+    try:
+        with pytest.raises(Exception):
+            # baris terakhir dipaksa gagal lewat CHECK sementara
+            seed_perusahaan([("IKPP", "APP", "APP"), ("NEW1", "AGRI", "AGRI"), ("BAD", "APP", "APP")])
+    finally:
+        _drop_check("sponsorship_perusahaan", "t13_no_fail_seed")
     assert _snapshot() == before
+
+
+def test_seed_perusahaan_skips_null_rows_like_insert_or_ignore(app):
+    """SQLite INSERT OR IGNORE melewati baris yang melanggar NOT NULL, baris lain tetap masuk."""
+    n = seed_perusahaan([("IKPP", "APP", "APP"), ("NEW1", "AGRI", "AGRI"), ("BAD", None, "APP"),
+                         ("BAD3", "APP", None)])
+    assert n == 2
+    assert {r["cat1"] for r in list_perusahaan()} == {"IKPP", "NEW1"}
+    # cat1 None: SQLite (PRIMARY KEY teks tanpa NOT NULL) menyimpannya; Postgres tidak bisa
+    # (PK selalu NOT NULL), jadi dilewati. migrate.py sudah membuang baris tanpa cat1.
+    assert seed_perusahaan([(None, "APP", "APP")]) == 0
 
 
 def test_seed_perusahaan_counts_only_new_rows(app):
@@ -264,3 +279,13 @@ def test_keyword_filter_is_case_insensitive_and_tahun_accepts_int(app):
     assert len(svc.list_transaksi(SMT, {"tahun": [2026]})) == 1
     assert len(svc.list_transaksi(SMT, {"tahun": 2026, "bulan": ["1"]})) == 1
     assert svc.get_available_years(SMT) == ["2026"]
+
+
+def test_sqlite_id_param_matches_sqlite_comparison():
+    f = svc._sqlite_id_param
+    assert [f(v) for v in ["-", "ABC", "12a", " 12 ", "12.0", "12.5", "1e30",
+                           "9223372036854775807", "9223372036854775808", "123456789012345678"]] == \
+        [None, None, None, 12, 12, 12.5, None, 9223372036854775807, None, 123456789012345678]
+    assert f(True) == 1 and type(f(True)) is int and f(False) == 0
+    assert f(7) == 7 and f(7.0) == 7.0
+    assert f(datetime.datetime(2026, 1, 1)) is None

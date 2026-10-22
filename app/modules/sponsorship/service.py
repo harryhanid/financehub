@@ -39,10 +39,15 @@ def get_perusahaan(cat1: str):
 
 
 def seed_perusahaan(rows) -> int:
-    # Satu panggilan executemany = satu transaksi (fhdb): sama seperti SQLite dulu, error di
-    # baris mana pun (mis. cat2 NULL) membatalkan semuanya. rowcount sudah dijumlah fhdb.
+    # SQLite `INSERT OR IGNORE` juga mengabaikan pelanggaran NOT NULL (baris itu dilewati, sisanya
+    # tetap masuk). `ON CONFLICT DO NOTHING` hanya menutup konflik unik, jadi baris dengan cat1/cat2/
+    # cat3 None (semua NOT NULL di skema) dibuang dulu agar hasil dan jumlahnya sama dengan SQLite.
+    # Sisanya satu panggilan executemany = satu transaksi; rowcount sudah dijumlah fhdb.
     conn = get_conn()
-    params = [(cat1, cat2, cat3) for cat1, cat2, cat3 in rows]
+    params = [
+        (cat1, cat2, cat3) for cat1, cat2, cat3 in rows
+        if cat1 is not None and cat2 is not None and cat3 is not None
+    ]
     inserted = 0
     if params:
         cur = conn.executemany(
@@ -911,11 +916,21 @@ def _sqlite_id_param(value):
     SQLite: teks numerik ('12', '12.0') dibandingkan sebagai angka; teks lain ('-', 'ABC', '12a')
     atau tanggal tidak cocok dengan id mana pun. Postgres menolak teks itu sebagai bigint, jadi
     kembalikan angka, atau None = tidak ada baris yang cocok (UPDATE dilewati)."""
+    if type(value) is bool:
+        return int(value)  # SQLite menyimpan/membandingkan True/False sebagai 1/0
     if isinstance(value, (int, float)):
         return value
     if isinstance(value, str) and _SQLITE_NUMERIC_TEXT.match(value):
-        num = float(value)
-        return int(num) if num.is_integer() else num
+        try:
+            num = int(value.strip())  # tepat juga untuk angka > 2^53
+        except ValueError:
+            f = float(value)
+            if not f.is_integer():
+                return f  # tidak mungkin sama dengan id bigint, tapi aman dibandingkan
+            num = int(f)
+        if -(2 ** 63) <= num < 2 ** 63:
+            return num
+        return None  # di luar jangkauan bigint: SQLite tidak menemukan baris; Postgres akan error
     return None
 
 
