@@ -1,7 +1,6 @@
 import os, sys, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_pam_smt_lines_service.db")
 
 from database import init_db, get_conn
 from modules.payment_memo.service import (
@@ -11,22 +10,7 @@ from modules.payment_memo.service import (
 SMT_COMPANY_ID = 1
 
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        try:
-            os.remove(config.DB_PATH)
-        except:
-            pass
-    init_db()
-    yield
-    if os.path.exists(config.DB_PATH):
-        try:
-            os.remove(config.DB_PATH)
-        except:
-            # Pre-existing Windows SQLite connection handle leak during teardown
-            pass
-
+# Postgres: reset DB per test oleh fixture autouse conftest.clean_db (schema test + init_db()).
 
 def test_get_coa_pam_list_returns_all_when_no_search():
     rows = get_coa_pam_list()

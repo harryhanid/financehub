@@ -3,7 +3,6 @@
 import os, sys, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_cascade.db")
 
 from datetime import datetime
 from database import init_db, get_conn
@@ -13,28 +12,19 @@ COMPANY_ID = 2
 COMPANY_CODE = "ETF"
 
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-    init_db()
-    yield
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-
+# Postgres: reset DB per test oleh fixture autouse conftest.clean_db (schema test + init_db()).
 
 def _ts():
     return datetime.now().isoformat(timespec="seconds")
 
 
 def _insert_siswa(conn) -> int:
-    conn.execute(
+    sid = conn.execute(
         """INSERT INTO siswa
            (company_id, code, nama, jenjang, angkatan, program, fakultas, universitas, status)
            VALUES (?,?,?,?,?,?,?,?,?)""",
         (COMPANY_ID, "1250001", "Budi", "S1", 2025, "SMART", "Teknik", "UI", "Aktif")
-    )
-    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     return sid
 
@@ -76,11 +66,10 @@ def _insert_pa(conn, pa_tbl, lines_tbl, pa_prefix, siswa_id, status="on_process"
 
 def _insert_memo_and_payment(conn, line_id):
     """Insert payment_memo + payment_beasiswa linked to line_id. Returns memo_id."""
-    conn.execute(
+    memo_id = conn.execute(
         "INSERT INTO payment_memo (company_id, memo_number, status) VALUES (?,?,?)",
         (COMPANY_ID, "PAM/ETF/2026/001", "on_process")
-    )
-    memo_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.execute(
         """INSERT INTO payment_beasiswa
            (company_id, siswa_code, cat1, cat2, tanggal, amount,
@@ -372,7 +361,7 @@ def test_cascade_app_sets_tgl_paid_app():
 
     conn = get_conn()
     pb = conn.execute(
-        "SELECT status, tgl_Paid_APP FROM payment_beasiswa WHERE pam=?",
+        'SELECT status, "tgl_Paid_APP" FROM payment_beasiswa WHERE pam=?',
         ("PAM-APP-06-2026-001",)
     ).fetchone()
     pa = conn.execute("SELECT status, tanggal_bayar FROM app_pa WHERE id=?", (pa_id,)).fetchone()
@@ -395,7 +384,7 @@ def test_cascade_land_sets_tgl_paid_land():
 
     conn = get_conn()
     pb = conn.execute(
-        "SELECT status, tgl_Paid_LAND FROM payment_beasiswa WHERE pam=?",
+        'SELECT status, "tgl_Paid_LAND" FROM payment_beasiswa WHERE pam=?',
         ("PAM-SML-06-2026-001",)
     ).fetchone()
     pa = conn.execute("SELECT status, tanggal_bayar FROM sml_pa WHERE id=?", (pa_id,)).fetchone()
@@ -418,7 +407,7 @@ def test_cascade_energy_sets_tgl_paid_energy():
 
     conn = get_conn()
     pb = conn.execute(
-        "SELECT status, tgl_Paid_ENERGY FROM payment_beasiswa WHERE pam=?",
+        'SELECT status, "tgl_Paid_ENERGY" FROM payment_beasiswa WHERE pam=?',
         ("PAM-ENR-06-2026-001",)
     ).fetchone()
     pa = conn.execute("SELECT status, tanggal_bayar FROM energy_pa WHERE id=?", (pa_id,)).fetchone()
@@ -441,7 +430,7 @@ def test_cascade_setf_sets_tgl_paid_setf():
 
     conn = get_conn()
     pb = conn.execute(
-        "SELECT status, tgl_Paid_SETF FROM payment_beasiswa WHERE pam=?",
+        'SELECT status, "tgl_Paid_SETF" FROM payment_beasiswa WHERE pam=?',
         ("PAM-SETF-06-2026-001",)
     ).fetchone()
     pa = conn.execute("SELECT status, tanggal_bayar FROM setf_pa WHERE id=?", (pa_id,)).fetchone()
@@ -519,11 +508,10 @@ from modules.payment_memo.service import save_pa_payment
 def _setup_paid_advance(pam_no="PAM-030-ETF-07-2026", amount=3_000_000):
     """Helper: create + pay one Advance payment_beasiswa row. Returns (payment_id, pam_id, pa_id)."""
     conn = get_conn()
-    conn.execute(
+    sid = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "S001", "Test Siswa 001")
-    )
-    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     pa_id, line_id = _insert_pa(conn, "etf_pa", "etf_pa_lines", "ETF", sid, route="advance")
     conn.close()
@@ -624,33 +612,28 @@ def test_realize_advance_payment_multi_line_partial_realization_does_not_close_p
     from modules.payment_memo.service import realize_advance_payment
 
     conn = get_conn()
-    conn.execute(
+    sid1 = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "S001", "Test Siswa 001")
-    )
-    sid1 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    sid2 = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "S002", "Test Siswa 002")
-    )
-    sid2 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     # One PA header, route='advance', with two lines (two students).
-    conn.execute(
+    pa_id_hdr = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
         (COMPANY_ID, "PA/ETF/033/2026", "open", "advance", "2026-07-07T00:00:00")
-    )
-    pa_id_hdr = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    line_id_1 = conn.execute(
         "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
         (pa_id_hdr, sid1, "By Pendidikan", 3_000_000, "advance")
-    )
-    line_id_1 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    line_id_2 = conn.execute(
         "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
         (pa_id_hdr, sid2, "By Pendidikan", 2_000_000, "advance")
-    )
-    line_id_2 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     conn.close()
 
@@ -742,11 +725,10 @@ def test_realize_advance_payment_land_pillar_does_not_corrupt_colliding_agri_lin
 
     conn = get_conn()
     sid_agri = _insert_siswa(conn)
-    conn.execute(
+    sid_land = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "1250003", "Siswa LAND")
-    )
-    sid_land = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
 
     # AGRI PA — etf_pa_lines gets id=1 (first row in this test's fresh DB). Left
@@ -819,19 +801,17 @@ def test_reject_pam_etf_agri_marks_pa_rejected():
     from modules.payment_memo.service import reject_pam_record
     conn = get_conn()
     pam_no = "PAM-001-ETF-06-2026"
-    conn.execute(
+    pam_id = conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, total_amount, status, source, created_at)
            VALUES (?,?,?,?,?,?,?)""",
         (COMPANY_ID, pam_no, "2026-06-08", 5000000, "open", "etf_agri", _ts())
-    )
-    pam_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    pa_id = conn.execute(
         """INSERT INTO etf_pa (company_id, pa_number, tgl_payment_application, status, nomor_pam, created_at)
            VALUES (?,?,?,?,?,?)""",
         (COMPANY_ID, "PA/ETF/001/2026", "2026-06-01", "on_process", pam_no, _ts())
-    )
-    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     conn.close()
 
@@ -886,11 +866,10 @@ def test_reject_pam_beasiswa_pa_not_rejected_if_other_active_line_elsewhere():
     from modules.payment_memo.service import reject_pam_record
     conn = get_conn()
     sid1 = _insert_siswa(conn)
-    conn.execute(
+    sid2 = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "1250099", "Siswa Lain")
-    )
-    sid2 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
 
     cur = conn.execute(
@@ -967,11 +946,10 @@ def test_reject_pam_beasiswa_never_touches_already_complete_rows():
     from modules.payment_memo.service import reject_pam_record
     conn = get_conn()
     sid_paid = _insert_siswa(conn)
-    conn.execute(
+    sid_open = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "1250098", "Siswa Belum Bayar")
-    )
-    sid_open = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
 
     # PA already paid for sid_paid
@@ -1066,11 +1044,10 @@ def test_reject_pam_beasiswa_syncs_dpp_with_recalculated_total():
     from modules.payment_memo.service import reject_pam_record
     conn = get_conn()
     sid_paid = _insert_siswa(conn)
-    conn.execute(
+    sid_open = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "1250097", "Siswa DPP Test")
-    )
-    sid_open = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
 
     cur_paid = conn.execute(

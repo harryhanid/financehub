@@ -2,7 +2,6 @@
 import os, sys, io, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_finance_hub.db")
 
 from database import init_db, get_conn
 from modules.payment_memo.exports import export_pam_pdf
@@ -11,15 +10,10 @@ COMPANY_ID   = 2
 COMPANY_CODE = "ETF"
 
 @pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-    init_db()
+def _seed_data(clean_db):
+    # Postgres: conftest.clean_db mengosongkan schema test + init_db(); di sini hanya seed data file ini.
     _seed()
     yield
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-
 
 def _seed():
     conn = get_conn()
@@ -193,9 +187,9 @@ PAM_NO = "PAM-001-ETF-05-2026"
 def _seed_detail():
     conn = get_conn()
     conn.execute(
-        "INSERT OR IGNORE INTO siswa (company_id, code, nama, bank, norek, namarek, "
+        "INSERT INTO siswa (company_id, code, nama, bank, norek, namarek, "
         "jenjang, angkatan, program, universitas, fakultas, status) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING",
         (COMPANY_ID, "S002", "Budi Santoso", "BNI", "9876543210",
          "Budi Santoso", "S3", 2024, "Kejaksaan", "Univ. Gadjah Mada",
          "Ilmu Hukum", "Aktif")

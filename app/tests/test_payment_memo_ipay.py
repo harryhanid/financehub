@@ -84,24 +84,11 @@ def test_save_pa_payment_no_rows():
     assert result["ok"] is False
 
 
-def test_get_pam_list_source_filter(tmp_path, monkeypatch):
+def test_get_pam_list_source_filter():
     """source='agri' returns only etf_agri records, source='' returns all."""
-    import sqlite3
-    from modules.payment_memo import service as pm_svc
-    db = str(tmp_path / "t.db")
-    def _get_conn():
-        c = sqlite3.connect(db)
-        c.row_factory = sqlite3.Row
-        return c
-    monkeypatch.setattr(pm_svc, "get_conn", _get_conn)
-    conn = sqlite3.connect(db)
-    conn.execute("""CREATE TABLE pam_records (
-        id INTEGER PRIMARY KEY, company_id INTEGER,
-        pam_no TEXT, source TEXT, status TEXT, created_at TEXT,
-        pam_date TEXT, pt TEXT, keterangan TEXT, gl_account TEXT,
-        cost_center TEXT, requestors_name TEXT, total_amount REAL,
-        due_date TEXT, tanggal_bayar TEXT
-    )""")
+    # Postgres (Task 16, S4): seed lewat database.get_conn (schema test), bukan file sqlite sementara.
+    from database import get_conn
+    conn = get_conn()
     conn.execute("INSERT INTO pam_records (company_id,pam_no,source,status,created_at) VALUES (1,'PAM-001-ETF-06-2026','etf_agri','open','2026-06-08')")
     conn.execute("INSERT INTO pam_records (company_id,pam_no,source,status,created_at) VALUES (1,'PAM-001-APP-06-2026','etf_app','open','2026-06-08')")
     conn.commit(); conn.close()

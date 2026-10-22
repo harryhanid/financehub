@@ -5,7 +5,6 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_finance_hub.db")
 
 from database import init_db, get_conn
 from modules.payment_memo.service import (
@@ -18,15 +17,7 @@ from modules.payment_memo.service import (
 COMPANY_ID   = 2   # ETF
 COMPANY_CODE = "ETF"
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-    init_db()
-    yield
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-
+# Postgres: reset DB per test oleh fixture autouse conftest.clean_db (schema test + init_db()).
 
 def test_generate_pam_number_first():
     conn = get_conn()
@@ -642,21 +633,18 @@ def test_save_pa_payment_route_advance_quarantines_pam_records():
     """Sekarang route berasal dari PA header, bukan request body — setup lewat PA nyata."""
     from modules.payment_memo.service import save_pa_payment
     conn = get_conn()
-    conn.execute(
+    sid = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "S001", "Test Siswa 001")
-    )
-    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    pa_id = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
         (COMPANY_ID, "PA/TEST/001/2026", "open", "advance", "2026-07-07T00:00:00")
-    )
-    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    line_id = conn.execute(
         "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
         (pa_id, sid, "By Pendidikan", 2_000_000, "advance")
-    )
-    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     conn.close()
 
@@ -712,21 +700,18 @@ def test_save_pa_payment_route_gl_default_unchanged():
 def test_save_pa_payment_advance_tags_pa_lines_route():
     from modules.payment_memo.service import save_pa_payment
     conn = get_conn()
-    conn.execute(
+    sid = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "S010", "Test Siswa")
-    )
-    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    pa_id = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
         (COMPANY_ID, "PA/TEST/001/2026", "on_process", "advance", "2026-07-07T00:00:00")
-    )
-    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    line_id = conn.execute(
         "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
         (pa_id, sid, "By Pendidikan", 3_000_000, "advance")
-    )
-    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     conn.close()
 
@@ -748,21 +733,18 @@ def test_save_pa_payment_advance_tags_pa_lines_route():
 def test_get_advance_payments_returns_quarantined_lines_only():
     from modules.payment_memo.service import save_pa_payment, get_advance_payments
     conn = get_conn()
-    conn.execute(
+    sid = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "S001", "Test Siswa 001")
-    )
-    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    pa_id = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
         (COMPANY_ID, "PA/TEST/020/2026", "open", "advance", "2026-07-07T00:00:00")
-    )
-    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    line_id = conn.execute(
         "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
         (pa_id, sid, "By Pendidikan", 2_500_000, "advance")
-    )
-    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     conn.close()
 
@@ -789,21 +771,18 @@ def test_get_advance_payments_returns_quarantined_lines_only():
 def test_get_advance_payments_filters_by_status():
     from modules.payment_memo.service import save_pa_payment, get_advance_payments
     conn = get_conn()
-    conn.execute(
+    sid = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "S001", "Test Siswa 001")
-    )
-    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    pa_id = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
         (COMPANY_ID, "PA/TEST/022/2026", "open", "advance", "2026-07-07T00:00:00")
-    )
-    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    line_id = conn.execute(
         "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
         (pa_id, sid, "By Pendidikan", 1_500_000, "advance")
-    )
-    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     conn.close()
 
@@ -821,21 +800,18 @@ def test_get_advance_payments_filters_by_status():
 def test_save_pa_payment_derives_route_from_pa_header_advance():
     from modules.payment_memo.service import save_pa_payment
     conn = get_conn()
-    conn.execute(
+    sid = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "S011", "Test Siswa Derive")
-    )
-    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    pa_id = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
         (COMPANY_ID, "PA/TEST/010/2026", "open", "advance", "2026-07-08T00:00:00")
-    )
-    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    line_id = conn.execute(
         "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
         (pa_id, sid, "By Pendidikan", 4_000_000, "advance")
-    )
-    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     conn.close()
 
@@ -867,21 +843,18 @@ def test_save_pa_payment_ignores_client_supplied_route():
     route='gl' — the PA header must win, request body route is ignored entirely."""
     from modules.payment_memo.service import save_pa_payment
     conn = get_conn()
-    conn.execute(
+    sid = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "S012", "Test Siswa Spoof")
-    )
-    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    pa_id = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
         (COMPANY_ID, "PA/TEST/011/2026", "open", "gl", "2026-07-08T00:00:00")
-    )
-    pa_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    line_id = conn.execute(
         "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
         (pa_id, sid, "By Pendidikan", 1_000_000, "gl")
-    )
-    line_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     conn.close()
 
@@ -906,31 +879,26 @@ def test_save_pa_payment_ignores_client_supplied_route():
 def test_save_pa_payment_rejects_mixed_route_selection():
     from modules.payment_memo.service import save_pa_payment
     conn = get_conn()
-    conn.execute(
+    sid = conn.execute(
         "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
         (COMPANY_ID, "S013", "Test Siswa Mixed")
-    )
-    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    pa_gl_id = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
         (COMPANY_ID, "PA/TEST/012/2026", "open", "gl", "2026-07-08T00:00:00")
-    )
-    pa_gl_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    line_gl_id = conn.execute(
         "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
         (pa_gl_id, sid, "By Pendidikan", 1_000_000, "gl")
-    )
-    line_gl_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    pa_adv_id = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, status, route, created_at) VALUES (?,?,?,?,?)",
         (COMPANY_ID, "PA/TEST/013/2026", "open", "advance", "2026-07-08T00:00:00")
-    )
-    pa_adv_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    line_adv_id = conn.execute(
         "INSERT INTO etf_pa_lines (pa_id, student_id, jenis_pembayaran, jumlah_pembayaran, route) VALUES (?,?,?,?,?)",
         (pa_adv_id, sid, "By Pendidikan", 2_000_000, "advance")
-    )
-    line_adv_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     conn.close()
 

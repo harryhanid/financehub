@@ -2,7 +2,6 @@
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_remove_student.db")
 
 import pytest
 from datetime import datetime
@@ -12,40 +11,19 @@ from modules.payment_memo.service import remove_student_from_pam
 COMPANY_ID = 2
 
 
-def _remove_db(path):
-    """Remove DB and WAL/SHM sidecar files, best-effort."""
-    import sqlite3 as _sqlite3
-    for ext in ("", "-wal", "-shm"):
-        p = path + ext
-        if os.path.exists(p):
-            try:
-                os.remove(p)
-            except PermissionError:
-                pass
-
-
-@pytest.fixture(autouse=True)
-def clean_db(tmp_path):
-    # Use a per-test temp directory so each test gets a fresh, isolated DB
-    db_path = str(tmp_path / "test_remove_student.db")
-    config.DB_PATH = db_path
-    init_db()
-    yield
-    _remove_db(db_path)
-
+# Postgres: reset DB per test oleh fixture autouse conftest.clean_db (schema test + init_db()).
 
 def _ts():
     return datetime.now().isoformat(timespec="seconds")
 
 
 def _insert_siswa(conn, code="1250001") -> int:
-    conn.execute(
+    row_id = conn.execute(
         """INSERT INTO siswa
            (company_id, code, nama, jenjang, angkatan, program, fakultas, universitas, status)
            VALUES (?,?,?,?,?,?,?,?,?)""",
         (COMPANY_ID, code, f"Siswa {code}", "S1", 2025, "SMART", "Teknik", "UI", "Aktif")
-    )
-    row_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit()
     return row_id
 

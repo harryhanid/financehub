@@ -1,40 +1,13 @@
 import os, sys, pytest, time, uuid
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_smt_pam.db")
 
 from database import init_db, get_conn
 
 SMT_COMPANY_ID = 1
 
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    # Each test gets its own db file. Relying on deleting a single shared
-    # file for isolation is unreliable on Windows: database.migrate_db()
-    # (called by init_db()) opens a connection it never closes, so a
-    # previous test's handle can still hold tests/test_smt_pam.db locked
-    # when the next test's cleanup tries to remove it — causing stale
-    # rows to leak across tests (silently, since PermissionError here is
-    # swallowed by design). Using a unique path per test sidesteps that
-    # leaked-connection issue entirely without touching database.py,
-    # which is out of scope for this change.
-    base = os.path.join(os.path.dirname(__file__), "test_smt_pam.db")
-    config.DB_PATH = f"{base}.{uuid.uuid4().hex}"
-    if os.path.exists(config.DB_PATH):
-        try:
-            os.remove(config.DB_PATH)
-        except PermissionError:
-            pass
-    init_db()
-    yield
-    if os.path.exists(config.DB_PATH):
-        time.sleep(0.1)  # Allow WAL mode to release lock
-        try:
-            os.remove(config.DB_PATH)
-        except PermissionError:
-            pass  # WAL journal may still be held on Windows
-
+# Postgres: reset DB per test oleh fixture autouse conftest.clean_db (schema test + init_db()).
 
 def _columns(conn, table):
     return [r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]

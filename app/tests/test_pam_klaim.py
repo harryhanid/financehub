@@ -1,7 +1,6 @@
 import os, sys, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_finance_hub.db")
 
 from database import init_db, get_conn
 from modules.payment_memo.service import get_siswa_medical, save_klaim_payment, save_others_payment
@@ -9,10 +8,22 @@ from modules.payment_memo.service import get_siswa_medical, save_klaim_payment, 
 COMPANY_ID = 2
 
 @pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-    init_db()
+def _no_debug_payload_file(monkeypatch, tmp_path):
+    """save_klaim_payment menulis payload ke C:/Financehub/debug_payload.txt (kode lama, di luar
+    scope migrasi). Test mengalihkan tulisan itu ke tmp_path supaya tidak menyentuh checkout utama."""
+    import builtins
+    import modules.payment_memo.service as _svc
+    real_open = builtins.open
+    def _open(path, *a, **kw):
+        if str(path).replace("\\", "/").endswith("debug_payload.txt"):
+            path = tmp_path / "debug_payload.txt"
+        return real_open(path, *a, **kw)
+    monkeypatch.setattr(_svc, "open", _open, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _seed_data(clean_db):
+    # Postgres: conftest.clean_db mengosongkan schema test + init_db(); di sini hanya seed data file ini.
     conn = get_conn()
     conn.execute("INSERT INTO siswa (company_id,code,nama) VALUES (?,?,?)", (COMPANY_ID, "M001", "Ani Medical"))
     conn.execute("INSERT INTO siswa (company_id,code,nama) VALUES (?,?,?)", (COMPANY_ID, "M002", "Budi Edu"))
@@ -23,9 +34,6 @@ def clean_db():
     conn.commit()
     conn.close()
     yield
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-
 
 def test_get_siswa_medical_returns_only_medical():
     rows = get_siswa_medical(COMPANY_ID)

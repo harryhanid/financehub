@@ -1,19 +1,10 @@
 import os, sys, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_pam_std.db")
 
 from database import init_db, get_conn
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-    init_db()
-    yield
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-
+# Postgres: reset DB per test oleh fixture autouse conftest.clean_db (schema test + init_db()).
 
 def _columns(conn, table):
     return [r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
