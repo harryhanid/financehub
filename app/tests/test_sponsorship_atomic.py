@@ -204,6 +204,27 @@ def test_sync_transaksi_excel_success_applies_all_rows(app):
     assert by_lembaga["Baru 2"]["cc"] == "POSPON"
 
 
+def test_sync_transaksi_excel_non_numeric_id_matches_nothing_like_sqlite(app):
+    """SQLite: UPDATE ... WHERE id='-' / '12a' cocok dengan 0 baris (tanpa error, tanpa INSERT),
+    baris dihitung 'di-update', efek vendor baris itu tetap jalan; sync berlanjut."""
+    tx_id = _existing_tx()
+    data = _sync_xlsx([
+        _row(tx_id, "SMART", "AGRI", "AGRI", "Valid", 77),
+        _row("-", "ODDCO", "APP", "APP", "Dash", 1),        # vendor baru tetap disisipkan
+        _row("12a", "SMART", "AGRI", "AGRI", "Odd", 2),
+        _row(f" {tx_id}.0 ", "SMART", "AGRI", "AGRI", "Valid 2", 78),  # teks numerik cocok seperti SQLite
+    ])
+    result = sync_transaksi_excel(SMT, data)
+    assert result == {"ok": True, "pesan": "Sync sukses: 4 di-update, 0 ditambah."}
+    _, rows = _snapshot()
+    assert len(rows) == 1
+    assert rows[0]["id"] == tx_id
+    assert rows[0]["lembaga_perorangan"] == "Valid 2"
+    assert rows[0]["amount_request"] == 78.0
+    vendors = {r["cat1"]: (r["cat2"], r["cat3"]) for r in list_perusahaan()}
+    assert vendors == {"SMART": ("AGRI", "AGRI"), "ODDCO": ("APP", "APP")}
+
+
 def test_sync_transaksi_excel_reraises_operational_error(app, monkeypatch):
     _existing_tx()
 

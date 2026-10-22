@@ -1,4 +1,5 @@
 # modules/sponsorship/service.py
+import re as _re
 from datetime import datetime
 import config
 from database import get_conn
@@ -900,6 +901,24 @@ def delete_transaksi(transaksi_id: int, company_id: int = None) -> dict:
         conn.rollback()
         return {"ok": False, "pesan": f"Gagal menghapus transaksi: {str(e)}"}
 
+# Teks yang dikonversi SQLite ke angka saat dibandingkan dengan kolom INTEGER (affinity numerik).
+_SQLITE_NUMERIC_TEXT = _re.compile(r"^\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*$")
+
+
+def _sqlite_id_param(value):
+    """Nilai ID Excel untuk `WHERE id = ?` dengan hasil seperti SQLite.
+
+    SQLite: teks numerik ('12', '12.0') dibandingkan sebagai angka; teks lain ('-', 'ABC', '12a')
+    atau tanggal tidak cocok dengan id mana pun. Postgres menolak teks itu sebagai bigint, jadi
+    kembalikan angka, atau None = tidak ada baris yang cocok (UPDATE dilewati)."""
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, str) and _SQLITE_NUMERIC_TEXT.match(value):
+        num = float(value)
+        return int(num) if num.is_integer() else num
+    return None
+
+
 def sync_transaksi_excel(company_id: int, file_bytes: bytes) -> dict:
     import openpyxl
     import io
@@ -1001,6 +1020,12 @@ def sync_transaksi_excel(company_id: int, file_bytes: bytes) -> dict:
                 
             if tx_id:
                 # Update
+                id_param = _sqlite_id_param(tx_id)
+                if id_param is None:
+                    # SQLite: UPDATE ... WHERE id='<teks bukan angka>' tidak mengubah apa pun,
+                    # tapi baris tetap dihitung di-update (perilaku lama).
+                    updated_count += 1
+                    continue
                 items.append((
                     """
                     UPDATE sponsorship_transaksi 
@@ -1009,7 +1034,7 @@ def sync_transaksi_excel(company_id: int, file_bytes: bytes) -> dict:
                         status=?, cat4=?, coa=?, cc_total=?, cc=?, source=?
                     WHERE id=? AND company_id=?
                     """,
-                    (cat, desc, tgl_form, tgl_pay, cat1, cat2, cat3, lembaga, perihal, amt, reff, status, cat4, coa, cc_total, cc, source, tx_id, company_id)
+                    (cat, desc, tgl_form, tgl_pay, cat1, cat2, cat3, lembaga, perihal, amt, reff, status, cat4, coa, cc_total, cc, source, id_param, company_id)
                 ))
                 updated_count += 1
             else:
