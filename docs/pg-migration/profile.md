@@ -19,6 +19,15 @@ Jumlah tabel: 62
 | app_pa | approval_by_htj_2 | {'empty': 18, 'other': 1, 'YYYY-MM-DD': 2} | - |
 | sponsorship_transaksi | tanggal_payment | {'empty': 8, 'other': 27, 'YYYY-MM-DD': 771} | 16 Jun & 24 Jun 20; 21 Dec 20; AGRI : 21 Jul 2023 SML : 15 Au; CANCEL; Carry Over |
 
+### Foreign key dengan baris orphan (dicatat manual dari generate_schema.py, 2026-10-22)
+
+FK ini dibuat `NOT VALID` di `app/db_migrations/0002_schema.sql`; data tidak dihapus.
+Override tipe dari generator: `pam_records.dpp` dan `pam_records.ppn` → `double precision` (R7).
+
+| Tabel | Kolom | Referensi | Baris orphan |
+|---|---|---|---|
+| refresh_tokens | user_id | users(id) | 2 |
+
 ## Detail per tabel
 
 ### GLETF

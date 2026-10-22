@@ -3,6 +3,8 @@
 - `pg_dsn` (session): server Postgres lokal (tests/_pg) di port 54330, data dir di tmp session,
   `db_migrations/0001_fh_exec.sql` diterapkan, schema `financehub_test` + tabel `t` dibuat.
 - `pg_backend` (function): `fhdb.backends.PgBackend` ke server itu, ditutup setelah test.
+- `pg_raw` (function): helper psycopg2 autocommit (`execute`, `scalar`, `columns`, `index_exists`,
+  `view_exists`); schema baru yang dibuat selama test di-drop saat teardown.
 """
 import os
 
@@ -51,6 +53,65 @@ def pg_backend(pg_dsn):
         yield backend
     finally:
         backend.close()
+
+
+class PgRaw:
+    """Helper psycopg2 (autocommit) ke Postgres test, tanpa fh_exec. Untuk test DDL/skema."""
+
+    def __init__(self, dsn):
+        import psycopg2
+
+        self._conn = psycopg2.connect(dsn)
+        self._conn.autocommit = True
+
+    def execute(self, sql, params=None):
+        with self._conn.cursor() as cur:
+            cur.execute(sql, params)
+
+    def scalar(self, sql, params=None):
+        with self._conn.cursor() as cur:
+            cur.execute(sql, params)
+            row = cur.fetchone()
+        return None if row is None else row[0]
+
+    def columns(self, schema, table):
+        """list[(name, data_type, is_identity, column_default)] urut ordinal_position."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "select column_name, data_type, is_identity, column_default "
+                "from information_schema.columns where table_schema=%s and table_name=%s "
+                "order by ordinal_position", (schema, table))
+            return [tuple(r) for r in cur.fetchall()]
+
+    def index_exists(self, schema, name):
+        return bool(self.scalar(
+            "select count(*) from pg_indexes where schemaname=%s and indexname=%s", (schema, name)))
+
+    def view_exists(self, schema, name):
+        return bool(self.scalar(
+            "select count(*) from information_schema.views where table_schema=%s and table_name=%s",
+            (schema, name)))
+
+    def _schemas(self):
+        with self._conn.cursor() as cur:
+            cur.execute("select nspname from pg_namespace")
+            return {r[0] for r in cur.fetchall()}
+
+    def close(self):
+        self._conn.close()
+
+
+@pytest.fixture
+def pg_raw(pg_dsn):
+    """`PgRaw` ke server test. Schema yang dibuat selama test di-drop saat teardown."""
+    raw = PgRaw(pg_dsn)
+    before = raw._schemas()
+    try:
+        yield raw
+    finally:
+        for s in sorted(raw._schemas() - before):
+            raw.execute('drop schema "%s" cascade' % s.replace('"', '""'))
+        raw.close()
 
 
 @pytest.fixture
