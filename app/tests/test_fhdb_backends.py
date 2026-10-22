@@ -117,6 +117,37 @@ def test_bound_text_roundtrip(backend):
     assert r[0]["rows"] == [[tricky]]
 
 
+def test_update_with_keywords_in_literal_is_rowcount(backend):
+    b, schema = backend
+    b.execute_batch(["insert into t (\"Nama\") values ('x')"], schema)
+    r = b.execute_batch(["update t set \"Nama\" = 'returning goods; select now' where id = 1"], schema)
+    assert r == [{"rowcount": 1}]
+    got = b.execute_batch(["select \"Nama\" from t where id = 1"], schema)
+    assert got == [{"columns": ["Nama"], "rows": [["returning goods; select now"]]}]
+
+
+def test_insert_returning_with_keywords_in_literal_returns_rows(backend):
+    b, schema = backend
+    r = b.execute_batch(["insert into t (\"Nama\") values ('with select returning') returning id"], schema)
+    assert r[0]["columns"] == ["id"] and isinstance(r[0]["rows"][0][0], int)
+
+
+def test_select_with_insert_into_in_literal_returns_rows(backend):
+    b, schema = backend
+    r = b.execute_batch(["select 'insert into t values (1)' as q"], schema)
+    assert r == [{"columns": ["q"], "rows": [["insert into t values (1)"]]}]
+
+
+def test_keywords_in_identifiers_and_comments_ignored(backend):
+    b, schema = backend
+    b.execute_batch(["insert into t (\"Nama\") values ('x')"], schema)
+    r = b.execute_batch([
+        "update t set jumlah = 1 /* returning */ where \"Nama\" <> 'it''s returning' -- returning\n",
+        "-- komentar di depan\nselect 1 as \"returning\"",
+    ], schema)
+    assert r == [{"rowcount": 1}, {"columns": ["returning"], "rows": [[1]]}]
+
+
 def test_unique_violation_message_has_sqlstate(backend):
     b, schema = backend
     with pytest.raises(IntegrityError) as ei:

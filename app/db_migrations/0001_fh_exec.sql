@@ -16,6 +16,7 @@ language plpgsql
 as $$
 declare
     s      text;
+    skel   text;
     parts  text[] := '{}';
     r      text;
     cols   text;
@@ -29,8 +30,15 @@ begin
     perform set_config('search_path', schema || ',public', true);
 
     for s in select jsonb_array_elements_text(stmts) loop
-        is_sel := s ~* '^\s*(select|with)\M';
-        if is_sel or s ~* '\mreturning\M' then
+        -- Klasifikasi pada "kerangka" statement: literal '...' (escape ''), identifier "..." (escape ""),
+        -- komentar -- dan /* */ diganti spasi dulu, supaya teks bebas user (diinline oleh bind)
+        -- seperti 'returning goods' atau 'insert into' tidak mengubah rute.
+        skel := regexp_replace(
+            s,
+            $re$'([^']|'')*'|"([^"]|"")*"|--[^\n]*|/\*([^*]|\*+[^*/])*\*+/$re$,
+            ' ', 'g');
+        is_sel := skel ~* '^\s*(select|with)\M';
+        if is_sel or skel ~* '\mreturning\M' then
             execute format('with _q as (%s) select json_agg(_q)::text from _q', s) into r;
             if r is not null then
                 parts := parts || ('{"rows":' || r || '}');
