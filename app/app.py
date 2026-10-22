@@ -1,10 +1,13 @@
 # app.py
 from datetime import timedelta
-from flask import Flask, redirect, url_for
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 import config
 from database import init_db
+
+DB_UNREACHABLE_MSG = "Database tidak terjangkau. Periksa koneksi internet lalu coba lagi."
+
 
 def create_app(testing=False):
     app = Flask(__name__)
@@ -113,6 +116,18 @@ def create_app(testing=False):
             if key not in hidden_keys
         ]
         return {"nav_modules": nav_modules}
+
+    from fhdb.errors import OperationalError as DbUnreachable
+
+    @app.errorhandler(DbUnreachable)
+    def db_unreachable(e):
+        # Database (Supabase lewat HTTPS) tidak terjangkau: 503 tanpa mengulang request.
+        app.logger.warning("Database tidak terjangkau: %s", e)
+        wants_json = request.path.startswith("/api") or "/api/" in request.path or request.is_json or (
+            request.accept_mimetypes.best == "application/json")
+        if wants_json:
+            return jsonify({"error": DB_UNREACHABLE_MSG}), 503
+        return render_template("db_unavailable.html", message=DB_UNREACHABLE_MSG), 503
 
     @app.route("/")
     def index():

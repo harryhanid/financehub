@@ -10,8 +10,8 @@ load_dotenv(env_path)
 DB_PATH  = os.path.join(BASE_DIR, "finance_hub.db")
 
 # Supabase/Postgres lewat fhdb (public.fh_exec). DB_BACKEND: "http" (produksi) | "pg" (test);
-# default "sqlite" = jalur lama (database.get_conn masih SQLite sampai migrasi dialihkan).
-DB_BACKEND           = os.environ.get("DB_BACKEND", "sqlite")
+# DB_PATH (SQLite lama) tidak dipakai lagi oleh database.get_conn; dibiarkan untuk skrip lama.
+DB_BACKEND           = os.environ.get("DB_BACKEND", "http")
 DB_SCHEMA            = os.environ.get("DB_SCHEMA", "financehub")
 SUPABASE_URL         = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")

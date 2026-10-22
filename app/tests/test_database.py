@@ -1,121 +1,127 @@
-# C:\Financehub\app\tests\test_database.py
-import os
-import sys
-import pytest
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
+# tests/test_database.py -- database.py di atas fhdb (Postgres test schema financehub_test).
+# Skema dibuat sekali per sesi oleh conftest (0001+0002+0002b+0003); clean_db mengosongkan tabel lalu init_db().
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_finance_hub.db")
 
-from database import init_db, get_conn
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-    yield
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
+def test_get_conn_is_fhdb():
+    import database
+    import fhdb
+    assert database.get_conn is fhdb.get_conn
+    c = database.get_conn()
+    assert isinstance(c, fhdb.Connection)
+    assert c.execute("select current_schema()").fetchone()[0] == "financehub_test"
 
-def test_init_db_creates_tables():
-    init_db()
-    conn = get_conn()
-    tables = {r[0] for r in conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table'"
-    ).fetchall()}
-    conn.close()
-    assert "companies" in tables
-    assert "users" in tables
-    assert "siswa" in tables
-    assert "budget_beasiswa" in tables
-    assert "payment_beasiswa" in tables
-    assert "payment_memo" in tables
-    assert "payment_memo_items" in tables
-    assert "payment_application" in tables
-    assert "refresh_tokens" in tables
-    assert "bank_setf" in tables
 
-def test_init_db_seeds_companies():
-    init_db()
-    conn = get_conn()
-    rows = conn.execute("SELECT code FROM companies ORDER BY id").fetchall()
-    conn.close()
-    codes = [r["code"] for r in rows]
-    assert codes == ["SMT", "ETF"]
+def test_init_db_seeds_companies_and_admin():
+    from database import get_conn
+    c = get_conn()
+    assert [tuple(r) for r in c.execute("select id, code from companies order by id")] == [(1, "SMT"), (2, "ETF")]
+    assert c.execute("select role from users where username='admin'").fetchone()[0] == "releaser"
 
-def test_init_db_creates_admin_user():
-    init_db()
-    conn = get_conn()
-    row = conn.execute(
-        "SELECT username, role, must_change_pw FROM users WHERE username='admin'"
-    ).fetchone()
-    conn.close()
-    assert row is not None
-    assert row["role"] == "releaser"
+
+def test_init_db_admin_must_change_pw_and_bcrypt_hash():
+    import bcrypt
+    from database import get_conn
+    row = get_conn().execute(
+        "select password_hash, must_change_pw from users where username='admin'").fetchone()
     assert row["must_change_pw"] == 1
+    assert bcrypt.checkpw(config.ADMIN_DEFAULT_PASSWORD.encode(), row["password_hash"].encode())
 
-def test_init_db_idempotent():
+
+def test_init_db_seeds_reference_tables():
+    from database import get_conn
+    from fhdb.seed import VENDOR_SEED
+    c = get_conn()
+    assert c.execute("select count(*) from coa").fetchone()[0] == len({e["gl_code"] for e in config.COA_LIST})
+    assert c.execute("select count(*) from coa_pam").fetchone()[0] > 0
+    assert c.execute("select count(*) from vendors").fetchone()[0] == len(VENDOR_SEED)
+
+
+def test_init_db_is_idempotent():
+    from database import init_db, get_conn
+    from fhdb.seed import VENDOR_SEED
     init_db()
     init_db()
-    conn = get_conn()
-    count = conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
-    conn.close()
-    assert count == 2
+    c = get_conn()
+    assert c.execute("select count(*) from companies").fetchone()[0] == 2
+    assert c.execute("select count(*) from users where username='admin'").fetchone()[0] == 1
+    assert c.execute("select count(*) from vendors").fetchone()[0] == len(VENDOR_SEED)
+
+
+def test_init_db_keeps_existing_admin_password():
+    from database import init_db, get_conn
+    c = get_conn()
+    c.execute("update users set password_hash='x', must_change_pw=0 where username='admin'")
+    c.commit()
+    init_db()
+    row = get_conn().execute("select password_hash, must_change_pw from users where username='admin'").fetchone()
+    assert (row[0], row[1]) == ("x", 0)
+
+
+def test_init_db_runs_no_ddl(monkeypatch):
+    import database
+    from fhdb.connection import Connection
+    seen = []
+    for name in ("execute", "executemany", "executescript", "batch"):
+        orig = getattr(Connection, name)
+
+        def spy(self, *a, _orig=orig, _name=name, **k):
+            seen.append((_name, a[0]))
+            return _orig(self, *a, **k)
+
+        monkeypatch.setattr(Connection, name, spy)
+    database.init_db()
+    assert seen, "init_db harus menulis seed lewat fhdb"
+    assert all(n != "executescript" for n, _ in seen)
+    sqls = [s for n, s in seen if isinstance(s, str)]
+    assert not any(s.lstrip().lower().startswith(("create", "alter", "drop")) for s in sqls)
+    assert not hasattr(database, "DDL")
+    assert not hasattr(database, "migrate_db")
 
 
 def test_bank_setf_table_exists():
-    from database import get_conn, init_db
-    init_db()
-    conn = get_conn()
-    cols = {r[1] for r in conn.execute("PRAGMA table_info(bank_setf)")}
-    conn.close()
+    from database import get_conn
+    cols = {r[1] for r in get_conn().execute("PRAGMA table_info(bank_setf)")}
     assert cols == {
         "id", "company_id", "tanggal", "jenis", "jumlah",
         "keterangan", "source", "pam_record_id", "created_at", "updated_at",
     }
 
 
-def test_migrate_db_backfills_existing_setf_complete_pam():
-    from database import get_conn, init_db, migrate_db
-    init_db()
-    conn = get_conn()
-    conn.execute(
-        """INSERT INTO pam_records
-           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (2, 'PAM-BACKFILL-1', '2026-01-01', 'Old SETF payment', 1000000, 'complete', 'SETF', '2026-01-05', datetime('now'))"""
-    )
-    conn.commit()
-    conn.close()
-
-    migrate_db()
-
-    conn = get_conn()
-    rows = conn.execute("SELECT * FROM bank_setf WHERE pam_record_id IS NOT NULL").fetchall()
-    conn.close()
-    assert len(rows) == 1
-    row = dict(rows[0])
-    assert row["jenis"] == "pengeluaran"
-    assert row["jumlah"] == 1000000
-    assert row["source"] == "pam"
-    assert row["tanggal"] == "2026-01-05"
+def test_rls_enabled_on_all_tables(pg_raw):
+    n_off = pg_raw.scalar(
+        "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace "
+        "where n.nspname='financehub_test' and c.relkind='r' and not c.relrowsecurity "
+        "and c.relname <> 't'")
+    assert n_off == 0
 
 
-def test_migrate_db_backfill_is_idempotent():
-    from database import get_conn, init_db, migrate_db
-    init_db()
-    conn = get_conn()
-    conn.execute(
-        """INSERT INTO pam_records
-           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (2, 'PAM-BACKFILL-2', '2026-01-01', 'Old SETF payment', 500000, 'complete', 'SETF', '2026-01-05', datetime('now'))"""
-    )
-    conn.commit()
-    conn.close()
+def test_db_unreachable_returns_503(client, auth_headers, monkeypatch):
+    import fhdb.connection, fhdb.errors
+    calls = []
 
-    migrate_db()
-    migrate_db()
+    def boom(*a, **k):
+        calls.append(1)
+        raise fhdb.errors.OperationalError("timeout")
 
-    conn = get_conn()
-    rows = conn.execute("SELECT * FROM bank_setf WHERE pam_record_id IS NOT NULL").fetchall()
-    conn.close()
-    assert len(rows) == 1
+    monkeypatch.setattr(fhdb.connection.Connection, "execute", boom)
+    resp = client.get("/api/v1/payment-memo?company=SMT", headers=auth_headers)
+    assert resp.status_code == 503
+    assert "Database tidak terjangkau" in resp.get_json()["error"]
+    assert len(calls) == 1  # handler tidak mengulang request
+
+
+def test_db_unreachable_html_page_returns_503(client, auth_headers, monkeypatch):
+    import fhdb.connection, fhdb.errors
+
+    with client.session_transaction() as s:
+        s["company_id"], s["company_code"], s["company_name"] = 1, "SMT", "SMT"
+
+    def boom(*a, **k):
+        raise fhdb.errors.OperationalError("timeout")
+
+    monkeypatch.setattr(fhdb.connection.Connection, "execute", boom)
+    resp = client.get("/payment-memo/", headers=auth_headers)
+    assert resp.status_code == 503
+    assert "text/html" in resp.content_type
+    assert "Database tidak terjangkau" in resp.get_data(as_text=True)
