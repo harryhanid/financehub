@@ -688,7 +688,14 @@ def _run_behind_lock(pg_dsn, key, fns):
         deadline = time.time() + 60
         while True:
             with psycopg2.connect(pg_dsn) as probe, probe.cursor() as cur:
-                cur.execute("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted")
+                # R53: hanya penunggu kunci INI (bukan seluruh DB). Kunci advisory int8 tercatat
+                # sebagai classid (32 bit atas) + objid (32 bit bawah), objsubid = 1.
+                cur.execute(
+                    "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted "
+                    "AND objsubid = 1 "
+                    "AND objid::bigint = (hashtext(%s)::bigint & 4294967295) "
+                    "AND classid::bigint = ((hashtext(%s)::bigint >> 32) & 4294967295)",
+                    (key, key))
                 waiting = cur.fetchone()[0]
             probe.close()
             if waiting >= len(fns):
@@ -720,7 +727,9 @@ def test_concurrent_create_pam_from_etf_pa_gets_distinct_numbers(pg_dsn):
     pa1, _ = _pa(status="open", sid=sid)
     pa2, _ = _pa(status="open", sid=sid)
     now = datetime.now()
-    _run_behind_lock(pg_dsn, f"pam_no:ETF:{now:%Y}", [
+    # R53: create_pam_from_etf_pa mengambil kunci R51 dulu (lalu kunci pam_no di fn_next_pam_no),
+    # jadi kedua thread antre di kunci R51; _run_behind_lock menghitung penunggu kunci itu saja.
+    _run_behind_lock(pg_dsn, f"beasiswa_pb_delete:{ETF}", [
         lambda: create_pam_from_etf_pa(ETF, "ETF", "2026-06-08", [pa1]),
         lambda: create_pam_from_etf_pa(ETF, "ETF", "2026-06-08", [pa2]),
     ])
@@ -764,3 +773,149 @@ def test_pam_cascades_take_shared_lock_first(monkeypatch):
         assert writes_pb, calls.index(call)
         for b in writes_pb:
             assert (b[0][0], tuple(b[0][1])) == lock
+
+
+# --- R53 (Task 16b) -----------------------------------------------------------
+
+def test_save_others_payment_keeps_decimal_others():
+    """R53: pam_records.others double precision -- 1500.5 tidak dibulatkan bigint."""
+    r = save_others_payment(ETF, "ETF", {"pam_no": "PAM-300-ETF-06-2026", "keterangan": "k",
+                                         "tanggal": "2026-06-08", "dpp": 1000, "ppn": 110.25,
+                                         "others": 1500.5})
+    assert r["ok"] is True
+    pr = _one("SELECT dpp, ppn, others, total_amount FROM pam_records WHERE pam_no=?",
+              ("PAM-300-ETF-06-2026",))
+    assert pr["others"] == 1500.5
+    assert pr["total_amount"] == pr["dpp"] + pr["ppn"] + pr["others"] == 2610.75
+
+
+def test_save_smt_pam_transaction_keeps_decimal_others():
+    data = _smt_data()
+    data["rows"][0]["others"] = 0.5
+    assert save_smt_pam_transaction(1, "SMT", data)["ok"] is True
+    pr = _one("SELECT others, total_amount FROM pam_records WHERE pam_no=?", (data["pam_no"],))
+    assert (pr["others"], pr["total_amount"]) == (0.5, 311.5)
+
+
+def test_create_pam_from_etf_pa_double_submit_creates_one_pam():
+    pa_id, _ = _pa(status="open", n_lines=2)
+    first = create_pam_from_etf_pa(ETF, "ETF", "2026-06-08", [pa_id], "ket")
+    assert first["ok"] is True
+    second = create_pam_from_etf_pa(ETF, "ETF", "2026-06-08", [pa_id], "ket")
+    assert second == {"ok": False, "pesan": f"PA {[pa_id]} bukan status open."}
+    snap = _snapshot()
+    assert [p["pam_no"] for p in snap["pam_records"]] == [first["pam_no"]]
+    assert snap["etf_pa"][0]["nomor_pam"] == first["pam_no"]
+
+
+def test_concurrent_create_pam_from_etf_pa_same_pa_creates_one_pam(pg_dsn):
+    """Dua submit bersamaan untuk PA yang sama: keduanya lolos validasi 'open' sebelum batch, lalu
+    antre di kunci R51. Yang kedua melihat PA sudah on_process dan tidak menulis apa pun."""
+    pa_id, _ = _pa(status="open", n_lines=1)
+    results = []
+    _run_behind_lock(pg_dsn, f"beasiswa_pb_delete:{ETF}", [
+        lambda: results.append(create_pam_from_etf_pa(ETF, "ETF", "2026-06-08", [pa_id])),
+        lambda: results.append(create_pam_from_etf_pa(ETF, "ETF", "2026-06-08", [pa_id])),
+    ])
+    assert sorted(r["ok"] for r in results) == [False, True]
+    loser = next(r for r in results if not r["ok"])
+    assert loser["pesan"] == f"PA {[pa_id]} bukan status open."
+    winner = next(r for r in results if r["ok"])
+    snap = _snapshot()
+    assert [p["pam_no"] for p in snap["pam_records"]] == [winner["pam_no"]]
+    assert (snap["etf_pa"][0]["status"], snap["etf_pa"][0]["nomor_pam"]) == ("on_process", winner["pam_no"])
+
+
+def _rename_before_first_batch(monkeypatch, pam_id, new_no):
+    """Simulasikan rename bersamaan (update_pam_and_application di request lain) yang commit
+    SETELAH fungsi membaca header tapi SEBELUM batch-nya: header, pb.pam dan etf_pa.nomor_pam."""
+    from fhdb.connection import Connection
+    real = Connection.batch
+    state = {"done": False}
+
+    def spy(self, items):
+        if not state["done"]:
+            state["done"] = True
+            c = get_conn()
+            old = c.execute("SELECT pam_no FROM pam_records WHERE id=?", (pam_id,)).fetchone()[0]
+            real(c, [
+                ("UPDATE payment_beasiswa SET pam=? WHERE pam=?", (new_no, old)),
+                ("UPDATE etf_pa SET nomor_pam=? WHERE nomor_pam=?", (new_no, old)),
+                ("UPDATE pam_records SET pam_no=? WHERE id=?", (new_no, pam_id)),
+            ])
+            c.close()
+        return real(self, items)
+    monkeypatch.setattr(Connection, "batch", spy)
+
+
+def test_cancel_pam_record_after_concurrent_rename_leaves_no_orphans(monkeypatch):
+    pam_id, pa_id, lines, pbs = _beasiswa_pam(n=2)
+    _rename_before_first_batch(monkeypatch, pam_id, "PAM-050-ETF-06-2026")
+    assert cancel_pam_record(pam_id, ETF)["ok"] is True
+    snap = _snapshot()
+    assert snap["pam_records"] == [] and snap["payment_beasiswa"] == []
+    assert (snap["etf_pa"][0]["status"], snap["etf_pa"][0]["nomor_pam"]) == ("open", None)
+
+
+def test_cancel_pam_record_etf_agri_after_concurrent_rename(monkeypatch):
+    _pa(status="on_process", nomor_pam="PAM-001-ETF-06-2026")
+    pam_id = _pam(source="etf_agri")
+    _rename_before_first_batch(monkeypatch, pam_id, "PAM-050-ETF-06-2026")
+    assert cancel_pam_record(pam_id, ETF)["ok"] is True
+    snap = _snapshot()
+    assert snap["pam_records"] == []
+    assert (snap["etf_pa"][0]["status"], snap["etf_pa"][0]["nomor_pam"]) == ("open", None)
+
+
+def test_reject_pam_record_after_concurrent_rename_leaves_no_orphans(monkeypatch):
+    pam_id, pa_id, lines, pbs = _beasiswa_pam(n=2)
+    _rename_before_first_batch(monkeypatch, pam_id, "PAM-050-ETF-06-2026")
+    assert reject_pam_record(pam_id, ETF, "salah")["ok"] is True
+    snap = _snapshot()
+    assert {(p["pam"], p["status"]) for p in snap["payment_beasiswa"]} == {("PAM-050-ETF-06-2026", "rejected")}
+    assert snap["pam_records"][0]["status"] == "rejected"
+    assert snap["etf_pa"][0]["status"] == "rejected"
+
+
+def test_set_pam_complete_cascade_after_concurrent_rename_completes_lines(monkeypatch):
+    pam_id, pa_id, lines, pbs = _beasiswa_pam(n=2)
+    _rename_before_first_batch(monkeypatch, pam_id, "PAM-050-ETF-06-2026")
+    assert set_pam_complete_cascade(pam_id, "2026-07-10", ETF)["ok"] is True
+    snap = _snapshot()
+    assert snap["pam_records"][0]["status"] == "complete"
+    assert {(p["pam"], p["status"]) for p in snap["payment_beasiswa"]} == {("PAM-050-ETF-06-2026", "complete")}
+    assert (snap["etf_pa"][0]["status"], snap["etf_pa"][0]["tanggal_bayar"]) == ("complete", "2026-07-10")
+
+
+def test_update_pam_and_application_after_concurrent_rename_leaves_no_orphans(monkeypatch):
+    conn = get_conn()
+    memo_id = conn.execute("INSERT INTO payment_memo (company_id, memo_number, status) VALUES (?,?,?)",
+                           (ETF, "PAM/ETF/2026/001", "open")).lastrowid
+    conn.execute("INSERT INTO payment_application (company_id, memo_id, notes) VALUES (?,?,?)",
+                 (ETF, memo_id, "lama"))
+    conn.close()
+    _pa(status="on_process", nomor_pam="PAM-001-ETF-06-2026")
+    pam_id = _pam()
+    _pb(memo_id=memo_id)
+    _rename_before_first_batch(monkeypatch, pam_id, "PAM-050-ETF-06-2026")
+    r = update_pam_and_application(pam_id, {"pam_no": "PAM-099-ETF-06-2026"}, {"notes": "baru"}, ETF)
+    assert r["ok"] is True
+    snap = _snapshot()
+    assert snap["pam_records"][0]["pam_no"] == "PAM-099-ETF-06-2026"
+    assert snap["payment_beasiswa"][0]["pam"] == "PAM-099-ETF-06-2026"
+    assert snap["etf_pa"][0]["nomor_pam"] == "PAM-099-ETF-06-2026"
+    assert snap["payment_application"][0]["notes"] == "baru"
+
+
+@pytest.mark.parametrize("code", ["A-B", "A.B"])
+def test_memo_number_with_regex_special_company_code(code):
+    """fn_next_memo_no: karakter non-[A-Za-z0-9_] di kode di-escape (bukan backreference invalid),
+    dan 'A.B' tidak ikut menghitung nomor 'AXB'."""
+    from modules.payment_memo.service import generate_memo_number
+    assert generate_memo_number(ETF, code, "2026") == f"PAM/{code}/2026/001"
+    conn = get_conn()
+    for no in (f"PAM/{code}/2026/004", "PAM/AXB/2026/009"):
+        conn.execute("INSERT INTO payment_memo (company_id, memo_number, status) VALUES (?,?,?)",
+                     (ETF, no, "open"))
+    conn.close()
+    assert generate_memo_number(ETF, code, "2026") == f"PAM/{code}/2026/005"

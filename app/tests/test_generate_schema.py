@@ -67,6 +67,18 @@ def test_integer_column_with_real_values_maps_to_double(tmp_path, pg_raw):
     assert types == {"id": "bigint", "dpp": "double precision", "ppn": "double precision", "kode": "text"}
 
 
+def test_pam_records_others_forced_double_precision(tmp_path, pg_raw):
+    """R53: pam_records.others INTEGER tanpa nilai real di data tetap double precision (kode menulis float)."""
+    db = _make_db(tmp_path / "r53.db",
+                  "create table pam_records (id INTEGER PRIMARY KEY AUTOINCREMENT, dpp INTEGER, others INTEGER DEFAULT 0);",
+                  [("insert into pam_records (dpp, others) values (?, ?)", (1000, 5))])
+    sql = generate(db)
+    assert "pam_records.others: double precision" in sql  # override dicatat di komentar
+    pg_raw.execute("create schema gen_t"); pg_raw.execute(sql.replace("{{schema}}", "gen_t"))
+    types = {n: t for n, t, *_ in pg_raw.columns("gen_t", "pam_records")}
+    assert types == {"id": "bigint", "dpp": "bigint", "others": "double precision"}
+
+
 def test_constraints_defaults_and_orphan_fk_not_valid(tmp_path, pg_raw):
     db = _make_db(tmp_path / "c.db", '''
       create table users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL);

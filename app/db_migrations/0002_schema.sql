@@ -5,6 +5,7 @@
 -- Override tipe (tipe deklarasi akan memotong/menolak nilai yang ada di data):
 --   pam_records.dpp: double precision (deklarasi INTEGER, berisi nilai real 1x)
 --   pam_records.ppn: double precision (deklarasi INTEGER, berisi nilai real 3x)
+--   pam_records.others: double precision (deklarasi INTEGER, ditulis float(...) oleh save_others_payment/save_smt_pam_transaction (R53))
 --
 -- Foreign key NOT VALID (ada baris orphan di SQLite; data tidak dihapus):
 --   refresh_tokens(user_id) -> users: 2 baris orphan, FK NOT VALID
@@ -177,7 +178,7 @@ create table {{schema}}."pam_records" (
     "dpp" double precision default 0,
     "ppn" double precision default 0,
     "pillar" text collate "C",
-    "others" bigint default 0,
+    "others" double precision default 0,
     "reject_reason" text collate "C",
     "attachment_file_id" text collate "C",
     "klasifikasi" text collate "C" default 'Normal',

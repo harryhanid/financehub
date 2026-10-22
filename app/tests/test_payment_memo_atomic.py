@@ -84,7 +84,9 @@ def test_create_memo_number_matches_preview_and_continues_sequence():
 
 def test_concurrent_create_memo_gets_distinct_numbers(pg_dsn):
     pb1, pb2 = _pb(pam_no=None), _pb(pam_no=None)
-    t16._run_behind_lock(pg_dsn, "memo_number:ETF:2025", [
+    # create_memo mengambil kunci R51 (beasiswa_pb_delete:<cid>) sebelum kunci memo_number, jadi
+    # kedua thread antre di kunci R51 (_run_behind_lock menghitung penunggu kunci itu saja, R53).
+    t16._run_behind_lock(pg_dsn, f"beasiswa_pb_delete:{ETF}", [
         lambda: create_memo(ETF, "ETF", "2025-06-10", "", "a", _items(pb1)),
         lambda: create_memo(ETF, "ETF", "2025-06-10", "", "b", _items(pb2)),
     ])

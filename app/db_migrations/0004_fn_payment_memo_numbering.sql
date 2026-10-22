@@ -87,9 +87,9 @@ declare
 begin
     perform pg_advisory_xact_lock(hashtext(''memo_number:'' || p_company_code || '':'' || p_year));
     v_re := ''^PAM/''
-            || regexp_replace(p_company_code, ''([^A-Za-z0-9_])'', ''\\1'', ''g'')
+            || regexp_replace(p_company_code, ''([^A-Za-z0-9_])'', ''\\\1'', ''g'')
             || ''/''
-            || regexp_replace(p_year, ''([^A-Za-z0-9_])'', ''\\1'', ''g'')
+            || regexp_replace(p_year, ''([^A-Za-z0-9_])'', ''\\\1'', ''g'')
             || ''/([0-9]+)'';
     select coalesce(max(substring("memo_number" from v_re)::numeric), 0)
       into v_max
