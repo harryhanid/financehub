@@ -54,7 +54,7 @@ def compute_running_balance(rows: list) -> dict:
 def get_available_years(company_id: int) -> list:
     conn = get_conn()
     rows = conn.execute(
-        "SELECT DISTINCT strftime('%Y', tanggal) AS yr FROM bank_setf "
+        "SELECT DISTINCT fh_strftime('%Y', tanggal) AS yr FROM bank_setf "
         "WHERE company_id = ? ORDER BY yr DESC",
         (company_id,),
     ).fetchall()
@@ -127,79 +127,14 @@ def sync_pam_to_bank_setf(pam_id: int) -> None:
       completion or correcting an amount downward left stale ledger rows
       permanently out of sync with the actual PAM.
     """
+    # Postgres: baca + hitung delta + tulis jalan atomik dalam satu fungsi plpgsql
+    # (db_migrations/0004_fn_bank.sql) di bawah advisory lock per pam_id, supaya dua panggilan
+    # bersamaan tidak menyisipkan delta dua kali dan cabang DELETE+INSERT tidak berhenti di tengah.
     conn = get_conn()
-    pam = conn.execute(
-        "SELECT id, company_id, pam_no, tanggal_bayar, pam_date, keterangan, pillar, status, total_amount "
-        "FROM pam_records WHERE id=?",
-        (pam_id,)
-    ).fetchone()
-    if not pam:
+    try:
+        conn.execute("SELECT fn_sync_pam_to_bank_setf(?)", (pam_id,))
+    finally:
         conn.close()
-        return
-
-    if pam["pillar"] != "SETF" or pam["status"] not in ("complete", "partial"):
-        conn.execute("DELETE FROM bank_setf WHERE pam_record_id=? AND source='pam'", (pam_id,))
-        conn.commit()
-        conn.close()
-        return
-
-    # Only beasiswa-sourced PAMs break their total into payment_beasiswa lines
-    # (and only those support partial completion via mark_beasiswa_lines_complete).
-    # 'others'/'tagihan'/'sponsor'-sourced PAMs carry their whole amount
-    # directly on pam_records.total_amount with zero payment_beasiswa rows —
-    # for those, "paid" is simply the full total once status is 'complete'
-    # (they can never be 'partial').
-    has_beasiswa_lines = conn.execute(
-        "SELECT 1 FROM payment_beasiswa WHERE pam=? AND company_id=? LIMIT 1",
-        (pam["pam_no"], pam["company_id"])
-    ).fetchone() is not None
-
-    if has_beasiswa_lines:
-        paid_total = conn.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM payment_beasiswa "
-            "WHERE pam=? AND company_id=? AND status='complete'",
-            (pam["pam_no"], pam["company_id"])
-        ).fetchone()[0]
-    else:
-        paid_total = pam["total_amount"] if pam["status"] == "complete" else 0
-    recorded_total = conn.execute(
-        "SELECT COALESCE(SUM(jumlah),0) FROM bank_setf WHERE pam_record_id=? AND source='pam'",
-        (pam_id,)
-    ).fetchone()[0]
-
-    # pam_records.tanggal_bayar is only set once the WHOLE PAM completes (see
-    # mark_beasiswa_lines_complete), so it can't date a partial batch. Each
-    # line's own tgl_Paid_SETF is set at completion time — the most recent one
-    # is the actual date this batch (the delta) was paid.
-    latest_paid = conn.execute(
-        "SELECT MAX(tgl_Paid_SETF) FROM payment_beasiswa "
-        "WHERE pam=? AND company_id=? AND status='complete' AND tgl_Paid_SETF IS NOT NULL",
-        (pam["pam_no"], pam["company_id"])
-    ).fetchone()[0]
-    delta = paid_total - recorded_total
-    tanggal = latest_paid or pam["tanggal_bayar"] or pam["pam_date"]
-
-    if delta > 0.01:
-        conn.execute(
-            "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source, pam_record_id) "
-            "VALUES (?, ?, 'pengeluaran', ?, ?, 'pam', ?)",
-            (pam["company_id"], tanggal, delta, pam["keterangan"], pam_id)
-        )
-        conn.commit()
-    elif delta < -0.01:
-        # Paid total dropped (amount corrected down, or a line's completion
-        # reverted) — collapse existing batch rows and re-insert one row for
-        # whatever remains, rather than trying to guess which batch to shrink.
-        conn.execute("DELETE FROM bank_setf WHERE pam_record_id=? AND source='pam'", (pam_id,))
-        if paid_total > 0.01:
-            conn.execute(
-                "INSERT INTO bank_setf (company_id, tanggal, jenis, jumlah, keterangan, source, pam_record_id) "
-                "VALUES (?, ?, 'pengeluaran', ?, ?, 'pam', ?)",
-                (pam["company_id"], tanggal, paid_total, pam["keterangan"], pam_id)
-            )
-        conn.commit()
-
-    conn.close()
 
 
 def get_bank_setf_rows(company_id: int) -> list:
@@ -253,7 +188,7 @@ def update_transaksi(row_id: int, company_id: int, tanggal: str, jenis: str, jum
         return {"ok": False, "pesan": error}
     conn = get_conn()
     cur = conn.execute(
-        "UPDATE bank_setf SET tanggal=?, jenis=?, jumlah=?, keterangan=?, updated_at=datetime('now') "
+        "UPDATE bank_setf SET tanggal=?, jenis=?, jumlah=?, keterangan=?, updated_at=to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS') "
         "WHERE id=? AND company_id=?",
         (tanggal, jenis, float(jumlah), keterangan, row_id, company_id),
     )

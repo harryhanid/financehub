@@ -29,7 +29,7 @@ def list_documents(search=None, modul=None, status=None):
     query = "SELECT * FROM sop_documents WHERE 1=1"
     params = []
     if search:
-        query += " AND LOWER(nama) LIKE ?"
+        query += " AND LOWER(nama) ILIKE ?"
         params.append(f"%{search.lower()}%")
     if modul:
         query += " AND modul = ?"
@@ -37,7 +37,11 @@ def list_documents(search=None, modul=None, status=None):
     if status:
         query += " AND status = ?"
         params.append(status)
-    query += " ORDER BY modul, CAST(kode AS INTEGER)"
+    # SQLite CAST(kode AS INTEGER): NULL tetap NULL (urut paling awal), selain itu awalan angka
+    # ('12', '1.7' -> 1, '3a' -> 3) dan teks tanpa awalan angka -> 0. NULLS FIRST meniru urutan
+    # NULL SQLite pada ASC.
+    query += (" ORDER BY modul, CASE WHEN kode IS NULL THEN NULL"
+              " ELSE COALESCE(substring(ltrim(kode) from '^[-+]?[0-9]+')::bigint, 0) END NULLS FIRST")
     rows = conn.execute(query, params).fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -45,17 +49,17 @@ def list_documents(search=None, modul=None, status=None):
 
 def record_upload(doc_id, file_path, perlu_verifikasi_count, uploaded_by, catatan=None):
     conn = get_conn()
-    conn.execute(
-        """UPDATE sop_documents
+    # Postgres: UPDATE + INSERT history dalam satu batch (satu transaksi). uploaded_at sama dengan
+    # CURRENT_TIMESTAMP SQLite: teks UTC 'YYYY-MM-DD HH:MM:SS'.
+    conn.batch([
+        ("""UPDATE sop_documents
            SET file_path=?, perlu_verifikasi_count=?, uploaded_by=?,
-               uploaded_at=CURRENT_TIMESTAMP, status='aktif'
+               uploaded_at=to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'), status='aktif'
            WHERE id=?""",
-        (file_path, perlu_verifikasi_count, uploaded_by, doc_id),
-    )
-    conn.execute(
-        "INSERT INTO sop_upload_history (sop_id, uploaded_by, catatan) VALUES (?, ?, ?)",
-        (doc_id, uploaded_by, catatan),
-    )
+         (file_path, perlu_verifikasi_count, uploaded_by, doc_id)),
+        ("INSERT INTO sop_upload_history (sop_id, uploaded_by, catatan) VALUES (?, ?, ?)",
+         (doc_id, uploaded_by, catatan)),
+    ])
     conn.commit()
     conn.close()
 

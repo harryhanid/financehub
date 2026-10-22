@@ -9,7 +9,7 @@ import config
 
 # Database test: Postgres lokal (tests/_pg, port 54330, lihat tests/fhdb_fixtures.py) schema
 # financehub_test lewat fhdb PgBackend. Skema dibangun sekali per sesi dari app/db_migrations
-# (0001+0002+0002b+0003); clean_db mengosongkan semua tabel + reset identity tiap test lalu init_db().
+# (0001+0002+0002b+0003+0004_fn_*); clean_db mengosongkan semua tabel + reset identity tiap test lalu init_db().
 config.DB_BACKEND = "pg"
 config.DB_SCHEMA = "financehub_test"
 config.FH_PG_DSN = "postgresql://postgres@127.0.0.1:54330/postgres"  # ditimpa fhdb_schema dengan DSN aktual
@@ -64,7 +64,8 @@ def app():
 def client(app):
     return app.test_client()
 
-MIGRATION_FILES = ("0001_fh_exec.sql", "0002_schema.sql", "0002b_compat.sql", "0003_privileges.sql")
+MIGRATION_FILES = ("0001_fh_exec.sql", "0002_schema.sql", "0002b_compat.sql", "0003_privileges.sql",
+                   "0004_fn_bank.sql", "0004_fn_payment_application.sql")
 
 # Satu statement (= satu panggilan backend, satu transaksi): kosongkan semua tabel schema test dan
 # reset semua sequence identity -- efek sama dengan TRUNCATE ... RESTART IDENTITY CASCADE.

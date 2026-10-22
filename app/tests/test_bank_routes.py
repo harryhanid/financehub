@@ -16,7 +16,7 @@ def _insert_pam(company_id, pam_no, pillar, status, total_amount,
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (?,?,?,?,?,?,?,?,datetime('now'))""",
+           VALUES (?,?,?,?,?,?,?,?,to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))""",
         (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar),
     )
     conn.commit()

@@ -66,10 +66,7 @@ def login():
         conn.close()
         return jsonify({"ok": False, "pesan": "Akun tidak aktif. Hubungi admin."})
 
-    conn.execute(
-        "UPDATE users SET last_login = ? WHERE id = ?",
-        (datetime.now().isoformat(), row["id"]),
-    )
+    last_login = datetime.now().isoformat()
 
     additional    = {"username": username, "role": row["role"]}
     access_token  = create_access_token(identity=str(row["id"]), additional_claims=additional)
@@ -77,10 +74,13 @@ def login():
 
     token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
     expires_at = (datetime.now() + timedelta(days=config.JWT_REFRESH_DAYS)).isoformat()
-    conn.execute(
-        "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
-        (row["id"], token_hash, expires_at),
-    )
+    # Postgres: dua tulisan dalam satu batch (satu transaksi), supaya last_login tidak tercatat
+    # tanpa refresh token (atau sebaliknya) kalau salah satunya gagal.
+    conn.batch([
+        ("UPDATE users SET last_login = ? WHERE id = ?", (last_login, row["id"])),
+        ("INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+         (row["id"], token_hash, expires_at)),
+    ])
     conn.commit()
     conn.close()
 

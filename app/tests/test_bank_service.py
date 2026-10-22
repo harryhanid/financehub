@@ -8,7 +8,7 @@ def _insert_pam(company_id, pam_no, pillar, status, total_amount,
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (?,?,?,?,?,?,?,?,datetime('now'))""",
+           VALUES (?,?,?,?,?,?,?,?,to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))""",
         (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar),
     )
     conn.commit()
@@ -203,7 +203,7 @@ def test_sync_pam_to_bank_setf_inserts_pengeluaran_row():
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (2, 'PAM-SYNC-1', '2026-07-01', 'Beasiswa test', 2000000, 'complete', 'SETF', '2026-07-05', datetime('now'))"""
+           VALUES (2, 'PAM-SYNC-1', '2026-07-01', 'Beasiswa test', 2000000, 'complete', 'SETF', '2026-07-05', to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))"""
     )
     pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-SYNC-1'").fetchone()["id"]
     conn.commit()
@@ -227,7 +227,7 @@ def test_sync_pam_to_bank_setf_skips_non_setf_pillar():
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (2, 'PAM-SYNC-2', '2026-07-01', 'AGRI test', 3000000, 'complete', 'AGRI', '2026-07-05', datetime('now'))"""
+           VALUES (2, 'PAM-SYNC-2', '2026-07-01', 'AGRI test', 3000000, 'complete', 'AGRI', '2026-07-05', to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))"""
     )
     pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-SYNC-2'").fetchone()["id"]
     conn.commit()
@@ -246,7 +246,7 @@ def test_sync_pam_to_bank_setf_is_idempotent():
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (2, 'PAM-SYNC-3', '2026-07-01', 'Test', 1500000, 'complete', 'SETF', '2026-07-05', datetime('now'))"""
+           VALUES (2, 'PAM-SYNC-3', '2026-07-01', 'Test', 1500000, 'complete', 'SETF', '2026-07-05', to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))"""
     )
     pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-SYNC-3'").fetchone()["id"]
     conn.commit()
@@ -266,7 +266,7 @@ def test_sync_pam_to_bank_setf_falls_back_to_pam_date_when_no_tanggal_bayar():
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (2, 'PAM-SYNC-4', '2026-06-20', 'Test', 800000, 'complete', 'SETF', NULL, datetime('now'))"""
+           VALUES (2, 'PAM-SYNC-4', '2026-06-20', 'Test', 800000, 'complete', 'SETF', NULL, to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))"""
     )
     pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-SYNC-4'").fetchone()["id"]
     conn.commit()
@@ -289,7 +289,7 @@ def test_sync_pam_to_bank_setf_removes_row_when_reverted_from_complete():
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (2, 'PAM-REVERT-1', '2026-07-01', 'Test', 1200000, 'complete', 'SETF', '2026-07-05', datetime('now'))"""
+           VALUES (2, 'PAM-REVERT-1', '2026-07-01', 'Test', 1200000, 'complete', 'SETF', '2026-07-05', to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))"""
     )
     pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-REVERT-1'").fetchone()["id"]
     conn.commit()
@@ -313,7 +313,7 @@ def test_sync_pam_to_bank_setf_updates_existing_row_when_amount_edited():
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (2, 'PAM-EDIT-1', '2026-07-01', 'Original note', 1000000, 'complete', 'SETF', '2026-07-05', datetime('now'))"""
+           VALUES (2, 'PAM-EDIT-1', '2026-07-01', 'Original note', 1000000, 'complete', 'SETF', '2026-07-05', to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))"""
     )
     pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-EDIT-1'").fetchone()["id"]
     conn.commit()
@@ -342,7 +342,7 @@ def test_sync_pam_to_bank_setf_recompletes_without_duplicating():
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar, created_at)
-           VALUES (2, 'PAM-RECOMPLETE-1', '2026-07-01', 'Test', 500000, 'complete', 'SETF', '2026-07-05', datetime('now'))"""
+           VALUES (2, 'PAM-RECOMPLETE-1', '2026-07-01', 'Test', 500000, 'complete', 'SETF', '2026-07-05', to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))"""
     )
     pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-RECOMPLETE-1'").fetchone()["id"]
     conn.commit()
@@ -466,3 +466,119 @@ def test_delete_transaksi_of_pam_sourced_row_does_not_touch_pam_records():
     pam_status = conn.execute("SELECT status FROM pam_records WHERE id=?", (pam_id,)).fetchone()["status"]
     conn.close()
     assert pam_status == "complete"
+
+
+def _bank_count():
+    conn = get_conn()
+    n = conn.execute("SELECT COUNT(*) FROM bank_setf").fetchone()[0]
+    rows = [dict(r) for r in conn.execute("SELECT * FROM bank_setf ORDER BY id").fetchall()]
+    conn.close()
+    return n, rows
+
+
+def test_sync_pam_to_bank_setf_atomic_on_failure():
+    """Task 9 (atomic-flows.md): cabang delta<0 (DELETE lalu INSERT) jalan dalam satu fungsi plpgsql.
+    Paksa INSERT terakhir gagal (tanggal NULL -> NOT NULL): baris lama tidak boleh ikut terhapus."""
+    import pytest
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar)
+           VALUES (2, 'PAM-ATOMIC-1', '2026-07-01', 'Test', 1000000, 'complete', 'SETF', '2026-07-05')"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-ATOMIC-1'").fetchone()["id"]
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+    before = _bank_count()
+    assert before[0] == 1
+
+    conn = get_conn()
+    conn.execute(
+        "UPDATE pam_records SET total_amount=400000, pam_date=NULL, tanggal_bayar=NULL WHERE id=?",
+        (pam_id,),
+    )
+    conn.close()
+    with pytest.raises(Exception):
+        sync_pam_to_bank_setf(pam_id)
+
+    assert _bank_count() == before
+
+
+def test_sync_pam_to_bank_setf_negative_delta_collapses_to_one_row():
+    """Cabang delta<0: semua baris pam dilipat menjadi satu baris berisi total terbayar baru."""
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar)
+           VALUES (2, 'PAM-NEG-1', '2026-07-01', 'Test', 1000000, 'complete', 'SETF', '2026-07-05')"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-NEG-1'").fetchone()["id"]
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+    conn = get_conn()
+    conn.execute("UPDATE pam_records SET total_amount=400000 WHERE id=?", (pam_id,))
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+
+    rows = get_bank_setf_rows(2)
+    assert len(rows) == 1
+    assert rows[0]["jumlah"] == 400000
+    assert rows[0]["tanggal"] == "2026-07-05"
+
+
+def test_sync_pam_to_bank_setf_concurrent_calls_insert_delta_once():
+    """Advisory lock per pam_id: panggilan bersamaan untuk PAM yang sama tidak menyisipkan delta dua kali."""
+    import threading
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, tanggal_bayar)
+           VALUES (2, 'PAM-RACE-1', '2026-07-01', 'Test', 900000, 'complete', 'SETF', '2026-07-05')"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-RACE-1'").fetchone()["id"]
+    conn.close()
+
+    n_threads = 6
+    barrier = threading.Barrier(n_threads)
+    errors = []
+
+    def _worker():
+        try:
+            barrier.wait()
+            sync_pam_to_bank_setf(pam_id)
+        except Exception as e:  # pragma: no cover - dilaporkan lewat assert di bawah
+            errors.append(e)
+
+    threads = [threading.Thread(target=_worker) for _ in range(n_threads)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == []
+    rows = get_bank_setf_rows(2)
+    assert len(rows) == 1
+    assert rows[0]["jumlah"] == 900000
+
+
+def test_sync_pam_to_bank_setf_partial_lines_use_latest_tgl_paid_setf():
+    """Beasiswa PAM partial: delta = SUM line complete, tanggal = MAX("tgl_Paid_SETF")."""
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar)
+           VALUES (2, 'PAM-PART-1', '2026-07-01', 'Partial', 300, 'partial', 'SETF')"""
+    )
+    pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-PART-1'").fetchone()["id"]
+    conn.executemany(
+        """INSERT INTO payment_beasiswa (company_id, siswa_code, amount, pam, status, "tgl_Paid_SETF")
+           VALUES (2, 'S1', ?, 'PAM-PART-1', ?, ?)""",
+        [(100, "complete", "2026-07-03"), (120, "complete", "2026-07-09"), (80, "open", None)],
+    )
+    conn.close()
+    sync_pam_to_bank_setf(pam_id)
+
+    rows = get_bank_setf_rows(2)
+    assert len(rows) == 1
+    assert rows[0]["jumlah"] == 220
+    assert rows[0]["tanggal"] == "2026-07-09"

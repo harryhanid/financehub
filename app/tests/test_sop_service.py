@@ -57,3 +57,44 @@ def test_count_perlu_verifikasi_in_file(tmp_path):
     table.rows[0].cells[0].text = "PERLU VERIFIKASI di tabel"
     document.save(path)
     assert count_perlu_verifikasi_in_file(path) == 2
+
+
+def test_record_upload_atomic_on_failure():
+    """Task 9 (atomic-flows.md): UPDATE sop_documents + INSERT sop_upload_history dalam satu batch.
+    Paksa INSERT history gagal (uploaded_by NULL -> NOT NULL): dokumen tidak boleh berubah dan
+    history tidak bertambah."""
+    import pytest
+    from database import get_conn
+
+    doc_id = create_document("procurement", "Dok Atomik", kode="7", status="belum_dibuat")
+    before_doc = get_document(doc_id)
+    conn = get_conn()
+    before_hist = conn.execute("SELECT COUNT(*) FROM sop_upload_history").fetchone()[0]
+    conn.close()
+
+    with pytest.raises(Exception):
+        record_upload(doc_id, "procurement/7-atomik.docx", 2, None, catatan="harus gagal")
+
+    assert get_document(doc_id) == before_doc
+    conn = get_conn()
+    assert conn.execute("SELECT COUNT(*) FROM sop_upload_history").fetchone()[0] == before_hist
+    conn.close()
+
+
+def test_record_upload_uploaded_at_is_sqlite_style_text():
+    """uploaded_at harus teks 'YYYY-MM-DD HH:MM:SS' seperti CURRENT_TIMESTAMP SQLite."""
+    import re
+    doc_id = create_document("procurement", "Dok Waktu", kode="8")
+    record_upload(doc_id, "procurement/8.docx", 0, "tester")
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", get_document(doc_id)["uploaded_at"])
+
+
+def test_list_documents_orders_kode_numerically_like_sqlite_cast():
+    """CAST(kode AS INTEGER) SQLite: NULL dulu, teks bukan angka = 0, lalu urut angka ('10' setelah '9')."""
+    create_document("urut", "K10", kode="10")
+    create_document("urut", "K9", kode="9")
+    create_document("urut", "KX", kode="abc")
+    create_document("urut", "KNULL", kode=None)
+    create_document("urut", "K2", kode="2")
+    names = [d["nama"] for d in list_documents(modul="urut")]
+    assert names == ["KNULL", "KX", "K2", "K9", "K10"]

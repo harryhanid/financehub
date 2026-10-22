@@ -133,3 +133,55 @@ def test_nav_modules_subtabs_for_smt(client):
     assert [t["url"] for t in by_key["budget"]["subtabs"]] == [
         "/budget/master", "/budget/realisasi", "/budget/carryover"
     ]
+
+
+def test_wib_offset_expression_matches_utc_plus_7():
+    """R14: strftime('%Y-%m','now','localtime') -> waktu WIB. Ekspresi offset tetap
+    `now() at time zone interval '+07:00'` harus = UTC+7 (bukan UTC-7)."""
+    from datetime import datetime, timedelta, timezone
+    from database import get_conn
+    conn = get_conn()
+    got = conn.execute(
+        "SELECT to_char(now() at time zone interval '+07:00', 'YYYY-MM-DD HH24')").fetchone()[0]
+    conn.close()
+    now_utc = datetime.now(timezone.utc)
+    allowed = {(now_utc + timedelta(hours=7) + timedelta(minutes=d)).strftime("%Y-%m-%d %H") for d in (-1, 0, 1)}
+    assert got in allowed
+
+
+def test_etf_dashboard_paid_this_month_uses_wib_month():
+    from datetime import datetime, timedelta, timezone
+    from database import get_conn
+    from modules.dashboard.service import get_etf_dashboard_data
+    wib_month = (datetime.now(timezone.utc) + timedelta(hours=7)).strftime("%Y-%m")
+    conn = get_conn()
+    conn.executemany(
+        "INSERT INTO pam_records (company_id, pam_no, total_amount, status, tanggal_bayar) VALUES (2, ?, ?, ?, ?)",
+        [("P-THIS", 1500, "complete", wib_month + "-01"),
+         ("P-OLD", 999, "complete", "2001-01-01"),
+         ("P-OPEN", 777, "open", wib_month + "-02")],
+    )
+    conn.close()
+    assert get_etf_dashboard_data(2)["paid_this_month"] == 1500
+
+
+def test_etf_dashboard_pa_actions_aggregates_students_and_total():
+    """GROUP_CONCAT(DISTINCT s.nama) -> string_agg(DISTINCT ...); SUM jumlah_pembayaran per PA."""
+    from database import get_conn
+    from modules.dashboard.service import get_etf_dashboard_data
+    conn = get_conn()
+    s1 = conn.execute("INSERT INTO siswa (company_id, code, nama) VALUES (2, 'D1', 'Ani')").lastrowid
+    s2 = conn.execute("INSERT INTO siswa (company_id, code, nama) VALUES (2, 'D2', 'Budi')").lastrowid
+    pa = conn.execute(
+        "INSERT INTO etf_pa (company_id, pa_number, status, created_at) VALUES (2, 'PA-D1', 'open', '2026-07-01')"
+    ).lastrowid
+    conn.executemany(
+        "INSERT INTO etf_pa_lines (pa_id, student_id, jumlah_pembayaran) VALUES (?, ?, ?)",
+        [(pa, s1, 100), (pa, s1, 50), (pa, s2, 25)],
+    )
+    conn.close()
+    data = get_etf_dashboard_data(2)
+    item = next(it for it in data["pa_actions"] if it["pa_number"] == "PA-D1")
+    assert sorted(item["nama_student"].split(",")) == ["Ani", "Budi"]
+    assert item["total"] == 175
+    assert data["pa_open"] == 1

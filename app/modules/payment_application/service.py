@@ -14,10 +14,10 @@ def get_applications(company_id: int, month: int = None, year: int = None) -> li
                WHERE pa.company_id = ?"""
     params = [company_id]
     if month:
-        query += " AND strftime('%m', pa.submitted_at) = ?"
+        query += " AND fh_strftime('%m', pa.submitted_at) = ?"
         params.append(f"{month:02d}")
     if year:
-        query += " AND strftime('%Y', pa.submitted_at) = ?"
+        query += " AND fh_strftime('%Y', pa.submitted_at) = ?"
         params.append(str(year))
     query += " ORDER BY pa.created_at DESC"
     rows = [dict(r) for r in conn.execute(query, params).fetchall()]
@@ -60,19 +60,14 @@ def create_application(company_id: int, memo_id: int, tanggal_pengajuan: str,
         return {"ok": False, "pesan": "Memo harus berstatus 'on_process' atau 'complete' sebelum diajukan."}
 
     year  = (tanggal_pengajuan or datetime.now().strftime("%Y"))[:4]
-    count = conn.execute(
-        "SELECT COUNT(*) FROM payment_application WHERE company_id=?", (company_id,)
-    ).fetchone()[0]
-    app_number = f"APP/{company_id}/{year}/{count+1:04d}"
-
-    cur = conn.execute(
-        """INSERT INTO payment_application
-           (company_id, memo_id, application_number, submitted_at, target_payment_date, notes, status, created_at)
-           VALUES (?,?,?,?,?,?,'open',?)""",
-        (company_id, memo_id, app_number, tanggal_pengajuan, target_payment_date, notes, _ts())
-    )
-    app_id = cur.lastrowid
-    conn.commit()
+    # Postgres: COUNT(*)+1 dan INSERT dalam satu fungsi plpgsql (db_migrations/0004_fn_payment_application.sql)
+    # di bawah advisory lock per company_id, supaya dua request bersamaan tidak mendapat nomor sama.
+    row = conn.execute(
+        "SELECT id, application_number FROM fn_create_payment_application(?,?,?,?,?,?,?)",
+        (company_id, memo_id, year, tanggal_pengajuan, target_payment_date, notes, _ts())
+    ).fetchone()
+    app_id     = row["id"]
+    app_number = row["application_number"]
     conn.close()
     return {"ok": True, "application_id": app_id, "application_number": app_number,
             "pesan": f"Payment application {app_number} berhasil dibuat."}

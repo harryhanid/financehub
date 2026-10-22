@@ -86,7 +86,7 @@ def _pa_actions(conn, company_id: int, today: date) -> list:
     for tab, pillar, pa_tbl, lines_tbl in PA_SOURCES:
         rows = conn.execute(
             f"""SELECT p.*,
-                       GROUP_CONCAT(DISTINCT s.nama)         AS nama_student,
+                       string_agg(DISTINCT s.nama::text, ',') AS nama_student,
                        COALESCE(SUM(l.jumlah_pembayaran), 0) AS total_bayar
                 FROM {pa_tbl} p
                 LEFT JOIN {lines_tbl} l ON l.pa_id = p.id
@@ -181,11 +181,13 @@ def get_etf_dashboard_data(company_id: int) -> dict:
     pa_items  = _pa_actions(conn, company_id, today)
     pam_items = _pam_actions(conn, company_id, today)
 
+    # strftime('%Y-%m','now','localtime') SQLite = bulan waktu lokal server (WIB). Postgres: WIB sebagai
+    # offset tetap +07:00 (Asia/Jakarta tanpa DST sejak 1964; Postgres test lokal tidak punya tzdata).
     paid_this_month = conn.execute(
         """SELECT COALESCE(SUM(total_amount), 0) FROM pam_records
            WHERE company_id = ? AND status = 'complete'
              AND substr(COALESCE(tanggal_bayar,''), 1, 7)
-                 = strftime('%Y-%m', 'now', 'localtime')""",
+                 = to_char(now() at time zone interval '+07:00', 'YYYY-MM')""",
         (company_id,),
     ).fetchone()[0]
     conn.close()

@@ -122,3 +122,37 @@ def test_refresh_rejects_revoked_token_from_cookie_alone(client):
     client.set_cookie("fh_refresh", raw_refresh)
     resp = client.post("/auth/refresh", json={})
     assert resp.status_code == 401
+
+
+def test_login_atomic_on_failure(client, monkeypatch):
+    """Task 9 (atomic-flows.md): UPDATE users.last_login + INSERT refresh_tokens dalam satu batch.
+    Paksa INSERT refresh_tokens gagal (token_hash NULL -> NOT NULL): last_login tidak boleh berubah
+    dan tidak ada refresh token yang tersimpan."""
+    import auth.routes as auth_routes
+    from database import get_conn
+
+    conn = get_conn()
+    before_login = conn.execute("SELECT last_login FROM users WHERE username='admin'").fetchone()[0]
+    before_tokens = conn.execute("SELECT COUNT(*) FROM refresh_tokens").fetchone()[0]
+    conn.close()
+
+    class _NullHash:
+        def hexdigest(self):
+            return None
+
+    class _FakeHashlib:
+        @staticmethod
+        def sha256(_data):
+            return _NullHash()
+
+    monkeypatch.setattr(auth_routes, "hashlib", _FakeHashlib)
+    try:
+        resp = client.post("/auth/login", json={"username": "admin", "password": "Admin@123"})
+        assert resp.status_code >= 500
+    except Exception:
+        pass  # TESTING: exception bisa diteruskan ke test client
+
+    conn = get_conn()
+    assert conn.execute("SELECT last_login FROM users WHERE username='admin'").fetchone()[0] == before_login
+    assert conn.execute("SELECT COUNT(*) FROM refresh_tokens").fetchone()[0] == before_tokens
+    conn.close()
