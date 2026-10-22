@@ -65,7 +65,7 @@ def client(app):
     return app.test_client()
 
 MIGRATION_FILES = ("0001_fh_exec.sql", "0002_schema.sql", "0002b_compat.sql", "0003_privileges.sql",
-                   "0004_fn_bank.sql", "0004_fn_payment_application.sql")
+                   "0004_fn_bank.sql", "0004_fn_payment_application.sql", "0004_fn_budget.sql")
 
 # Satu statement (= satu panggilan backend, satu transaksi): kosongkan semua tabel schema test dan
 # reset semua sequence identity -- efek sama dengan TRUNCATE ... RESTART IDENTITY CASCADE.

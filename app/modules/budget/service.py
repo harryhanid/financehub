@@ -65,7 +65,7 @@ def list_budgets(filters: dict = None, limit: int = None, offset: int = None) ->
     conn = get_conn()
     query = "SELECT * FROM budget_master WHERE 1=1"
     query, params = _apply_common_filters(query, [], filters)
-    query += " ORDER BY yy DESC, mm DESC"
+    query += " ORDER BY yy DESC, mm DESC"  # yy/mm NOT NULL
     if limit is not None:
         query += " LIMIT ? OFFSET ?"
         params = params + [limit, offset or 0]
@@ -191,7 +191,7 @@ def list_realisasi(filters: dict = None, limit: int = None, offset: int = None) 
     conn = get_conn()
     query = "SELECT * FROM budget_realisasi WHERE 1=1"
     query, params = _apply_common_filters(query, [], filters)
-    query += " ORDER BY tanggal_realisasi DESC"
+    query += " ORDER BY tanggal_realisasi DESC NULLS LAST"  # R29: urutan NULL SQLite
     if limit is not None:
         query += " LIMIT ? OFFSET ?"
         params = params + [limit, offset or 0]
@@ -513,7 +513,7 @@ def get_carryover_data(status: str = None, limit: int = None, offset: int = None
     if status:
         query += " WHERE status = ?"
         params.append(status)
-    query += " ORDER BY request_date DESC"
+    query += " ORDER BY request_date DESC NULLS LAST"  # R29: urutan NULL SQLite
     if limit is not None:
         query += " LIMIT ? OFFSET ?"
         params = params + [limit, offset or 0]
@@ -702,62 +702,70 @@ def request_additional_budget(budget_id: str, username: str, amount, reason: str
     return {"ok": True, "pesan": "Permintaan Tambahan Anggaran terkirim. Menunggu persetujuan."}
 
 
+def _parse_extension_months(budget_id: str, req_type: str, extension_months):
+    """int(extension_months or 3). Versi SQLite baru memanggil int() setelah memastikan log Pending dan
+    budget ada, jadi input tidak valid tanpa log/budget menghasilkan pesan biasa, bukan ValueError.
+    Hasil: (months, None) atau (None, kode 0/1 seperti fungsi plpgsql)."""
+    try:
+        return int(extension_months or 3), None
+    except (TypeError, ValueError):
+        conn = get_conn()
+        log = conn.execute(
+            "SELECT id FROM budget_carryover_logs WHERE budget_id=? AND status='Pending' AND type=?",
+            (budget_id, req_type)
+        ).fetchone()
+        budget = conn.execute("SELECT id FROM budget_master WHERE id=?", (budget_id,)).fetchone()
+        conn.close()
+        if not log:
+            return None, 0
+        if not budget:
+            return None, 1
+        raise
+
+
 def approve_carryover(budget_id: str, username: str, extension_months) -> dict:
-    conn = get_conn()
-    log = conn.execute(
-        "SELECT * FROM budget_carryover_logs WHERE budget_id=? AND status='Pending' AND type='Carryover'",
-        (budget_id,)
-    ).fetchone()
-    if not log:
-        conn.close()
+    months, early = _parse_extension_months(budget_id, "Carryover", extension_months)
+    if early == 0:
         return {"ok": False, "pesan": "Tidak ada request carryover pending untuk budget ini."}
-    budget = conn.execute("SELECT * FROM budget_master WHERE id=?", (budget_id,)).fetchone()
-    if not budget:
-        conn.close()
+    if early == 1:
         return {"ok": False, "pesan": "Budget tidak ditemukan."}
-    months = int(extension_months or 3)
-    current_deadline = (
-        datetime.fromisoformat(budget["deadline"]).date() if budget["deadline"] else datetime.now().date()
-    )
-    new_deadline = _add_months(current_deadline, months)
-    conn.execute("UPDATE budget_master SET deadline=?, updated_at=? WHERE id=?",
-                 (new_deadline.isoformat(), _ts(), budget_id))
-    conn.execute(
-        "UPDATE budget_carryover_logs SET status='Approved', approval_date=?, extension_months=?, approved_by=? WHERE id=?",
-        (_ts(), months, username, log["id"])
-    )
-    conn.commit()
+    # Postgres: baca log Pending + budget, hitung deadline baru, dan dua UPDATE dalam satu fungsi
+    # plpgsql (db_migrations/0004_fn_budget.sql) dengan FOR UPDATE, supaya dua approve bersamaan
+    # tidak memperpanjang dua kali dan kegagalan di tengah tidak meninggalkan setengah tulisan.
+    conn = get_conn()
+    result = conn.execute(
+        "SELECT fn_budget_approve_carryover(?,?,?,?,?)",
+        (budget_id, username, months, datetime.now().date().isoformat(), _ts())
+    ).fetchone()[0]
     conn.close()
+    if result == 0:
+        return {"ok": False, "pesan": "Tidak ada request carryover pending untuk budget ini."}
+    if result == 1:
+        return {"ok": False, "pesan": "Budget tidak ditemukan."}
     return {"ok": True, "pesan": f"Carryover disetujui. Deadline diperpanjang {months} bulan."}
 
 
 def approve_additional_budget(budget_id: str, username: str, extension_months) -> dict:
-    conn = get_conn()
-    log = conn.execute(
-        "SELECT * FROM budget_carryover_logs WHERE budget_id=? AND status='Pending' AND type='Additional'",
-        (budget_id,)
-    ).fetchone()
-    if not log:
-        conn.close()
+    months, early = _parse_extension_months(budget_id, "Additional", extension_months)
+    if early == 0:
         return {"ok": False, "pesan": "Tidak ada request tambahan anggaran pending untuk budget ini."}
-    budget = conn.execute("SELECT * FROM budget_master WHERE id=?", (budget_id,)).fetchone()
-    if not budget:
-        conn.close()
+    if early == 1:
         return {"ok": False, "pesan": "Budget tidak ditemukan."}
-    months = int(extension_months or 3)
-    new_amount = (budget["amount"] or 0) + (log["additional_amount"] or 0)
-    new_deadline = _add_months(datetime.now().date(), months)
-    conn.execute("UPDATE budget_master SET amount=?, deadline=?, updated_at=? WHERE id=?",
-                 (new_amount, new_deadline.isoformat(), _ts(), budget_id))
-    conn.execute(
-        "UPDATE budget_carryover_logs SET status='Approved', approval_date=?, extension_months=?, approved_by=? WHERE id=?",
-        (_ts(), months, username, log["id"])
-    )
-    conn.commit()
+    # Postgres: amount + additional_amount dan deadline baru dihitung dan ditulis dalam satu fungsi
+    # plpgsql (db_migrations/0004_fn_budget.sql) dengan FOR UPDATE pada log + budget_master.
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT result, additional_amount FROM fn_budget_approve_additional(?,?,?,?,?)",
+        (budget_id, username, months, datetime.now().date().isoformat(), _ts())
+    ).fetchone()
     conn.close()
+    if row["result"] == 0:
+        return {"ok": False, "pesan": "Tidak ada request tambahan anggaran pending untuk budget ini."}
+    if row["result"] == 1:
+        return {"ok": False, "pesan": "Budget tidak ditemukan."}
     return {
         "ok": True,
-        "pesan": f"Tambahan anggaran disetujui. Allocated +{format_currency(log['additional_amount'])}, "
+        "pesan": f"Tambahan anggaran disetujui. Allocated +{format_currency(row['additional_amount'])}, "
                  f"deadline diperpanjang {months} bulan.",
     }
 
@@ -765,7 +773,8 @@ def approve_additional_budget(budget_id: str, username: str, extension_months) -
 def reject_request(budget_id: str, username: str, reason: str) -> dict:
     conn = get_conn()
     log = conn.execute(
-        "SELECT * FROM budget_carryover_logs WHERE budget_id=? AND status='Pending'",
+        # ORDER BY id: SQLite tanpa ORDER BY mengembalikan baris pertama menurut rowid
+        "SELECT * FROM budget_carryover_logs WHERE budget_id=? AND status='Pending' ORDER BY id",
         (budget_id,)
     ).fetchone()
     if not log:
