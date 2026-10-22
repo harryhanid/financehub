@@ -1,15 +1,15 @@
 
-const CAT1 = [];
-const CAT2 = [];
-const CAT1_BGT = [];
-const CAT2_SEM = [];
-const PAM_APPROVED_BY_1 = [];
-const PAM_APPROVED_BY_2 = [];
-const VENDOR_LIST = [];
-const PERUSAHAAN_LIST = [];
-const SISWA_LIST  = [];
-const COA_PAM_LIST = [];
-const BUDGET_ACTIVITIES = [];
+const CAT1 = 'MOCK';
+const CAT2 = 'MOCK';
+const CAT1_BGT = 'MOCK';
+const CAT2_SEM = 'MOCK';
+const PAM_APPROVED_BY_1 = 'MOCK';
+const PAM_APPROVED_BY_2 = 'MOCK';
+const VENDOR_LIST = 'MOCK';
+const PERUSAHAAN_LIST = 'MOCK';
+const SISWA_LIST  = 'MOCK';
+const COA_PAM_LIST = 'MOCK';
+const BUDGET_ACTIVITIES = 'MOCK';
 const SMT_PAM_COST_CENTERS = [
   "POCCOM","POEAMR","POICOM","POITDC","POSPON","TFOPEX","POCFAD","POOFFM",
   "POCPRO","POCSOS","POSMED","POITEC","POSENG","POSKHU - DF","POSKHU - JB",
@@ -35,39 +35,6 @@ function sizePillarWraps() {
 }
 window.addEventListener('load', sizePillarWraps);
 window.addEventListener('resize', sizePillarWraps);
-function openEditLineModal(lineId, pamId, nama, amount) {
-  document.getElementById('edit-line-id').value = lineId;
-  document.getElementById('edit-line-pam-id').value = pamId;
-  document.getElementById('edit-line-siswa-name').value = nama;
-  document.getElementById('edit-line-amount').value = amount ? parseInt(amount, 10).toLocaleString('en-US') : '0';
-  openModal('modal-edit-beasiswa-line');
-}
-
-async function submitEditBeasiswaLine() {
-  const lineId = parseInt(document.getElementById('edit-line-id').value);
-  const pamId = parseInt(document.getElementById('edit-line-pam-id').value);
-  const amount = parseFloat(document.getElementById('edit-line-amount').value.replace(/,/g, '')) || 0;
-  const res = await apiFetch('/payment-memo/beasiswa-line/' + lineId + '/amount', { method: 'POST', body: JSON.stringify({ amount }) });
-  if (!res) return;
-  const data = await res.json();
-  showToast(data.pesan, data.ok ? 'success' : 'error');
-  if (data.ok) {
-    closeModal('modal-edit-beasiswa-line');
-    if (typeof _setfBeasiswaCache !== 'undefined') _setfBeasiswaCache[pamId] = null;
-    if (typeof _smlBeasiswaCache !== 'undefined') _smlBeasiswaCache[pamId] = null;
-    if (typeof _energyBeasiswaCache !== 'undefined') _energyBeasiswaCache[pamId] = null;
-    if (typeof _smtBeasiswaCache !== 'undefined') _smtBeasiswaCache[pamId] = null;
-    if (typeof _fioriBeasiswaCache !== 'undefined') _fioriBeasiswaCache[pamId] = null;
-    if (typeof _agriBeasiswaCache !== 'undefined') _agriBeasiswaCache[pamId] = null;
-    if (typeof loadSETFDebounced === 'function') loadSETFDebounced();
-    if (typeof loadSMLDebounced === 'function') loadSMLDebounced();
-    if (typeof loadEnergyDebounced === 'function') loadEnergyDebounced();
-    if (typeof loadSMTDebounced === 'function') loadSMTDebounced();
-    if (typeof loadFioriDebounced === 'function') loadFioriDebounced();
-    if (typeof loadAGRIDebounced === 'function') loadAGRIDebounced();
-  }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
   sizePillarWraps();
   // Watches the Filter/Full Screen toolbar (was .fh-page-header before the
@@ -83,12 +50,12 @@ const SMT_PAM_TIPE_DOKUMEN = [
   "Invoice Payment – Non PO Invoice",
   "Employee Advance / Reimbursement (Fund Transfer)",
 ];
-const COMPANY_CODE = "[]";
-const CAT3_MEDICAL         = [];
-const KELAS_MEDICAL        = [];
-const SPESIALISASI_MEDICAL = [];
+const COMPANY_CODE = "'MOCK'";
+const CAT3_MEDICAL         = 'MOCK';
+const KELAS_MEDICAL        = 'MOCK';
+const SPESIALISASI_MEDICAL = 'MOCK';
 const SPESIALISASI_LIST = SPESIALISASI_MEDICAL;
-const OPEN_PAM_DRAFTS = [];
+const OPEN_PAM_DRAFTS = 'MOCK';
 
 function esc(s) {
   const d = document.createElement('div');
@@ -493,7 +460,7 @@ async function loadSML() {
   const data   = await res.json();
   const count  = document.getElementById('sml-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="25" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data LAND.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data LAND.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -525,6 +492,7 @@ async function loadSML() {
       ${_plDate(r.id,'LAND','tgl_approval_2',r.tgl_approval_2)}
       ${_plDate(r.id,'LAND','tgl_approval_3',r.tgl_approval_3)}
       ${_plDate(r.id,'LAND','tgl_kirim',r.tgl_kirim)}
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -799,7 +767,7 @@ async function loadSETF() {
   const data   = await res.json();
   const count  = document.getElementById('setf-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SETF.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -822,6 +790,7 @@ async function loadSETF() {
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -921,7 +890,7 @@ async function loadENERGY() {
   const data   = await res.json();
   const count  = document.getElementById('energy-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data ENERGY.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data ENERGY.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -944,6 +913,7 @@ async function loadENERGY() {
       <td style="padding:6px 8px">${_statusBadge(r.status)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${fmtDate(r.tanggal_bayar)}</td>
       <td style="padding:6px 8px">${esc(r.source || '-')}</td>
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -1042,7 +1012,7 @@ async function loadPaAdvance() {
   const data = await res.json();
   const count = document.getElementById('pa-advance-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -1209,7 +1179,7 @@ async function loadSMT() {
   if (!data.ok || !data.rows.length) {
     _smtAllRows = [];
     _smtPage = 1;
-    tbody.innerHTML = '<tr><td colspan="27" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="28" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data SMT.</td></tr>';
     if (count) count.textContent = '';
     const pag = document.getElementById('smt-pagination');
     if (pag) pag.style.display = 'none';
@@ -1294,6 +1264,7 @@ function _smtRenderPage() {
       ${_plDate(r.id,'SMT','tgl_a2',r.tgl_a2)}
       ${_plDate(r.id,'SMT','tgl_a3',r.tgl_a3)}
       ${_plDate(r.id,'SMT','tgl_a4',r.tgl_a4)}
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -1501,7 +1472,7 @@ async function loadAdvance() {
   const data   = await res.json();
   const count  = document.getElementById('advance-count');
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data Advance.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -1524,6 +1495,7 @@ async function loadAdvance() {
       ${_plDate(r.id,'ADVANCE','tgl_a3',r.tgl_a3)}
       ${_plDate(r.id,'ADVANCE','tgl_a4',r.tgl_a4)}
       ${_plDate(r.id,'ADVANCE','tgl_paid',r.tgl_paid)}
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -1551,7 +1523,7 @@ async function loadFIORI() {
   const count  = document.getElementById('fiori-count');
   fioriUpdateBulkBar();
   if (!data.ok || !data.rows.length) {
-    tbody.innerHTML = '<tr><td colspan="26" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data APP.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="27" style="text-align:center;padding:20px;color:var(--text-muted);">Belum ada data APP.</td></tr>';
     if (count) count.textContent = '';
     return;
   }
@@ -1586,6 +1558,7 @@ async function loadFIORI() {
       ${_plDate(r.id,'APP','tgl_approval_2',r.tgl_approval_2)}
       ${_plDate(r.id,'APP','tgl_approval_3',r.tgl_approval_3)}
       ${_plDate(r.id,'APP','tgl_kirim',r.tgl_kirim)}
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `;
@@ -1987,6 +1960,16 @@ async function pamLineDateEdit(pamId, pillar, field, tdEl) {
   });
 }
 
+
+function _attachmentCell(r) {
+  if (!r.attachment_file_id) return '<td style="padding:6px 8px;text-align:center">-</td>';
+  const ids = r.attachment_file_id.split(',').filter(id => id.trim());
+  if (!ids.length) return '<td style="padding:6px 8px;text-align:center">-</td>';
+  return `<td style="padding:6px 8px;text-align:center;white-space:nowrap">
+    ${ids.map((id, idx) => `<a href="/etf-payment-application/attachment/${id}" target="_blank" style="color:#2563eb;text-decoration:underline;font-size:11px;margin-right:4px" onclick="event.stopPropagation()">View ${idx+1}</a>`).join('<br>')}
+  </td>`;
+}
+
 function _aksiCell(r) {
   const _btn = (label, cls, fn) =>
     `<button class="btn btn-sm ${cls}" onclick="${fn}">${label}</button>`;
@@ -2131,6 +2114,7 @@ function _agriRenderPage() {
       <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla5, r.sub_total)}</td>
       <td style="padding:6px 8px;text-align:center">${_slaDot(r.cnt_sla6, r.sub_total)}</td>
       <td style="padding:6px 8px;text-align:center;display:none">${_slaDot(r.cnt_sla7, r.sub_total)}</td>
+      ${_attachmentCell(r)}
       <td style="padding:6px 8px">${_aksiCell(r)}</td>
     </tr>
   `).join('');
@@ -2494,6 +2478,54 @@ async function openEditPAM(pamId) {
   document.getElementById('edit-pam-cc-display').textContent = 'Cost Center: ' + (r.cost_center || '—');
   const app = r.payment_application || {};
   document.getElementById('edit-pam-app-notes').value     = app.notes || '';
+  
+  const existingContainer = document.getElementById("edit-pam-existing-attachments");
+  existingContainer.innerHTML = "";
+  document.getElementById("edit-pam-attachment").value = "";
+  if (r.attachment_file_id) {
+    const ids = r.attachment_file_id.split(',').filter(id => id.trim());
+    const keptIds = [...ids];
+    ids.forEach(id => {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.background = "#f3f4f6";
+      row.style.padding = "2px 6px";
+      row.style.borderRadius = "4px";
+      
+      const link = document.createElement("a");
+      link.href = '/etf-payment-application/attachment/' + id;
+      link.target = "_blank";
+      link.style.fontSize = "0.75rem";
+      link.style.color = "#2563eb";
+      link.textContent = "View File";
+      
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "×";
+      delBtn.style.background = "none";
+      delBtn.style.border = "none";
+      delBtn.style.color = "#dc2626";
+      delBtn.style.cursor = "pointer";
+      delBtn.style.fontWeight = "bold";
+      delBtn.onclick = (e) => {
+        e.preventDefault();
+        const idx = keptIds.indexOf(id);
+        if (idx > -1) keptIds.splice(idx, 1);
+        const keptInput = document.getElementById("edit-pam-kept-attachments");
+        keptInput.value = keptIds.join(',');
+        row.remove();
+      };
+      
+      row.appendChild(link);
+      row.appendChild(delBtn);
+      existingContainer.appendChild(row);
+    });
+    document.getElementById("edit-pam-kept-attachments").value = keptIds.join(',');
+  } else {
+    document.getElementById("edit-pam-kept-attachments").value = "";
+  }
+  
   openModal('modal-edit-pam');
 }
 
@@ -3147,7 +3179,8 @@ function ipayPerusahaanSearch() {
   if (!q) {
     sugg.style.display="none";
     document.getElementById("ipay-perusahaan").value="";
-    if (COMPANY_CODE !== "SMT") document.getElementById("ipay-pillar").value="";
+    const _ipayTx = document.getElementById("ipay-tx")?.value;
+    if (COMPANY_CODE !== "SMT" && _ipayTx !== "beasiswa") document.getElementById("ipay-pillar").value="";
     return;
   }
   
@@ -3914,10 +3947,14 @@ async function ipaySavePa() {
   if (saveBtn2) saveBtn2.disabled = true;
   showLoading("Menyimpan PAM...");
   let res;
+  const _fd = new FormData();
+  _fd.append("data", JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows }));
+  const _files = document.getElementById("ipay-attachment")?.files;
+  if (_files) { for(let i=0; i<_files.length; i++) _fd.append("files", _files[i]); }
   try {
     res = await apiFetch("/payment-memo/ipay/save-pa", {
       method: "POST",
-      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
+      body: _fd
     });
   } finally {
     hideLoading();
@@ -4088,31 +4125,51 @@ function klaimAddSiswa() {
   tr.append(tdSiswa, tdCat2, tdKelas, tdRS, tdDx, tdSpes, tdCat3, tdAmt, tdBudget, tdTgl, tdDel);
   tbody.appendChild(tr);
 
-  // Add Cat3 button row
+  // Add Cat2 button row
   const trBtn = document.createElement("tr");
-  trBtn.dataset.klaimRid = rid; trBtn.dataset.klaimType = "addcat3";
+  trBtn.dataset.klaimRid = rid; trBtn.dataset.klaimType = "addcat2";
   trBtn.style.cssText = "background:#f0fdf4;border-bottom:2px solid #6ee7b7";
   const tdBtn = document.createElement("td"); tdBtn.colSpan = 11; tdBtn.style.padding = "3px 7px";
-  const btnAddCat3 = document.createElement("button");
-  btnAddCat3.className = "btn btn-secondary btn-sm";
-  btnAddCat3.style.cssText = "border:1px dashed #10b981;color:#059669;background:none;font-size:9px";
-  btnAddCat3.textContent = "+ cat3 tambahan";
-  btnAddCat3.onclick = () => klaimAddCat3Row(rid, tr);
-  tdBtn.appendChild(btnAddCat3); trBtn.appendChild(tdBtn);
+  const btnAddCat2 = document.createElement("button");
+  btnAddCat2.className = "btn btn-secondary btn-sm";
+  btnAddCat2.style.cssText = "border:1px dashed #10b981;color:#059669;background:none;font-size:9px";
+  btnAddCat2.textContent = "+ cat 2 tambahan";
+  btnAddCat2.onclick = () => klaimAddCat2Row(rid, tr);
+  tdBtn.appendChild(btnAddCat2); trBtn.appendChild(tdBtn);
   tbody.appendChild(trBtn);
 }
 
-function klaimAddCat3Row(rid, siswaRow) {
+function klaimAddCat2Row(rid, siswaRow) {
   const tbody = document.getElementById("klaim-tbody");
-  const btnRow = tbody.querySelector(`tr[data-klaim-rid="${rid}"][data-klaim-type="addcat3"]`);
+  const btnRow = tbody.querySelector(`tr[data-klaim-rid="${rid}"][data-klaim-type="addcat2"]`);
 
   const tr = document.createElement("tr");
-  tr.dataset.klaimRid = rid; tr.dataset.klaimType = "cat3";
+  tr.dataset.klaimRid = rid; tr.dataset.klaimType = "cat2";
   tr.style.cssText = "background:#eff6ff;border-bottom:1px solid #dbeafe";
 
   const tdLabel = document.createElement("td");
-  tdLabel.colSpan = 6; tdLabel.style.cssText = "padding:4px 7px;color:#94a3b8;font-size:9px;font-style:italic";
-  tdLabel.textContent = "↳ cat3 tambahan";
+  tdLabel.style.cssText = "padding:4px 7px;color:#94a3b8;font-size:9px;font-style:italic;text-align:right";
+  tdLabel.textContent = "↳ cat 2 tambahan";
+
+  const tdCat2 = document.createElement("td"); tdCat2.style.padding = "4px 7px";
+  const selCat2 = _klaimMkSelect(["Rawat Inap", "Rawat Jalan"], "Pilih...");
+  tdCat2.appendChild(selCat2); tr._cat2 = selCat2;
+
+  const tdKelas = document.createElement("td"); tdKelas.style.padding = "4px 7px";
+  const selKelas = _klaimMkSelect(KELAS_MEDICAL, "Kelas...");
+  tdKelas.appendChild(selKelas); tr._kelas = selKelas;
+
+  const tdRS = document.createElement("td"); tdRS.style.padding = "4px 7px";
+  const inpRS = _klaimMkInput("text", "Rumah Sakit...");
+  tdRS.appendChild(inpRS); tr._rs = inpRS;
+
+  const tdDx = document.createElement("td"); tdDx.style.padding = "4px 7px";
+  const inpDx = _klaimMkInput("text", "Diagnosa...");
+  tdDx.appendChild(inpDx); tr._dx = inpDx;
+
+  const tdSpes = document.createElement("td"); tdSpes.style.padding = "4px 7px";
+  const selSpes = _klaimMkSelect(SPESIALISASI_MEDICAL, "Spesialisasi...");
+  tdSpes.appendChild(selSpes); tr._spes = selSpes;
 
   const tdCat3 = document.createElement("td"); tdCat3.style.padding = "4px 7px";
   const selCat3 = _klaimMkSelect(CAT3_MEDICAL, "Cat3...");
@@ -4136,7 +4193,7 @@ function klaimAddCat3Row(rid, siswaRow) {
   btnDel.onclick = () => { tr.remove(); _klaimUpdateTotal(); };
   tdDel.appendChild(btnDel);
 
-  tr.append(tdLabel, tdCat3, tdAmt, tdBudget, tdTgl, tdDel);
+  tr.append(tdLabel, tdCat2, tdKelas, tdRS, tdDx, tdSpes, tdCat3, tdAmt, tdBudget, tdTgl, tdDel);
   tbody.insertBefore(tr, btnRow);
 }
 
@@ -4183,46 +4240,57 @@ async function ipaySaveKlaim() {
     if (!siswa_code) { showToast("Semua baris harus memilih siswa.", "error"); return; }
 
     const rid = siswaRow.dataset.klaimRid;
-    const cat3Items = [];
     const firstAmt = parseFloat(siswaRow._amt?.value) || 0;
+    let hasValid = false;
+
     if (firstAmt > 0) {
-      cat3Items.push({
-        cat3:    siswaRow._cat3?.value || "",
-        amount:  firstAmt,
-        tanggal: siswaRow._tgl?.value || tanggal,
+      rows.push({
+        siswa_code,
+        cat2:         siswaRow._cat2?.value || "",
+        kelas:        siswaRow._kelas?.value || "",
+        rumah_sakit:  siswaRow._rs?.value || "",
+        diagnosa:     siswaRow._dx?.value || "",
+        spesialisasi: siswaRow._spes?.value || "",
+        cat3:         siswaRow._cat3?.value || "",
+        amount:       firstAmt,
+        tanggal:      siswaRow._tgl?.value || tanggal,
       });
+      hasValid = true;
     }
-    tbody.querySelectorAll(`tr[data-klaim-rid="${rid}"][data-klaim-type="cat3"]`).forEach(sub => {
+    
+    tbody.querySelectorAll(`tr[data-klaim-rid="${rid}"][data-klaim-type="cat2"]`).forEach(sub => {
       const amt = parseFloat(sub._amt?.value) || 0;
       if (amt > 0) {
-        cat3Items.push({
-          cat3:    sub._cat3?.value || "",
-          amount:  amt,
-          tanggal: sub._tgl?.value || tanggal,
+        rows.push({
+          siswa_code,
+          cat2:         sub._cat2?.value || "",
+          kelas:        sub._kelas?.value || "",
+          rumah_sakit:  sub._rs?.value || "",
+          diagnosa:     sub._dx?.value || "",
+          spesialisasi: sub._spes?.value || "",
+          cat3:         sub._cat3?.value || "",
+          amount:       amt,
+          tanggal:      sub._tgl?.value || tanggal,
         });
+        hasValid = true;
       }
     });
-    if (!cat3Items.length) { showToast(`Siswa ${siswa_code} harus ada minimal 1 cat3 dengan amount > 0.`, "error"); return; }
 
-    rows.push({
-      siswa_code,
-      cat2:         siswaRow._cat2?.value || "",
-      kelas:        siswaRow._kelas?.value || "",
-      rumah_sakit:  siswaRow._rs?.value || "",
-      diagnosa:     siswaRow._dx?.value || "",
-      spesialisasi: siswaRow._spes?.value || "",
-      cat3_items:   cat3Items,
-    });
+    if (!hasValid) { showToast(`Siswa ${siswa_code} harus ada minimal 1 baris dengan amount > 0.`, "error"); return; }
   }
 
   const btn = document.getElementById("klaim-save-btn");
   if (btn) btn.disabled = true;
   showLoading("Menyimpan PAM Klaim Medis...");
   let res;
+  const _fd = new FormData();
+  _fd.append("data", JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows }));
+  const _files = document.getElementById("ipay-attachment")?.files;
+  if (_files) { for(let i=0; i<_files.length; i++) _fd.append("files", _files[i]); }
   try {
     res = await apiFetch("/payment-memo/ipay/save-klaim", {
       method: "POST",
-      body: JSON.stringify({ tab: type, tanggal, pam_no, keterangan, perusahaan, pillar, rows })
+      body: _fd
     });
   } finally {
     hideLoading();
@@ -4280,13 +4348,17 @@ async function ipaySaveOthers() {
   if (btn) btn.disabled = true;
   showLoading("Menyimpan PAM...");
   let res;
+  const _fd = new FormData();
+  _fd.append("data", JSON.stringify({
+    tab: type, transaksi: tx, tanggal, pam_no,
+    keterangan, perusahaan, pillar, mata_uang, dpp, ppn, others
+  }));
+  const _files = document.getElementById("ipay-attachment")?.files;
+  if (_files) { for(let i=0; i<_files.length; i++) _fd.append("files", _files[i]); }
   try {
     res = await apiFetch("/payment-memo/ipay/save-others", {
       method: "POST",
-      body: JSON.stringify({
-        tab: type, transaksi: tx, tanggal, pam_no,
-        keterangan, perusahaan, pillar, mata_uang, dpp, ppn, others
-      })
+      body: _fd
     });
   } finally {
     hideLoading();
@@ -4533,10 +4605,14 @@ async function ipaySaveSmtLines() {
   if (btn) btn.disabled = true;
   showLoading("Menyimpan PAM...");
   let res;
+  const _fd = new FormData();
+  _fd.append("data", JSON.stringify({ tanggal, pam_no, perusahaan, cc, pillar, transaksi, rows, catatan }));
+  const _files = document.getElementById("ipay-attachment")?.files;
+  if (_files) { for(let i=0; i<_files.length; i++) _fd.append("files", _files[i]); }
   try {
     res = await apiFetch("/payment-memo/ipay/save-smt-lines", {
       method: "POST",
-      body: JSON.stringify({ tanggal, pam_no, perusahaan, cc, pillar, transaksi, rows, catatan })
+      body: _fd
     });
   } finally {
     hideLoading();

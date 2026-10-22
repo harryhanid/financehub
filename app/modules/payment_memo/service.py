@@ -168,8 +168,15 @@ def update_memo_status(memo_id: int, new_status: str, by_user: str, company_id: 
             (memo_id,)
         )
 
+    
     conn.commit()
     conn.close()
+
+    # Trigger complete cascade if tanggal_bayar is filled and status is not complete
+    if "tanggal_bayar" in pam_data and pam_data["tanggal_bayar"]:
+        if current_status != 'complete':
+            set_pam_complete_cascade(pam_id, pam_data["tanggal_bayar"], company_id)
+
     return {"ok": True, "pesan": f"Status memo diubah ke '{new_status}'."}
 
 

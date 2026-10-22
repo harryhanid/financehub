@@ -37,7 +37,7 @@
     <h1 class="page-title">Payment Application</h1>
   </div>
   {% if approved_memos %}
-  <button class="btn btn-primary" onclick="document.getElementById('app-submitted-at').value=new Date().toISOString().slice(0,10); openModal('modal-buat-app')">+ Buat Application</button>
+  {% if current_role in ["FC", "Admin", "admin"] %}<button class="btn btn-primary" onclick="document.getElementById('app-submitted-at').value=new Date().toISOString().slice(0,10); openModal('modal-buat-app')">+ Buat Application</button>{% endif %}
   {% endif %}
 </div>
 
@@ -108,9 +108,7 @@
         </td>
         <td>
           {% if not a.actual_payment_date %}
-          <button class="btn btn-primary btn-sm" onclick="openUpdatePayment({{ a.id }}, '{{ a.application_number }}')">
-            Update Tanggal
-          </button>
+          {% if current_role in ["FC", "Admin", "admin"] %}<button class="btn btn-primary btn-sm" onclick="openUpdatePayment({{ a.id }}, '{{ a.application_number }}')">Update Tanggal</button>{% endif %}
           {% endif %}
         </td>
       </tr>
@@ -247,3 +245,5 @@ function exportPaExcel() {
 }
 </script>
 {% endblock %}
+
+

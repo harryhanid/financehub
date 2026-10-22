@@ -1,3 +1,5 @@
+import io
+import openpyxl
 from modules.sponsorship.service import seed_perusahaan
 
 
@@ -461,3 +463,97 @@ def test_vendor_delete_rejects_non_smt(client):
     _select_etf(client)
     resp = client.post("/sponsorship/vendor/SMART/delete")
     assert resp.status_code == 403
+
+
+def _create(client, lem, tgl, cat4=None):
+    payload = {"cat": "Sponsorship", "description": "Sosial", "tanggal_form_sponsor": tgl,
+               "cat1": "SMART", "lembaga_perorangan": lem, "amount_request": 1000}
+    if cat4:
+        payload["cat4"] = cat4
+    client.post("/sponsorship/input/create", json=payload)
+
+
+def _seed_three_months(client):
+    login(client)
+    _select_smt(client)
+    _seed()
+    _create(client, "Jan Org", "2026-01-15", "Include")
+    _create(client, "Feb Org", "2026-02-10", "Include")
+    _create(client, "Mar Org", "2026-03-05", "Exclude")
+
+
+def _lembaga(data):
+    return sorted(r["lembaga_perorangan"] for s in data["sections"] for r in s["rows"])
+
+
+def test_api_report_data_filters_by_bulan(client):
+    _seed_three_months(client)
+    data = client.get("/sponsorship/api/report-data?tahun=2026&cat4=all&bulan=01&bulan=02").get_json()
+    assert _lembaga(data) == ["Feb Org", "Jan Org"]
+    assert data["bulan"] == ["01", "02"] and data["bulan_label"] == "Jan, Feb"
+    data = client.get("/sponsorship/api/report-data?tahun=2026&cat4=all&bulan=1").get_json()
+    assert data["bulan"] == ["01"] and _lembaga(data) == ["Jan Org"]        # '1' means January
+
+
+def test_api_report_data_ignores_invalid_bulan(client):
+    _seed_three_months(client)
+    data = client.get("/sponsorship/api/report-data?tahun=2026&cat4=all&bulan=13&bulan=abc&bulan=0&bulan=").get_json()
+    assert data["bulan"] == [] and _lembaga(data) == ["Feb Org", "Jan Org", "Mar Org"]
+
+
+def test_api_report_data_applies_bulan_in_every_tab_mode(client):
+    _seed_three_months(client)
+    get = lambda cat4: _lembaga(client.get(f"/sponsorship/api/report-data?tahun=2026&cat4={cat4}&bulan=01&bulan=03").get_json())
+    assert get("include") == ["Jan Org"]
+    assert get("exclude") == ["Mar Org"]
+    assert get("all") == ["Jan Org", "Mar Org"]
+    assert get("bib_include") == ["Jan Org"]
+
+
+def test_export_report_follows_the_applied_filter_and_names_the_file(client):
+    _seed_three_months(client)
+    resp = client.get("/sponsorship/report/export?tahun=2026&cat4=include&bulan=01&bulan=02")
+    assert resp.status_code == 200
+    assert "Sponsorship_Report_include_2026_01-02.xlsx" in resp.headers.get("Content-Disposition", "")
+    ws = openpyxl.load_workbook(io.BytesIO(resp.data)).active
+    values = [c.value for row in ws.iter_rows() for c in row]
+    assert "Jan Org" in values and "Feb Org" in values and "Mar Org" not in values
+    assert "RANGKUMAN SPONSORSHIP 2026 - in Rp Full Amount" in values
+
+
+def test_export_report_filename_has_no_month_part_without_bulan(client):
+    _seed_three_months(client)
+    resp = client.get("/sponsorship/report/export?tahun=2026&cat4=all")
+    assert "Sponsorship_Report_all_2026.xlsx" in resp.headers.get("Content-Disposition", "")
+
+
+def test_report_page_has_the_bulan_dropdown_and_terapkan_filter_label(client):
+    login(client)
+    _select_smt(client)
+    html = client.get("/sponsorship/report").data.decode()
+    assert 'id="sp-report-bulan-container"' in html and 'id="sp-report-bulan"' in html
+    assert html.count('name="bulan"') == 12
+    assert 'name="bulan" value="01"' in html and 'name="bulan" value="12"' in html
+    assert "Januari" in html and "Desember" in html
+    assert ">Terapkan Filter<" in html and ">Refresh<" not in html
+    assert 'id="sp-report-refresh"' in html                      # id unchanged
+    assert 'name="bulan" value="01" checked' not in html          # no month ticked by default
+
+
+def test_report_js_exports_from_the_applied_filter_state(client):
+    login(client)
+    _select_smt(client)
+    js = client.get("/static/js/sponsorship.js").data.decode()
+    assert "bulan: []" in js and "_getReportBulan" in js and "_sponsorshipReportParams" in js
+    export_handler = js.split('getElementById("sp-report-export")')[1][:900]
+    assert "_sponsorshipReportParams()" in export_handler          # export uses the applied state
+    assert 'params.append("tahun"' not in export_handler           # no hand-rolled query from raw ticks
+
+def test_report_page_has_select_all_and_clear_all_for_tahun_and_bulan(client):
+    login(client)
+    _select_smt(client)
+    html = client.get("/sponsorship/report").data.decode()
+    for target in ("sp-report-tahun", "sp-report-bulan"):
+        assert 'data-target="%s" data-checked="1">Pilih Semua<' % target in html
+        assert 'data-target="%s" data-checked="0">Hapus Semua<' % target in html
+

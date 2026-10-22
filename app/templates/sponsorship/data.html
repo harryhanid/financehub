@@ -68,9 +68,11 @@
         {% endfor %}
       </div>
     </div>
-    <input type="text" name="status" placeholder="Filter Status..." value="{{ filters.status or '' }}">
+    <input type="text" name="keyword" placeholder="Cari (keyword)..." value="{{ filters.keyword or '' }}">
     <button type="submit" class="budget-btn">Terapkan Filter</button>
     <button type="button" class="budget-btn" style="background-color:#10b981;margin-left:auto" onclick="exportDataExcel()">Export to Excel</button>
+    <button type="button" class="budget-btn" style="background-color:#3b82f6;margin-left:8px" onclick="document.getElementById('sp-sync-file').click()">Sync Data</button>
+    <input type="file" id="sp-sync-file" style="display:none" accept=".xlsx" onchange="sponsorshipDataSync()" />
   </form>
   <datalist id="sp-lembaga-datalist"></datalist>
   <div class="budget-table-container" id="sp-table-wrap">
@@ -210,6 +212,7 @@
         </form>
       </div>
       <div class="sp-promax-footer" style="margin-top:0; padding:1.25rem 1rem 1rem 1rem; border-top:1px solid var(--border-color); display:flex; justify-content:flex-end; gap:0.75rem; background:var(--bg-card);">
+        <button type="button" style="background:var(--red-500, #ef4444); border:none; color:white; padding:0.6rem 1.5rem; border-radius:8px; font-weight:600; cursor:pointer; margin-right:auto;" onclick="sponsorshipDataDelete()" onmouseover="this.style.background='var(--red-600, #dc2626)'" onmouseout="this.style.background='var(--red-500, #ef4444)'">Hapus Transaksi</button>
         <button type="button" style="background:transparent; border:1px solid var(--sl-300); color:var(--text-muted); padding:0.6rem 1.5rem; border-radius:8px; font-weight:600; cursor:pointer;" onclick="closeModal('sp-edit-modal')" onmouseover="this.style.background='var(--sl-100)';this.style.color='var(--text-primary)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)'">Batal</button>
         <button type="button" class="sp-promax-submit-btn" style="padding:0.6rem 2rem;" onclick="sponsorshipDataSave()">Simpan Transaksi</button>
       </div>

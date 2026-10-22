@@ -70,27 +70,50 @@ function _sponsorshipSelectCat1Edit(p) {
 }
 
 function sponsorshipInputSubmit() {
-  const cat1 = document.getElementById("sp-in-cat1").value;
-  if (!cat1) { showToast("Pilih Cat1 (Perusahaan) dari daftar.", "error"); return; }
+  const container = document.getElementById("sp-lines-container");
+  if (!container) return; // safeguard
+  
+  const lineRows = container.querySelectorAll(".sp-line-row");
+  if (lineRows.length === 0) {
+    showToast("Minimal satu transaksi harus ditambahkan.", "error");
+    return;
+  }
+  
+  const lines = [];
+  for (let i = 0; i < lineRows.length; i++) {
+    const row = lineRows[i];
+    const cat1 = row.querySelector(".sp-line-cat1").value;
+    if (!cat1) {
+      showToast("Pilih Cat1 (Perusahaan) dari daftar pada baris ke-" + (i + 1) + ".", "error");
+      return;
+    }
+    const rawAmt = row.querySelector(".sp-line-amount").value;
+    const cleanAmt = rawAmt ? rawAmt.replace(/[^0-9.-]/g, '') : "0";
+    lines.push({
+      cat1: cat1,
+      cat4: row.querySelector(".sp-line-cat4").value,
+      amount_request: cleanAmt
+    });
+  }
+
   const payload = {
     cat: document.getElementById("sp-in-cat").value,
     description: document.getElementById("sp-in-description").value,
-    cat1: cat1,
-    cat4: document.getElementById("sp-in-cat4").value,
     lembaga_perorangan: document.getElementById("sp-in-lembaga").value,
     tanggal_form_sponsor: document.getElementById("sp-in-tanggal-form").value,
     tanggal_payment: document.getElementById("sp-in-tanggal-payment").value,
     perihal: document.getElementById("sp-in-perihal").value,
-    amount_request: document.getElementById("sp-in-amount").value,
     reff: document.getElementById("sp-in-reff").value,
     status: document.getElementById("sp-in-status").value,
     coa: document.getElementById("sp-in-coa").value,
     cc_total: document.getElementById("sp-in-cc-total").value,
     cc: document.getElementById("sp-in-cc").value,
     source: document.getElementById("sp-in-source").value,
+    lines: lines
   };
+  
   showLoading("Menyimpan transaksi Sponsorship...");
-  apiFetch("/sponsorship/input/create", { method: "POST", body: JSON.stringify(payload) })
+  apiFetch("/sponsorship/input/create-bulk", { method: "POST", body: JSON.stringify(payload) })
     .then(function (r) { return r.json(); })
     .then(function (data) {
       showToast(data.pesan, data.ok ? "success" : "error");
@@ -144,8 +167,25 @@ function sponsorshipDataEdit(id) {
   });
 }
 
+function sponsorshipDataDelete() {
+  const id = document.getElementById("sp-ed-id").value;
+  if (!id) return;
+  if (!confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) return;
+  
+  showLoading("Menghapus transaksi...");
+  apiFetch("/sponsorship/data/" + id + "/delete", { method: "POST" })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      showToast(data.pesan, data.ok ? "success" : "error");
+      if (data.ok) { closeModal("sp-edit-modal"); setTimeout(function () { window.location.reload(); }, 1000); }
+    })
+    .catch(function () { showToast("Gagal menghapus transaksi.", "error"); })
+    .finally(function () { hideLoading(); });
+}
+
 function sponsorshipDataSave() {
   const id = document.getElementById("sp-ed-id").value;
+  const rawEdAmt = document.getElementById("sp-ed-amount").value;
   const payload = {
     cat: document.getElementById("sp-ed-cat").value,
     description: document.getElementById("sp-ed-description").value,
@@ -154,7 +194,7 @@ function sponsorshipDataSave() {
     lembaga_perorangan: document.getElementById("sp-ed-lembaga").value,
     tanggal_form_sponsor: document.getElementById("sp-ed-tanggal-form").value,
     perihal: document.getElementById("sp-ed-perihal").value,
-    amount_request: document.getElementById("sp-ed-amount").value,
+    amount_request: rawEdAmt ? rawEdAmt.replace(/[^0-9.-]/g, '') : "0",
     tanggal_payment: document.getElementById("sp-ed-tanggal-payment").value,
     reff: document.getElementById("sp-ed-reff").value,
     status: document.getElementById("sp-ed-status").value,
@@ -571,27 +611,34 @@ function _sponsorshipEsc(s) {
 const _SP_REPORT_PILLAR_COLS = ["app_amount", "energy_finance_amount", "property_amount", "agri_amount"];
 const _SP_REPORT_PILLAR_LABELS = ["APP", "ENERGY", "PROPERTY", "AGRI"];
 
-let sponsorshipReportState = { cat4: "include", tahun: "" };
+let sponsorshipReportState = { cat4: "include", tahun: "", bulan: [] };
 
   function _getReportTahun() {
     const cbs = document.querySelectorAll("#sp-report-tahun input[name='tahun']:checked");
     return Array.from(cbs).map(cb => cb.value);
   }
 
+  function _getReportBulan() {
+    const cbs = document.querySelectorAll("#sp-report-bulan input[name='bulan']:checked");
+    return Array.from(cbs).map(cb => cb.value);
+  }
+
+  // One query string for the table and for the export, built from the APPLIED filter state
+  // (never from ticks that have not been applied with "Terapkan Filter").
+  function _sponsorshipReportParams() {
+    const params = new URLSearchParams();
+    params.append("cat4", sponsorshipReportState.cat4);
+    const selectedTahun = sponsorshipReportState.tahun || [];
+    (Array.isArray(selectedTahun) ? selectedTahun : [selectedTahun]).forEach(t => params.append("tahun", t));
+    (sponsorshipReportState.bulan || []).forEach(b => params.append("bulan", b));
+    return params;
+  }
+
   function sponsorshipLoadReport() {
     const container = document.getElementById("sp-report-table-container");
     if (!container) return;  // not on the Report page
     
-    const tahuns = _getReportTahun();
-    if ((!sponsorshipReportState.tahun || sponsorshipReportState.tahun.length === 0) && tahuns.length > 0) {
-      sponsorshipReportState.tahun = tahuns;
-    }
-    
-    const params = new URLSearchParams();
-    params.append("cat4", sponsorshipReportState.cat4);
-    const selectedTahun = sponsorshipReportState.tahun || [];
-    const tahunArr = Array.isArray(selectedTahun) ? selectedTahun : [selectedTahun];
-    tahunArr.forEach(t => params.append("tahun", t));
+    const params = _sponsorshipReportParams();
 
     apiFetch("/sponsorship/api/report-data?" + params.toString())
       .then(function (r) { return r.json(); })
@@ -604,25 +651,26 @@ let sponsorshipReportState = { cat4: "include", tahun: "" };
 function _sponsorshipRenderReportTable(container, data) {
   if (!data.sections || data.sections.length === 0) {
     container.innerHTML = '<div class="budget-card"><p>Belum ada data sponsorship untuk tahun ' +
-      _sponsorshipEsc(data.tahun) + '.</p></div>';
+      _sponsorshipEsc(data.tahun) + (data.bulan_label ? ', bulan ' + _sponsorshipEsc(data.bulan_label) : '') +
+      '.</p></div>';
     return;
   }
   let html = '<table class="budget-table sp-report-table">';
   data.sections.forEach(function (section) {
-    html += '<thead><tr><th>NO</th><th>LEMBAGA / PERORANGAN</th><th>PERIHAL</th>' +
+    html += '<thead><tr><th>NO</th><th>TANGGAL PAYMENT</th><th>REFF</th><th>LEMBAGA / PERORANGAN</th><th>PERIHAL</th>' +
       _SP_REPORT_PILLAR_LABELS.map(function (l) { return "<th>" + l + "</th>"; }).join("") +
       '<th>TOTAL</th></tr></thead><tbody>';
-    html += '<tr class="sp-report-section-band"><td colspan="' + (4 + _SP_REPORT_PILLAR_LABELS.length) + '">' +
+    html += '<tr class="sp-report-section-band"><td colspan="' + (6 + _SP_REPORT_PILLAR_LABELS.length) + '">' +
       _sponsorshipEsc(section.description.toUpperCase()) + '</td></tr>';
     section.rows.forEach(function (row) {
-      html += '<tr><td>' + row.no + '</td><td>' + _sponsorshipEsc(row.lembaga_perorangan) +
+      html += '<tr><td>' + row.no + '</td><td>' + _sponsorshipEsc(row.tanggal_payment || "") + '</td><td>' + _sponsorshipEsc(row.reff || "") + '</td><td>' + _sponsorshipEsc(row.lembaga_perorangan) +
         '</td><td>' + _sponsorshipEsc(row.perihal || "") + '</td>' +
         _SP_REPORT_PILLAR_COLS.map(function (c) {
           return '<td class="num-right">' + (row[c] ? fmtRupiah(row[c]) : "-") + '</td>';
         }).join("") +
         '<td class="num-right">' + fmtRupiah(row.total) + '</td></tr>';
     });
-    html += '<tr class="sp-report-subtotal-row"><td colspan="3">TOTAL ' +
+    html += '<tr class="sp-report-subtotal-row"><td colspan="5">TOTAL ' +
       _sponsorshipEsc(section.description.toUpperCase()) + '</td>' +
       _SP_REPORT_PILLAR_COLS.map(function (c) {
         return '<td class="num-right">' + fmtRupiah(section.subtotal[c]) + '</td>';
@@ -631,12 +679,12 @@ function _sponsorshipRenderReportTable(container, data) {
     html += '</tbody>';
   });
   html += '<tfoot>';
-  html += '<tr class="sp-report-grandtotal-row"><td colspan="3">TOTAL SPONSORSHIP (ACTUAL)</td>' +
+  html += '<tr class="sp-report-grandtotal-row"><td colspan="5">TOTAL SPONSORSHIP (ACTUAL)</td>' +
     _SP_REPORT_PILLAR_COLS.map(function (c) {
       return '<td class="num-right">' + fmtRupiah(data.grand_total[c]) + '</td>';
     }).join("") +
     '<td class="num-right">' + fmtRupiah(data.grand_total.total) + '</td></tr>';
-  html += '<tr class="sp-report-pct-row"><td colspan="3">% Allocation</td>' +
+  html += '<tr class="sp-report-pct-row"><td colspan="5">% Allocation</td>' +
     _SP_REPORT_PILLAR_COLS.map(function (c) { return '<td class="num-right">' + data.pct_allocation[c] + '%</td>'; }).join("") +
     '<td></td></tr>';
   html += '</tfoot></table>';
@@ -660,23 +708,33 @@ document.addEventListener("DOMContentLoaded", function () {
     if (refreshBtn) {
       refreshBtn.addEventListener("click", function() {
         sponsorshipReportState.tahun = _getReportTahun();
+        sponsorshipReportState.bulan = _getReportBulan();
         sponsorshipLoadReport();
       });
     }
 
+    // "Pilih Semua" / "Hapus Semua" in the Tahun and Bulan lists only tick/untick; "Terapkan Filter" applies.
+    document.querySelectorAll(".sp-report-check-all").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const on = btn.dataset.checked === "1";
+        document.querySelectorAll("#" + btn.dataset.target + " input[type=checkbox]").forEach(function (cb) {
+          cb.checked = on;
+        });
+      });
+    });
+
     const exportBtn = document.getElementById("sp-report-export");
     if (exportBtn) {
       exportBtn.addEventListener("click", function () {
-        sponsorshipReportState.tahun = _getReportTahun();
-        const params = new URLSearchParams();
-        params.append("cat4", sponsorshipReportState.cat4);
-        const selectedTahun = sponsorshipReportState.tahun || [];
-        const tahunArr = Array.isArray(selectedTahun) ? selectedTahun : [selectedTahun];
-        tahunArr.forEach(t => params.append("tahun", t));
-        window.location.href = "/sponsorship/report/export?" + params.toString();
+        // Same filter as the table on screen: the applied state, not the raw ticks.
+        window.location.href = "/sponsorship/report/export?" + _sponsorshipReportParams().toString();
       });
     }
 
+  // The applied filter starts as whatever is ticked at page load (latest year, no month, or what the
+  // browser restored); from here on only "Terapkan Filter" changes it.
+  sponsorshipReportState.tahun = _getReportTahun();
+  sponsorshipReportState.bulan = _getReportBulan();
   sponsorshipLoadReport();
 });
 
@@ -843,3 +901,34 @@ function sponsorshipAddLine() {
       document.querySelectorAll(".sp-line-cat1-results.open").forEach(box => box.classList.remove("open"));
     }
   });
+
+function sponsorshipDataSync() {
+  const fileInput = document.getElementById("sp-sync-file");
+  if (!fileInput.files.length) return;
+  const file = fileInput.files[0];
+  
+  if (!confirm("Apakah Anda yakin ingin mensinkronisasi data menggunakan file: " + file.name + "?")) {
+    fileInput.value = "";
+    return;
+  }
+  
+  const formData = new FormData();
+  formData.append("file", file);
+  
+  showLoading("Memproses Sinkronisasi...");
+  
+  fetch("/sponsorship/data/sync", {
+    method: "POST",
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    showToast(data.pesan, data.ok ? "success" : "error");
+    if (data.ok) { setTimeout(function () { window.location.reload(); }, 1000); }
+  })
+  .catch(function() { showToast("Terjadi kesalahan saat sync data.", "error"); })
+  .finally(function() {
+    hideLoading();
+    fileInput.value = "";
+  });
+}

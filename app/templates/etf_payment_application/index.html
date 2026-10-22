@@ -167,10 +167,13 @@
 {% block module_tabs %}
 <div class="tabs" style="margin-bottom:0" title="Alt+&#8592; / Alt+&#8594; untuk pindah tab">
   {% for t, label in [('summary','Open PA'),('advance','Advance'),('combine','Combine'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('energy','EFIN'),('setf','SETF')] %}
+  {% if t == 'input' and current_role not in ["FC", "Admin", "admin"] %}
+  {% else %}
   <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
      class="tab-btn{% if active_tab == t %} active{% endif %}"
      style="text-decoration:none"
   >{{ label }}</a>
+  {% endif %}
   {% endfor %}
 </div>
 {% endblock %}
@@ -1948,3 +1951,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 {% endblock %}
+
+

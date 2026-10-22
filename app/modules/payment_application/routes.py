@@ -2,7 +2,7 @@ import io
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, send_file
 from flask_jwt_extended import get_jwt
-from auth.middleware import jwt_html_required
+from auth.middleware import jwt_html_required, role_required
 from modules.payment_application.service import (
     get_applications, create_application, update_actual_payment
 )
@@ -49,7 +49,7 @@ def index():
 
 
 @bp.route("/create", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 def create():
     data       = request.get_json(force=True)
     company_id = session.get("company_id")
@@ -64,7 +64,7 @@ def create():
 
 
 @bp.route("/<int:app_id>/update-payment", methods=["POST"])
-@jwt_html_required
+@role_required("FC", "Admin")
 def update_payment(app_id):
     data        = request.get_json(force=True)
     actual_date = data.get("actual_payment_date", "")
@@ -95,3 +95,4 @@ def export_route():
         download_name=fname,
         as_attachment=True,
     )
+

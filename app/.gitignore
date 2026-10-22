@@ -6,6 +6,7 @@ test_finance_hub.db
 *.db-shm
 *.db-wal
 .env
+.env.bak*
 venv/
 *.egg-info/
 dist/

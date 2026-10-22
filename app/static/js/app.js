@@ -32,6 +32,8 @@ const FH_MODULE_ICONS = {
   payment_memo: '<path d="M6 2h9l4 4v16H6Z"/><path d="M15 2v4h4"/><path d="M9 13l2 2 4-4"/>',
   etf_payment_app: '<path d="M6 2h8l5 5v15H6Z"/><path d="M14 2v5h5"/><path d="M12 12v6M9 15l3-3 3 3"/>',
   budget: '<path d="M12 12V4a8 8 0 0 1 8 8h-8Z"/><circle cx="12" cy="12" r="8"/>',
+  management_report: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  general_ledger: '<path d="M5 3h11l3 3v15H5Z"/><path d="M8 9h8M8 13h8M8 17h5"/>',
   bank: '<path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9"/><path d="M3 21h18"/>',
   spt_badan: '<path d="M6 2h9l4 4v16H6Z"/><path d="M15 2v4h4"/><path d="M9 12h6M9 16h6"/>',
   sponsorship: '<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M3 12h18"/><path d="M12 8v13"/><path d="M12 8c-1.5-4-6-4-6-1s3 1 6 1Zm0 0c1.5-4 6-4 6-1s-3 1-6 1Z"/>',

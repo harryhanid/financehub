@@ -226,7 +226,7 @@ def get_draft_lines_for_siswa(company_id: int, siswa_id: int, tab: str = "agri")
     pa_tbl, lines_tbl, *_ = _tbls(tab)
     conn = get_conn()
     rows = conn.execute(
-        f"""SELECT l.id AS line_id, l.pa_id, p.pa_number,
+        f"""SELECT l.id AS line_id, l.pa_id, p.pa_number, p.klasifikasi,
                    l.jenis_pembayaran, l.semester, l.tahun_ajaran, l.jumlah_pembayaran,
                    p.tgl_surat_pengajuan,
                    p.doc_received_by_educ,

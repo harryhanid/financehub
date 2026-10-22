@@ -1,7 +1,7 @@
 import bcrypt
 from database import get_conn
 
-VALID_ROLES = {"requester", "verificator", "releaser"}
+VALID_ROLES = {"Admin", "FC", "Fin", "BC"}
 
 
 def get_users() -> list:
@@ -57,3 +57,4 @@ def change_user_role(username: str, new_role: str) -> dict:
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": f"Role '{username}' berhasil diubah ke '{new_role}'."}
+

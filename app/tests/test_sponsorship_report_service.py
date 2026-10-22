@@ -1,5 +1,6 @@
 from modules.sponsorship.service import (
     seed_perusahaan, create_transaksi, update_transaksi, get_sponsorship_report,
+    normalise_bulan, month_label,
 )
 
 SMT = 1
@@ -161,3 +162,61 @@ def test_report_shows_out_of_whitelist_description_as_own_section(app):
     assert "Legacy Category Not In List" in descriptions
     legacy_section = next(s for s in data["sections"] if s["description"] == "Legacy Category Not In List")
     assert legacy_section["subtotal"]["total"] == 1000
+
+
+def _rows(data):
+    return sorted(r["lembaga_perorangan"] for s in data["sections"] for r in s["rows"])
+
+
+def _seed_months():
+    _seed()
+    for lem, tgl, cat4 in (("Jan Org", "2026-01-15", "Include"), ("Feb Org", "2026-02-10", "Include"),
+                           ("Mar Org", "2026-03-05", "Exclude"), ("Jan Excl", "2026-01-20", "Exclude"),
+                           ("Jan 2025 Org", "2025-01-20", "Include")):
+        create_transaksi(SMT, _payload(lembaga_perorangan=lem, tanggal_form_sponsor=tgl, cat4=cat4))
+
+
+def test_normalise_bulan_and_month_label():
+    assert normalise_bulan(["1", "01", 2, "12", "13", "0", "x", "", None]) == ["01", "02", "12"]
+    assert normalise_bulan(None) == [] and normalise_bulan("3") == ["03"] and normalise_bulan(7) == ["07"]
+    assert month_label(["03", "01"]) == "Jan, Mar" and month_label([]) == "" and month_label(None) == ""
+    assert month_label(["05", "08", "12"]) == "Mei, Agu, Des"
+
+
+def test_report_month_filter_uses_tgl_form():
+    _seed_months()
+    data = get_sponsorship_report(SMT, ["2026"], "all", ["01"])
+    assert _rows(data) == ["Jan Excl", "Jan Org"]
+    assert data["bulan"] == ["01"] and data["bulan_label"] == "Jan"
+    assert _rows(get_sponsorship_report(SMT, ["2026"], "all", ["01", "02"])) == ["Feb Org", "Jan Excl", "Jan Org"]
+    assert _rows(get_sponsorship_report(SMT, ["2025", "2026"], "all", ["01"])) == \
+        ["Jan 2025 Org", "Jan Excl", "Jan Org"]                       # years and months combine with AND
+
+
+def test_report_without_month_is_unchanged():
+    _seed_months()
+    data = get_sponsorship_report(SMT, ["2026"], "all")
+    assert _rows(data) == ["Feb Org", "Jan Excl", "Jan Org", "Mar Org"]
+    assert data["bulan"] == [] and data["bulan_label"] == ""
+    assert _rows(get_sponsorship_report(SMT, ["2026"], "all", None)) == _rows(data)
+
+
+def test_report_month_filter_applies_in_every_cat4_mode():
+    _seed_months()
+    month = ["01"]
+    assert _rows(get_sponsorship_report(SMT, ["2026"], "include", month)) == ["Jan Org"]
+    assert _rows(get_sponsorship_report(SMT, ["2026"], "exclude", month)) == ["Jan Excl"]
+    assert _rows(get_sponsorship_report(SMT, ["2026"], "all", month)) == ["Jan Excl", "Jan Org"]
+    assert _rows(get_sponsorship_report(SMT, ["2026"], "bib_include", month)) == ["Jan Org"]
+
+
+def test_report_invalid_months_are_ignored():
+    _seed_months()
+    data = get_sponsorship_report(SMT, ["2026"], "all", ["13", "0", "abc", ""])
+    assert data["bulan"] == [] and len(_rows(data)) == 4
+
+
+def test_report_month_without_matching_rows_is_empty():
+    _seed_months()
+    data = get_sponsorship_report(SMT, ["2026"], "all", ["12"])
+    assert data["sections"] == [] and data["bulan_label"] == "Des"

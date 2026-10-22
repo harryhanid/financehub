@@ -1,17 +1,12 @@
-file_path = r"C:\Financehub\app\templates\etf_payment_application\index.html"
-with open(file_path, "r", encoding="utf-8") as f:
-    html = f.read()
+import re
+with open("C:/Financehub/app/templates/sahabat_etf/public_index.html", "r", encoding="utf-8") as f:
+    content = f.read()
 
-html = html.replace(
-    '<th data-sort="13">Tgl PA</th>',
-    '<th data-sort="13" style="white-space: nowrap; min-width: 110px;">Tgl PA</th>'
+content = content.replace(
+    "max-width: 1400px;",
+    "width: 100%; box-sizing: border-box;"
 )
 
-html = html.replace(
-    '<th>Tgl Surat</th>',
-    '<th style="white-space: nowrap; min-width: 110px;">Tgl Surat</th>'
-)
-
-with open(file_path, "w", encoding="utf-8") as f:
-    f.write(html)
-print("Updated successfully")
+with open("C:/Financehub/app/templates/sahabat_etf/public_index.html", "w", encoding="utf-8") as f:
+    f.write(content)
+print("Removed max-width constraint to make layout full-screen wide!")

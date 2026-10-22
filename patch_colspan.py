@@ -1,9 +1,9 @@
-with open('app/static/js/sahabat_etf.js', 'r', encoding='utf-8') as f:
-    c = f.read()
+with open("app/templates/payment_memo/index.html", "r", encoding="utf-8") as f:
+    text = f.read()
 
-c = c.replace('<td colspan="2" style="text-align:center;color:var(--text-muted)">Belum ada data.</td>', '<td colspan="4" style="text-align:center;color:var(--text-muted)">Belum ada data.</td>')
+import re
+text = text.replace("colspan=\"10\"", "colspan=\"11\"")
+text = text.replace("colSpan = 10", "colSpan = 11")
 
-with open('app/static/js/sahabat_etf.js', 'w', encoding='utf-8') as f:
-    f.write(c)
-
-print("Colspan patched")
+with open("app/templates/payment_memo/index.html", "w", encoding="utf-8") as f:
+    f.write(text)

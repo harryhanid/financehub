@@ -24,7 +24,7 @@
           <select class="role-select" data-username="{{ u.username }}" data-role="{{ u.role }}"
             style="padding:.2rem .4rem; font-size:.8rem; border-radius:4px"
             onchange="changeRole(this, '{{ u.username }}', this.value)">
-            {% for r in ['requester','verificator','releaser'] %}
+            {% for r in ['Admin','FC','Fin','BC'] %}
             <option value="{{ r }}" {% if u.role == r %}selected{% endif %}>{{ r }}</option>
             {% endfor %}
           </select>
@@ -71,9 +71,10 @@
     <div class="form-group">
       <label>Role</label>
       <select id="new-role">
-        <option value="requester">Requester -- input data, lihat laporan</option>
-        <option value="verificator">Verificator -- review, buat memo</option>
-        <option value="releaser">Releaser -- approve, release payment</option>
+        <option value="Admin">Admin -- Superuser, akses penuh</option>
+          <option value="FC">FC -- Financial Controller (PA & Beasiswa)</option>
+          <option value="Fin">Fin -- Finance Spesialist (PAM)</option>
+          <option value="BC">BC -- Budget Controller (Viewer)</option>
       </select>
     </div>
     <div class="user-info-text" style="font-size:.8rem; margin-top:.5rem; color:#0e9f6e">
@@ -148,3 +149,4 @@ async function changeRole(selectEl, username, role) {
 }
 </script>
 {% endblock %}
+

@@ -6,10 +6,11 @@ from flask import Blueprint, render_template, request, jsonify, session, send_fi
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.sponsorship.service import (
-    list_perusahaan, get_lembaga_suggestions, create_transaksi, get_transaksi,
+    list_perusahaan, get_lembaga_suggestions, create_transaksi, create_transaksi_bulk, get_transaksi, delete_transaksi,
     update_transaksi, list_transaksi, count_transaksi, get_available_years,
     get_dashboard_data, get_sponsorship_report, get_sponsorship_mr,
-    create_perusahaan, update_perusahaan, delete_perusahaan,
+    create_perusahaan, update_perusahaan, delete_perusahaan, sync_transaksi_excel,
+    normalise_bulan, MONTH_CHOICES,
 )
 from modules.sponsorship.exports import export_report_excel, export_mr_excel
 import config
@@ -70,7 +71,7 @@ def _parse_filters():
     filters = {}
     is_initial = len(request.args) == 0
 
-    for key in ("cat1", "cat2", "cat4", "description", "status"):
+    for key in ("cat1", "cat2", "cat4", "description", "keyword"):
         val = request.args.get(key)
         if val:
             filters[key] = val
@@ -99,7 +100,8 @@ def _parse_report_params():
     cat4 = (request.args.get("cat4") or "all").lower()
     if cat4 not in ("include", "exclude", "all", "bib_include"):
         cat4 = "all"
-    return tahun, cat4
+    bulan = normalise_bulan(request.args.getlist("bulan"))
+    return tahun, cat4, bulan
 
 
 def _parse_mr_params():
@@ -139,8 +141,8 @@ def api_dashboard_data():
 @jwt_html_required
 @smt_company_required
 def api_report_data():
-    tahun, cat4 = _parse_report_params()
-    data = get_sponsorship_report(_cid(), tahun, cat4)
+    tahun, cat4, bulan = _parse_report_params()
+    data = get_sponsorship_report(_cid(), tahun, cat4, bulan)
     return jsonify(data)
 
 
@@ -148,9 +150,10 @@ def api_report_data():
 @jwt_html_required
 @smt_company_required
 def export_report_route():
-    tahun, cat4 = _parse_report_params()
-    xls_bytes = export_report_excel(_cid(), tahun, cat4)
-    filename = f"Sponsorship_Report_{cat4}_{'-'.join(tahun)}.xlsx"
+    tahun, cat4, bulan = _parse_report_params()
+    xls_bytes = export_report_excel(_cid(), tahun, cat4, bulan)
+    month_part = f"_{'-'.join(bulan)}" if bulan else ""
+    filename = f"Sponsorship_Report_{cat4}_{'-'.join(tahun)}{month_part}.xlsx"
     return send_file(
         io.BytesIO(xls_bytes),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -313,7 +316,7 @@ def report_page():
     years = get_available_years(_cid()) if not _wrong_company() else []
     return render_template("sponsorship/report.html", active_page="sponsorship",
                             use_unified_header=True,
-                            wrong_company=_wrong_company(), years=years, **_ctx())
+                            wrong_company=_wrong_company(), years=years, months=MONTH_CHOICES, **_ctx())
 
 @bp.route("/data/export")
 @jwt_html_required
@@ -328,7 +331,7 @@ def export_data_route():
         io.BytesIO(xls_bytes),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         as_attachment=True,
-        download_name="Sponsorship_Data.xlsx"
+        download_name="Sponsorship - MASTER.xlsx"
     )
 
 @bp.route("/outstanding/export")
@@ -375,3 +378,23 @@ def export_mr_route():
         download_name=filename,
         as_attachment=True,
     )
+
+@bp.route("/data/<int:id>/delete", methods=["POST"])
+@jwt_html_required
+def data_delete(id):
+    result = delete_transaksi(id, _cid() if not _wrong_company() else None)
+    return jsonify(result)
+
+@bp.route("/data/sync", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def data_sync_route():
+    if "file" not in request.files:
+        return jsonify({"ok": False, "pesan": "File tidak ditemukan."})
+    file = request.files["file"]
+    if not file.filename.endswith(".xlsx"):
+        return jsonify({"ok": False, "pesan": "Format file harus .xlsx"})
+        
+    file_bytes = file.read()
+    result = sync_transaksi_excel(_cid(), file_bytes)
+    return jsonify(result)

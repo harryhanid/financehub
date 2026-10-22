@@ -258,6 +258,34 @@ def update_transaksi(transaksi_id: int, payload: dict, company_id: int = None) -
     return {"ok": True, "pesan": "Transaksi diperbarui."}
 
 
+MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+MONTH_LONG = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
+              "September", "Oktober", "November", "Desember"]
+MONTH_CHOICES = [(f"{i + 1:02d}", name) for i, name in enumerate(MONTH_LONG)]
+
+
+def normalise_bulan(values) -> list:
+    """Two-digit month strings '01'..'12', sorted and de-duplicated; invalid values are dropped."""
+    if values is None:
+        return []
+    if isinstance(values, (str, int)):
+        values = [values]
+    out = set()
+    for v in values:
+        try:
+            m = int(str(v).strip())
+        except ValueError:
+            continue
+        if 1 <= m <= 12:
+            out.add(f"{m:02d}")
+    return sorted(out)
+
+
+def month_label(bulan) -> str:
+    """['03', '01'] -> 'Jan, Mar'; nothing selected -> ''."""
+    return ", ".join(MONTH_SHORT[int(m) - 1] for m in normalise_bulan(bulan))
+
+
 def _apply_filters(query: str, params: list, company_id: int, filters: dict):
     query += " AND company_id = ?"
     params.append(company_id)
@@ -292,9 +320,20 @@ def _apply_filters(query: str, params: list, company_id: int, filters: dict):
     if filters.get("description"):
         query += " AND description = ?"
         params.append(filters["description"])
-    if filters.get("status"):
-        query += " AND status = ?"
-        params.append(filters["status"])
+    if filters.get("keyword"):
+        kw = f"%{filters['keyword']}%"
+        query += """ AND (
+            status LIKE ? OR
+            cat LIKE ? OR
+            description LIKE ? OR
+            cat1 LIKE ? OR
+            cat2 LIKE ? OR
+            cat3 LIKE ? OR
+            lembaga_perorangan LIKE ? OR
+            perihal LIKE ? OR
+            reff LIKE ?
+        )"""
+        params.extend([kw] * 9)
     if filters.get("outstanding"):
         query += " AND (tanggal_payment IS NULL OR tanggal_payment = '')"
     if filters.get("tahun"):
@@ -306,6 +345,11 @@ def _apply_filters(query: str, params: list, company_id: int, filters: dict):
         else:
             query += " AND strftime('%Y', tanggal_form_sponsor) = ?"
             params.extend([str(years)])
+    bulan = normalise_bulan(filters.get("bulan"))
+    if bulan:
+        placeholders = ",".join(["?"] * len(bulan))
+        query += f" AND strftime('%m', tanggal_form_sponsor) IN ({placeholders})"
+        params.extend(bulan)
     return query, params
 
 
@@ -511,13 +555,16 @@ def get_dashboard_data(company_id: int, filters: dict = None, cat4_mode: str = "
     }
 
 
-def get_sponsorship_report(company_id: int, tahun: list, cat4_mode: str) -> dict:
+def get_sponsorship_report(company_id: int, tahun: list, cat4_mode: str, bulan=None) -> dict:
     """Rekap sponsorship per description-section, dipivot per pillar (cat3),
     difilter cat4_mode ('include' | 'exclude' | 'all' | 'bib_include'). Section tanpa transaksi
     untuk tahun+cat4_mode ini disembunyikan; section yang ada urut sesuai
     config.SPONSORSHIP_DESCRIPTION. Baris dalam tiap section urut TOTAL desc.
     """
+    bulan = normalise_bulan(bulan)
     filters = {"tahun": tahun}
+    if bulan:
+        filters["bulan"] = bulan
     if cat4_mode == "include":
         filters["cat4"] = "Include"
     elif cat4_mode == "exclude":
@@ -558,19 +605,33 @@ def get_sponsorship_report(company_id: int, tahun: list, cat4_mode: str) -> dict
                 r["property_amount"] = 0.0
 
             key = (r["lembaga_perorangan"] or "", r["perihal"] or "")
+            tgl_pay = str(r["tanggal_payment"]).strip() if r.get("tanggal_payment") else ""
+            reff_val = str(r["reff"]).strip() if r.get("reff") else ""
+            
             if key not in agg:
                 agg[key] = {
                     "lembaga_perorangan": r["lembaga_perorangan"],
                     "perihal": r["perihal"],
+                    "tanggal_payment_list": [tgl_pay] if tgl_pay else [],
+                    "reff_list": [reff_val] if reff_val else [],
                     "total": r["amount_request"],
                 }
                 for col in pillar_cols:
                     agg[key][col] = r[col]
             else:
+                if tgl_pay and tgl_pay not in agg[key]["tanggal_payment_list"]:
+                    agg[key]["tanggal_payment_list"].append(tgl_pay)
+                if reff_val and reff_val not in agg[key]["reff_list"]:
+                    agg[key]["reff_list"].append(reff_val)
+                    
                 agg[key]["total"] += r["amount_request"]
                 for col in pillar_cols:
                     agg[key][col] += r[col]
 
+        for row_out in agg.values():
+            row_out["tanggal_payment"] = ", ".join(row_out.pop("tanggal_payment_list", []))
+            row_out["reff"] = ", ".join(row_out.pop("reff_list", []))
+            
         aggregated_rows = list(agg.values())
         aggregated_rows.sort(key=lambda r: r["total"], reverse=True)
 
@@ -604,6 +665,8 @@ def get_sponsorship_report(company_id: int, tahun: list, cat4_mode: str) -> dict
     return {
         "tahun": ",".join(tahun) if isinstance(tahun, list) else str(tahun),
         "cat4_mode": cat4_mode,
+        "bulan": bulan,
+        "bulan_label": month_label(bulan),
         "sections": sections,
         "grand_total": grand_total,
         "pct_allocation": pct_allocation,
@@ -668,7 +731,23 @@ def get_sponsorship_outstanding(company_id: int, filters: dict = None) -> tuple:
             "rows": section_rows
         })
         
-    sections.sort(key=lambda s: s["subtotal"], reverse=True)
+    STANDARD_CHARGING_ORDER = {
+        "charging to app": 1,
+        "charging to agri": 2,
+        "charging to finance": 3,
+        "charging to mining": 4,
+        "charging to property": 5,
+    }
+
+    def _section_sort_key(s):
+        label = (s.get("cat2_label") or "").strip().lower()
+        label_norm = " ".join(label.split())
+        if not label_norm.startswith("charging to"):
+            label_norm = f"charging to {label_norm}"
+        order = STANDARD_CHARGING_ORDER.get(label_norm, 999)
+        return (order, -s.get("subtotal", 0.0), label_norm)
+
+    sections.sort(key=_section_sort_key)
     
     return sections, grand_total
 
@@ -789,3 +868,154 @@ def create_transaksi_bulk(company_id: int, payload: dict) -> dict:
     except Exception as e:
         conn.rollback()
         return {"ok": False, "pesan": f"Gagal menyimpan transaksi: {str(e)}"}
+
+
+def delete_transaksi(transaksi_id: int, company_id: int = None) -> dict:
+    conn = get_conn()
+    select_query = "SELECT * FROM sponsorship_transaksi WHERE id = ?"
+    params = [transaksi_id]
+    if company_id:
+        select_query += " AND company_id = ?"
+        params.append(company_id)
+        
+    t = conn.execute(select_query, params).fetchone()
+    if not t:
+        conn.close()
+        return {"ok": False, "pesan": "Transaksi tidak ditemukan."}
+        
+    try:
+        conn.execute("DELETE FROM sponsorship_transaksi WHERE id = ?", (transaksi_id,))
+        conn.commit()
+        return {"ok": True, "pesan": "Transaksi berhasil dihapus."}
+    except Exception as e:
+        conn.rollback()
+        return {"ok": False, "pesan": f"Gagal menghapus transaksi: {str(e)}"}
+
+def sync_transaksi_excel(company_id: int, file_bytes: bytes) -> dict:
+    import openpyxl
+    import io
+    
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        ws = wb.active
+    except Exception as e:
+        return {"ok": False, "pesan": f"Gagal membaca file Excel: {str(e)}"}
+        
+    conn = get_conn()
+    try:
+        rows = list(ws.iter_rows(values_only=True))
+        if len(rows) < 2:
+            return {"ok": False, "pesan": "File Excel kosong atau tidak memiliki data."}
+            
+        header = rows[0]
+        # Pastikan kolom sesuai dengan format export
+        
+        updated_count = 0
+        inserted_count = 0
+        
+        for idx, row in enumerate(rows[1:], start=2):
+            # Row structure: 0:ID, 1:Cat, 2:Desc, 3:Tgl Form, 4:Tgl Pay, 5:Cat1, 6:Cat2, 7:Cat3, 8:Lembaga, 9:Perihal, 10:Amount, 11:APP, 12:ENERGY, 13:PROPERTY, 14:AGRI, 15:Reff, 16:Status, 17:Cat4, 18:COA, 19:CC Total, 20:CC, 21:Source
+            
+            tx_id = row[0]
+            cat = row[1]
+            desc = row[2]
+            
+            # Date handling
+            import datetime
+            tgl_form = row[3]
+            if isinstance(tgl_form, datetime.datetime):
+                tgl_form = tgl_form.strftime('%Y-%m-%d')
+            tgl_pay = row[4]
+            if isinstance(tgl_pay, datetime.datetime):
+                tgl_pay = tgl_pay.strftime('%Y-%m-%d')
+            if not tgl_pay:
+                tgl_pay = None
+                
+            cat1 = row[5]
+            cat2 = row[6]
+            cat3 = row[7]
+            lembaga = row[8]
+            perihal = row[9]
+            amt = row[10]
+            reff = row[15]
+            status = row[16]
+            cat4 = row[17]
+            coa = row[18]
+            cc_total = row[19]
+            cc = row[20]
+            source = row[21]
+            
+            # Validasi kolom wajib
+            if not cat1:
+                if not tx_id and not tgl_form and not amt:
+                    continue # Baris benar-benar kosong
+                conn.rollback()
+                return {"ok": False, "pesan": f"Baris {idx}: Cat1 (Perusahaan) wajib diisi."}
+            if not tgl_form:
+                conn.rollback()
+                return {"ok": False, "pesan": f"Baris {idx}: Tanggal Form wajib diisi."}
+                
+            lembaga = str(lembaga).strip() if lembaga else ""
+            desc = str(desc).strip() if desc else ""
+            cat = str(cat).strip() if cat else ""
+                
+            # Pastikan null aman
+            cat1 = str(cat1).strip()
+            cat2 = str(cat2).strip() if cat2 else ""
+            cat3 = str(cat3).strip() if cat3 else ""
+            
+            perusahaan = get_perusahaan(cat1)
+            if not perusahaan:
+                if not cat2 or not cat3:
+                    conn.rollback()
+                    return {"ok": False, "pesan": f"Baris {idx}: Cat1 '{cat1}' baru, namun Cat2 atau Cat3 kosong di Excel."}
+                conn.execute(
+                    "INSERT INTO sponsorship_perusahaan (cat1, cat2, cat3) VALUES (?, ?, ?)",
+                    (cat1, cat2, cat3)
+                )
+            else:
+                # Update vendor info in DB if excel has different cat2/cat3
+                if (cat2 and cat2 != perusahaan["cat2"]) or (cat3 and cat3 != perusahaan["cat3"]):
+                    conn.execute(
+                        "UPDATE sponsorship_perusahaan SET cat2=?, cat3=? WHERE cat1=?",
+                        (cat2, cat3, cat1)
+                    )
+            
+            try:
+                amt = float(amt) if amt else 0
+            except ValueError:
+                amt = 0
+                
+            if tx_id:
+                # Update
+                conn.execute(
+                    """
+                    UPDATE sponsorship_transaksi 
+                    SET cat=?, description=?, tanggal_form_sponsor=?, tanggal_payment=?,
+                        cat1=?, cat2=?, cat3=?, lembaga_perorangan=?, perihal=?, amount_request=?, reff=?,
+                        status=?, cat4=?, coa=?, cc_total=?, cc=?, source=?
+                    WHERE id=? AND company_id=?
+                    """,
+                    (cat, desc, tgl_form, tgl_pay, cat1, cat2, cat3, lembaga, perihal, amt, reff, status, cat4, coa, cc_total, cc, source, tx_id, company_id)
+                )
+                updated_count += 1
+            else:
+                # Insert
+                conn.execute(
+                    """
+                    INSERT INTO sponsorship_transaksi
+                        (company_id, cat, description, tanggal_form_sponsor, tanggal_payment,
+                         cat1, cat2, cat3, lembaga_perorangan, perihal, amount_request, reff,
+                         status, cat4, coa, cc_total, cc, source)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, '701078002'), COALESCE(?, 'SMT - Corporate Communication'), COALESCE(?, 'POSPON'), COALESCE(?, 'Sponsor'))
+                    """,
+                    (company_id, cat, desc, tgl_form, tgl_pay, cat1, cat2, cat3, lembaga, perihal, amt, reff, status, cat4, coa, cc_total, cc, source)
+                )
+                inserted_count += 1
+                
+        conn.commit()
+        return {"ok": True, "pesan": f"Sync sukses: {updated_count} di-update, {inserted_count} ditambah."}
+        
+    except Exception as e:
+        conn.rollback()
+        return {"ok": False, "pesan": f"Gagal sync transaksi: {str(e)}"}

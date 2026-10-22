@@ -12,7 +12,7 @@ def is_admin(claims) -> bool:
     admin authority is recognised by username OR by an explicit 'admin'
     role should one ever be introduced.
     """
-    return claims.get("role") == "admin" or claims.get("username") == "admin"
+    return str(claims.get("role", "")).lower() == "admin" or claims.get("username") == "admin"
 
 
 def html_admin_required(f):
@@ -78,7 +78,7 @@ def role_required(*roles):
             except Exception:
                 return jsonify({"ok": False, "pesan": "Token tidak valid atau expired."}), 401
             claims = get_jwt()
-            if claims.get("role") != "admin" and claims.get("role") not in roles:
+            if not is_admin(claims) and claims.get("role") not in roles:
                 return jsonify({"ok": False, "pesan": "Akses ditolak."}), 403
             return f(*args, **kwargs)
         return decorated
@@ -93,7 +93,7 @@ def html_role_required(*roles):
             except Exception:
                 return redirect(url_for("auth.login_page"))
             claims = get_jwt()
-            if claims.get("role") != "admin" and claims.get("role") not in roles:
+            if not is_admin(claims) and claims.get("role") not in roles:
                 return redirect(url_for("dashboard.index"))
             return f(*args, **kwargs)
         return decorated
@@ -108,8 +108,10 @@ def api_role_required(*roles):
             except Exception:
                 return jsonify({"ok": False, "pesan": "Token tidak valid."}), 401
             claims = get_jwt()
-            if claims.get("role") != "admin" and claims.get("role") not in roles:
+            if not is_admin(claims) and claims.get("role") not in roles:
                 return jsonify({"ok": False, "pesan": "Akses ditolak."}), 403
             return f(*args, **kwargs)
         return decorated
     return decorator
+
+

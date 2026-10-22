@@ -1,14 +1,9 @@
-file_path = "C:/Financehub/app/static/js/sahabat_etf.js"
-with open(file_path, "r", encoding="utf-8") as f:
-    content = f.read()
+with open("app/templates/payment_memo/index.html", "r", encoding="utf-8") as f:
+    text = f.read()
 
-target = """  });
-},
-      plugins: {"""
-repl = """        },
-      plugins: {"""
+text = text.replace("link.href = /etf-payment-application/attachment/;", "link.href = '/etf-payment-application/attachment/' + id;")
 
-content = content.replace(target, repl)
-with open(file_path, "w", encoding="utf-8") as f:
-    f.write(content)
-print("Fixed syntax error!")
+with open("app/templates/payment_memo/index.html", "w", encoding="utf-8") as f:
+    f.write(text)
+
+print("Fixed attachment link syntax error")

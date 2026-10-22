@@ -4,6 +4,14 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+<style>
+/* Tahun / Bulan tick lists: keep the box next to its label (the global input width stretched it) */
+#sp-report-filter .budget-dropdown-content input[type=checkbox] { width: auto; flex: none; margin: 0; }
+#sp-report-filter .budget-dropdown-content label { justify-content: flex-start; font-weight: 500; }
+#sp-report-filter .sp-check-all-row { display: flex; gap: 6px; padding: 4px 6px 6px; border-bottom: 1px solid var(--border, #e5e7eb); margin-bottom: 4px; }
+#sp-report-filter .sp-report-check-all { flex: 1; padding: 3px 6px; font-size: 0.8em; cursor: pointer; border: 1px solid var(--border, #d1d5db); border-radius: 4px; background: transparent; color: inherit; }
+#sp-report-filter .sp-report-check-all:hover { background: rgba(128,128,128,.15); }
+</style>
 {% endblock %}
 {% block module_tabs %}
 {% set active_tab = "report" %}
@@ -24,12 +32,30 @@
         Tahun <span style="font-size: 0.7em;">▼</span>
       </button>
       <div class="budget-dropdown-content" id="sp-report-tahun">
+        <div class="sp-check-all-row">
+          <button type="button" class="sp-report-check-all" data-target="sp-report-tahun" data-checked="1">Pilih Semua</button>
+          <button type="button" class="sp-report-check-all" data-target="sp-report-tahun" data-checked="0">Hapus Semua</button>
+        </div>
         {% for y in years %}
         <label><input type="checkbox" name="tahun" value="{{ y }}" {% if loop.first %}checked{% endif %}> {{ y }}</label>
         {% endfor %}
       </div>
     </div>
-    <button type="button" class="budget-btn" id="sp-report-refresh">Refresh</button>
+    <div class="budget-dropdown-check" id="sp-report-bulan-container">
+      <button type="button" class="budget-dropdown-btn" onclick="this.nextElementSibling.classList.toggle('show')">
+        Bulan <span style="font-size: 0.7em;">▼</span>
+      </button>
+      <div class="budget-dropdown-content" id="sp-report-bulan">
+        <div class="sp-check-all-row">
+          <button type="button" class="sp-report-check-all" data-target="sp-report-bulan" data-checked="1">Pilih Semua</button>
+          <button type="button" class="sp-report-check-all" data-target="sp-report-bulan" data-checked="0">Hapus Semua</button>
+        </div>
+        {% for num, name in months %}
+        <label><input type="checkbox" name="bulan" value="{{ num }}"> {{ name }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <button type="button" class="budget-btn" id="sp-report-refresh">Terapkan Filter</button>
     <button type="button" class="budget-btn" id="sp-report-export">Export Excel</button>
   </div>
   <div id="sp-report-table-container"></div>

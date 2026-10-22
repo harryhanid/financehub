@@ -90,6 +90,26 @@ CREATE TABLE IF NOT EXISTS budget_beasiswa (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS budget_beasiswa_requests (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id      INTEGER NOT NULL REFERENCES companies(id),
+    siswa_code      TEXT NOT NULL,
+    action_type     TEXT NOT NULL,
+    budget_id       INTEGER,
+    cat1            TEXT,
+    cat2            TEXT,
+    tanggal         TEXT,
+    amount          REAL DEFAULT 0,
+    pillar          TEXT,
+    tgl_expired     TEXT,
+    status          TEXT DEFAULT 'PENDING',
+    reject_reason   TEXT,
+    created_by      TEXT,
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+    processed_by    TEXT,
+    processed_at    TEXT
+);
+
 CREATE TABLE IF NOT EXISTS payment_beasiswa (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     company_id      INTEGER NOT NULL REFERENCES companies(id),
@@ -1482,3 +1502,21 @@ def init_db():
 if __name__ == "__main__":
     init_db()
     print("Database initialized.")
+
+    try:
+        conn.execute("ALTER TABLE pam_records ADD COLUMN klasifikasi TEXT DEFAULT 'Normal'")
+    except:
+        pass
+    try:
+        conn.execute("ALTER TABLE payment_beasiswa ADD COLUMN klasifikasi_pam TEXT")
+    except:
+        pass
+    try:
+        conn.execute("ALTER TABLE klaim_medical ADD COLUMN klasifikasi_pam TEXT")
+    except:
+        pass
+    try:
+        conn.execute("ALTER TABLE pam_transaction_lines ADD COLUMN klasifikasi_pam TEXT")
+    except:
+        pass
+

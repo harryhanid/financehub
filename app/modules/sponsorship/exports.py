@@ -7,6 +7,8 @@ from modules.sponsorship.service import get_sponsorship_report, PILLAR_COLUMNS
 ARIAL_11 = Font(name='Arial', size=11)
 ARIAL_11_BOLD = Font(name='Arial', size=11, bold=True)
 ARIAL_11_WHITE_BOLD = Font(name='Arial', size=11, bold=True, color="FFFFFF")
+PCT_FONT = Font(name='Arial', size=11, bold=True, italic=True, color="CC0066")  # % Allocation row
+PCT_FILL = PatternFill("solid", fgColor="D9D9D9")        # RGB 217,217,217
 
 DARK_BLUE_FILL = PatternFill("solid", fgColor="16365C")  # Navy
 YELLOW_FILL = PatternFill("solid", fgColor="FFFF00")     # Yellow
@@ -27,14 +29,14 @@ def get_border(col):
         top=THIN_GRAY,
         bottom=THIN_GRAY,
         left=THIN_GRAY if col == 2 else None,
-        right=THIN_GRAY if col == 9 else None
+        right=THIN_GRAY if col == 11 else None
     )
 
 _NUM_FMT = '#,##0;-#,##0;"-"'
-_COLUMN_LABELS = ["NO", "LEMBAGA / PERORANGAN", "PERIHAL", "APP", "ENERGY", "PROPERTY", "AGRI", "TOTAL"]
+_COLUMN_LABELS = ["NO", "TANGGAL PAYMENT", "REFF", "LEMBAGA / PERORANGAN", "PERIHAL", "APP", "ENERGY", "PROPERTY", "AGRI", "TOTAL"]
 
-def export_report_excel(company_id: int, tahun: str, cat4_mode: str) -> bytes:
-    data = get_sponsorship_report(company_id, tahun, cat4_mode)
+def export_report_excel(company_id: int, tahun: str, cat4_mode: str, bulan=None) -> bytes:
+    data = get_sponsorship_report(company_id, tahun, cat4_mode, bulan)
     
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -43,7 +45,7 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str) -> bytes:
     # Title row
     ws.append(["", f"RANGKUMAN SPONSORSHIP - in Rp Full Amount"])
     ws["B1"].font = ARIAL_11_BOLD
-    ws.merge_cells(start_row=1, start_column=2, end_row=1, end_column=9)
+    ws.merge_cells(start_row=1, start_column=2, end_row=1, end_column=11)
     ws.append([])
 
     def _write_section_headers():
@@ -51,32 +53,32 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str) -> bytes:
         ws.append(["", f"RANGKUMAN SPONSORSHIP {data['tahun']} - in Rp Full Amount"])
         row = ws.max_row
         ws.row_dimensions[row].height = 19.8
-        for col in range(2, 10):
+        for col in range(2, 12):
             cell = ws.cell(row=row, column=col)
             cell.fill = DARK_BLUE_FILL
             cell.font = ARIAL_11_WHITE_BOLD
             cell.border = get_border(col)
             cell.alignment = Alignment(vertical="center")
-        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=9)
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=11)
 
         # Column Labels Row
         ws.append([""] + _COLUMN_LABELS)
         row = ws.max_row
         ws.row_dimensions[row].height = 54
-        for col in range(2, 10):
+        for col in range(2, 12):
             cell = ws.cell(row=row, column=col)
             cell.font = ARIAL_11_BOLD
             cell.alignment = ALIGN_CENTER
             cell.border = get_border(col)
             
-            # Map columns to colors: 2=NO, 3=LEMBAGA, 4=PERIHAL, 5=APP, 6=AGRI, 7=EF, 8=PROP, 9=TOTAL
-            if col in [2, 3, 4, 9]:
+            # Map columns to colors: 2=NO, 3=TGL, 4=REFF, 5=LEMBAGA, 6=PERIHAL, 7=APP, 8=EF, 9=PROP, 10=AGRI, 11=TOTAL
+            if col in [2, 3, 4, 5, 6, 11]:
                 cell.fill = DARK_BLUE_FILL
                 cell.font = ARIAL_11_WHITE_BOLD
-            elif col == 5: cell.fill = APP_FILL
-            elif col == 6: cell.fill = EF_FILL
-            elif col == 7: cell.fill = PROP_FILL
-            elif col == 8: cell.fill = AGRI_FILL
+            elif col == 7: cell.fill = APP_FILL
+            elif col == 8: cell.fill = EF_FILL
+            elif col == 9: cell.fill = PROP_FILL
+            elif col == 10: cell.fill = AGRI_FILL
 
     if not data["sections"]:
         _write_section_headers()
@@ -98,18 +100,18 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str) -> bytes:
         ws.append(["", section["description"].upper()])
         row = ws.max_row
         ws.row_dimensions[row].height = 19.8
-        for col in range(2, 10):
+        for col in range(2, 12):
             cell = ws.cell(row=row, column=col)
             cell.fill = YELLOW_FILL
             cell.font = ARIAL_11_BOLD
             cell.border = get_border(col)
             cell.alignment = Alignment(vertical="center")
-        # ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=9) # Not merged, matching earlier
+        # ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=11) # Not merged, matching earlier
 
         # Data Rows
         for r in section["rows"]:
             ws.append(["", 
-                r["no"], r["lembaga_perorangan"], r["perihal"] or "",
+                r["no"], r.get("tanggal_payment", ""), str(r.get("reff", "")), r["lembaga_perorangan"], r["perihal"] or "",
                 r["app_amount"], r["energy_finance_amount"], r["property_amount"], r["agri_amount"], r["total"]
             ])
             row = ws.max_row
@@ -121,80 +123,83 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str) -> bytes:
             row_height = 34.5 + (extra_lines * 15.0)
             ws.row_dimensions[row].height = row_height
             
-            for col in range(2, 10):
+            for col in range(2, 12):
                 cell = ws.cell(row=row, column=col)
                 cell.font = ARIAL_11
                 cell.border = get_border(col)
                 cell.alignment = Alignment(vertical="center")
-                if col >= 5:
+                if col >= 7:
                     cell.number_format = _NUM_FMT
                     cell.alignment = ALIGN_RIGHT
             
             ws.cell(row=row, column=2).alignment = ALIGN_CENTER
             ws.cell(row=row, column=3).alignment = ALIGN_WRAP
             ws.cell(row=row, column=4).alignment = ALIGN_WRAP
+            ws.cell(row=row, column=5).alignment = ALIGN_WRAP
+            ws.cell(row=row, column=6).alignment = ALIGN_WRAP
 
         # Subtotal Row
         sub = section["subtotal"]
         ws.append(["", 
-            f"TOTAL {section['description'].upper()}", "", "",
+            f"TOTAL {section['description'].upper()}", "", "", "", "",
             sub["app_amount"], sub["energy_finance_amount"], sub["property_amount"], sub["agri_amount"], sub["total"]
         ])
         row = ws.max_row
         ws.row_dimensions[row].height = 19.8
-        for col in range(2, 10):
+        for col in range(2, 12):
             cell = ws.cell(row=row, column=col)
             cell.fill = YELLOW_FILL
             cell.font = ARIAL_11_BOLD
             cell.border = get_border(col)
             cell.alignment = Alignment(vertical="center")
-            if col >= 5:
+            if col >= 7:
                 cell.number_format = _NUM_FMT
                 cell.alignment = ALIGN_RIGHT
 
     # Grand Total
     gt = data["grand_total"]
     ws.append(["", 
-        "TOTAL SPONSORSHIP (ACTUAL)", "", "",
+        "TOTAL SPONSORSHIP (ACTUAL)", "", "", "", "",
         gt["app_amount"], gt["energy_finance_amount"], gt["property_amount"], gt["agri_amount"], gt["total"]
     ])
     row = ws.max_row
     ws.row_dimensions[row].height = 19.8
-    for col in range(2, 10):
+    for col in range(2, 12):
         cell = ws.cell(row=row, column=col)
         cell.fill = DARK_BLUE_FILL
         cell.font = ARIAL_11_WHITE_BOLD
         cell.border = get_border(col)
         cell.alignment = Alignment(vertical="center")
-        if col >= 5:
+        if col >= 7:
             cell.number_format = _NUM_FMT
             cell.alignment = ALIGN_RIGHT
 
     # PCT Allocation
     pct = data["pct_allocation"]
     ws.append(["", 
-        "% Allocation", "", "",
+        "", "", "", "", "% Allocation",
         f"{pct['app_amount']}%", f"{pct['energy_finance_amount']}%", f"{pct['property_amount']}%", f"{pct['agri_amount']}%", ""
     ])
     row = ws.max_row
     ws.row_dimensions[row].height = 19.8
-    for col in range(2, 10):
+    for col in range(2, 12):
         cell = ws.cell(row=row, column=col)
-        cell.font = ARIAL_11_BOLD
+        cell.font = PCT_FONT
+        cell.fill = PCT_FILL
         cell.border = get_border(col)
-        cell.alignment = Alignment(vertical="center")
-        if col >= 5:
-            cell.alignment = ALIGN_RIGHT
+        cell.alignment = ALIGN_RIGHT
 
     ws.column_dimensions["A"].width = 2
     ws.column_dimensions["B"].width = 5
-    ws.column_dimensions["C"].width = 40
-    ws.column_dimensions["D"].width = 50
-    ws.column_dimensions["E"].width = 20
-    ws.column_dimensions["F"].width = 20
-    ws.column_dimensions["G"].width = 22.08  # ~300 pixels
-    ws.column_dimensions["H"].width = 20
-    ws.column_dimensions["I"].width = 20
+    ws.column_dimensions["C"].width = 15   # TANGGAL PAYMENT
+    ws.column_dimensions["D"].width = 15   # REFF
+    ws.column_dimensions["E"].width = 40   # LEMBAGA
+    ws.column_dimensions["F"].width = 50   # PERIHAL
+    ws.column_dimensions["G"].width = 20   # APP
+    ws.column_dimensions["H"].width = 20   # ENERGY
+    ws.column_dimensions["I"].width = 22.08 # PROPERTY
+    ws.column_dimensions["J"].width = 20   # AGRI
+    ws.column_dimensions["K"].width = 20   # TOTAL
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -246,36 +251,131 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
     ws = wb.active
     ws.title = "Outstanding Sponsorship"
     
-    headers = ["Kategori", "Tanggal", "Lembaga/Perorangan", "Amount Request", "Status"]
+    # Enable grid lines
+    ws.views.sheetView[0].showGridLines = True
+    
+    # Styles matching outstanding.html
+    hdr_fill = PatternFill("solid", fgColor="1E3A8A")
+    grand_fill = PatternFill("solid", fgColor="256D7B")
+    sec_fill = PatternFill("solid", fgColor="5B929E")
+    zebra_fill = PatternFill("solid", fgColor="F8FAFC")
+    
+    font_hdr = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+    font_bold_white = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+    font_regular = Font(name="Arial", size=10)
+    
+    thin_side = Side(style="thin", color="D1D5DB")
+    cell_border = Border(top=thin_side, bottom=thin_side, left=thin_side, right=thin_side)
+    
+    align_center = Alignment(horizontal="center", vertical="center")
+    align_left = Alignment(horizontal="left", vertical="center")
+    align_right = Alignment(horizontal="right", vertical="center")
+    
+    headers = [
+        "NO",
+        "Tanggal Approval",
+        "Reff",
+        "LEMBAGA/ PERORANGAN",
+        "PERIHAL",
+        "Amount in Rp",
+        "Status Sponsor"
+    ]
+    num_cols = len(headers)
+    
+    # Header row
     ws.append(headers)
-    
-    for col in range(1, len(headers) + 1):
-        cell = ws.cell(row=1, column=col)
-        cell.fill = _HEADER_FILL
-        cell.font = _HEADER_FONT
-    
+    ws.row_dimensions[1].height = 24
+    for col_idx in range(1, num_cols + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = hdr_fill
+        cell.font = font_hdr
+        cell.border = cell_border
+        if col_idx in [1, 2, 3, 7]:
+            cell.alignment = align_center
+        elif col_idx in [4, 5]:
+            cell.alignment = align_left
+        elif col_idx == 6:
+            cell.alignment = align_right
+
+    # Grand Total row (matching outstanding.html top row)
+    ws.append(["Total Outstanding Sponsorship", "", "", "", "", grand_total, ""])
+    gt_row = ws.max_row
+    ws.row_dimensions[gt_row].height = 22
+    ws.merge_cells(start_row=gt_row, start_column=1, end_row=gt_row, end_column=5)
+    for col_idx in range(1, num_cols + 1):
+        cell = ws.cell(row=gt_row, column=col_idx)
+        cell.fill = grand_fill
+        cell.font = font_bold_white
+        cell.border = cell_border
+        if col_idx == 1:
+            cell.alignment = align_left
+        elif col_idx == 6:
+            cell.alignment = align_right
+            cell.number_format = _NUM_FMT
+        elif col_idx == 7:
+            cell.alignment = align_center
+
+    # Section rows
     for section in sections:
-        ws.append([section["cat2_label"]])
-        row_idx = ws.max_row
-        ws.cell(row=row_idx, column=1).font = _SECTION_FONT
-        ws.cell(row=row_idx, column=1).fill = _SECTION_FILL
-        
-        for r in section["rows"]:
-            ws.append(["", r.get("tanggal_form_sponsor"), r.get("lembaga_perorangan"), r.get("amount_request"), r.get("status")])
+        # Category Header row
+        ws.append([section["cat2_label"], "", "", "", "", section["subtotal"], ""])
+        sec_row = ws.max_row
+        ws.row_dimensions[sec_row].height = 20
+        ws.merge_cells(start_row=sec_row, start_column=1, end_row=sec_row, end_column=5)
+        for col_idx in range(1, num_cols + 1):
+            cell = ws.cell(row=sec_row, column=col_idx)
+            cell.fill = sec_fill
+            cell.font = font_bold_white
+            cell.border = cell_border
+            if col_idx == 1:
+                cell.alignment = align_left
+            elif col_idx == 6:
+                cell.alignment = align_right
+                cell.number_format = _NUM_FMT
+            elif col_idx == 7:
+                cell.alignment = align_center
+
+        # Item rows
+        for idx, r in enumerate(section["rows"]):
+            ws.append([
+                r.get("no"),
+                r.get("tanggal_approval") or "",
+                r.get("reff") or "",
+                r.get("lembaga_perorangan") or "",
+                r.get("perihal") or "",
+                r.get("amount") or 0.0,
+                r.get("status") or ""
+            ])
+            r_idx = ws.max_row
+            ws.row_dimensions[r_idx].height = 19
+            is_even = (idx % 2 == 1)
+            row_fill = zebra_fill if is_even else None
             
-        ws.append(["", "", "Subtotal", section["subtotal"], ""])
-        row_idx = ws.max_row
-        for col in range(1, len(headers) + 1):
-            cell = ws.cell(row=row_idx, column=col)
-            cell.font = _SECTION_FONT
-            cell.fill = _SECTION_FILL
-            
-    ws.append(["", "", "Grand Total", grand_total, ""])
-    row_idx = ws.max_row
-    for col in range(1, len(headers) + 1):
-        cell = ws.cell(row=row_idx, column=col)
-        cell.font = _GRANDTOTAL_FONT
-        cell.fill = _GRANDTOTAL_FILL
+            for col_idx in range(1, num_cols + 1):
+                cell = ws.cell(row=r_idx, column=col_idx)
+                cell.font = font_regular
+                cell.border = cell_border
+                if row_fill:
+                    cell.fill = row_fill
+                if col_idx in [1, 2, 3, 7]:
+                    cell.alignment = align_center
+                elif col_idx in [4, 5]:
+                    cell.alignment = align_left
+                elif col_idx == 6:
+                    cell.alignment = align_right
+                    cell.number_format = _NUM_FMT
+
+    # Freeze header + grand total row
+    ws.freeze_panes = "A3"
+
+    # Column widths
+    ws.column_dimensions["A"].width = 7    # NO
+    ws.column_dimensions["B"].width = 18   # Tanggal Approval
+    ws.column_dimensions["C"].width = 16   # Reff
+    ws.column_dimensions["D"].width = 38   # LEMBAGA/ PERORANGAN
+    ws.column_dimensions["E"].width = 44   # PERIHAL
+    ws.column_dimensions["F"].width = 22   # Amount in Rp
+    ws.column_dimensions["G"].width = 18   # Status Sponsor
 
     buf = io.BytesIO()
     wb.save(buf)
