@@ -11,11 +11,17 @@ import http.client
 import json
 import socket
 import threading
+import time
 from urllib.parse import urlparse
 
 from .errors import DatabaseError, OperationalError, from_sqlstate
 
 Result = dict
+
+# Koneksi keep-alive yang idle lebih lama dari ini ditutup dan dibuat ulang SEBELUM mengirim
+# (server/proxy menutup socket idle tanpa sepengetahuan kita; request yang sudah terkirim
+# tidak pernah diulang).
+IDLE_RECONNECT_SECONDS = 25
 
 
 _FLOAT_TYPES = frozenset({"double precision", "real"})
@@ -89,12 +95,19 @@ class HttpBackend:
 
     def _conn(self) -> http.client.HTTPSConnection:
         conn = getattr(self._local, "conn", None)
-        # Buat ulang SEBELUM mengirim kalau koneksi belum ada / sudah ditutup server.
-        if conn is None or conn.sock is None:
+        now = time.monotonic()
+        last = getattr(self._local, "last_used", None)
+        idle = last is not None and now - last > IDLE_RECONNECT_SECONDS
+        # Buat ulang SEBELUM mengirim kalau koneksi belum ada / sudah ditutup / terlalu lama idle.
+        if conn is None or conn.sock is None or idle:
             if conn is not None:
-                conn.close()
+                try:
+                    conn.close()
+                except Exception:
+                    pass
             conn = http.client.HTTPSConnection(self._host, self._port, timeout=self._timeout)
             self._local.conn = conn
+        self._local.last_used = now
         return conn
 
     def _drop_conn(self):
@@ -117,6 +130,7 @@ class HttpBackend:
             resp = conn.getresponse()
             data = resp.read()
             status = resp.status
+            self._local.last_used = time.monotonic()  # idle dihitung dari respons terakhir
         except (socket.timeout, TimeoutError) as e:
             self._drop_conn()
             raise OperationalError(f"fh_exec HTTP timeout setelah {self._timeout}s") from e

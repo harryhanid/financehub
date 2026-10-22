@@ -388,3 +388,53 @@ def test_parse_results_types_conversion_unit():
     assert type(a) is float and type(b) is int and c is None and d != d and type(e) is int
     assert r[1] == {"columns": ["a"], "rows": [[1]]}      # tanpa types: apa adanya
     assert r[2] == {"columns": ["x"], "rows": []}
+
+
+# --- Final fix 1: koneksi keep-alive basi setelah idle ---
+
+def test_http_reconnects_before_send_after_idle(monkeypatch):
+    import http.client
+    import json
+    from fhdb import backends
+
+    created = []
+    now = [1000.0]
+
+    class FakeResp:
+        status = 200
+
+        def read(self):
+            return json.dumps('[{"rowcount":1}]').encode()
+
+    class FakeConn:
+        def __init__(self, host, port=None, timeout=None, **kw):
+            self.sock, self.requests, self.closed = None, 0, False
+            created.append(self)
+
+        def request(self, method, url, body=None, headers=None):
+            self.requests += 1
+            self.sock = object()   # keep-alive: socket tetap "terbuka" setelah request
+
+        def getresponse(self):
+            return FakeResp()
+
+        def close(self):
+            self.closed, self.sock = True, None
+
+    monkeypatch.setattr(http.client, "HTTPSConnection", FakeConn)
+    monkeypatch.setattr(backends.time, "monotonic", lambda: now[0])
+    b = backends.HttpBackend("https://example.supabase.co", "sb_secret_x")
+
+    b.execute_batch(["update t set x=1"], "financehub")
+    assert len(created) == 1
+
+    now[0] += backends.IDLE_RECONNECT_SECONDS - 1          # idle < ambang -> dipakai ulang
+    b.execute_batch(["update t set x=1"], "financehub")
+    assert len(created) == 1 and created[0].requests == 2
+
+    now[0] += backends.IDLE_RECONNECT_SECONDS + 1          # idle > ambang -> koneksi baru
+    b.execute_batch(["update t set x=1"], "financehub")
+    assert len(created) == 2
+    assert created[0].closed and created[0].requests == 2  # yang lama ditutup, tidak dikirim ulang
+    assert created[1].requests == 1                        # tepat satu request per panggilan
+    assert backends.IDLE_RECONNECT_SECONDS == 25
