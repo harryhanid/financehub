@@ -1,7 +1,6 @@
 import os, sys, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_finance_hub.db")
 
 from database import init_db, get_conn
 from modules.payment_memo.service import (
@@ -12,23 +11,15 @@ from modules.payment_memo.service import (
 COMPANY_ID   = 2  # ETF
 COMPANY_CODE = "ETF"
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-    init_db()
-    yield
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
+# Postgres: reset DB per test oleh fixture autouse conftest.clean_db (schema test + init_db()).
 
 def _add_draft_payment(siswa_code="1250001", amount=5000000):
     conn = get_conn()
-    conn.execute(
+    last_id = conn.execute(
         "INSERT INTO payment_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, perusahaan, status) "
         "VALUES (?,?,?,?,?,?,?,?,'open')",
         (COMPANY_ID, siswa_code, "By Pendidikan", "Semester 1", "2025-06-01", amount, "AGRI", "PT. SMART Tbk")
-    )
-    last_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
     conn.commit(); conn.close()
     return last_id
 
@@ -63,7 +54,7 @@ def test_get_draft_payments_includes_pam_record_id_for_non_beasiswa_source():
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, source, created_at)
-           VALUES (?, 'PAM-DRAFT-OTHERS-1', '2025-06-01', 'Test others draft', 1000000, 'open', 'AGRI', 'others', datetime('now'))""",
+           VALUES (?, 'PAM-DRAFT-OTHERS-1', '2025-06-01', 'Test others draft', 1000000, 'open', 'AGRI', 'others', to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))""",
         (COMPANY_ID,)
     )
     pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-DRAFT-OTHERS-1'").fetchone()["id"]
@@ -126,7 +117,7 @@ def test_set_pam_complete_cascade_syncs_setf_to_bank_setf():
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, source, created_at)
-           VALUES (2, 'PAM-CASCADE-SETF-1', '2026-07-01', 'Test cascade sync', 1200000, 'open', 'SETF', 'others', datetime('now'))"""
+           VALUES (2, 'PAM-CASCADE-SETF-1', '2026-07-01', 'Test cascade sync', 1200000, 'open', 'SETF', 'others', to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))"""
     )
     pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-CASCADE-SETF-1'").fetchone()["id"]
     conn.commit()
@@ -148,7 +139,7 @@ def test_update_pam_status_syncs_setf_to_bank_setf_when_completed():
     conn.execute(
         """INSERT INTO pam_records
            (company_id, pam_no, pam_date, keterangan, total_amount, status, pillar, created_at)
-           VALUES (2, 'PAM-STATUS-SETF-1', '2026-07-01', 'Test status sync', 900000, 'open', 'SETF', datetime('now'))"""
+           VALUES (2, 'PAM-STATUS-SETF-1', '2026-07-01', 'Test status sync', 900000, 'open', 'SETF', to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS'))"""
     )
     pam_id = conn.execute("SELECT id FROM pam_records WHERE pam_no='PAM-STATUS-SETF-1'").fetchone()["id"]
     conn.commit()

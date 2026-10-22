@@ -29,22 +29,17 @@ def _pb_lock_stmt(company_id: int) -> tuple:
 
 
 def generate_memo_number(company_id: int, company_code: str, year: str) -> str:
-    prefix  = f"PAM/{company_code}/{year}/"
-    pattern = re.compile(rf"PAM/{re.escape(company_code)}/{re.escape(year)}/(\d+)")
+    # Postgres (atomic-flows.md Task 17): nomor dihitung oleh fn_next_memo_no (db_migrations/
+    # 0004_fn_payment_memo_numbering.sql) -- aturan sama persis (regex max+1 per company/kode/tahun,
+    # minimal 3 digit). Di sini hanya PREVIEW: advisory lock fungsi dilepas di akhir panggilan ini.
+    # create_memo memanggil fn_next_memo_no DI DALAM INSERT payment_memo-nya sendiri.
     conn = get_conn()
-    rows = conn.execute(
-        "SELECT memo_number FROM payment_memo WHERE company_id = ? AND memo_number LIKE ?",
-        (company_id, prefix + "%")
-    ).fetchall()
+    row = conn.execute(
+        "SELECT fn_next_memo_no(?, ?, ?) AS memo_number",
+        (company_id, company_code, year)
+    ).fetchone()
     conn.close()
-    max_seq = 0
-    for row in rows:
-        m = pattern.match(row["memo_number"])
-        if m:
-            seq = int(m.group(1))
-            if seq > max_seq:
-                max_seq = seq
-    return f"{prefix}{max_seq + 1:03d}"
+    return row["memo_number"]
 
 
 def get_draft_payments(company_id: int) -> list:
@@ -57,7 +52,7 @@ def get_draft_payments(company_id: int) -> list:
            LEFT JOIN siswa s  ON s.company_id  = pb.company_id AND s.code   = pb.siswa_code
            LEFT JOIN pam_records pr ON pr.pam_no = pb.pam AND pr.company_id = pb.company_id
            WHERE pb.company_id = ? AND pb.status = 'open'
-           ORDER BY pb.tanggal DESC""",
+           ORDER BY pb.tanggal DESC NULLS LAST""",
         (company_id,)
     ).fetchall()]
     # Rows dari pam_records untuk source others/tagihan/sponsor
@@ -72,7 +67,7 @@ def get_draft_payments(company_id: int) -> list:
            FROM pam_records
            WHERE company_id = ? AND source IN ('others', 'tagihan', 'sponsor')
            AND status = 'open'
-           ORDER BY pam_date DESC""",
+           ORDER BY pam_date DESC NULLS LAST""",
         (company_id,)
     ).fetchall()]
     conn.close()
@@ -84,40 +79,47 @@ def create_memo(company_id: int, company_code: str, tanggal: str,
     if not items:
         return {"ok": False, "pesan": "Pilih minimal 1 payment untuk dimasukkan ke memo."}
     year        = (tanggal or datetime.now().strftime("%Y"))[:4]
-    memo_number = generate_memo_number(company_id, company_code, year)
     total       = sum(float(item.get("amount", 0)) for item in items)
     conn = get_conn()
     try:
-        cur = conn.execute(
-            """INSERT INTO payment_memo
+        # Atomik (atomic-flows.md Task 17): SATU batch. memo_number dialokasikan di dalam INSERT oleh
+        # fn_next_memo_no (advisory lock 'memo_number:<code>:<year>' sampai commit); item dan
+        # payment_beasiswa memakai id memo baru lewat currval. Batch yang menulis payment_beasiswa
+        # diawali kunci bersama beasiswa_pb_delete:<company_id> (R51).
+        memo_currval = ("currval(pg_get_serial_sequence("
+                        "quote_ident(current_schema()) || '.\"payment_memo\"', 'id'))")
+        stmts = [
+            _pb_lock_stmt(company_id),
+            ("""INSERT INTO payment_memo
                (company_id, memo_number, tanggal, total_amount, status, notes, created_by, created_at)
-               VALUES (?,?,?,?,'open',?,?,?)""",
-            (company_id, memo_number, tanggal, total, notes, created_by, _ts())
-        )
-        memo_id = cur.lastrowid
+               VALUES (?,fn_next_memo_no(?,?,?),?,?,'open',?,?,?)
+               RETURNING id, memo_number""",
+             (company_id, company_id, company_code, year, tanggal, total, notes, created_by, _ts())),
+        ]
         for item in items:
-            conn.execute(
-                """INSERT INTO payment_memo_items
+            stmts.append((
+                f"""INSERT INTO payment_memo_items
                    (memo_id, source_module, source_id, description, amount, vendor, bank_account)
-                   VALUES (?,?,?,?,?,?,?)""",
-                (memo_id,
-                 item.get("source_module", "beasiswa"),
+                   VALUES ({memo_currval},?,?,?,?,?,?)""",
+                (item.get("source_module", "beasiswa"),
                  item["source_id"],
                  item.get("description", ""),
                  float(item.get("amount", 0)),
                  item.get("vendor", ""),
                  item.get("bank_account", ""))
-            )
+            ))
             if item.get("source_module", "beasiswa") == "beasiswa":
-                conn.execute(
-                    "UPDATE payment_beasiswa SET status='on_process', memo_id=? WHERE id=?",
-                    (memo_id, item["source_id"])
-                )
-        conn.commit()
+                stmts.append((
+                    f"UPDATE payment_beasiswa SET status='on_process', memo_id={memo_currval} WHERE id=?",
+                    (item["source_id"],)
+                ))
+        memo = conn.batch(stmts)[1].fetchone()
+        memo_id, memo_number = memo["id"], memo["memo_number"]
         return {"ok": True, "memo_id": memo_id, "memo_number": memo_number,
                 "pesan": f"Memo {memo_number} berhasil dibuat."}
+    except OperationalError:
+        raise  # R25: DB tidak terjangkau -> handler 503 aplikasi
     except Exception as e:
-        conn.rollback()
         return {"ok": False, "pesan": f"Gagal membuat memo: {e}"}
     finally:
         conn.close()
@@ -129,7 +131,7 @@ def get_memo_list(company_id: int, status: str = "") -> list:
     if status:
         sql    += " AND status = ?"
         params += [status]
-    sql += " ORDER BY created_at DESC"
+    sql += " ORDER BY created_at DESC NULLS LAST"
     conn = get_conn()
     rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
     conn.close()
@@ -220,44 +222,38 @@ def set_memo_tanggal_bayar(memo_id: int, tanggal_bayar: str, company_id: int) ->
         return {"ok": False, "pesan": "Memo tidak ditemukan."}
 
     now = _ts()
+    conn.close()
 
-    # 1. Update payment_memo
-    conn.execute(
-        "UPDATE payment_memo SET tanggal_bayar=?, status='complete', updated_at=? WHERE id=?",
-        (tanggal_bayar, now, memo_id)
-    )
-
-    # 2. Update payment_beasiswa status
-    conn.execute(
-        "UPDATE payment_beasiswa SET status='complete' WHERE memo_id=?",
-        (memo_id,)
-    )
-
+    # Atomik (atomic-flows.md Task 17): SATU batch, diawali kunci bersama beasiswa_pb_delete (R51)
+    # karena menulis payment_beasiswa. line_ids (dulu dibaca di Python di tengah alur) kini subquery di
+    # tiap UPDATE PA; UPDATE pb sebelumnya tidak mengubah etf_pa_line_id, jadi himpunannya sama.
+    stmts = [
+        _pb_lock_stmt(company_id),
+        # 1. Update payment_memo
+        ("UPDATE payment_memo SET tanggal_bayar=?, status='complete', updated_at=? WHERE id=?",
+         (tanggal_bayar, now, memo_id)),
+        # 2. Update payment_beasiswa status
+        ("UPDATE payment_beasiswa SET status='complete' WHERE memo_id=?", (memo_id,)),
+    ]
     # 3. Cascade ke semua PA tables yang di-referensi
-    lines = conn.execute(
-        "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa WHERE memo_id=? AND etf_pa_line_id IS NOT NULL",
-        (memo_id,)
-    ).fetchall()
-    line_ids = [r[0] for r in lines]
-
-    if line_ids:
-        ph = ",".join("?" * len(line_ids))
-        for lines_tbl, pa_tbl in [
-            ("etf_pa_lines",    "etf_pa"),
-            ("app_pa_lines",    "app_pa"),
-            ("sml_pa_lines",    "sml_pa"),
-            ("energy_pa_lines", "energy_pa"),
-            ("setf_pa_lines",   "setf_pa"),
-        ]:
-            conn.execute(
-                f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status='complete', updated_at=?
-                    WHERE id IN (
-                        SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})
-                    ) AND company_id=?""",
-                [tanggal_bayar, now] + line_ids + [company_id]
-            )
-
-    conn.commit()
+    for lines_tbl, pa_tbl in [
+        ("etf_pa_lines",    "etf_pa"),
+        ("app_pa_lines",    "app_pa"),
+        ("sml_pa_lines",    "sml_pa"),
+        ("energy_pa_lines", "energy_pa"),
+        ("setf_pa_lines",   "setf_pa"),
+    ]:
+        stmts.append((
+            f"""UPDATE {pa_tbl} SET tanggal_bayar=?, status='complete', updated_at=?
+                WHERE id IN (
+                    SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN (
+                        SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa
+                        WHERE memo_id=? AND etf_pa_line_id IS NOT NULL)
+                ) AND company_id=?""",
+            (tanggal_bayar, now, memo_id, company_id)
+        ))
+    conn = get_conn()
+    conn.batch(stmts)
     conn.close()
     return {"ok": True, "pesan": "Tanggal bayar berhasil disimpan."}
 
@@ -1644,7 +1640,7 @@ def get_pam_payments_detail(pam_no: str, company_id: int) -> list:
                WHEN 'S2' THEN 2
                WHEN 'S1' THEN 3
                ELSE 99
-           END, pb.siswa_code, pb.id
+           END, pb.siswa_code NULLS FIRST, pb.id
            -- approximate pre-sort only; Python sort below is authoritative""",
         (pam_no, company_id)
     ).fetchall()]
@@ -2006,6 +2002,9 @@ def update_draft_and_linked(payment_id: int, pb_data: dict,
     if not pb:
         conn.close()
         return {"ok": False, "pesan": "Payment tidak ditemukan."}
+    # Atomik (atomic-flows.md Task 17): tiga UPDATE independen dalam SATU batch, diawali kunci
+    # bersama beasiswa_pb_delete (R51) karena menulis payment_beasiswa / pam_records.
+    stmts = []
     _PB = ("cat1", "cat2", "tanggal", "amount", "pillar", "perusahaan",
            "tgl_pengajuan", "tgl_receive", "tgl_pa", "tgl_final")
     f, p = [], []
@@ -2013,10 +2012,10 @@ def update_draft_and_linked(payment_id: int, pb_data: dict,
         if k in pb_data and pb_data[k] is not None:
             f.append(f"{k}=?"); p.append(pb_data[k])
     if f:
-        conn.execute(
+        stmts.append((
             f"UPDATE payment_beasiswa SET {','.join(f)} WHERE id=? AND company_id=?",
             p + [payment_id, company_id]
-        )
+        ))
     if pb["pam"] and pam_data:
         _PAM = ("keterangan", "requestors_name", "total_amount", "due_date", "pam_date")
         f2, p2 = [], []
@@ -2024,10 +2023,10 @@ def update_draft_and_linked(payment_id: int, pb_data: dict,
             if k in pam_data and pam_data[k] is not None:
                 f2.append(f"{k}=?"); p2.append(pam_data[k])
         if f2:
-            conn.execute(
+            stmts.append((
                 f"UPDATE pam_records SET {','.join(f2)}, updated_at=? WHERE pam_no=? AND company_id=?",
                 p2 + [_ts(), pb["pam"], company_id]
-            )
+            ))
     if pb["memo_id"] and app_data:
         _APP = ("submitted_at", "target_payment_date", "actual_payment_date", "notes", "status")
         fa, pa = [], []
@@ -2035,11 +2034,12 @@ def update_draft_and_linked(payment_id: int, pb_data: dict,
             if k in app_data and app_data[k] is not None:
                 fa.append(f"{k}=?"); pa.append(app_data[k])
         if fa:
-            conn.execute(
+            stmts.append((
                 f"UPDATE payment_application SET {','.join(fa)} WHERE memo_id=? AND company_id=?",
                 pa + [pb["memo_id"], company_id]
-            )
-    conn.commit()
+            ))
+    if stmts:
+        conn.batch([_pb_lock_stmt(company_id)] + stmts)
     conn.close()
     return {"ok": True, "pesan": "Data payment berhasil diperbarui."}
 
@@ -2248,16 +2248,16 @@ def get_fiori_list(search: str = "", bulan: str = "", tahun: str = "") -> list:
     sql  = "SELECT * FROM fiori_pa WHERE 1=1"
     params = []
     if search:
-        sql += " AND (no_pa LIKE ? OR nama_vendor LIKE ? OR keterangan LIKE ?)"
+        sql += " AND (no_pa ILIKE ? OR nama_vendor ILIKE ? OR keterangan ILIKE ?)"
         like = f"%{search}%"
         params += [like, like, like]
     if bulan:
-        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        sql += " AND (terima_document ILIKE ? OR approval_1 ILIKE ?)"
         params += [f"%-{bulan}-%", f"%-{bulan}-%"]
     if tahun:
-        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        sql += " AND (terima_document ILIKE ? OR approval_1 ILIKE ?)"
         params += [f"{tahun}-%", f"{tahun}-%"]
-    sql += " ORDER BY terima_document DESC, id DESC"
+    sql += " ORDER BY terima_document DESC NULLS LAST, id DESC"
     rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
     conn.close()
     return rows
@@ -2268,16 +2268,16 @@ def get_sml_list(search: str = "", bulan: str = "", tahun: str = "") -> list:
     sql  = "SELECT * FROM sml_pa WHERE 1=1"
     params = []
     if search:
-        sql += " AND (no_pa LIKE ? OR nama_vendor LIKE ? OR keterangan LIKE ?)"
+        sql += " AND (no_pa ILIKE ? OR nama_vendor ILIKE ? OR keterangan ILIKE ?)"
         like = f"%{search}%"
         params += [like, like, like]
     if bulan:
-        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        sql += " AND (terima_document ILIKE ? OR approval_1 ILIKE ?)"
         params += [f"%-{bulan}-%", f"%-{bulan}-%"]
     if tahun:
-        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        sql += " AND (terima_document ILIKE ? OR approval_1 ILIKE ?)"
         params += [f"{tahun}-%", f"{tahun}-%"]
-    sql += " ORDER BY terima_document DESC, id DESC"
+    sql += " ORDER BY terima_document DESC NULLS LAST, id DESC"
     rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
     conn.close()
     return rows
@@ -2389,19 +2389,19 @@ def get_energy_list(search: str = "", bulan: str = "", tahun: str = "",
     sql  = "SELECT * FROM energy_pa WHERE 1=1"
     params = []
     if search:
-        sql += " AND (no_pa LIKE ? OR nama_vendor LIKE ? OR keterangan LIKE ?)"
+        sql += " AND (no_pa ILIKE ? OR nama_vendor ILIKE ? OR keterangan ILIKE ?)"
         like = f"%{search}%"
         params += [like, like, like]
     if bulan:
-        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        sql += " AND (terima_document ILIKE ? OR approval_1 ILIKE ?)"
         params += [f"%-{bulan}-%", f"%-{bulan}-%"]
     if tahun:
-        sql += " AND (terima_document LIKE ? OR approval_1 LIKE ?)"
+        sql += " AND (terima_document ILIKE ? OR approval_1 ILIKE ?)"
         params += [f"{tahun}-%", f"{tahun}-%"]
     if status:
         sql += " AND status = ?"
         params += [status]
-    sql += " ORDER BY terima_document DESC, id DESC"
+    sql += " ORDER BY terima_document DESC NULLS LAST, id DESC"
     rows = [dict(r) for r in conn.execute(sql, params).fetchall()]
     conn.close()
     return rows

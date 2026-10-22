@@ -231,7 +231,7 @@ def _seed_pam_payment(client):
     from database import get_conn
     conn = get_conn()
     conn.execute(
-        "INSERT OR IGNORE INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+        "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?) ON CONFLICT DO NOTHING",
         (2, "S001", "Budi")
     )
     conn.execute(
@@ -297,7 +297,7 @@ def _seed_dop_row(company_id=2, pam_no="PAM-001-ETF-05-2026",
     conn = get_conn()
     try:
         conn.execute(
-            "INSERT OR IGNORE INTO siswa (company_id, code, nama) VALUES (?,?,?)",
+            "INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?) ON CONFLICT DO NOTHING",
             (company_id, siswa_code, nama)
         )
         conn.execute(
@@ -307,7 +307,7 @@ def _seed_dop_row(company_id=2, pam_no="PAM-001-ETF-05-2026",
             (company_id, siswa_code, "General", "2026-05-01", 3000000.0, pam_no)
         )
         conn.execute(
-            "INSERT OR IGNORE INTO pam_records (company_id, pam_no, source) VALUES (?,?,?)",
+            "INSERT INTO pam_records (company_id, pam_no, source) VALUES (?,?,?) ON CONFLICT DO NOTHING",
             (company_id, pam_no, source)
         )
         conn.commit()

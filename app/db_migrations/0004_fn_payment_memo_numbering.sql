@@ -58,3 +58,46 @@ begin
            || ''-'' || p_company_code || ''-'' || p_month || ''-'' || p_year;
 end
 ';
+
+
+-- Alokasi nomor memo (payment_memo.memo_number UNIQUE) untuk create_memo (atomic-flows.md Task 17).
+-- Dulu generate_memo_number membaca memo_number yang cocok di koneksi sendiri, mengambil max di
+-- Python, lalu create_memo INSERT di panggilan lain (race -> nomor kembar). Sekarang dipanggil DI
+-- DALAM INSERT payment_memo pada satu conn.batch; advisory lock 'memo_number:<code>:<year>' ditahan
+-- sampai batch commit.
+-- Perilaku sama persis dengan generate_memo_number:
+--   * kandidat: payment_memo milik p_company_id yang cocok regex Python
+--     re.match(r'PAM/<code>/<year>/(\d+)') (berlabuh di awal, tidak di akhir; kode/tahun di-escape
+--     seperti re.escape). Regex itu case-sensitive dan setiap kecocokannya pasti juga lolos filter
+--     SQLite `LIKE 'PAM/<code>/<year>/%'`, jadi filter LIKE tidak menambah/mengurangi kandidat.
+--   * hasil: 'PAM/<code>/<year>/' || (max+1, minimal 3 digit, tidak dipotong kalau > 999).
+create or replace function {{schema}}.fn_next_memo_no(
+    p_company_id bigint,
+    p_company_code text,
+    p_year text
+)
+returns text
+language plpgsql
+volatile
+as '
+declare
+    v_re  text;
+    v_max numeric;
+    v_next text;
+begin
+    perform pg_advisory_xact_lock(hashtext(''memo_number:'' || p_company_code || '':'' || p_year));
+    v_re := ''^PAM/''
+            || regexp_replace(p_company_code, ''([^A-Za-z0-9_])'', ''\\1'', ''g'')
+            || ''/''
+            || regexp_replace(p_year, ''([^A-Za-z0-9_])'', ''\\1'', ''g'')
+            || ''/([0-9]+)'';
+    select coalesce(max(substring("memo_number" from v_re)::numeric), 0)
+      into v_max
+      from {{schema}}."payment_memo"
+     where "company_id" = p_company_id
+       and "memo_number" ~ v_re;
+    v_next := (v_max + 1)::text;
+    return ''PAM/'' || p_company_code || ''/'' || p_year || ''/''
+           || lpad(v_next, greatest(3, length(v_next)), ''0'');
+end
+';

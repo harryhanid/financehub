@@ -37,6 +37,7 @@ from modules.payment_memo.exports import (
     export_sml_excel,
 )
 from datetime import datetime
+from fhdb.errors import OperationalError
 import config, io
 def _handle_pam_attachment_upload(pam_no: str, result: dict):
     from flask import request
@@ -58,16 +59,22 @@ def _handle_pam_attachment_upload(pam_no: str, result: dict):
             file_id = upload_file_to_gdrive(f, f.filename, f.mimetype, folder_id)
             if file_id: uploaded_ids.append(file_id)
         if uploaded_ids:
+            # Postgres (atomic-flows.md § Rantai lintas fungsi 2): baca-ubah-tulis jadi SATU UPDATE
+            # (dulu SELECT lalu UPDATE terpisah; dua upload bersamaan bisa saling menimpa). Hasil sama:
+            # existing kosong/NULL -> id baru saja, selain itu existing + "," + id baru. pam_no UNIQUE.
             conn = get_conn()
-            row = conn.execute("SELECT id, attachment_file_id FROM pam_records WHERE pam_no=?", (pam_no,)).fetchone()
-            if row:
-                pam_id = row[0]
-                existing = row[1]
-                new_val = ",".join(uploaded_ids)
-                if existing: new_val = existing + "," + new_val
-                conn.execute("UPDATE pam_records SET attachment_file_id=? WHERE id=?", (new_val, pam_id))
-                conn.commit()
-            conn.close()
+            try:
+                conn.execute(
+                    "UPDATE pam_records SET attachment_file_id ="
+                    " COALESCE(NULLIF(attachment_file_id, '') || ',', '') || ? WHERE pam_no=?",
+                    (",".join(uploaded_ids), pam_no)
+                )
+            finally:
+                conn.close()
+    except OperationalError:
+        # R25: DB tidak terjangkau -> handler 503 aplikasi. Jangan laporkan sukses saat file sudah di
+        # Drive tetapi tautannya ke pam_records hilang.
+        raise
     except Exception as e:
         result["pesan"] += f" (Upload GDrive gagal: {str(e)})"
 
@@ -755,6 +762,8 @@ def ipay_next_pam_no():
     try:
         pam_no = get_next_pam_no(company_id, company_code, tab, date_str)
         return jsonify({"ok": True, "pam_no": pam_no})
+    except OperationalError:
+        raise  # R25: DB tidak terjangkau -> handler 503 aplikasi
     except Exception as e:
         return jsonify({"ok": False, "pam_no": f"ERROR-{e}"}), 500
 

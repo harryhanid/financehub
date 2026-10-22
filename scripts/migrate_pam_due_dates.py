@@ -1,9 +1,6 @@
 import argparse
 import os
-import shutil
-import sqlite3
 import sys
-from datetime import datetime
 
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 app_dir = os.path.join(base_dir, "app")
@@ -12,17 +9,22 @@ sys.path.insert(0, app_dir)
 from modules.payment_memo.service import _workday
 
 
-def migrate(db_path: str, skip_backup: bool) -> None:
+def migrate(skip_backup: bool = False) -> None:
+    """Hitung ulang pam_records.due_date = WORKDAY(pam_date, 8) di DB aplikasi (database.get_conn).
+
+    Postgres (migrasi Supabase): DB bukan lagi file SQLite, jadi salinan `.bak` file tidak berlaku;
+    backup dilakukan lewat backup Supabase/flow_backup sebelum menjalankan skrip ini. Semua UPDATE
+    dikirim sebagai satu panggilan atomik (executemany): semua baris berubah atau tidak sama sekali.
+    """
+    from database import get_conn
+
     if not skip_backup:
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = f"{db_path}.bak_before_due_date_migration_{ts}"
-        shutil.copy2(db_path, backup_path)
-        print(f"Backup created: {backup_path}")
+        print("Catatan: DB Postgres -- pastikan backup DB sudah dibuat sebelum migrasi ini.")
 
-    conn = sqlite3.connect(db_path)
-    rows = conn.execute("SELECT id, pam_date, due_date FROM pam_records").fetchall()
+    conn = get_conn()
+    rows = conn.execute("SELECT id, pam_date, due_date FROM pam_records ORDER BY id").fetchall()
 
-    updated = 0
+    updates = []
     unchanged = 0
     for pam_id, pam_date, old_due_date in rows:
         try:
@@ -31,26 +33,19 @@ def migrate(db_path: str, skip_backup: bool) -> None:
             print(f"Skipping pam_records.id={pam_id}: could not compute due_date from pam_date={pam_date!r} ({e})")
             continue
         if new_due_date != old_due_date:
-            conn.execute("UPDATE pam_records SET due_date = ? WHERE id = ?", (new_due_date, pam_id))
-            updated += 1
+            updates.append((new_due_date, pam_id))
         else:
             unchanged += 1
-    conn.commit()
+    if updates:
+        conn.executemany("UPDATE pam_records SET due_date = ? WHERE id = ?", updates)
     conn.close()
 
-    print(f"Migration complete: {updated} row(s) updated, {unchanged} row(s) already correct.")
+    print(f"Migration complete: {len(updates)} row(s) updated, {unchanged} row(s) already correct.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db-path", default=None, help="Override the database path (defaults to config.DB_PATH)")
-    parser.add_argument("--skip-backup", action="store_true", help="Skip creating a .bak copy first (used by tests)")
+    parser.add_argument("--skip-backup", action="store_true", help="Skip the backup reminder (used by tests)")
     args = parser.parse_args()
 
-    if args.db_path:
-        db_path = args.db_path
-    else:
-        import config
-        db_path = config.DB_PATH
-
-    migrate(db_path, args.skip_backup)
+    migrate(args.skip_backup)

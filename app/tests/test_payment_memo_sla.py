@@ -1,22 +1,17 @@
 import os, sys, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_sla.db")
 
 from database import init_db, get_conn
 from modules.payment_memo.service import get_days_of_pam
 
 COMPANY_ID = 2  # ETF
 
+# Postgres: reset DB per test oleh fixture autouse conftest.clean_db; seed sesudahnya.
 @pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-    init_db()
+def _seed_data(clean_db):
     _seed(get_conn())
     yield
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
 
 def _seed(conn):
     conn.execute("INSERT INTO siswa (company_id, code, nama) VALUES (?,?,?)",
