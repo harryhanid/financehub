@@ -599,7 +599,7 @@ def export_dashboard_bulanan_excel(
     if not years:
         conn = get_conn()
         y_rows = conn.execute(
-            "SELECT DISTINCT strftime('%Y', tanggal) AS y FROM payment_beasiswa WHERE company_id = ? AND tanggal IS NOT NULL AND tanggal != '' ORDER BY y ASC",
+            "SELECT DISTINCT fh_strftime('%Y', tanggal) AS y FROM payment_beasiswa WHERE company_id = ? AND tanggal IS NOT NULL AND tanggal != '' ORDER BY y ASC NULLS FIRST",
             (company_id,),
         ).fetchall()
         conn.close()

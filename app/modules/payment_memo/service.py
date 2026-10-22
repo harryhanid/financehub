@@ -993,6 +993,36 @@ def create_pam_record(conn, company_id: int, company_code: str,
     return pam_no
 
 
+def pam_record_insert_stmt(company_id: int, company_code: str, data: dict) -> tuple:
+    """(sql, params) INSERT pam_records dengan kolom/nilai sama seperti create_pam_record, tetapi
+    pam_no dialokasikan DI DALAM statement oleh fn_next_pam_no (db_migrations/
+    0004_fn_payment_memo_numbering.sql, advisory lock 'pam_no:<code>:<year>' sampai batch commit).
+    Untuk dipakai sebagai item conn.batch; hasilnya RETURNING id, pam_no. Tidak menulis
+    payment_beasiswa.pam (pemanggil yang menautkan, mis. lewat currval pam_records)."""
+    pam_date    = data.get("pam_date") or _ts()[:10]
+    year        = pam_date[:4]
+    month       = pam_date[5:7]
+    due_date    = _workday(pam_date, 8).strftime("%Y-%m-%d")
+    cost_center = config.COST_CENTER_MAP.get(data.get("pt", ""), "")
+    total       = float(data.get("total_amount", 0))
+    dpp         = float(data.get("dpp", total))
+    sql = """INSERT INTO pam_records
+           (company_id, pam_no, pam_date, gl_account, cost_center, pt,
+            requestors_name, keterangan, total_amount, dpp, ppn,
+            due_date, pillar, source, status, attachment_file_id, created_at)
+           VALUES (?,fn_next_pam_no(?,?,?,?),?,?,?,?,?,?,?,?,?,?,?,?,'open',?,?)
+           RETURNING id, pam_no"""
+    params = (company_id, company_id, company_code, year, month, pam_date,
+              data.get("gl_account", config.PAM_DEFAULT_GL),
+              cost_center, data.get("pt", ""),
+              data.get("requestors_name", config.PAM_DEFAULT_REQUESTOR),
+              data.get("keterangan", ""),
+              total, dpp, 0.0,
+              due_date, data.get("pillar", ""), data.get("source", "beasiswa"),
+              data.get("attachment_file_id", ""), _ts())
+    return sql, params
+
+
 def get_pam_list(company_id: int, search: str = "", bulan: str = "",
                  tahun: str = "", source: str = "", pillar: str = "",
                  status: str = "") -> list:

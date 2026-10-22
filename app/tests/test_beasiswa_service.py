@@ -2,7 +2,6 @@
 import os, sys, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_finance_hub.db")
 
 from database import init_db, get_conn
 from modules.beasiswa.service import (
@@ -19,14 +18,7 @@ from modules.beasiswa.service import (
 
 COMPANY_ID = 2  # ETF
 
-@pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-    init_db()
-    yield
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
+# Database: fixture autouse clean_db di conftest.py (Postgres test, dikosongkan + init_db tiap test).
 
 def test_generate_kode_s1_2025_first():
     kode = generate_kode_siswa("S1", 2025, COMPANY_ID)
@@ -584,7 +576,7 @@ def _seed_siswa_and_pa(conn, company_id: int) -> tuple:
     """Insert one siswa + one etf_pa + one etf_pa_line. Returns (siswa_id, pa_id, line_id)."""
     from datetime import datetime
     ts = datetime.now().isoformat(timespec="seconds")
-    conn.execute(
+    _cur = conn.execute(
         """INSERT INTO siswa
            (company_id, code, nama, jenjang, angkatan, program,
             fakultas, universitas, status)
@@ -592,7 +584,7 @@ def _seed_siswa_and_pa(conn, company_id: int) -> tuple:
         (company_id, "1250001", "Budi Santoso", "S1", 2025,
          "SMART", "Teknik", "UI", "Aktif")
     )
-    sid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    sid = _cur.lastrowid
     cur = conn.execute(
         """INSERT INTO etf_pa
            (company_id, pa_number, tgl_payment_application, status, created_at)
@@ -813,7 +805,7 @@ def test_delete_payment_row_excludes_rejected_sibling_when_reverting_pa():
     )
     line_b = cur.lastrowid
     conn.execute("UPDATE etf_pa SET status='on_process' WHERE id=?", (pa_id,))
-    conn.execute(
+    _cur = conn.execute(
         """INSERT INTO payment_beasiswa
            (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
             perusahaan, etf_pa_line_id, status)
@@ -821,7 +813,7 @@ def test_delete_payment_row_excludes_rejected_sibling_when_reverting_pa():
         (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-07-01",
          5000000, "AGRI", "PT ABC", line_a)
     )
-    row_a_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    row_a_id = _cur.lastrowid
     conn.execute(
         """INSERT INTO payment_beasiswa
            (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
@@ -854,7 +846,7 @@ def test_delete_payment_beasiswa_excludes_rejected_sibling_when_reverting_pa():
     )
     line_b = cur.lastrowid
     conn.execute("UPDATE etf_pa SET status='on_process' WHERE id=?", (pa_id,))
-    conn.execute(
+    _cur = conn.execute(
         """INSERT INTO payment_beasiswa
            (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
             perusahaan, etf_pa_line_id, status)
@@ -862,7 +854,7 @@ def test_delete_payment_beasiswa_excludes_rejected_sibling_when_reverting_pa():
         (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-07-01",
          5000000, "AGRI", "PT ABC", line_a)
     )
-    row_a_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    row_a_id = _cur.lastrowid
     conn.execute(
         """INSERT INTO payment_beasiswa
            (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
@@ -893,7 +885,7 @@ def test_delete_payment_row_allows_deleting_rejected_row():
     test_delete_payment_row_refuses_complete_row for the guard that remains."""
     conn = get_conn()
     sid, pa_id, line_a = _seed_siswa_and_pa(conn, COMPANY_ID)
-    conn.execute(
+    _cur = conn.execute(
         """INSERT INTO payment_beasiswa
            (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
             perusahaan, etf_pa_line_id, status, reject_reason)
@@ -901,7 +893,7 @@ def test_delete_payment_row_allows_deleting_rejected_row():
         (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-07-01",
          5000000, "AGRI", "PT ABC", line_a, "Diganti PAM baru")
     )
-    row_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    row_id = _cur.lastrowid
     conn.commit()
     conn.close()
 
@@ -919,7 +911,7 @@ def test_delete_payment_row_refuses_complete_row():
     deletable through this path."""
     conn = get_conn()
     sid, pa_id, line_a = _seed_siswa_and_pa(conn, COMPANY_ID)
-    conn.execute(
+    _cur = conn.execute(
         """INSERT INTO payment_beasiswa
            (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
             perusahaan, etf_pa_line_id, status)
@@ -927,7 +919,7 @@ def test_delete_payment_row_refuses_complete_row():
         (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-07-01",
          5000000, "AGRI", "PT ABC", line_a)
     )
-    row_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    row_id = _cur.lastrowid
     conn.commit()
     conn.close()
 
@@ -945,7 +937,7 @@ def test_delete_payment_beasiswa_refuses_already_rejected_row():
     """Same guard, exercised through delete_payment_beasiswa."""
     conn = get_conn()
     sid, pa_id, line_a = _seed_siswa_and_pa(conn, COMPANY_ID)
-    conn.execute(
+    _cur = conn.execute(
         """INSERT INTO payment_beasiswa
            (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar,
             perusahaan, etf_pa_line_id, status, reject_reason)
@@ -953,7 +945,7 @@ def test_delete_payment_beasiswa_refuses_already_rejected_row():
         (COMPANY_ID, "1250001", "By Pendidikan", "Semester 1", "2026-07-01",
          5000000, "AGRI", "PT ABC", line_a, "Diganti PAM baru")
     )
-    row_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    row_id = _cur.lastrowid
     conn.commit()
     conn.close()
 
