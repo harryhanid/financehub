@@ -286,3 +286,20 @@ def test_http_headers_and_error_mapping(monkeypatch):
             b2.execute_batch(["select 1"], "financehub")
         assert code in str(ei.value) and jwt not in str(ei.value)
     assert sent[-1][3]["Authorization"] == f"Bearer {jwt}"
+
+
+# --- Task 4: urutan kolom dan nama kembar (Review Focus 1) ---
+
+def test_column_order_and_duplicates(pg_backend):
+    r = pg_backend.execute_batch(
+        ["select 3 as z, 1 as a, 2 as id, 9 as id"], "financehub_test")
+    assert r[0]["columns"] == ["z", "a", "id", "id"]
+    assert r[0]["rows"] == [[3, 1, 2, 9]]
+
+
+def test_column_order_and_duplicates_contract(backend):
+    """Varian terparametrisasi (pg + http) dari test di atas; http jalan saat FH_CONTRACT_HTTP=1."""
+    b, schema = backend
+    r = b.execute_batch(["select 3 as z, 1 as a, 2 as id, 9 as id"], schema)
+    assert r[0]["columns"] == ["z", "a", "id", "id"]
+    assert r[0]["rows"] == [[3, 1, 2, 9]]
