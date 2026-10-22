@@ -1,10 +1,8 @@
 # tests/test_etf_pa_service.py
 import os, sys, pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-import config
-config.DB_PATH = os.path.join(os.path.dirname(__file__), "test_etf_pa.db")
 
-from database import init_db, get_conn
+from database import get_conn
 from modules.etf_payment_application.service import (
     get_pa_list, create_pa, update_pa, get_pa_lines,
     get_siswa_autocomplete,
@@ -13,14 +11,10 @@ from modules.etf_payment_application.service import (
 COMPANY_ID = 2  # ETF
 
 @pytest.fixture(autouse=True)
-def clean_db():
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
-    init_db()
+def seed_siswa(clean_db):
+    # Database test Postgres dikosongkan oleh fixture clean_db (conftest); tambah siswa contoh.
     _seed()
     yield
-    if os.path.exists(config.DB_PATH):
-        os.remove(config.DB_PATH)
 
 
 def _seed():
@@ -284,18 +278,16 @@ def test_etf_pa_allows_duplicate_pa_number():
 def test_pa_summary_view_aggregates():
     """pa_summary view sums jumlah_pembayaran and comma-separates nomor_pam."""
     conn = get_conn()
-    conn.execute(
+    pa_id1 = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, nomor_pam, tanggal_bayar, status, created_at) "
         "VALUES (?,?,?,?,?,?)",
         (COMPANY_ID, "PA/ETF/S/2026", "PAM-A", "2026-06-01", "complete", "2026-06-18")
-    )
-    pa_id1 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.execute(
+    ).lastrowid
+    pa_id2 = conn.execute(
         "INSERT INTO etf_pa (company_id, pa_number, nomor_pam, tanggal_bayar, status, created_at) "
         "VALUES (?,?,?,?,?,?)",
         (COMPANY_ID, "PA/ETF/S/2026", "PAM-B", "2026-06-02", "complete", "2026-06-18")
-    )
-    pa_id2 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).lastrowid
 
     sid = _student_id("1230001")
     conn.execute(

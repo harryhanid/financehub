@@ -38,7 +38,7 @@ def get_siswa_autocomplete(company_id: int, q: str) -> list:
                   ipk_sem1, ipk_sem2, ipk_sem3, ipk_sem4, ipk_sem5,
                   ipk_sem6, ipk_sem7, ipk_sem8, ipk_sem9, ipk_sem10
            FROM siswa
-           WHERE company_id=? AND (nama LIKE ? OR code LIKE ?)
+           WHERE company_id=? AND (nama ILIKE ? OR code ILIKE ?)
            ORDER BY nama LIMIT 20""",
         (company_id, f"%{q}%", f"%{q}%")
     ).fetchall()
@@ -51,25 +51,26 @@ def get_siswa_autocomplete(company_id: int, q: str) -> list:
     return result
 
 
-def _gen_pa_number(company_id: int, conn, pa_tbl: str, prefix: str) -> str:
-    year  = datetime.now().strftime("%Y")
-    count = conn.execute(
-        f"SELECT COUNT(*) FROM {pa_tbl} WHERE company_id=?", (company_id,)
-    ).fetchone()[0]
-    return f"PA/{prefix}/{count + 1:03d}/{year}"
+def _gen_pa_number_sql(company_id: int, pa_tbl: str, prefix: str) -> tuple:
+    """Ekspresi SQL + params untuk nomor PA berikutnya (PA/<prefix>/<count+1:03d>/<year>).
+
+    Dulu COUNT(*) dibaca di panggilan terpisah lalu dipakai di INSERT (race: dua PA bernomor sama).
+    Sekarang fn_etf_pa_next_pa_number (db_migrations/0004_fn_etf_payment_application.sql) dipanggil
+    di dalam INSERT header, di bawah advisory lock per tabel/company yang ditahan sampai batch commit.
+    """
+    year = datetime.now().strftime("%Y")
+    return "fn_etf_pa_next_pa_number(?, ?, ?, ?)", (pa_tbl, company_id, prefix, year)
 
 
-def _gen_nomor_pam(company_id: int, conn, pa_tbl: str, prefix: str) -> str:
-    now  = datetime.now()
-    mm   = now.strftime("%m")
-    yyyy = now.strftime("%Y")
-    count = conn.execute(
-        f"""SELECT COUNT(*) FROM {pa_tbl}
-            WHERE company_id=? AND nomor_pam IS NOT NULL
-            AND strftime('%Y-%m', created_at)=?""",
-        (company_id, f"{yyyy}-{mm}")
-    ).fetchone()[0]
-    return f"{count + 1:03d}-{prefix}-{mm}-{yyyy}"
+def _gen_nomor_pam_sql(company_id: int, pa_tbl: str, prefix: str) -> tuple:
+    """Ekspresi SQL + params untuk nomor PAM berikutnya (<count+1:03d>-<prefix>-<mm>-<yyyy>).
+
+    count = baris company dengan nomor_pam IS NOT NULL dan strftime('%Y-%m', created_at) = bulan ini,
+    dihitung oleh fn_etf_pa_next_nomor_pam di dalam UPDATE header (advisory lock, satu transaksi).
+    """
+    now = datetime.now()
+    return ("fn_etf_pa_next_nomor_pam(?, ?, ?, ?, ?)",
+            (pa_tbl, company_id, prefix, now.strftime("%m"), now.strftime("%Y")))
 
 
 def get_pa_list(company_id: int, tab: str = "agri") -> list:
@@ -113,19 +114,20 @@ def get_pa_flat(company_id: int, tab: str = "agri", status_filter: str = "",
         extra_where += " AND s.program=?"
         params.append(program)
     if angkatan:
-        extra_where += " AND s.angkatan=?"
+        # angkatan bigint; filter dari request berupa teks (SQLite membandingkan dengan afinitas angka).
+        extra_where += " AND s.angkatan::text = CAST(? AS text)"
         params.append(angkatan)
     if jenis:
         extra_where += " AND l.jenis_pembayaran=?"
         params.append(jenis)
     if pam:
-        extra_where += " AND p.nomor_pam LIKE ?"
+        extra_where += " AND p.nomor_pam ILIKE ?"
         params.append(f"%{pam}%")
     if bulan_pa:
-        extra_where += " AND strftime('%m', p.tgl_payment_application)=?"
+        extra_where += " AND fh_strftime('%m', p.tgl_payment_application)=?"
         params.append(bulan_pa.zfill(2))
     if tahun_pa:
-        extra_where += " AND strftime('%Y', p.tgl_payment_application)=?"
+        extra_where += " AND fh_strftime('%Y', p.tgl_payment_application)=?"
         params.append(tahun_pa)
     rows = conn.execute(
         f"""SELECT
@@ -213,7 +215,7 @@ def get_draft_siswa(company_id: int, q: str, tab: str = "agri") -> list:
             JOIN {lines_tbl} l ON l.student_id = s.id
             JOIN {pa_tbl} p ON p.id = l.pa_id
             WHERE p.company_id = ? AND LOWER(p.status) = 'open'
-              AND (s.nama LIKE ? OR s.code LIKE ?)
+              AND (s.nama ILIKE ? OR s.code ILIKE ?)
             ORDER BY s.nama
             LIMIT 20""",
         (company_id, f"%{q}%", f"%{q}%")
@@ -382,14 +384,18 @@ def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri",
         conn.close()
         return {"ok": False, "pesan": f"Siswa ID {missing[0]} tidak ditemukan."}
 
-    pa_number = _gen_pa_number(company_id, conn, pa_tbl, pa_prefix)
+    # Atomik (atomic-flows.md Task 11): header + semua line dalam SATU batch. Nomor PA dialokasikan
+    # di dalam INSERT header (fn_etf_pa_next_pa_number, advisory lock sampai batch commit); line
+    # memakai id header lewat currval sequence identity tabel header.
+    num_sql, num_params = _gen_pa_number_sql(company_id, pa_tbl, pa_prefix)
     ts = _ts()
-    cur = conn.execute(
+    items = [(
         f"""INSERT INTO {pa_tbl}
             (company_id, pa_number, tgl_payment_application, tgl_surat_pengajuan,
              keterangan, doc_received_by_educ, received_pa_from_educ, status, route, klasifikasi, attachment_file_id, created_at)
-            VALUES (?,?,?,?,?,?,?,'open',?,?,?,?)""",
-        (company_id, pa_number,
+            VALUES (?,{num_sql},?,?,?,?,?,'open',?,?,?,?)
+            RETURNING id, pa_number""",
+        (company_id, *num_params,
          header.get("tgl_payment_application", ""),
          header.get("tgl_surat_pengajuan", ""),
          header.get("keterangan", ""),
@@ -399,27 +405,27 @@ def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri",
          header.get("klasifikasi", "Normal"),
          header.get("attachment_file_id", ""),
          ts)
-    )
-    pa_id = cur.lastrowid
-
+    )]
+    header_id_sql = ("currval(pg_get_serial_sequence("
+                     f"quote_ident(current_schema()) || '.\"{pa_tbl}\"', 'id'))")
     for line in lines:
-        conn.execute(
+        items.append((
             f"""INSERT INTO {lines_tbl}
                 (pa_id, student_id, jenis_pembayaran, semester,
                  tahun_ajaran, ipk_sem_sebelumnya, jumlah_pembayaran, route)
-                VALUES (?,?,?,?,?,?,?,?)""",
-            (pa_id,
-             line.get("student_id"),
+                VALUES ({header_id_sql},?,?,?,?,?,?,?)""",
+            (line.get("student_id"),
              line.get("jenis_pembayaran", ""),
              line.get("semester", ""),
              line.get("tahun_ajaran", ""),
              line.get("ipk_sem_sebelumnya") or 0,
              line.get("jumlah_pembayaran") or 0,
              route)
-        )
+        ))
 
-    conn.commit()
+    hdr = conn.batch(items)[0].fetchone()
     conn.close()
+    pa_id, pa_number = hdr["id"], hdr["pa_number"]
     return {"ok": True, "pa_id": pa_id, "pa_number": pa_number,
             "pesan": f"Payment Application {pa_number} berhasil dibuat."}
 
@@ -440,9 +446,8 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
         new_status = "complete"
     nomor_pam = data.get("nomor_pam") or row["nomor_pam"]
 
-    if new_status == "on_process" and not nomor_pam:
-        pa_tbl2, _, _, pam_pfx = _tbls(tab)
-        nomor_pam = _gen_nomor_pam(company_id, conn, pa_tbl2, pam_pfx)
+    # nomor_pam baru dialokasikan di dalam UPDATE header (fn_etf_pa_next_nomor_pam, satu batch).
+    gen_nomor_pam = new_status == "on_process" and not nomor_pam
 
     # If the amount on this line is changing and it's already been drawn into a
     # PAM, block the whole edit once that PAM is past 'open' (on_process/complete)
@@ -474,12 +479,18 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
                         "(sudah diproses/dibayar) — amount tidak bisa diubah dari sini. "
                         "Koreksi lewat modul Payment Memo."}
 
+    if gen_nomor_pam:
+        nomor_pam_sql, nomor_pam_params = _gen_nomor_pam_sql(company_id, pa_tbl, pam_prefix)
+    else:
+        nomor_pam_sql, nomor_pam_params = "?", (nomor_pam,)
+
     # Construct the update fields dynamically for optional attachment_file_id
     update_fields = [
         "tgl_payment_application = ?", "tgl_surat_pengajuan     = ?", "doc_received_by_educ    = ?",
         "received_pa_from_educ   = ?", "checked_by_fincon       = ?", "approved_by_htj_1       = ?",
         "send_pa_back_to_educ    = ?", "pa_received_by_po_fin   = ?", "approval_by_htj_2       = ?",
-        "nomor_pam               = ?", "tanggal_bayar           = ?", "keterangan              = ?",
+        "nomor_pam               = " + nomor_pam_sql,
+        "tanggal_bayar           = ?", "keterangan              = ?",
         "status                  = ?", "klasifikasi             = ?", "updated_at              = ?"
     ]
     
@@ -487,7 +498,7 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
         data.get("tgl_payment_application", ""), data.get("tgl_surat_pengajuan", ""), data.get("doc_received_by_educ", ""),
         data.get("received_pa_from_educ", ""), data.get("checked_by_fincon", ""), data.get("approved_by_htj_1", ""),
         data.get("send_pa_back_to_educ", ""), data.get("pa_received_by_po_fin", ""), data.get("approval_by_htj_2", ""),
-        nomor_pam, data.get("tanggal_bayar", ""), data.get("keterangan", ""), new_status, data.get("klasifikasi", "Normal"), _ts()
+        *nomor_pam_params, data.get("tanggal_bayar", ""), data.get("keterangan", ""), new_status, data.get("klasifikasi", "Normal"), _ts()
     ]
     
     if "attachment_file_id" in data:
@@ -495,13 +506,16 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
         values.append(data["attachment_file_id"])
     values.extend([pa_id, company_id])
     
-    conn.execute(
-        f"UPDATE {pa_tbl} SET {', '.join(update_fields)} WHERE id=? AND company_id=?",
+    # Atomik (atomic-flows.md Task 11): header, line, payment_beasiswa dan total PAM dalam SATU batch.
+    # Baris payment_beasiswa yang tertaut dibaca sebelum batch (tidak diubah oleh alur ini); total PAM
+    # dihitung ulang dengan subquery SUM di statement terakhir, setelah UPDATE payment_beasiswa.
+    items = [(
+        f"UPDATE {pa_tbl} SET {', '.join(update_fields)} WHERE id=? AND company_id=? RETURNING nomor_pam",
         tuple(values)
-    )
-    
+    )]
+
     if line_id:
-        conn.execute(
+        items.append((
             f"""UPDATE {lines_tbl} SET
                  jenis_pembayaran   = ?,
                  semester           = ?,
@@ -515,7 +529,7 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
              data.get("ipk_sem_sebelumnya") or 0,
              data.get("jumlah_pembayaran") or 0,
              line_id, pa_id)
-        )
+        ))
         # Propagate the amount into an already-drawn (still-open) PAM: update
         # the linked payment_beasiswa row, then re-sum the PAM's total from
         # all its payment_beasiswa lines (a PAM can bundle several PA lines).
@@ -524,20 +538,22 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
             (line_id, company_id)
         ).fetchone()
         if pb_row and pb_row["pam"]:
-            conn.execute(
+            items.append((
                 "UPDATE payment_beasiswa SET amount=? WHERE id=?",
                 (new_amount or 0, pb_row["id"])
-            )
-            total_row = conn.execute(
-                "SELECT COALESCE(SUM(amount),0) AS total FROM payment_beasiswa WHERE pam=? AND company_id=?",
-                (pb_row["pam"], company_id)
-            ).fetchone()
-            conn.execute(
-                "UPDATE pam_records SET total_amount=?, dpp=? WHERE pam_no=? AND company_id=?",
-                (total_row["total"], total_row["total"], pb_row["pam"], company_id)
-            )
-    conn.commit()
+            ))
+            items.append((
+                """UPDATE pam_records SET (total_amount, dpp) = (
+                       SELECT t.total, t.total FROM (
+                           SELECT COALESCE(SUM(amount),0) AS total FROM payment_beasiswa
+                           WHERE pam=? AND company_id=?) t)
+                   WHERE pam_no=? AND company_id=?""",
+                (pb_row["pam"], company_id, pb_row["pam"], company_id)
+            ))
+    hdr = conn.batch(items)[0].fetchone()
     conn.close()
+    if gen_nomor_pam:
+        nomor_pam = hdr["nomor_pam"] if hdr else None
 
     msg = "PA berhasil diupdate."
     if new_status == "on_process" and nomor_pam and not row["nomor_pam"]:
@@ -570,9 +586,11 @@ def delete_pa(pa_id: int, company_id: int, tab: str = "agri") -> dict:
                      "Hapus payment terkait terlebih dahulu di modul Payment Memo.",
         }
 
-    conn.execute(f"DELETE FROM {lines_tbl} WHERE pa_id=?", (pa_id,))
-    conn.execute(f"DELETE FROM {pa_tbl} WHERE id=? AND company_id=?", (pa_id, company_id))
-    conn.commit()
+    # Atomik (atomic-flows.md Task 11): kedua DELETE dalam SATU batch.
+    conn.batch([
+        (f"DELETE FROM {lines_tbl} WHERE pa_id=?", (pa_id,)),
+        (f"DELETE FROM {pa_tbl} WHERE id=? AND company_id=?", (pa_id, company_id)),
+    ])
     conn.close()
     return {"ok": True, "pesan": f"PA {pa['pa_number']} berhasil dihapus."}
 

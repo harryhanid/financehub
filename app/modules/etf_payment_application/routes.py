@@ -226,6 +226,7 @@ def create():
         folder_name = pa_number.replace('/', '-')
         
         from utils.gdrive_service import create_gdrive_folder, upload_file_to_gdrive
+        from fhdb.errors import OperationalError as DbUnreachable
         try:
             folder_id = create_gdrive_folder(folder_name)
             attachment_ids = []
@@ -241,6 +242,9 @@ def create():
                 conn.execute(f"UPDATE {pa_tbl} SET attachment_file_id=? WHERE id=?", (",".join(attachment_ids), pa_id))
                 conn.commit()
                 conn.close()
+        except DbUnreachable:
+            # R25: DB tidak terjangkau -> 503 (app.py). Jangan laporkan sukses padahal lampiran tidak tertaut.
+            raise
         except Exception as e:
             return jsonify({"ok": True, "pesan": f"PA {pa_number} berhasil dibuat, tapi gagal upload lampiran ke Google Drive: {str(e)}"})
             
