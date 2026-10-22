@@ -131,6 +131,9 @@ def replace_year(entity, year, rows, log) -> None:
         try:
             n = staging.load(conn, stage, COLUMNS, values)
             conn.batch([
+                # Serialise concurrent swaps of the same entity/year until this batch commits: without it
+                # (READ COMMITTED) a second run's DELETE misses the first run's new rows -> duplicated year.
+                ("SELECT pg_advisory_xact_lock(hashtext(?))", (f"gl:{entity}:{year}",)),
                 staging.guard(stage, n),
                 (f"DELETE FROM {_q(table)} WHERE substr(tgl,1,4) = ?", (str(year),)),
                 staging.copy(table, stage, COLUMNS),

@@ -81,7 +81,7 @@ def list_periods() -> list:
         conn.close()
 
 
-def _prune(conn, period_id) -> list:
+def _prune(period_id) -> list:
     """Batch items that delete all but the MAX_SNAPSHOTS newest snapshots of the period (children first).
 
     Run inside the snapshot batch, after the new snapshot is inserted, so it is counted."""
@@ -139,7 +139,7 @@ def take_snapshot(period_id, user) -> int:
     conn = get_conn()
     st_lines, st_exc = staging.new_name("spt"), staging.new_name("spt")
     try:
-        prune = _prune(conn, period_id)                 # before any write: a failure here writes nothing
+        prune = _prune(period_id)                       # batch items only; run inside the swap batch
         staging.drop_orphans(conn, "spt")
         try:
             staging.create(conn, st_lines, _LINE_COLS)
@@ -147,6 +147,9 @@ def take_snapshot(period_id, user) -> int:
             n_lines = staging.load(conn, st_lines, [c for c, _ in _LINE_COLS], line_rows)
             n_exc = staging.load(conn, st_exc, [c for c, _ in _EXC_COLS], exc_rows)
             items = [
+                # Serialise concurrent snapshots of one period until this batch commits: otherwise two runs
+                # can each clear is_current and insert their own current snapshot (two current rows).
+                ("SELECT pg_advisory_xact_lock(hashtext(?))", (f"spt:{period_id}",)),
                 staging.guard(st_lines, n_lines),
                 staging.guard(st_exc, n_exc),
                 ("UPDATE spt_snapshot SET is_current=0 WHERE period_id=?", (period_id,)),
@@ -164,7 +167,7 @@ def take_snapshot(period_id, user) -> int:
                         c["blocking"])) for c in computed]
             items += prune
             items += [staging.drop(st_lines), staging.drop(st_exc)]
-            sid = conn.batch(items)[3].lastrowid
+            sid = conn.batch(items)[4].lastrowid   # [lock, guard, guard, update, insert]
         except Exception:
             staging.discard(conn, st_lines)
             staging.discard(conn, st_exc)

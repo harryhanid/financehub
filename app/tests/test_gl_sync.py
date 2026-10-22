@@ -314,3 +314,71 @@ def test_replace_year_large_file_goes_in_chunks(monkeypatch):
                                              summary={}))
     assert calls == [1000, 1000, 500]                         # <= 1000 rows per call (R21)
     assert [r["id_no"] for r in svc.load_rows("smt")] == [f"GJ-{i}" for i in range(2500)]   # sheet order kept
+
+
+# ---------- concurrency: the swap batch takes an advisory lock first ----------
+
+def run_concurrently_behind_lock(pg_dsn, key, fn, n=2):
+    """Hold pg_advisory_xact_lock(hashtext(key)) on a separate connection, start `n` threads running fn,
+    wait until all n are blocked on that lock (pg_locks), then release: the swaps run one after another."""
+    import threading
+    import time
+    import psycopg2
+    holder = psycopg2.connect(pg_dsn)
+    errors = []
+
+    def work():
+        try:
+            fn()
+        except Exception as e:                      # pragma: no cover - reported below
+            errors.append(e)
+    threads = [threading.Thread(target=work) for _ in range(n)]
+    try:
+        with holder.cursor() as cur:
+            cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
+        for t in threads:
+            t.start()
+        deadline = time.time() + 60
+        while True:
+            with psycopg2.connect(pg_dsn) as probe, probe.cursor() as cur:
+                cur.execute("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted")
+                waiting = cur.fetchone()[0]
+            probe.close()
+            if waiting >= n:
+                break
+            assert time.time() < deadline, f"only {waiting} of {n} swaps reached the advisory lock"
+            time.sleep(0.05)
+    finally:
+        holder.rollback()                           # releases the xact lock
+        holder.close()
+        for t in threads:
+            t.join(120)
+    assert not errors, errors
+
+
+def test_concurrent_replace_year_leaves_one_set_of_rows(pg_dsn):
+    log = dict(synced_by="u", filename="a.xlsb", content_hash="h1", rows_before=0, rows_after=3,
+               total_debit=0, total_credit=0, dropped=0, summary={})
+    svc.replace_year("smt", 2026, rows_a(), log)
+    run_concurrently_behind_lock(pg_dsn, "gl:smt:2026",
+                                 lambda: svc.replace_year("smt", 2026, rows_a(), dict(log, content_hash="h2")))
+    assert table_count("GLSMT") == 3                        # not 6: the second swap saw the first's rows
+    assert [s["content_hash"] for s in svc.list_syncs("smt")] == ["h2", "h2", "h1"]
+
+
+def test_replace_year_swap_batch_starts_with_the_advisory_lock(monkeypatch):
+    from fhdb.connection import Connection
+    batches = []
+    real = Connection.batch
+
+    def spy(self, items):
+        batches.append(list(items))
+        return real(self, items)
+    monkeypatch.setattr(Connection, "batch", spy)
+    log = dict(synced_by="u", filename="a.xlsb", content_hash="h1", rows_before=0, rows_after=3,
+               total_debit=0, total_credit=0, dropped=0, summary={})
+    svc.replace_year("smt", 2026, rows_a(), log)
+    swap = [b for b in batches if any("gl_sync_log" in sql for sql, _ in b)][-1]
+    assert swap[0] == ("SELECT pg_advisory_xact_lock(hashtext(?))", ("gl:smt:2026",))
+    svc.replace_year("smt", 2026, rows_a(), dict(log, content_hash="h2"))     # sequential: still one set
+    assert table_count("GLSMT") == 3

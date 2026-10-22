@@ -141,7 +141,7 @@ def test_failed_snapshot_keeps_the_previous_one_intact(monkeypatch):
     seed_mapping(); seed_gl()
     pid = new_period()
     first = sv.take_snapshot(pid, "admin")
-    monkeypatch.setattr(sv, "_prune", lambda conn, period_id: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(sv, "_prune", lambda period_id: (_ for _ in ()).throw(RuntimeError("boom")))
     with pytest.raises(RuntimeError):
         sv.take_snapshot(pid, "admin")
     snaps = sv.list_snapshots(pid)
@@ -300,3 +300,20 @@ def test_take_snapshot_atomic_on_failure(monkeypatch):
                             "AND left(tablename, 9) = 'fh_stage_'").fetchone()[0] == 0
     finally:
         conn.close()
+
+
+def test_concurrent_take_snapshot_leaves_one_current(pg_dsn):
+    from tests.test_gl_sync import run_concurrently_behind_lock
+    seed_mapping(); seed_gl()
+    pid = new_period()
+    sv.take_snapshot(pid, "admin")
+    run_concurrently_behind_lock(pg_dsn, f"spt:{pid}", lambda: sv.take_snapshot(pid, "admin"))
+    conn = get_conn()
+    try:
+        current = conn.execute("SELECT COUNT(*) FROM spt_snapshot WHERE period_id=? AND is_current=1",
+                               (pid,)).fetchone()[0]
+    finally:
+        conn.close()
+    assert current == 1
+    assert len(sv.list_snapshots(pid)) == 3
+    assert sv.get_current_snapshot(pid)["id"] == max(s["id"] for s in sv.list_snapshots(pid))
