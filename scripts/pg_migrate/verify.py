@@ -1,8 +1,9 @@
 """Bandingkan SQLite FinanceHub dengan schema Postgres hasil load_data.py: jumlah baris per tabel dan
-`round(sum(col), 2)` per kolom uang (zero tolerance). Kosong = lulus.
+`round(sum(col), 2)` per kolom numerik (zero tolerance). Kosong = lulus.
 
-Kolom uang: kolom target `double precision`/`bigint` (bukan identity, bukan `*_id`) yang namanya cocok
-dengan MONEY_PATTERN (tabel sumber, kecuali refresh_tokens). Daftar final dicetak dan ditulis ke --money-out.
+Kolom yang dibandingkan (R35): SEMUA kolom target bertipe bigint/integer/smallint/double precision/real/
+numeric di setiap tabel sumber (kecuali refresh_tokens), selain kolom `id`, kolom identity, dan kolom yang
+namanya berakhiran `_id`. Daftar final dicetak dan ditulis ke --money-out.
 
 Usage:
   python scripts/pg_migrate/verify.py --sqlite C:/FinanceHub/app/finance_hub.db \\
@@ -12,7 +13,6 @@ Exit code 1 kalau ada mismatch.
 """
 import argparse
 import os
-import re
 import shutil
 import sqlite3
 import sys
@@ -26,9 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import load_data  # noqa: E402
 from load_data import ALLOWED_SCHEMAS, check_schema, qi, snapshot, source_tables, target_columns  # noqa: E402
 
-MONEY_PATTERN = re.compile(r"(jumlah|amount|total|nominal|budget|saldo|sisa|bayar|debit|credit|kredit|nilai)",
-                           re.IGNORECASE)
-MONEY_TYPES = ("double precision", "bigint")
+NUMERIC_TYPES = ("bigint", "integer", "smallint", "double precision", "real", "numeric")
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MONEY_OUT = ROOT / "docs" / "pg-migration" / "money-columns.txt"
 
@@ -41,11 +39,12 @@ class Mismatch:
     pg: object
 
 
-def _money_cols(tables, tcols) -> list[tuple[str, str]]:
+def _numeric_cols(tables, tcols) -> list[tuple[str, str]]:
     out = []
     for t in tables:
         for col, (dtype, ident) in tcols.get(t, {}).items():
-            if dtype in MONEY_TYPES and not ident and MONEY_PATTERN.search(col) and not col.lower().endswith("_id"):
+            low = col.lower()
+            if dtype in NUMERIC_TYPES and not ident and low != "id" and not low.endswith("_id"):
                 out.append((t, col))
     return out
 
@@ -62,10 +61,10 @@ def _with_source(sqlite_path, fn):
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def money_columns(sqlite_path, backend, schema) -> list[tuple[str, str]]:
+def numeric_columns(sqlite_path, backend, schema) -> list[tuple[str, str]]:
     check_schema(schema)
     tables = _with_source(sqlite_path, source_tables)
-    return _money_cols(tables, target_columns(backend, schema))
+    return _numeric_cols(tables, target_columns(backend, schema))
 
 
 def _norm(v):
@@ -80,13 +79,13 @@ def _norm(v):
     return Decimal(repr(v) if isinstance(v, float) else str(v)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def verify(sqlite_path, backend, schema, money=None) -> list[Mismatch]:
+def verify(sqlite_path, backend, schema, columns=None) -> list[Mismatch]:
     check_schema(schema)
     tcols = target_columns(backend, schema)
 
     def collect(sq):
         tables = source_tables(sq)
-        cols = money if money is not None else _money_cols(tables, tcols)
+        cols = columns if columns is not None else _numeric_cols(tables, tcols)
         by_table = {t: [c for tt, c in cols if tt == t] for t in tables}
         src = {}
         for t in tables:
@@ -120,20 +119,21 @@ def main(argv=None):
     ap.add_argument("--schema", required=True, choices=ALLOWED_SCHEMAS)
     ap.add_argument("--backend", required=True, choices=("pg", "http"))
     ap.add_argument("--dsn", default=os.environ.get("FH_PG_DSN", ""))
-    ap.add_argument("--money-out", default=None, help=f"tulis daftar kolom uang (mis. {DEFAULT_MONEY_OUT})")
+    ap.add_argument("--money-out", default=None,
+                    help=f"tulis daftar kolom numerik yang dibandingkan (mis. {DEFAULT_MONEY_OUT})")
     args = ap.parse_args(argv)
     backend = load_data.make_backend(args.backend, args.dsn)
     try:
-        cols = money_columns(args.sqlite, backend, args.schema)
-        print(f"Kolom uang ({len(cols)}):")
+        cols = numeric_columns(args.sqlite, backend, args.schema)
+        print(f"Kolom numerik dibandingkan ({len(cols)}):")
         for t, c in cols:
             print(f"  {t}.{c}")
         if args.money_out:
-            Path(args.money_out).write_text(
-                f"# Kolom uang yang diverifikasi scripts/pg_migrate/verify.py ({len(cols)} kolom)\n"
-                f"# Pola nama: {MONEY_PATTERN.pattern}; tipe target: {', '.join(MONEY_TYPES)}\n"
-                + "".join(f"{t}.{c}\n" for t, c in cols), encoding="utf-8")
-        mm = verify(args.sqlite, backend, args.schema, money=cols)
+            header = (f"# Numeric columns compared by scripts/pg_migrate/verify.py ({len(cols)} kolom; DIHASILKAN)",
+                      f"# Tipe target: {', '.join(NUMERIC_TYPES)}; kecuali `id`, identity, dan `*_id`")
+            lines = list(header) + [f"{t}.{c}" for t, c in cols]
+            Path(args.money_out).write_text("\n".join(lines) + "\n", encoding="utf-8")
+        mm = verify(args.sqlite, backend, args.schema, columns=cols)
     finally:
         backend.close()
     for m in mm:
