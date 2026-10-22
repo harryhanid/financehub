@@ -39,9 +39,9 @@ def list_documents(search=None, modul=None, status=None):
         params.append(status)
     # SQLite CAST(kode AS INTEGER): NULL tetap NULL (urut paling awal), selain itu awalan angka
     # ('12', '1.7' -> 1, '3a' -> 3) dan teks tanpa awalan angka -> 0. NULLS FIRST meniru urutan
-    # NULL SQLite pada ASC.
+    # NULL SQLite pada ASC. ::numeric (bukan ::bigint): kode > 19 digit tidak membuat query gagal.
     query += (" ORDER BY modul, CASE WHEN kode IS NULL THEN NULL"
-              " ELSE COALESCE(substring(ltrim(kode) from '^[-+]?[0-9]+')::bigint, 0) END NULLS FIRST")
+              " ELSE COALESCE(substring(ltrim(kode) from '^[-+]?[0-9]+')::numeric, 0) END NULLS FIRST")
     rows = conn.execute(query, params).fetchall()
     conn.close()
     return [dict(r) for r in rows]

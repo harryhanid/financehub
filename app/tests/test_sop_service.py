@@ -98,3 +98,11 @@ def test_list_documents_orders_kode_numerically_like_sqlite_cast():
     create_document("urut", "K2", kode="2")
     names = [d["nama"] for d in list_documents(modul="urut")]
     assert names == ["KNULL", "KX", "K2", "K9", "K10"]
+
+
+def test_list_documents_kode_longer_than_bigint_does_not_break_list():
+    """kode 25 digit: ::bigint melempar 'out of range' dan seluruh daftar SOP gagal; ::numeric tidak."""
+    create_document("panjang", "K25", kode="1234567890123456789012345")
+    create_document("panjang", "K3", kode="3")
+    rows = [d["nama"] for d in list_documents(modul="panjang")]
+    assert rows == ["K3", "K25"]
