@@ -65,9 +65,23 @@
 /* .budget-table tr:hover td is (0,2,2) — one class + :hover + 2 elements (tr, td).
    A bare .sp-report-*-row:hover td is only (0,2,1) and loses that fight, so these
    repeat the tr element to match its shape and win on the class count instead. */
+/* Same weight as the zebra rule `.budget-table tbody tr:nth-child(2n) td` (and later
+   in the cascade), which otherwise repainted every even total/band row: white
+   Grand Total text on a near-white stripe. */
+.budget-table tbody tr.sp-report-grandtotal-row td { background: #1e3a5f; color: #fff; }
+.budget-table tbody tr.sp-report-subtotal-row td,
+.budget-table tbody tr.sp-report-section-band td { background: #fef9c3; color: #854d0e; }
 .budget-table tr.sp-report-grandtotal-row:hover td { background: #1e3a5f; }
 .budget-table tr.sp-report-subtotal-row:hover td,
 .budget-table tr.sp-report-section-band:hover td { background: #fef9c3; }
+/* Dark: the table's own dark cell fill wins over the pale band, leaving the
+   dark amber label at 2.6:1 — give the bands a dark amber tint + light text. */
+[data-theme="dark"] .budget-table tbody tr.sp-report-section-band td,
+[data-theme="dark"] .budget-table tbody tr.sp-report-subtotal-row td,
+[data-theme="dark"] .budget-table tr.sp-report-section-band:hover td,
+[data-theme="dark"] .budget-table tr.sp-report-subtotal-row:hover td,
+[data-theme="dark"] .sp-report-section-band td,
+[data-theme="dark"] .sp-report-subtotal-row td { background: rgba(251,191,36,.14); color: #FCD34D; }
 
 .sp-report-pct-row td {
   color: var(--text-muted);

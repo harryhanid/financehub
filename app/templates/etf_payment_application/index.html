@@ -759,7 +759,10 @@
         <td style="padding:.4rem .6rem; text-align:right; font-variant-numeric:tabular-nums">${(r.jumlah_pembayaran||0).toLocaleString('id-ID')}</td>
         <td style="padding:.4rem .6rem">${r.nomor_pam || '-'}</td>
         <td style="padding:.4rem .6rem">${r.keterangan || '-'}</td>
-      </tr>`).join('');
+      </tr>`).join('') || `<tr><td colspan="12"><div class="empty-state">
+        <div class="empty-state-title">${_summaryRows.length ? 'Tidak ada PA yang cocok dengan filter' : 'Tidak ada PA yang masih terbuka'}</div>
+        <div class="empty-state-sub">${_summaryRows.length ? 'Ubah atau kosongkan filter.' : 'PA berstatus Open atau On Process akan muncul di sini.'}</div>
+      </div></td></tr>`;
     document.getElementById('summary-count').textContent = `${filtered.length} PA${filtered.length < _summaryRows.length ? ' (dari ' + _summaryRows.length + ')' : ''}`;
 
     const maxPage = Math.max(1, Math.ceil(filtered.length / _summaryPageSize));

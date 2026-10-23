@@ -84,6 +84,24 @@ def count_budgets(filters: dict = None) -> int:
     return total
 
 
+def search_budgets(q: str, limit: int = 20) -> list:
+    """Newest budgets whose id, description, dept, activity or GL text contains q."""
+    q = (q or "").strip()
+    if not q:
+        return []
+    like = f"%{q.lower()}%"
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT id, yy, mm, dept, description, gl_description, activity, amount, deadline "
+        "FROM budget_master WHERE lower(id) LIKE ? OR lower(coalesce(description,'')) LIKE ? "
+        "OR lower(coalesce(dept,'')) LIKE ? OR lower(coalesce(activity,'')) LIKE ? "
+        "OR lower(coalesce(gl_description,'')) LIKE ? ORDER BY yy DESC, mm DESC LIMIT ?",
+        (like, like, like, like, like, limit),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def get_budget(budget_id: str):
     conn = get_conn()
     row = conn.execute("SELECT * FROM budget_master WHERE id = ?", (budget_id,)).fetchone()

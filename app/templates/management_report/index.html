@@ -94,12 +94,12 @@
   <strong>Sinkronisasi Excel</strong>
   {% set act = (uploads | selectattr('is_active') | list | first) if uploads else none %}
   <div class="mr-muted" style="margin:.25rem 0">
-    {% if act %}Terakhir sync: {{ act.uploaded_at }} · {{ act.filename }} · {{ act.row_count }} baris
+    {% if act %}Terakhir sync: {{ act.uploaded_at | tgl(true) }} · {{ act.filename }} · {{ act.row_count }} baris
     {% else %}Belum pernah sync.{% endif %}
   </div>
   {% if can_manage %}
   <div style="margin:.5rem 0">
-    <input type="file" id="mr-file" accept=".xlsb">
+    <input type="file" id="mr-file" accept=".xlsb" aria-label="File master Management Report (.xlsb)">
     <button class="btn btn-primary btn-sm" id="mr-sync-btn" onclick="mrSync()">Sync dari Excel</button>
     <span id="mr-sync-msg" class="mr-muted"></span>
   </div>
@@ -148,7 +148,7 @@
     <tbody>
     {% for u in uploads %}
       <tr>
-        <td>{{ u.uploaded_at }}</td><td>{{ u.filename }}</td>
+        <td>{{ u.uploaded_at | tgl(true) }}</td><td>{{ u.filename }}</td>
         <td class="num">{{ u.row_count }}</td><td>{{ u.uploaded_by }}</td>
         <td>
           {% if u.is_active %}<strong>Aktif</strong>

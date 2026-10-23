@@ -37,7 +37,7 @@
         {% for y in sync_years %}<option value="{{ y }}"{{ ' selected' if y == year else '' }}>{{ y }}</option>{% endfor %}
       </select>
     </label>
-    <input type="file" id="gl-file" accept=".xlsb">
+    <input type="file" id="gl-file" accept=".xlsb" aria-label="File General Ledger (.xlsb)">
     <button class="btn btn-primary btn-sm" id="gl-sync-btn" onclick="glSync()">Upload &amp; Sync .xlsb</button>
     <span id="gl-sync-msg" class="gl-muted"></span>
   </div>

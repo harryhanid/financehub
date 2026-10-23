@@ -360,6 +360,48 @@ function initModuleSwitchDropdown() {
   });
 }
 
+/* ── Entity picker ─────────────────────────────────────────
+   Payment Memo and ETF PA mix per-entity tabs (AGRI/APP/LAND/EFIN/SETF) with
+   functional tabs (Input, Vendors, Print). Fold the entity tabs into one
+   "Entitas: APP ▾" control. The original tabs stay in the DOM (hidden), so
+   their handlers, ?tab= deep links and Alt+←/→ stepping are untouched. */
+const FH_ENTITY_TABS = ["AGRI", "APP", "LAND", "EFIN", "SETF", "ENERGY"];
+function initEntityPicker() {
+  const tabs = document.querySelector(".navbar-menu .tabs");
+  if (!tabs) return;
+  const ents = [...tabs.querySelectorAll(".tab-btn")].filter(t => FH_ENTITY_TABS.includes(t.textContent.trim().toUpperCase()));
+  if (ents.length < 3) return;
+  const picker = document.createElement("button");
+  picker.type = "button";
+  picker.className = "fh-entity-picker";
+  picker.setAttribute("aria-haspopup", "menu");
+  picker.setAttribute("aria-expanded", "false");
+  ents[0].before(picker);
+  ents.forEach(t => t.classList.add("fh-entity-tab"));
+
+  function render() {
+    const active = ents.find(t => t.classList.contains("active"));
+    picker.classList.toggle("active", !!active);
+    picker.innerHTML = '<span class="fh-entity-picker-k">Entitas</span>';
+    const v = document.createElement("span");
+    v.textContent = active ? active.textContent.trim() : "Pilih";
+    picker.append(v);
+    picker.insertAdjacentHTML("beforeend", '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>');
+    picker.setAttribute("aria-label", "Entitas: " + (active ? active.textContent.trim() : "belum dipilih"));
+  }
+  picker.addEventListener("click", () => fhRowMenu(picker, [
+    { heading: "Entitas" },
+    ...ents.map(t => ({
+      label: t.textContent.trim(),
+      icon: t.classList.contains("active") ? "check" : undefined,
+      current: t.classList.contains("active"),
+      onClick: () => t.click(),
+    })),
+  ]));
+  ents.forEach(t => new MutationObserver(render).observe(t, { attributes: true, attributeFilter: ["class"] }));
+  render();
+}
+
 /* ── Navbar tab overflow ("Lainnya ▾") ─────────────────────
    Module tabs that don't fit the navbar are hidden and offered from a
    "Lainnya" menu instead of scrolling silently out of view (Payment Memo lost
@@ -370,7 +412,7 @@ function initTabOverflow() {
   if (!menu) return;
   // Module pages carry .tabs .tab-btn; the Dashboard carries the flat module list.
   const tabs = menu.querySelector(".tabs") || menu;
-  const ITEM = tabs === menu ? ".navbar-menu-item" : ".tab-btn";
+  const ITEM = tabs === menu ? ".navbar-menu-item" : ".tab-btn:not(.fh-entity-tab)";
   if (!tabs.querySelector(ITEM)) return;
   const more = document.createElement("button");
   more.type = "button";
@@ -420,6 +462,30 @@ function initTabOverflow() {
   observer.observe(tabs, OBSERVE);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
   layout();
+}
+
+/* Tie each .form-group's visible <label> to its control. Many forms render the
+   label next to the input without for/id, so clicking the label did nothing and
+   screen readers announced an unlabelled field. */
+let _fhLabelSeq = 0;
+function linkFormLabels(root) {
+  (root || document).querySelectorAll(".form-group").forEach(g => {
+    const labels = g.querySelectorAll(":scope > label:not([for])");
+    const controls = [...g.querySelectorAll("input:not([type=hidden]), select, textarea")]
+      .filter(c => !(c.labels && c.labels.length) && c.style.display !== "none");
+    if (labels.length !== 1 || controls.length < 1) return;
+    const c = controls[0];
+    if (!c.id) c.id = "fh-f" + (++_fhLabelSeq);
+    labels[0].htmlFor = c.id;
+  });
+  // Filter bars often have no visible label at all: name the control from its
+  // placeholder or its "Semua …" first option so screen readers say what it is.
+  (root || document).querySelectorAll("main input:not([type=hidden]):not([type=checkbox]):not([type=radio]), main select, main textarea").forEach(c => {
+    if ((c.labels && c.labels.length) || c.getAttribute("aria-label") || c.getAttribute("aria-labelledby")) return;
+    const first = c.tagName === "SELECT" && c.options[0] ? c.options[0].textContent.trim() : "";
+    const name = c.getAttribute("placeholder") || c.getAttribute("title") || (/^semua\b/i.test(first) ? "Filter: " + first : "");
+    if (name) c.setAttribute("aria-label", name.replace(/\.{3}$|…$/, ""));
+  });
 }
 
 /* Small screens: user / theme / company / logout fold into one account menu. */
@@ -780,11 +846,15 @@ function initModalBackdrop(overlay) {
 function openModal(id) { const el = document.getElementById(id); if (el) el.classList.add("open"); }
 function closeModal(id) { const el = document.getElementById(id); if (el) el.classList.remove("open"); }
 
+// Only the first rows animate in; everything past them shows immediately.
+// (Every row used to get a delay capped at 560ms, so a 450-row report sat
+// invisible for half a second and carried 450 inline styles.)
+const FH_STAGGER_ROWS = 12;
 function staggerRows(tbody) {
-  Array.from(tbody.querySelectorAll("tr")).forEach((row, i) => {
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  Array.from(tbody.rows).slice(0, FH_STAGGER_ROWS).forEach((row, i) => {
     row.classList.add("stagger-row");
-    row.style.animationDelay = `${Math.min(i, 20) * 28}ms`;
-    row.style.animationFillMode = "both";
+    row.style.animationDelay = `${i * 28}ms`;
   });
 }
 
@@ -1058,8 +1128,10 @@ document.addEventListener("DOMContentLoaded", () => {
   initModuleSwitchDropdown();
   initHeaderTabFade();
   document.querySelectorAll("[data-tabs]").forEach(initTabs);
+  initEntityPicker();   // before the overflow pass, which measures the picker too
   initTabOverflow();
   initAccountMenu();
+  linkFormLabels();
   restoreFilterOpenState();
   document.querySelectorAll(".modal-overlay").forEach(initModalBackdrop);
   document.querySelectorAll("tbody").forEach(staggerRows);

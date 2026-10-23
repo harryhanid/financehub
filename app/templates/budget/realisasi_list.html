@@ -60,14 +60,19 @@
       <tr data-trx-id="{{ r.trx_id }}" data-budget-id="{{ r.budget_id }}" data-description="{{ r.description }}" data-amount="{{ r.amount }}" data-tanggal="{{ r.tanggal_realisasi }}">
         <td>{{ r.trx_id }}</td>
         <td>{{ r.budget_id }}</td>
-        <td>{{ r.tanggal_realisasi }}</td>
+        <td style="white-space:nowrap">{{ r.tanggal_realisasi | tgl }}</td>
         <td>{{ r.description }}</td>
-        <td>{{ r.amount }}</td>
+        <td class="num-right">{{ r.amount | rupiah(false) }}</td>
         <td>
           <button class="budget-btn" onclick="budgetRealisasiEdit(this)">Edit</button>
           <button class="budget-btn budget-btn-danger" onclick="budgetRealisasiDelete('{{ r.trx_id }}')">Hapus</button>
         </td>
       </tr>
+      {% else %}
+      <tr><td colspan="6"><div class="empty-state">
+        <div class="empty-state-title">Belum ada realisasi</div>
+        <div class="empty-state-sub">Catat realisasi pertama lewat tombol + Realisasi Baru, atau ubah filter di atas.</div>
+      </div></td></tr>
       {% endfor %}
     </tbody>
   </table>

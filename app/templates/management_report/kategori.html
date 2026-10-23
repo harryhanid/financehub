@@ -30,7 +30,7 @@
   <strong>Kategori akun untuk SPT Badan</strong>
   <div class="mc-muted" style="margin:.25rem 0">
     Versi pemetaan: <b>{{ version }}</b> ·
-    {% if last_cat %}Terakhir sync: {{ last_cat.synced_at }} · {{ last_cat.synced_by }} · {{ last_cat.filename }} · SMT {{ last_cat.rows_smt }} akun, ETF {{ last_cat.rows_etf }} akun
+    {% if last_cat %}Terakhir sync: {{ last_cat.synced_at | tgl(true) }} · {{ last_cat.synced_by }} · {{ last_cat.filename }} · SMT {{ last_cat.rows_smt }} akun, ETF {{ last_cat.rows_etf }} akun
     {% else %}Kategori belum pernah disync.{% endif %}
   </div>
   {% if can_manage %}

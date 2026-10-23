@@ -841,7 +841,7 @@
     </div>
 
     <div id="bgt-panel">
-      <div id="bgt-panel-title" style="font-weight:600;font-size:.9rem;color:#1a56db;margin-bottom:.75rem"></div>
+      <div id="bgt-panel-title" style="font-weight:600;font-size:.9rem;color:var(--accent-text);margin-bottom:.75rem"></div>
       <input type="hidden" id="bgt-edit-id">
 
       <!-- ADD BATCH section -->
@@ -925,7 +925,7 @@
 <div class="modal-overlay" id="modal-input-budget">
   <div class="modal" style="width:min(820px,95vw)">
     <div class="modal-header">
-      <span class="modal-title">Budget — <span id="ibgt-title" style="color:#1a56db"></span></span>
+      <span class="modal-title">Budget — <span id="ibgt-title" style="color:var(--accent-text)"></span></span>
       <button class="modal-close" onclick="closeModal('modal-input-budget')" aria-label="Tutup">✕</button>
     </div>
     <div id="ibgt-content">
@@ -1098,7 +1098,13 @@ async function simpanSiswa() {
     const resp = await apiFetch(url, { method:"POST", body:JSON.stringify(payload) });
     const data = await resp.json();
     showToast(data.pesan, data.ok ? "success" : "error");
-    if (data.ok) { closeModal("modal-siswa-tambah"); setTimeout(() => location.reload(), 800); }
+    if (data.ok) {
+      closeModal("modal-siswa-tambah");
+      // Refresh in place (was a full reload, which lost the page, filters and open tab).
+      const known = SISWA_LIST.find(x => String(x.code) === String(payload.code));
+      if (known) known.nama = payload.nama; else SISWA_LIST.push({ code: payload.code, nama: payload.nama });
+      await Promise.all([loadRekap({ keepPage: true }), loadSummary()]);
+    }
   } finally {
     hideLoading();
   }
@@ -1161,7 +1167,11 @@ async function hapusSiswa(code, nama) {
   try {
     const d = await (await apiFetch(`/beasiswa/siswa/${code}/hapus`, { method: "POST" })).json();
     showToast(d.pesan, d.ok ? "success" : "error");
-    if (d.ok) setTimeout(() => location.reload(), 800);
+    if (d.ok) {
+      const i = SISWA_LIST.findIndex(x => String(x.code) === String(code));
+      if (i > -1) SISWA_LIST.splice(i, 1);
+      await Promise.all([loadRekap({ keepPage: true }), loadSummary()]);
+    }
   } finally {
     hideLoading();
   }
@@ -2288,7 +2298,7 @@ function rekamShowDetail(paymentId, rowId) {
       </tbody>
       <tfoot><tr style="background:var(--sl-50)">
         <td style="padding:.375rem .5rem;font-weight:700;font-size:.875rem">Total</td>
-        <td style="padding:.375rem .5rem;text-align:right;font-weight:700;font-size:.875rem;color:#1a56db">${fmtRupiah(totalAmt)}</td>
+        <td style="padding:.375rem .5rem;text-align:right;font-weight:700;font-size:.875rem;color:var(--accent-text)">${fmtRupiah(totalAmt)}</td>
       </tr></tfoot>
     </table>`;
   openModal("modal-rekam-detail");

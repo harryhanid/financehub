@@ -70,10 +70,10 @@
 #pam-table th.s2,#pam-table td.s2{left:207px;min-width:90px}
 #pam-table th.s3,#pam-table td.s3{left:297px;min-width:90px}
 #pam-table th.s4,#pam-table td.s4{left:387px;min-width:100px;box-shadow:3px 0 5px -2px rgba(0,0,0,.12)}
-#pam-table tr.agri-detail-rows{background:#f0f9ff;border-bottom:1px solid #e2e8f0}
+#pam-table tr.agri-detail-rows{background:var(--accent-surface);border-bottom:1px solid #e2e8f0}
 #pam-table tr.agri-detail-rows td.s0,#pam-table tr.agri-detail-rows td.s1,
 #pam-table tr.agri-detail-rows td.s2,#pam-table tr.agri-detail-rows td.s3,
-#pam-table tr.agri-detail-rows td.s4{background:#f0f9ff}
+#pam-table tr.agri-detail-rows td.s4{background:var(--accent-surface)}
 #pam-table tbody tr:hover td.s0,#pam-table tbody tr:hover td.s1,
 #pam-table tbody tr:hover td.s2,#pam-table tbody tr:hover td.s3,
 #pam-table tbody tr:hover td.s4{background:var(--sl-100)}
@@ -212,7 +212,7 @@
       <div class="form-group" style="margin:0">
         <label>Tipe PAM</label>
         <select id="ipay-type" onchange="ipayOnTypeChange()"
-                style="width:100%;border:1.5px solid #3b82f6;color:var(--accent-text);font-weight:700;background:var(--accent-surface)">
+                style="width:100%;border:1.5px solid var(--accent);color:var(--accent-text);font-weight:700;background:var(--accent-surface)">
           <option value="agri">AGRI</option>
           <option value="app">APP</option>
           <option value="sml">LAND</option>
@@ -224,7 +224,7 @@
       <div class="form-group" style="margin:0">
         <label>Transaksi</label>
         <select id="ipay-tx" onchange="ipayOnTxChange()"
-                style="width:100%;border:1.5px solid #10b981;color:#065f46;font-weight:700;background:#ecfdf5">
+                style="width:100%;border:1.5px solid var(--positive);color:var(--positive-text);font-weight:700;background:var(--positive-surface)">
           {% if company_code == 'SMT' %}
           <option value="gl">GL</option>
           <option value="advance">Advance</option>
@@ -246,14 +246,14 @@
       </div>
       <div class="form-group" style="margin:0">
         <label>No. PAM
-          <span id="ipay-pam-type-badge" style="font-size:.75rem;color:#10b981;font-weight:400">(auto AGRI)</span>
-          <span id="ipay-pam-manual-badge" style="display:none;font-size:.75rem;color:#f59e0b;font-weight:600;margin-left:.25rem">(manual)</span>
+          <span id="ipay-pam-type-badge" style="font-size:.75rem;color:var(--positive-text);font-weight:400">(auto AGRI)</span>
+          <span id="ipay-pam-manual-badge" style="display:none;font-size:.75rem;color:var(--caution-text);font-weight:600;margin-left:.25rem">(manual)</span>
         </label>
         <input type="text" id="ipay-pam-full" placeholder="Memuat..."
-               style="font-family:monospace;font-weight:700;color:#1d4ed8;border:1.5px solid #93c5fd;background:#f0f9ff"
+               style="font-family:monospace;font-weight:700;color:var(--accent-text);border:1.5px solid var(--accent-border);background:var(--accent-surface)"
                oninput="ipayValidatePamNo()"
                onblur="ipayCheckPamCollision()">
-        <div id="ipay-pam-hint" style="display:none;font-size:.75rem;color:#dc2626;margin-top:.2rem"></div>
+        <div id="ipay-pam-hint" role="alert" style="display:none;font-size:.75rem;color:var(--negative-text);margin-top:.2rem"></div>
       </div>
       <div class="form-group" style="margin:0">
         <label>Perusahaan</label>
@@ -280,7 +280,7 @@
       <div class="form-group" style="margin:0">
         <label>Catatan Payment <span style="font-size:.75rem;color:var(--text-muted);font-weight:400">(tampil di tab PAM)</span></label>
         <input type="text" id="ipay-catatan" placeholder="Opsional — muncul di kolom Catatan PAM tab"
-               style="border:1px solid #93c5fd;background:#fafeff">
+               style="border:1px solid var(--accent-border);background:var(--card)">
       </div>
       <div class="form-group" style="margin:0">
         <label>Lampiran</label>
@@ -313,7 +313,7 @@
         <tfoot>
           <tr>
             <td colspan="3" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem;color:var(--text)">Total Amount:</td>
-            <td id="ipay-total-amt" class="num-right" style="font-weight:700;color:#1a56db;white-space:nowrap">Rp 0</td>
+            <td id="ipay-total-amt" class="num-right" style="font-weight:700;color:var(--accent-text);white-space:nowrap">Rp 0</td>
             <td></td><td colspan="5"></td>
           </tr>
         </tfoot>
@@ -352,7 +352,7 @@
       <tfoot>
         <tr>
           <td colspan="7" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem">Total Amount:</td>
-          <td id="klaim-total-amt" class="num-right" style="font-weight:700;color:#1a56db;white-space:nowrap">Rp 0</td>
+          <td id="klaim-total-amt" class="num-right" style="font-weight:700;color:var(--accent-text);white-space:nowrap">Rp 0</td>
           <td colspan="3"></td>
         </tr>
       </tfoot>
@@ -372,7 +372,7 @@
         <label>Keterangan <span style="color:#ef4444">*</span></label>
         <input type="text" id="others-keterangan" class="dm-inp"
                placeholder="Keterangan transaksi..."
-               style="border:none;border-bottom:1.5px solid #93c5fd;background:#f0f9ff">
+               style="border:none;border-bottom:1.5px solid #93c5fd;background:var(--accent-surface)">
       </div>
       <div class="form-group" style="margin:0">
         <label>Mata Uang</label>
@@ -447,7 +447,7 @@
       <tfoot>
         <tr>
           <td colspan="8" style="text-align:right;padding-right:.75rem;font-weight:600;font-size:.875rem">Total Amount:</td>
-          <td id="smt-lines-total-amt" class="num-right" style="font-weight:700;color:#1a56db;white-space:nowrap">Rp 0</td>
+          <td id="smt-lines-total-amt" class="num-right" style="font-weight:700;color:var(--accent-text);white-space:nowrap">Rp 0</td>
           <td colspan="6"></td>
         </tr>
       </tfoot>
@@ -2129,7 +2129,7 @@ async function smlFetchBeasiswaLines(masterTr, toggleEl, pamId) {
       `<td style="padding:4px 6px;font-size:12px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
       `<td style="padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
       `<td style="padding:4px 8px;font-size:12px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:var(--accent-text);vertical-align:middle;background:var(--accent-surface);white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
       `<td colspan="21" style="padding:4px 8px;vertical-align:middle"></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
@@ -2427,7 +2427,7 @@ async function setfFetchBeasiswaLines(masterTr, toggleEl, pamId) {
       `<td style="padding:4px 6px;font-size:12px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
       `<td style="padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
       `<td style="padding:4px 8px;font-size:12px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:var(--accent-text);vertical-align:middle;background:var(--accent-surface);white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
       `<td colspan="12" style="padding:4px 8px;vertical-align:middle;text-align:right"><button class="btn btn-sm" style="padding:2px 8px;font-size:12px" onclick="openEditLineModal(${r.id}, ${pamId}, '${esc(r.nama || r.siswa_code || '')}', ${r.amount})">Edit</button></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
@@ -2550,7 +2550,7 @@ async function energyFetchBeasiswaLines(masterTr, toggleEl, pamId) {
       `<td style="padding:4px 6px;font-size:12px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
       `<td style="padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
       `<td style="padding:4px 8px;font-size:12px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:var(--accent-text);vertical-align:middle;background:var(--accent-surface);white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
       `<td colspan="12" style="padding:4px 8px;vertical-align:middle;text-align:right"><button class="btn btn-sm" style="padding:2px 8px;font-size:12px" onclick="openEditLineModal(${r.id}, ${pamId}, '${esc(r.nama || r.siswa_code || '')}', ${r.amount})">Edit</button></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
@@ -3230,7 +3230,7 @@ async function fioriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
       `<td style="padding:4px 6px;font-size:12px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
       `<td style="padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
       `<td style="padding:4px 8px;font-size:12px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:var(--accent-text);vertical-align:middle;background:var(--accent-surface);white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
       `<td colspan="21" style="padding:4px 8px;vertical-align:middle"></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
@@ -3831,7 +3831,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
       `<td class="s1" style="padding:4px 6px;font-size:12px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
       `<td class="s2" style="padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
       `<td class="s3" style="padding:4px 8px;font-size:12px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td class="s4" style="padding:4px 8px;font-size:12px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td class="s4" style="padding:4px 8px;font-size:12px;font-weight:700;color:var(--accent-text);vertical-align:middle;background:var(--accent-surface);white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
       `<td colspan="11" style="padding:4px 8px;vertical-align:middle"></td>` +
       `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pengajuan)}</td>` +
       `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle">${d(r.tgl_receive)}</td>` +
@@ -5274,7 +5274,7 @@ function ipayAddRow() {
         hits.forEach(s => {
           const d = document.createElement("div");
           d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:.5rem";
-          d.innerHTML = `<span style="font-weight:600;color:#1a56db;min-width:72px">${s.code}</span><span style="color:#374151">${s.nama}</span>`;
+          d.innerHTML = `<span style="font-weight:600;color:var(--accent-text);min-width:72px">${s.code}</span><span style="color:#374151">${s.nama}</span>`;
           d.addEventListener("mousedown", () => {
             siswaInp.value = `${s.code} — ${s.nama}`; tr.dataset.siswaCode=s.code; tr.dataset.etfSiswaId=s.id; sugg.style.display="none";
             tr._allLines=[]; tr._hidEtfLineId.value="";
@@ -6167,7 +6167,7 @@ function smtLinesAddRow() {
   const ppnInp = numInp();
   const othersInp = numInp();
   const totalCell = document.createElement("div");
-  totalCell.style.cssText = "text-align:right;font-weight:700;color:#1a56db;white-space:nowrap";
+  totalCell.style.cssText = "text-align:right;font-weight:700;color:var(--accent-text);white-space:nowrap";
   totalCell.textContent = "Rp 0";
   
   const dueCell = document.createElement("div");

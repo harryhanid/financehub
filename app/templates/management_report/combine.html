@@ -28,7 +28,7 @@
 {% block content %}
 {% set bulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'] %}
 <div class="mc-muted" style="margin-bottom:.75rem">
-  {% if last_map %}Pemetaan: terakhir sync {{ last_map.synced_at }} · SMT {{ last_map.rows_smt }} akun, ETF {{ last_map.rows_etf }} akun, {{ last_map.rows_cc or 0 }} cost center
+  {% if last_map %}Pemetaan: terakhir sync {{ last_map.synced_at | tgl(true) }} · SMT {{ last_map.rows_smt }} akun, ETF {{ last_map.rows_etf }} akun, {{ last_map.rows_cc or 0 }} cost center
   {% else %}Pemetaan belum pernah disync{% endif %} · <a href="{{ url_for('management_report.mapping_page') }}">Kelola pemetaan &rarr;</a>
 </div>
 

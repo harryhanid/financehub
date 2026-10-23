@@ -30,7 +30,7 @@
 <section class="card mc-section">
   <strong>Pemetaan COA &amp; CC</strong>
   <div class="mc-muted" style="margin:.25rem 0">
-    {% if last_map %}Terakhir sync: {{ last_map.synced_at }} · {{ last_map.synced_by }} · {{ last_map.filename }} · SMT {{ last_map.rows_smt }} akun, ETF {{ last_map.rows_etf }} akun, {{ last_map.rows_cc or 0 }} cost center
+    {% if last_map %}Terakhir sync: {{ last_map.synced_at | tgl(true) }} · {{ last_map.synced_by }} · {{ last_map.filename }} · SMT {{ last_map.rows_smt }} akun, ETF {{ last_map.rows_etf }} akun, {{ last_map.rows_cc or 0 }} cost center
     {% else %}Pemetaan belum pernah disync.{% endif %}
   </div>
   {% if can_manage %}

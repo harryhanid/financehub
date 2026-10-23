@@ -11,12 +11,30 @@
 <div class="budget-page">
   <h1>Carryover & Additional Budget Requests</h1>
 
-  <div class="budget-toolbar">
-    <input type="text" id="cr-budget-id" placeholder="Budget ID">
-    <input type="text" id="cr-reason" placeholder="Alasan">
-    <button class="budget-btn" onclick="budgetSubmitCarryover()">Request Carryover</button>
-    <input type="number" id="cr-amount" placeholder="Jumlah tambahan" min="0">
-    <button class="budget-btn" onclick="budgetSubmitAdditional()">Request Tambahan Anggaran</button>
+  <div class="budget-card cr-form">
+    <div class="cr-form-grid">
+      <div class="form-group cr-field-budget">
+        <label for="cr-budget-id">Budget *</label>
+        <input type="text" id="cr-budget-id" list="cr-budget-options" autocomplete="off"
+               placeholder="Cari ID, deskripsi, dept, atau GL" oninput="crBudgetSearch(this.value)"
+               aria-describedby="cr-budget-info">
+        <datalist id="cr-budget-options"></datalist>
+        <div id="cr-budget-info" class="cr-help">Ketik minimal 2 huruf lalu pilih budget dari daftar.</div>
+      </div>
+      <div class="form-group">
+        <label for="cr-reason">Alasan *</label>
+        <textarea id="cr-reason" rows="2" placeholder="Pencairan semester genap mundur ke Januari"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="cr-amount">Jumlah tambahan (Rp)</label>
+        <input type="number" id="cr-amount" min="0" step="1" inputmode="numeric" placeholder="Hanya untuk tambahan anggaran">
+        <div class="cr-help">Kosongkan untuk carryover.</div>
+      </div>
+    </div>
+    <div class="cr-form-actions">
+      <button class="budget-btn" onclick="budgetSubmitCarryover()">Ajukan carryover</button>
+      <button class="budget-btn" onclick="budgetSubmitAdditional()">Ajukan tambahan anggaran</button>
+    </div>
   </div>
 
   <table class="budget-table">
@@ -42,6 +60,11 @@
           {% endif %}
         </td>
       </tr>
+      {% else %}
+      <tr><td colspan="7"><div class="empty-state">
+        <div class="empty-state-title">Belum ada request carryover atau tambahan anggaran</div>
+        <div class="empty-state-sub">Ajukan carryover saat budget belum terserap di akhir periode, atau tambahan anggaran bila budget kurang.</div>
+      </div></td></tr>
       {% endfor %}
     </tbody>
   </table>

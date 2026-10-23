@@ -240,6 +240,18 @@ button { font-family: inherit; }
 .fh-tab-more:hover { background: var(--accent-surface); color: var(--accent-text); }
 .fh-tab-more.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; }
 .fh-tab-more[hidden] { display: none; }
+.navbar-menu .tab-btn.fh-entity-tab { display: none; }
+.fh-entity-picker {
+  display: inline-flex; align-items: center; gap: .35rem; flex-shrink: 0;
+  padding: .45rem .875rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--sl-200); background: var(--card); color: var(--sl-700);
+  font: inherit; font-size: .8rem; font-weight: 600; white-space: nowrap;
+}
+.fh-entity-picker:hover { border-color: var(--accent-border); color: var(--accent-text); }
+.fh-entity-picker-k { font-weight: 500; color: var(--text-muted); }
+.fh-entity-picker.active { border-color: transparent; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; }
+.fh-entity-picker.active .fh-entity-picker-k { color: rgba(255,255,255,.85); }
+[data-theme="dark"] .fh-entity-picker { border-color: var(--border); }
 .fh-tab-more-label { overflow: hidden; text-overflow: ellipsis; max-width: 12rem; }
 @media (max-width: 480px) { .fh-tab-more { padding: .5rem .625rem; } .fh-tab-more-label { max-width: 4.5rem; } }
 .fh-row-menu-heading { padding: .4rem .625rem .3rem; font-size: .75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
@@ -747,8 +759,8 @@ tfoot td { font-family: var(--mono); font-weight: 600; color: var(--sl-800); fon
   font-variant-numeric: tabular-nums;
   font-size: .8125rem;
 }
-.stagger-row { opacity: 0; transform: translateY(2px); animation: row-in .18s ease forwards; }
-@keyframes row-in { to { opacity: 1; transform: none; } }
+.stagger-row { animation: row-in .18s ease both; }
+@keyframes row-in { from { opacity: 0; transform: translateY(2px); } }
 
 /* Dark header variant */
 .thead-primary th {
@@ -1753,7 +1765,7 @@ input[readonly], input[disabled] {
 }
 .empty-state-sub {
   font-size: .75rem;
-  color: var(--sl-400);
+  color: var(--sl-500);
   max-width: 32ch;
   text-align: center;
   line-height: 1.55;

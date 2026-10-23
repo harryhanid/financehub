@@ -16,8 +16,8 @@
   --warning: #b45309;
   --danger: #dc2626;
   --info: #1d4ed8;
-  --po-color: #f97316;
-  --tf-color: #06b6d4;
+  --po-color: #c2410c;   /* badge text: was #f97316 at 2.6:1 */
+  --tf-color: #0e7490;   /* was #06b6d4 at 2.2:1 */
   --radius-md: 12px;
   --radius-lg: 16px;
   --shadow-md: 0 4px 20px rgba(15, 23, 42, 0.08);
@@ -46,6 +46,8 @@
   --warning: #fbbf24;
   --danger: #f87171;
   --info: #93c5fd;
+  --po-color: #fdba74;
+  --tf-color: #67e8f9;
   --accent-glow: rgba(99, 102, 241, 0.3);
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
   --page-bg: #070a12;
@@ -610,3 +612,13 @@
     cursor: pointer;
 }
 
+/* Carryover request form (budget/carryover.html) */
+.cr-form { margin-bottom: 1.25rem; }
+.cr-form-grid { display: grid; grid-template-columns: minmax(260px, 1.2fr) minmax(240px, 1fr) minmax(180px, .7fr); gap: 1rem; }
+.cr-form .form-group { margin: 0; }
+.cr-form label { color: var(--text-secondary); }
+.cr-form input, .cr-form textarea { width: 100%; }
+.cr-help { margin-top: .3rem; font-size: .75rem; color: var(--text-muted); }
+.cr-help-ok { color: var(--text-primary); }
+.cr-form-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; flex-wrap: wrap; }
+@media (max-width: 900px) { .cr-form-grid { grid-template-columns: 1fr; } }

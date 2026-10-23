@@ -66,13 +66,18 @@
         <td>{{ b.dept }}</td>
         <td>{{ b.budget_category }}</td>
         <td>{{ b.activity }}</td>
-        <td>{{ b.amount }}</td>
-        <td>{{ b.deadline }}</td>
+        <td class="num-right">{{ b.amount | rupiah(false) }}</td>
+        <td style="white-space:nowrap">{{ b.deadline | tgl }}</td>
         <td>
           <button class="budget-btn" onclick="budgetMasterEdit('{{ b.id }}')">Edit</button>
           <button class="budget-btn budget-btn-danger" onclick="budgetMasterDelete('{{ b.id }}')">Hapus</button>
         </td>
       </tr>
+      {% else %}
+      <tr><td colspan="8"><div class="empty-state">
+        <div class="empty-state-title">Tidak ada budget yang cocok</div>
+        <div class="empty-state-sub">Ubah atau kosongkan filter untuk melihat budget lain.</div>
+      </div></td></tr>
       {% endfor %}
     </tbody>
   </table>

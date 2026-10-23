@@ -183,6 +183,14 @@ def api_lookups():
     })
 
 
+@bp.route("/api/search")
+@jwt_html_required
+def api_budget_search():
+    """Budget picker for the carryover form: match id / description / dept / GL."""
+    from modules.budget.service import search_budgets
+    return jsonify({"rows": search_budgets(request.args.get("q", ""), limit=20)})
+
+
 @bp.route("/carryover")
 @jwt_html_required
 def carryover_page():

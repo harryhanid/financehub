@@ -143,6 +143,7 @@
   gap: 0.3rem;
 }
 .sp-dash-cat4-wrap .lbl {
+  display: inline-block; margin: 0;   /* now a <label>; keep the old inline span layout */
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -204,13 +205,22 @@
 /* Pillar tint modifiers — derived from the existing per-pillar accent hues
    already used for chart colors in sponsorship.js (fca5a5/86efac/c4b5fd/fdba74). */
 .sp-dash-stat-card.tint-app      { background: #fef2f2; border-color: #fca5a5; }
-.sp-dash-stat-card.tint-app      .value, .sp-dash-stat-card.tint-app .sub      { color: #dc2626; }
+.sp-dash-stat-card.tint-app      .value, .sp-dash-stat-card.tint-app .sub      { color: #b91c1c; }
 .sp-dash-stat-card.tint-energy   { background: #f0fdf4; border-color: #86efac; }
-.sp-dash-stat-card.tint-energy   .value, .sp-dash-stat-card.tint-energy .sub   { color: #16a34a; }
+.sp-dash-stat-card.tint-energy   .value, .sp-dash-stat-card.tint-energy .sub   { color: #15803d; }
 .sp-dash-stat-card.tint-property { background: #f5f3ff; border-color: #c4b5fd; }
 .sp-dash-stat-card.tint-property .value, .sp-dash-stat-card.tint-property .sub { color: #7c3aed; }
 .sp-dash-stat-card.tint-agri     { background: #fff7ed; border-color: #fdba74; }
-.sp-dash-stat-card.tint-agri     .value, .sp-dash-stat-card.tint-agri .sub     { color: #ea580c; }
+.sp-dash-stat-card.tint-agri     .value, .sp-dash-stat-card.tint-agri .sub     { color: #c2410c; }
+/* Dark: the pastel fills stayed light while labels turned light (2.4:1) */
+[data-theme="dark"] .sp-dash-stat-card.tint-app      { background: var(--negative-surface); border-color: var(--negative-border); }
+[data-theme="dark"] .sp-dash-stat-card.tint-energy   { background: var(--positive-surface); border-color: var(--positive-border); }
+[data-theme="dark"] .sp-dash-stat-card.tint-property { background: var(--violet-surface);   border-color: var(--violet-border); }
+[data-theme="dark"] .sp-dash-stat-card.tint-agri     { background: var(--tangerine-surface); border-color: var(--tangerine-border); }
+[data-theme="dark"] .sp-dash-stat-card.tint-app      .value, [data-theme="dark"] .sp-dash-stat-card.tint-app .sub      { color: #fca5a5; }
+[data-theme="dark"] .sp-dash-stat-card.tint-energy   .value, [data-theme="dark"] .sp-dash-stat-card.tint-energy .sub   { color: #86efac; }
+[data-theme="dark"] .sp-dash-stat-card.tint-property .value, [data-theme="dark"] .sp-dash-stat-card.tint-property .sub { color: #c4b5fd; }
+[data-theme="dark"] .sp-dash-stat-card.tint-agri     .value, [data-theme="dark"] .sp-dash-stat-card.tint-agri .sub     { color: #fdba74; }
 
 /* ── Chart/table cards — neutral, uniform ────────────────────────────────── */
 .sp-dash-chart-card {
