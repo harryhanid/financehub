@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% set full_bleed = true %}
+{% block title %}Approval Budget Beasiswa{% endblock %}
+
+{% block content %}
+<style>
+.detail-row { display: none; background: #f8fafc; }
+.detail-row.open { display: table-row; }
+.inner-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.inner-table th, .inner-table td { padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+.inner-table th { background: #e2e8f0; font-weight: 600; text-align: left; }
+</style>
+
+<div class="page-header">
+  <h1 class="page-title">Approval Budget Beasiswa <small style="font-size:12px;color:gray">(Logged in as: {{ ctx.current_user }} | Role: {{ ctx.current_role }})</small></h1>
+  <div class="header-actions">
+    <a href="/beasiswa/" class="btn btn-secondary">&larr; Kembali ke Beasiswa</a>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:40px"></th>
+        <th>Batch ID</th>
+        <th>Tanggal Pengajuan</th>
+        <th>Tipe</th>
+        <th>Siswa</th>
+        <th>Total Amount</th>
+        <th>Pemohon (FC)</th>
+        <th>Status</th>
+        <th style="width:160px">Aksi Batch</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in requests %}
+      <tr>
+        <td style="text-align:center">
+          <button class="btn btn-sm" style="padding:2px 6px;margin:0" onclick="toggleDetail('{{ b.batch_id }}')">&#9660;</button>
+        </td>
+        <td>{{ b.batch_id }}</td>
+        <td>{{ b.created_at[:16] }}</td>
+        <td>
+          <span class="badge badge-{% if b.action_type == 'ADD' %}green{% elif b.action_type == 'EDIT' %}blue{% else %}red{% endif %}">
+            {{ b.action_type }}
+          </span>
+        </td>
+        <td>{{ b.siswa_code }} - {{ b.siswa_nama }}</td>
+        <td style="text-align:right">{{ "{:,.0f}".format(b.total_amount) }}</td>
+        <td>{{ b.created_by }}</td>
+        <td>
+          <span class="badge badge-{% if b.status == 'PENDING' %}yellow{% elif b.status == 'APPROVED' %}green{% elif b.status == 'REJECTED' %}red{% else %}blue{% endif %}">
+            {{ b.status }}
+          </span>
+        </td>
+        <td>
+          {% if b.status in ['PENDING', 'PARTIAL'] and (ctx.current_role|lower in ['bc', 'admin'] or ctx.current_user|lower == 'admin') %}
+          <button class="btn btn-success btn-sm" onclick="approveBatch('{{ b.batch_id }}')" style="padding:4px 8px;font-size:12px;margin-right:4px;margin-bottom:0">Approve All</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectBatch('{{ b.batch_id }}')" style="padding:4px 8px;font-size:12px;margin-bottom:0">Reject All</button>
+          {% else %}
+          -
+          {% endif %}
+        </td>
+      </tr>
+      <tr class="detail-row" id="detail-{{ b.batch_id }}">
+        <td colspan="9" style="padding:10px 40px">
+          <div style="display:flex; justify-content:space-between; margin-bottom:8px">
+            <strong>Detail Item:</strong>
+            {% if b.status in ['PENDING', 'PARTIAL'] and (ctx.current_role|lower in ['bc', 'admin'] or ctx.current_user|lower == 'admin') %}
+            <div>
+              <button class="btn btn-success btn-sm" onclick="approveSelected('{{ b.batch_id }}')" style="padding:2px 8px;font-size:12px">Approve Pilihan</button>
+              <button class="btn btn-danger btn-sm" onclick="rejectSelected('{{ b.batch_id }}')" style="padding:2px 8px;font-size:12px">Reject Pilihan</button>
+            </div>
+            {% endif %}
+          </div>
+          <table class="inner-table">
+            <thead>
+              <tr>
+                <th style="width:30px"><input type="checkbox" onchange="toggleAllCheck(this, '{{ b.batch_id }}')"></th>
+                <th>Kategori 1</th>
+                <th>Kategori 2</th>
+                <th>Pillar</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Catatan Penolakan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for line in b.lines %}
+              <tr>
+                <td style="text-align:center">
+                  {% if line.status == 'PENDING' and (ctx.current_role|lower in ['bc', 'admin'] or ctx.current_user|lower == 'admin') %}
+                  <input type="checkbox" class="cb-{{ b.batch_id }}" value="{{ line.id }}">
+                  {% endif %}
+                </td>
+                <td>{{ line.cat1 }}</td>
+                <td>{{ line.cat2 }}</td>
+                <td>{{ line.pillar }}</td>
+                <td style="text-align:right">{{ "{:,.0f}".format(line.amount) }}</td>
+                <td>
+                  <span style="color:{% if line.status == 'PENDING' %}#d97706{% elif line.status == 'APPROVED' %}#16a34a{% else %}#dc2626{% endif %}">{{ line.status }}</span>
+                </td>
+                <td>{{ line.reject_reason or '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" style="text-align:center">Tidak ada pengajuan budget.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+function toggleDetail(batch_id) {
+  const tr = document.getElementById('detail-' + batch_id);
+  if(tr.classList.contains('open')) tr.classList.remove('open');
+  else tr.classList.add('open');
+}
+
+function toggleAllCheck(el, batch_id) {
+  const cbs = document.querySelectorAll('.cb-' + batch_id);
+  cbs.forEach(cb => cb.checked = el.checked);
+}
+
+function getSelectedIds(batch_id) {
+  const cbs = document.querySelectorAll('.cb-' + batch_id + ':checked');
+  return Array.from(cbs).map(cb => parseInt(cb.value));
+}
+
+function getAllIds(batch_id) {
+  const cbs = document.querySelectorAll('.cb-' + batch_id);
+  return Array.from(cbs).map(cb => parseInt(cb.value));
+}
+
+async function approveReq(ids) {
+  if(!ids.length) { showToast("Tidak ada item yang dipilih", "error"); return; }
+  if(!await confirmModal("Setujui " + ids.length + " pengajuan ini?", { title: "Setujui Pengajuan", confirmText: "Setujui" })) return;
+  const res = await apiFetch("/beasiswa/approval-budget/approve", {
+    method: "POST", body: JSON.stringify({request_ids: ids})
+  });
+  const d = await res.json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if(d.ok) setTimeout(() => location.reload(), 800);
+}
+
+async function rejectReq(ids) {
+  if(!ids.length) { showToast("Tidak ada item yang dipilih", "error"); return; }
+  const reason = await promptModal("Tolak " + ids.length + " pengajuan ini?", {
+    title: "Tolak Pengajuan", label: "Alasan penolakan", multiline: true, required: true,
+    type: "danger", confirmText: "Tolak"
+  });
+  if(reason === null) return;
+  
+  const res = await apiFetch("/beasiswa/approval-budget/reject", {
+    method: "POST", body: JSON.stringify({request_ids: ids, reason: reason.trim()})
+  });
+  const d = await res.json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if(d.ok) setTimeout(() => location.reload(), 800);
+}
+
+function approveBatch(batch_id) { approveReq(getAllIds(batch_id)); }
+function rejectBatch(batch_id) { rejectReq(getAllIds(batch_id)); }
+function approveSelected(batch_id) { approveReq(getSelectedIds(batch_id)); }
+function rejectSelected(batch_id) { rejectReq(getSelectedIds(batch_id)); }
+</script>
+{% endblock %}
+
