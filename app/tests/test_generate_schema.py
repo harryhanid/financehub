@@ -168,6 +168,62 @@ def test_fh_strftime_more_specifiers_match_sqlite(pg_raw):
         assert pg_raw.scalar("select public.fh_strftime(%s, %s)", (fmt, x)) == expected, (fmt, x)
 
 
+# Versi fungsi SQL sebelum Task 21 (lambat di Supabase); acuan bahwa versi plpgsql tidak mengubah hasil.
+_FH_STRFTIME_SQLFN = """
+create or replace function public.fh_strftime_sqlfn(fmt text, x text)
+returns text
+language sql
+immutable
+return (
+    select case when t.ts is null or fmt is null then null else
+        replace(replace(replace(replace(replace(replace(replace(replace(fmt,
+            '%Y', lpad(extract(year from t.ts)::int::text, 4, '0')),
+            '%m', lpad(extract(month from t.ts)::int::text, 2, '0')),
+            '%d', lpad(extract(day from t.ts)::int::text, 2, '0')),
+            '%H', lpad(extract(hour from t.ts)::int::text, 2, '0')),
+            '%M', lpad(extract(minute from t.ts)::int::text, 2, '0')),
+            '%S', lpad(floor(extract(second from t.ts))::int::text, 2, '0')),
+            '%j', lpad((t.ts::date - make_date(extract(year from t.ts)::int, 1, 1) + 1)::text, 3, '0')),
+            '%w', extract(dow from t.ts)::int::text)
+    end
+    from (select regexp_match(x, '^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?\s*$') as m) r
+    cross join lateral (
+        select case
+            when r.m is null then null
+            when r.m[1]::int < 1 or r.m[2]::int not between 1 and 12 or r.m[3]::int not between 1 and 31
+                 or coalesce(r.m[4], '0')::int > 24 or coalesce(r.m[5], '0')::int > 59
+                 or coalesce(r.m[6], '0')::int > 59 then null
+            else (make_date(r.m[1]::int, r.m[2]::int, 1) + (r.m[3]::int - 1))
+                 + make_interval(hours => coalesce(r.m[4], '0')::int,
+                                 mins => coalesce(r.m[5], '0')::int,
+                                 secs => coalesce(r.m[6], '0')::int)
+        end as ts
+    ) t
+)
+"""
+
+
+def test_fh_strftime_plpgsql_matches_previous_sql_function(pg_raw):
+    """Task 21: fh_strftime ditulis ulang sebagai plpgsql (cepat); hasil harus sama persis dengan versi
+    SQL sebelumnya untuk semua input (termasuk kasus yang memang beda dari SQLite, mis. tahun 0000)."""
+    import itertools
+    import sqlite3
+    pg_raw.execute(COMPAT_SQL.replace("{{schema}}", "public"))
+    lite = sqlite3.connect(":memory:")
+    dates = ["2025-01-31", "2024-02-29", "2025-02-29", "2025-04-31", "2025-12-31", "2025-00-10",
+             "2025-13-01", "2025-01-00", "2025-01-32", "0000-01-01", "0001-01-01", "1999-12-31",
+             "2025-03-15 10:20", "2025-03-15T08:09:10.123", "2025-12-31 24:00", "2025-12-31 23:59:59",
+             "2025-03-15 25:00", "2025-03-15 10:60", "2025-03-15 10:20:60", "2025-03-15  ", "2025-3-15",
+             "15/03/2025", "", " 2025-03-15", "2025-03-15x", None]
+    fmts = ["%Y", "%m", "%d", "%Y-%m", "%Y-%m-%d", "%H:%M:%S", "%j", "%w", "%d/%m/%Y", "x", "", None]
+    pg_raw.execute(_FH_STRFTIME_SQLFN)
+    for fmt, x in itertools.product(fmts, dates):
+        expected = pg_raw.scalar("select public.fh_strftime_sqlfn(%s, %s)", (fmt, x))
+        assert pg_raw.scalar("select public.fh_strftime(%s, %s)", (fmt, x)) == expected, (fmt, x)
+        if x not in ("0000-01-01", "2025-12-31 24:00"):   # beda dari SQLite sejak awal (bukan Task 21)
+            assert expected == lite.execute("select strftime(?, ?)", (fmt, x)).fetchone()[0], (fmt, x)
+
+
 def test_text_columns_use_binary_collation(tmp_path, pg_raw):
     """R28: kolom text memakai COLLATE "C" -> urutan byte seperti BINARY di SQLite."""
     db = _make_db(tmp_path / "coll.db",
