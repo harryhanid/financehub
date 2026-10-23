@@ -7,6 +7,7 @@
 Result = {"columns": list[str], "rows": list[list]}  (statement yang mengembalikan baris)
        | {"rowcount": int}                            (statement lain)
 """
+import gzip
 import http.client
 import json
 import socket
@@ -86,7 +87,9 @@ class HttpBackend:
         self._port = u.port
         self._path = (u.path.rstrip("/") or "") + "/rest/v1/rpc/fh_exec"
         self._timeout = timeout
-        self._headers = {"apikey": key, "Content-Type": "application/json", "Accept": "application/json"}
+        # gzip (Task 21): hasil besar (mis. 10 ribu baris ~3,4 MB JSON) dominan waktu transfer, bukan query.
+        self._headers = {"apikey": key, "Content-Type": "application/json", "Accept": "application/json",
+                         "Accept-Encoding": "gzip"}
         if key.startswith("eyJ"):  # key lama (JWT) juga dikirim sebagai Bearer
             self._headers["Authorization"] = f"Bearer {key}"
         self._local = threading.local()
@@ -131,6 +134,8 @@ class HttpBackend:
             resp = conn.getresponse()
             data = resp.read()
             status = resp.status
+            if data and (resp.getheader("Content-Encoding") or "").lower() == "gzip":
+                data = gzip.decompress(data)
             self._local.last_used = time.monotonic()  # idle dihitung dari respons terakhir
         except (socket.timeout, TimeoutError) as e:
             self._drop_conn()

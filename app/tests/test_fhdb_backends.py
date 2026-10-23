@@ -244,11 +244,17 @@ def test_http_headers_and_error_mapping(monkeypatch):
     responses = []
 
     class FakeResp:
-        def __init__(self, status, body):
-            self.status, self._body = status, body.encode()
+        def __init__(self, status, body, encoding=None):
+            self.status, self._body, self._encoding = status, body.encode(), encoding
+            if encoding == "gzip":
+                import gzip
+                self._body = gzip.compress(self._body)
 
         def read(self):
             return self._body
+
+        def getheader(self, name, default=None):
+            return self._encoding if name.lower() == "content-encoding" else default
 
     class FakeConn:
         def __init__(self, host, port=None, timeout=None, **kw):
@@ -276,6 +282,9 @@ def test_http_headers_and_error_mapping(monkeypatch):
     assert body == {"stmts": ["select 1 as a, 2 as a", "update x set y=1"], "schema": "financehub"}
     assert headers["apikey"] == key and "Authorization" not in headers
     assert headers["Content-Type"] == "application/json"
+    assert headers["Accept-Encoding"] == "gzip"            # Task 21: hasil besar dikompres
+    responses.append(FakeResp(200, json.dumps('[{"rows":[{"a":"x"}]}]'), encoding="gzip"))
+    assert b.execute_batch(["select 'x' as a"], "financehub") == [{"columns": ["a"], "rows": [["x"]]}]
 
     jwt = "eyJhbGciOi.fake"
     b2 = backends.HttpBackend("https://example.supabase.co", jwt)
@@ -405,6 +414,9 @@ def test_http_reconnects_before_send_after_idle(monkeypatch):
 
         def read(self):
             return json.dumps('[{"rowcount":1}]').encode()
+
+        def getheader(self, name, default=None):
+            return default
 
     class FakeConn:
         def __init__(self, host, port=None, timeout=None, **kw):
