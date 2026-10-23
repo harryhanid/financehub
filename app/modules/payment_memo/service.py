@@ -649,10 +649,6 @@ def save_klaim_payment(company_id: int, company_code: str, data: dict) -> dict:
     if not rows:
         return {"ok": False, "pesan": "Minimal 1 baris siswa."}
 
-    print(rows)
-    with open("C:/Financehub/debug_payload.txt", "a") as f:
-        import json
-        f.write(json.dumps(rows) + "\n")
     for row in rows:
         if float(row.get("amount", 0)) <= 0:
             return {"ok": False,

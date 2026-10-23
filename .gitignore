@@ -62,3 +62,16 @@ keluar
 app/client_secret.json
 app/token.json
 app/gdrive_credentials.json
+
+# Local data dumps / debug output — contain real student & family data, never commit
+app/full_tree.json
+debug_payload.txt
+api_resp.json
+extracted_*.txt
+git_*.txt
+fix_family_names.py
+fix_jety.py
+app/test2.js
+app/test_js*.js
+*.log
+*.db.PRE-SUPABASE*
