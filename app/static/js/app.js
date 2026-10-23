@@ -360,6 +360,85 @@ function initModuleSwitchDropdown() {
   });
 }
 
+/* ── Navbar tab overflow ("Lainnya ▾") ─────────────────────
+   Module tabs that don't fit the navbar are hidden and offered from a
+   "Lainnya" menu instead of scrolling silently out of view (Payment Memo lost
+   161px of tabs at 1366px). The hidden tabs stay in the DOM, so their own
+   click handlers, initTabs and the Alt+←/→ stepping keep working. */
+function initTabOverflow() {
+  const menu = document.querySelector(".navbar-menu");
+  if (!menu) return;
+  // Module pages carry .tabs .tab-btn; the Dashboard carries the flat module list.
+  const tabs = menu.querySelector(".tabs") || menu;
+  const ITEM = tabs === menu ? ".navbar-menu-item" : ".tab-btn";
+  if (!tabs.querySelector(ITEM)) return;
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "fh-tab-more";
+  more.setAttribute("aria-haspopup", "menu");
+  more.setAttribute("aria-expanded", "false");
+  tabs.appendChild(more);
+
+  let observer;
+  const OBSERVE = { subtree: true, attributes: true, attributeFilter: ["class"], characterData: true, childList: true };
+  function layout() {
+    if (observer) observer.disconnect();   // our own class flips must not re-trigger us
+    try { doLayout(); } finally { if (observer) { observer.takeRecords(); observer.observe(tabs, OBSERVE); } }
+  }
+  function doLayout() {
+    const all = [...tabs.querySelectorAll(ITEM)];
+    all.forEach(t => t.classList.remove("fh-tab-hidden"));
+    more.hidden = true;
+    menu.classList.remove("fh-overflow");
+    if (tabs.scrollWidth <= menu.clientWidth) return;
+    more.hidden = false;
+    for (let i = all.length - 1; i >= 0 && tabs.scrollWidth > menu.clientWidth; i--) all[i].classList.add("fh-tab-hidden");
+    const hidden = all.filter(t => t.classList.contains("fh-tab-hidden"));
+    const active = hidden.find(t => t.classList.contains("active"));
+    more.classList.toggle("active", !!active);
+    more.innerHTML = "";
+    const label = document.createElement("span");
+    label.className = "fh-tab-more-label";
+    label.textContent = active ? active.textContent.trim() : "Lainnya";
+    more.append(label);
+    more.insertAdjacentHTML("beforeend", '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>');
+    more.setAttribute("aria-label", (active ? active.textContent.trim() + " — " : "") + hidden.length + " tab lainnya");
+  }
+  more.addEventListener("click", () => {
+    fhRowMenu(more, [...tabs.querySelectorAll(ITEM + ".fh-tab-hidden")].map(t => ({
+      label: t.textContent.trim(),
+      icon: t.classList.contains("active") ? "check" : undefined,
+      current: t.classList.contains("active"),
+      onClick: () => t.click(),
+    })));
+  });
+  let raf;
+  const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(layout); };
+  window.addEventListener("resize", schedule);
+  // Active tab changes (and tab labels with live counts) re-run the layout.
+  observer = new MutationObserver(schedule);
+  observer.observe(tabs, OBSERVE);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+  layout();
+}
+
+/* Small screens: user / theme / company / logout fold into one account menu. */
+function initAccountMenu() {
+  const btn = document.getElementById("fh-acct-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const company = document.querySelector(".navbar-company");
+    const dark = document.documentElement.getAttribute("data-theme") === "dark";
+    fhRowMenu(btn, [
+      { heading: btn.dataset.user || "Akun" },
+      ...(company ? [{ label: "Ganti perusahaan (" + company.textContent.trim() + ")", icon: "building", onClick: () => { location.href = company.getAttribute("href"); } }] : []),
+      { label: dark ? "Tema terang" : "Tema gelap", icon: "theme", onClick: () => toggleTheme() },
+      "sep",
+      { label: "Keluar", icon: "logout", danger: true, onClick: () => doLogout() },
+    ]);
+  });
+}
+
 function initHeaderTabFade() {
   document.querySelectorAll('.navbar-menu').forEach(function(el) {
     function update() {
@@ -589,12 +668,16 @@ function hideLoading() {
 /* ── Row action menu ("⋯") ─────────────────────────────────
    One shared popover for per-row secondary actions, so a table row carries a
    single visible action plus this menu instead of 3-4 buttons.
-   fhRowMenu(anchorButton, [{label, icon?, danger?, onClick} | "sep"]) */
+   fhRowMenu(anchorButton, [{label, icon?, danger?, current?, onClick} | {heading} | "sep"]) */
 const FH_MENU_ICONS = {
   wallet: '<path d="M17 8V5a1 1 0 0 0-1-1H6a2 2 0 0 0 0 4h12a1 1 0 0 1 1 1v3m0 4v3a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V6"/><path d="M20 12v4h-4a2 2 0 0 1 0-4h4"/>',
   calc:   '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01M16 19h.01"/>',
   edit:   '<path d="M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16v4"/><path d="m13.5 6.5 4 4"/>',
   trash:  '<path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>',
+  check:  '<path d="M5 12l5 5L20 7"/>',
+  building: '<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/>',
+  theme:  '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
 };
 function fhRowMenu(anchor, items) {
   const open = document.getElementById("fh-row-menu");
@@ -609,10 +692,18 @@ function fhRowMenu(anchor, items) {
   menu.setAttribute("role", "menu");
   items.forEach(it => {
     if (it === "sep") { menu.insertAdjacentHTML("beforeend", '<div class="fh-row-menu-sep" role="separator"></div>'); return; }
+    if (it.heading) {
+      const h = document.createElement("div");
+      h.className = "fh-row-menu-heading";
+      h.textContent = it.heading;
+      menu.appendChild(h);
+      return;
+    }
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "fh-row-menu-item" + (it.danger ? " danger" : "");
+    b.className = "fh-row-menu-item" + (it.danger ? " danger" : "") + (it.current ? " current" : "");
     b.setAttribute("role", "menuitem");
+    if (it.current) b.setAttribute("aria-current", "page");
     b.innerHTML = (it.icon ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${FH_MENU_ICONS[it.icon] || ""}</svg>` : "") + "<span></span>";
     b.querySelector("span").textContent = it.label;
     b.addEventListener("click", () => { close(); it.onClick(); });
@@ -628,7 +719,7 @@ function fhRowMenu(anchor, items) {
 
   anchor.setAttribute("aria-expanded", "true");
   const btns = [...menu.querySelectorAll(".fh-row-menu-item")];
-  btns[0] && btns[0].focus();
+  (menu.querySelector(".fh-row-menu-item.current") || btns[0])?.focus();
 
   function onKey(e) {
     const i = btns.indexOf(document.activeElement);
@@ -967,6 +1058,8 @@ document.addEventListener("DOMContentLoaded", () => {
   initModuleSwitchDropdown();
   initHeaderTabFade();
   document.querySelectorAll("[data-tabs]").forEach(initTabs);
+  initTabOverflow();
+  initAccountMenu();
   restoreFilterOpenState();
   document.querySelectorAll(".modal-overlay").forEach(initModalBackdrop);
   document.querySelectorAll("tbody").forEach(staggerRows);

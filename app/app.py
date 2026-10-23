@@ -95,6 +95,27 @@ def create_app(testing=False):
     from format_utils import format_rupiah
     app.jinja_env.filters["rupiah"] = lambda v, with_prefix=True: format_rupiah(v, "Rp " if with_prefix else "")
 
+    _BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+
+    def tgl(value, with_time=False):
+        """'2026-10-23T20:59:12' -> '23 Okt 2026' (or '23 Okt 2026, 20:59')."""
+        if not value:
+            return "–"
+        s = str(value)
+        try:
+            y, m, d = int(s[0:4]), int(s[5:7]), int(s[8:10])
+        except ValueError:
+            return s
+        out = f"{d} {_BULAN[m - 1]} {y}"
+        if with_time and len(s) >= 16:
+            out += f", {s[11:16]}"
+        return out
+    app.jinja_env.filters["tgl"] = tgl
+
+    _ACRONYMS = {"hr", "it", "sop", "gl", "pa", "pam", "etf", "smt"}
+    app.jinja_env.filters["slug_label"] = lambda s: " ".join(
+        w.upper() if w in _ACRONYMS else w.capitalize() for w in str(s or "").replace("_", "-").split("-") if w)
+
     @app.context_processor
     def inject_nav_modules():
         from modules.dashboard.routes import (

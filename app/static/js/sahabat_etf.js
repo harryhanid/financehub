@@ -194,7 +194,7 @@ function setfRenderKategoriChartCustom(canvasId, kategoriRows) {
           anchor: "end",
           align: "top",
           color: setfThemeColor("--text-primary", "#1e293b"),
-          font: { size: 10, weight: "bold" },
+          font: { size: 12, weight: "bold" },
           formatter: function(value) {
             if (value === null || value === 0) return "";
             return (value / 1000000).toFixed(1);
@@ -226,7 +226,7 @@ function setfRenderKategoriChartCustom(canvasId, kategoriRows) {
             callback: function(value) { return (value / 1000000).toFixed(1); }
           },
           grid: { display: false },
-          title: { display: true, text: 'Skala Total (Juta Rp)', color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 10 } }
+          title: { display: true, text: 'Skala Total (Juta Rp)', color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 12 } }
         }
       }
     }
@@ -371,7 +371,7 @@ function setfRenderCustomYearlyStackedChart(canvasId, dataKey, nameKey, mode) {
         datalabels: {
           anchor: "end", align: "top",
           color: setfThemeColor("--text-primary", "#1e293b"),
-          font: { size: 9, weight: "bold" },
+          font: { size: 12, weight: "bold" },
           formatter: function(value, context) {
             if (!value) return "";
             const dsIndex = context.datasetIndex;
@@ -413,7 +413,7 @@ function setfRenderCustomYearlyStackedChart(canvasId, dataKey, nameKey, mode) {
           stacked: true, position: 'right',
           ticks: { color: setfThemeColor("--text-secondary", "#64748b"), callback: function(value) { return (value / 1000000).toFixed(1); } },
           grid: { display: false },
-          title: { display: true, text: 'Skala Total (Juta Rp)', color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 10 } }
+          title: { display: true, text: 'Skala Total (Juta Rp)', color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 12 } }
         }
       }
     }
@@ -556,7 +556,7 @@ function setfRenderCustomBudgetChart(canvasId, dataRows, labelKey) {
           anchor: "end",
           align: "top",
           color: setfThemeColor("--text-primary", "#1e293b"),
-          font: { size: 10, weight: "bold" },
+          font: { size: 12, weight: "bold" },
           formatter: function(value) {
             if (value === null || value === 0) return "";
             return (value / 1000000).toFixed(1);
@@ -588,7 +588,7 @@ function setfRenderCustomBudgetChart(canvasId, dataRows, labelKey) {
             callback: function(value) { return (value / 1000000).toFixed(1); }
           },
           grid: { display: false },
-          title: { display: true, text: 'Skala Total (Juta Rp)', color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 10 } }
+          title: { display: true, text: 'Skala Total (Juta Rp)', color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 12 } }
         }
       }
     }
@@ -1077,7 +1077,7 @@ function setfRenderDoughnutChart(canvasId, labels, values, colors) {
           anchor: "center",
           align: "center",
           color: "#fff",
-          font: { size: 10, weight: "600" },
+          font: { size: 12, weight: "600" },
           formatter: setfDatalabelFormatter,
         },
       },
@@ -1111,7 +1111,7 @@ function setfRenderBarChart(canvasId, labels, datasets, onBarClick) {
           anchor: "end",
           align: "top",
           color: setfThemeColor("--text-primary", "#e2e8f0"),
-          font: { size: 10, weight: "600" },
+          font: { size: 12, weight: "600" },
           formatter: setfDatalabelFormatter,
         },
       },
@@ -1328,7 +1328,7 @@ function setfRenderCustomSahabatStackedChart(canvasId, dataKey, nameKey, mode) {
         datalabels: {
           anchor: "end", align: "top",
           color: setfThemeColor("--text-primary", "#1e293b"),
-          font: { size: 9, weight: "bold" },
+          font: { size: 12, weight: "bold" },
           formatter: function(value, context) {
             if (!value) return "";
             const dsIndex = context.datasetIndex;
@@ -1383,7 +1383,7 @@ function setfRenderCustomSahabatStackedChart(canvasId, dataKey, nameKey, mode) {
           stacked: true, position: 'right',
           ticks: { color: setfThemeColor("--text-secondary", "#64748b"), callback: function(value) { return (value / 1000000).toFixed(1); } },
           grid: { display: false },
-          title: { display: true, text: "Skala Total (Juta Rp)", color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 10 } }
+          title: { display: true, text: "Skala Total (Juta Rp)", color: setfThemeColor("--text-secondary", "#64748b"), font: { size: 12 } }
         }
       }
     }
@@ -1567,7 +1567,7 @@ function setfRenderBudgetVsRealisasiChart(canvasId, labels, budgets, realisasis)
           align: 'end',
           anchor: 'end',
           color: textColor,
-          font: { size: 10, weight: '500' },
+          font: { size: 12, weight: '500' },
           formatter: function(value) {
             return value ? setfFmtJutaan(value) : "";
           }

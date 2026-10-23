@@ -228,6 +228,39 @@ button { font-family: inherit; }
 /* ── Header tab strip: no-wrap + trailing fade when scrollable ──── */
 .navbar-menu { position: relative; }
 .navbar-menu .tabs { flex-wrap: nowrap; margin-bottom: 0; }
+/* Tab overflow (initTabOverflow in app.js): the menu takes the free width so overflow can be measured */
+.navbar-menu { flex: 1 1 auto; min-width: 0; position: relative; }
+.navbar-menu .tab-btn.fh-tab-hidden, .navbar-menu .navbar-menu-item.fh-tab-hidden { display: none; }
+.fh-tab-more {
+  display: inline-flex; align-items: center; gap: .3rem;
+  padding: .5rem .875rem; border: none; border-radius: 999px;
+  background: var(--bg-muted); color: var(--text-muted);
+  font: inherit; font-size: .8rem; font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+.fh-tab-more:hover { background: var(--accent-surface); color: var(--accent-text); }
+.fh-tab-more.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; }
+.fh-tab-more[hidden] { display: none; }
+.fh-tab-more-label { overflow: hidden; text-overflow: ellipsis; max-width: 12rem; }
+@media (max-width: 480px) { .fh-tab-more { padding: .5rem .625rem; } .fh-tab-more-label { max-width: 4.5rem; } }
+.fh-row-menu-heading { padding: .4rem .625rem .3rem; font-size: .75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.fh-row-menu-item.current { font-weight: 600; color: var(--accent-text); }
+
+/* Account menu replaces user/theme/company/logout on narrow screens */
+.fh-acct-btn {
+  display: none; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--accent-border);
+  background: var(--accent-surface); color: var(--accent-text);
+  font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; text-transform: uppercase;
+}
+@media (max-width: 1100px) {
+  .navbar { padding: 0 .75rem; }
+  .navbar-right .navbar-user, .navbar-right .btn-theme-toggle, .navbar-right .btn-logout,
+  .navbar-right .navbar-sep, .navbar-right .navbar-company { display: none; }
+  .fh-acct-btn { display: inline-flex; }
+}
+@media (max-width: 480px) {
+  .navbar-brand { font-size: 0; gap: 0; }   /* keep the mark, drop the wordmark */
+}
 .navbar-menu.fh-overflow::after {
   content: '';
   position: absolute; top: 0; right: 0; bottom: 0;
@@ -653,6 +686,10 @@ body.fh-full-bleed .pillar-table-wrap { width: 100% !important; }
   transition: background .1s, color .1s, border-color .1s, opacity .1s;
 }
 .btn:active { opacity: .82; }
+/* Keyboard focus ring for every clickable control (mouse clicks don't trigger :focus-visible) */
+:where(button, a[href], summary, [role="button"], [role="tab"], [role="menuitem"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm);
+}
 .btn-primary {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #FFF;
@@ -984,6 +1021,7 @@ input[readonly], input[disabled] {
   text-align: left; cursor: pointer;
 }
 .fh-row-menu-item:hover, .fh-row-menu-item:focus-visible { background: var(--sl-100); outline: none; }
+.fh-row-menu-item:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .fh-row-menu-item.danger { color: var(--negative-text); }
 .fh-row-menu-item.danger:hover, .fh-row-menu-item.danger:focus-visible { background: var(--negative-surface); }
 [data-theme="dark"] .fh-row-menu { border-color: var(--border); }

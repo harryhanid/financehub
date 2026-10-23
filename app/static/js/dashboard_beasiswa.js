@@ -79,7 +79,7 @@ function dashRenderBarChart(canvasId, labels, datasets, onBarClick) {
           anchor: "end",
           align: "top",
           color: dashThemeColor("--text-primary", "#e2e8f0"),
-          font: { size: 10, weight: "600" },
+          font: { size: 12, weight: "600" },
           formatter: dashDatalabelFormatter,
         },
       },
@@ -185,7 +185,7 @@ function dashRenderBudgetVsRealisasiChart(canvasId, labels, budgets, realisasis)
               align: 'end',
               anchor: 'end',
               color: textColor,
-              font: { size: 10, weight: '500' },
+              font: { size: 12, weight: '500' },
               offset: function(context) {
                  if (context.datasetIndex === 1 && context.chart.data.datasets[0].data[context.dataIndex] > 0) {
                      return 12; // push up if percentage is shown
@@ -200,7 +200,7 @@ function dashRenderBudgetVsRealisasiChart(canvasId, labels, budgets, realisasis)
               align: 'end',
               anchor: 'end',
               color: percentColor,
-              font: { size: 10, weight: 'bold' },
+              font: { size: 12, weight: 'bold' },
               offset: -4,
               formatter: function(value, context) {
                 if (context.datasetIndex === 1) {
@@ -257,7 +257,7 @@ function dashRenderDoughnutChart(canvasId, labels, values, colors) {
           anchor: "center",
           align: "center",
           color: "#fff",
-          font: { size: 10, weight: "600" },
+          font: { size: 12, weight: "600" },
           formatter: dashDatalabelFormatter,
         },
       },

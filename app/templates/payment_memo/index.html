@@ -1199,6 +1199,13 @@
         </tbody>
       </table>
     </div>
+    <div id="vendors-pagination" class="floating-pagination" style="display:none;">
+      <span id="vendors-page-info" style="color:var(--text-muted)"></span>
+      <div style="display:flex;gap:6px">
+        <button type="button" class="btn btn-secondary btn-sm" id="vendors-page-prev" onclick="_vendorsGoToPage(_vendorsPage-1)">&#8592; Prev</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="vendors-page-next" onclick="_vendorsGoToPage(_vendorsPage+1)">Next &#8594;</button>
+      </div>
+    </div>
   </div>
 
   <!-- Format Memo Tab -->
@@ -2610,13 +2617,29 @@ async function loadVendors() {
   const count = document.getElementById('vendors-count');
   let rows = data.rows || [];
   if (pillar) rows = rows.filter(r => r.pillar === pillar);
+  // Keep the page across the Simpan/Batal refresh of an inline edit; a new search starts over.
+  const keepPage = _vendorsRows.length && search === _vendorsLastSearch && pillar === _vendorsLastPillar;
+  _vendorsRows = rows; _vendorsLastSearch = search; _vendorsLastPillar = pillar;
+  if (!keepPage) _vendorsPage = 1;
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);">Tidak ada vendor.</td></tr>';
     if (count) count.textContent = '';
+    _vendorsPager();
     return;
   }
-  if (count) count.textContent = rows.length + ' vendor';
-  tbody.innerHTML = rows.map((r, i) => `
+  if (count) count.textContent = rows.length.toLocaleString('id-ID') + ' vendor';
+  _vendorsGoToPage(_vendorsPage);
+}
+
+// 600+ vendors: render one page at a time (same floating pager as SMT/Data Siswa).
+let _vendorsRows = [], _vendorsPage = 1, _vendorsLastSearch = '', _vendorsLastPillar = '';
+const _VENDORS_PAGE_SIZE = 50;
+
+function _vendorsGoToPage(p) {
+  const maxPage = Math.max(1, Math.ceil(_vendorsRows.length / _VENDORS_PAGE_SIZE));
+  _vendorsPage = Math.min(Math.max(1, p), maxPage);
+  const start = (_vendorsPage - 1) * _VENDORS_PAGE_SIZE;
+  document.getElementById('vendors-tbody').innerHTML = _vendorsRows.slice(start, start + _VENDORS_PAGE_SIZE).map((r, i) => `
     <tr data-vendor-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">
       <td style="padding:6px 8px" class="vendors-cell-name">${esc(r.name)}</td>
       <td style="padding:6px 8px" class="vendors-cell-pillar">${esc(r.pillar)}</td>
@@ -2624,6 +2647,17 @@ async function loadVendors() {
       <td style="padding:6px 8px"><button class="btn btn-secondary btn-sm" onclick="vendorsStartEdit(${r.id})">Edit</button></td>
     </tr>
   `).join('');
+  _vendorsPager();
+}
+
+function _vendorsPager() {
+  const total = _vendorsRows.length, maxPage = Math.max(1, Math.ceil(total / _VENDORS_PAGE_SIZE));
+  const start = (_vendorsPage - 1) * _VENDORS_PAGE_SIZE;
+  document.getElementById('vendors-pagination').style.display = total > _VENDORS_PAGE_SIZE ? 'flex' : 'none';
+  document.getElementById('vendors-page-info').textContent =
+    `${(start + 1).toLocaleString('id-ID')}–${Math.min(start + _VENDORS_PAGE_SIZE, total).toLocaleString('id-ID')} dari ${total.toLocaleString('id-ID')} vendor · halaman ${_vendorsPage}/${maxPage}`;
+  document.getElementById('vendors-page-prev').disabled = _vendorsPage <= 1;
+  document.getElementById('vendors-page-next').disabled = _vendorsPage >= maxPage;
 }
 
 async function addVendor() {
@@ -3531,12 +3565,16 @@ function _attachmentCell(r) {
   </td>`;
 }
 
+// One quiet Edit per row + "⋯" for the destructive Cancel (was a primary and a
+// red button on every row: 50-120 competing CTAs per table).
 function _aksiCell(r) {
-  const _btn = (label, cls, fn) =>
-    `<button class="btn btn-sm ${cls}" onclick="${fn}">${label}</button>`;
   return `<div style="display:flex;gap:4px;align-items:center;">
-    ${_btn('Edit', 'btn-primary', `openEditPAM(${r.id})`)}
-    ${_btn('Cancel', 'btn-danger', `cancelPAM(${r.id})`)}
+    <button type="button" class="btn btn-sm btn-secondary" onclick="event.stopPropagation();openEditPAM(${r.id})">Edit</button>
+    <button type="button" class="btn btn-sm btn-secondary btn-more" aria-haspopup="menu" aria-expanded="false"
+            aria-label="Aksi lain untuk ${esc(r.pam_no || 'PAM')}"
+            onclick="event.stopPropagation();fhRowMenu(this, [{ label: 'Cancel PAM', icon: 'trash', danger: true, onClick: () => cancelPAM(${r.id}) }])">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+    </button>
   </div>`;
 }
 

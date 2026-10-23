@@ -21,7 +21,7 @@
         <td><strong>{{ u.username }}</strong></td>
         <td>
           {% if u.username != 'admin' %}
-          <select class="role-select" data-username="{{ u.username }}" data-role="{{ u.role }}"
+          <select class="role-select" data-username="{{ u.username }}" data-role="{{ u.role }}" aria-label="Role untuk {{ u.username }}"
             style="padding:.2rem .4rem; font-size:.8rem; border-radius:4px"
             onchange="changeRole(this, '{{ u.username }}', this.value)">
             {% for r in ['Admin','FC','Fin','BC'] %}
@@ -37,8 +37,8 @@
             {{ 'Aktif' if u.is_active else 'Nonaktif' }}
           </span>
         </td>
-        <td>{{ u.last_login[:16] if u.last_login else '--' }}</td>
-        <td>{{ u.created_at[:10] if u.created_at else '--' }}</td>
+        <td style="white-space:nowrap">{{ u.last_login | tgl(true) }}</td>
+        <td style="white-space:nowrap">{{ u.created_at | tgl }}</td>
         <td>
           {% if u.username != 'admin' %}
           {% if u.is_active %}

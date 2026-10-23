@@ -292,7 +292,7 @@ function _sponsorshipRenderBarChart(canvasId, labels, values) {
           anchor: "end",
           align: "top",
           color: _sponsorshipThemeColor("--text", "#334155"),
-          font: { size: 10, weight: "600" },
+          font: { size: 12, weight: "600" },
           formatter: v => _sponsorshipFormatJutaan(v),
         },
       },
@@ -317,7 +317,7 @@ function _sponsorshipRenderDoughnutChart(canvasId, labels, values, colors) {
           anchor: "center",
           align: "center",
           color: "#fff",
-          font: { size: 11, weight: "600" },
+          font: { size: 12, weight: "600" },
           formatter: (value, ctx) => {
             const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
             return total > 0 ? (value / total * 100).toFixed(1) + "%" : "";
@@ -575,7 +575,7 @@ function sponsorshipLoadDashboard() {
                 anchor: "end",
                 align: "top",
                 color: _sponsorshipThemeColor("--text", "#334155"),
-                font: { size: 9, weight: "600" },
+                font: { size: 12, weight: "600" },
                 formatter: v => v > 0 ? _sponsorshipFormatJutaan(v) : "",
               },
             },

@@ -519,8 +519,12 @@
         <td>{{ r.route or '-' }}</td>
         <td>{{ r.klasifikasi or 'Normal' }}</td>
         <td style="white-space:nowrap">
-          <button class="btn btn-primary btn-sm" onclick="openEditById({{ r.pa_id }}, {{ r.line_id }})">Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="deletePa({{ r.pa_id }}, '{{ r.pa_number }}')">Hapus</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openEditById({{ r.pa_id }}, {{ r.line_id }})">Edit</button>
+          <button type="button" class="btn btn-secondary btn-sm btn-more" aria-haspopup="menu" aria-expanded="false"
+                  aria-label="Aksi lain untuk {{ r.pa_number }}" data-pa-id="{{ r.pa_id }}" data-pa-number="{{ r.pa_number }}"
+                  onclick="fhRowMenu(this, [{ label: 'Hapus PA', icon: 'trash', danger: true, onClick: () => deletePa(+this.dataset.paId, this.dataset.paNumber) }])">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+          </button>
         </td>
       </tr>
       {% else %}
@@ -1709,7 +1713,7 @@ async function submitPA() {
   const ipkVal  = parseFloat(document.getElementById('pa-siswa-ipk').value) || 0;
   const payRows = document.querySelectorAll('#pa-paylines-container .payline-row');
   if (!payRows.length) { showToast('Minimal 1 baris pembayaran harus diisi.', 'error'); return; }
-  if (!await confirmModal(`Simpan PA baru ke tab <strong>${_TAB_LABEL[selectedTab] || selectedTab.toUpperCase()}</strong>?`)) return;
+  if (!await confirmModal(`Simpan PA baru ke tab ${_TAB_LABEL[selectedTab] || selectedTab.toUpperCase()}?`)) return;
   const lines = [];
   for (const row of payRows) {
     lines.push({
@@ -1761,7 +1765,7 @@ async function submitPA() {
 // ─── Delete ───────────────────────────────────────────────────────────────────
 async function deletePa(paId, paNumber) {
   if (!await confirmModal(
-    `Hapus PA "<strong>${paNumber}</strong>" beserta seluruh baris siswanya secara permanen?`,
+    `Hapus PA "${paNumber}" beserta seluruh baris siswanya secara permanen?`,
     { type: 'danger', confirmText: 'Hapus' }
   )) return;
   showLoading("Menghapus PA...");
