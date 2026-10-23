@@ -1,4 +1,7 @@
 """Management Report: snapshot storage and report building."""
+import contextlib
+import contextvars
+import copy
 import json
 from datetime import datetime
 
@@ -6,6 +9,30 @@ from database import get_conn
 from modules.general_ledger import staging
 
 KEEP_SNAPSHOTS = 5
+
+# Task 21: read cache for one request that builds many reports (export-all: ~36 CCs x 17 calls).
+# Only active inside `with snapshot_cache():`; memoizes the active-snapshot lookups and
+# query_append results (deep-copied), so every CC is built from the same snapshot.
+_CACHE = contextvars.ContextVar("mr_snapshot_cache", default=None)
+
+
+@contextlib.contextmanager
+def snapshot_cache():
+    token = _CACHE.set({})
+    try:
+        yield
+    finally:
+        _CACHE.reset(token)
+
+
+def _cached(key, compute):
+    cache = _CACHE.get()
+    if cache is None:
+        return compute()
+    if key not in cache:
+        cache[key] = compute()
+    return copy.deepcopy(cache[key])
+
 
 _ROW_FIELDS = ("coa", "mm", "yy", "cc", "category", "activity", "description",
                "pta", "custom", "mm1", "act", "bgt")
@@ -75,6 +102,10 @@ def save_upload(company_id: int, filename: str, uploaded_by: str, rows: list,
 
 
 def get_active_upload_id(company_id: int):
+    return _cached(("uid", company_id), lambda: _get_active_upload_id(company_id))
+
+
+def _get_active_upload_id(company_id: int):
     conn = get_conn()
     try:
         row = conn.execute(
@@ -138,6 +169,10 @@ def get_active_summary(company_id: int):
 
 def get_active_meta(company_id: int) -> dict:
     """Metadata read from the master workbook at the last sync (CC descriptions, report period)."""
+    return _cached(("meta", company_id), lambda: _get_active_meta(company_id))
+
+
+def _get_active_meta(company_id: int) -> dict:
     empty = {"cc_names": {}, "period": None}
     conn = get_conn()
     try:
@@ -184,19 +219,21 @@ def activate_upload(company_id: int, upload_id: int) -> bool:
 
 
 def get_filter_options(company_id: int) -> dict:
+    return _cached(("options", company_id), lambda: _get_filter_options(company_id))
+
+
+def _get_filter_options(company_id: int) -> dict:
     empty = {"ccs": [], "yys": [], "mms": [], "coas": [], "cats": []}
     uid = get_active_upload_id(company_id)
     if uid is None:
         return empty
     conn = get_conn()
     try:
-        def distinct(col):
-            return [r[0] for r in conn.execute(
-                f"SELECT DISTINCT {col} FROM mr_append WHERE upload_id=? AND {col} IS NOT NULL "
-                f"ORDER BY {col}", (uid,))]
-        return {"ccs": distinct("cc"), "yys": distinct("yy"),
-                "mms": distinct("mm"), "coas": distinct("coa"),
-                "cats": distinct("category")}
+        cols = (("ccs", "cc"), ("yys", "yy"), ("mms", "mm"), ("coas", "coa"), ("cats", "category"))
+        # Task 21: the five DISTINCT reads in one call (was five round trips).
+        curs = conn.batch([(f"SELECT DISTINCT {col} FROM mr_append WHERE upload_id=? AND {col} IS NOT NULL "
+                            f"ORDER BY {col}", (uid,)) for _, col in cols])
+        return {key: [r[0] for r in cur] for (key, _), cur in zip(cols, curs)}
     finally:
         conn.close()
 
@@ -315,6 +352,11 @@ def query_append(company_id: int, cc=None, yy=None, mm=None, coas=None, q=None,
 
     `q` is a case-insensitive substring over coa, category, activity and description;
     `limit=None` returns every row that passes the filters."""
+    key = ("append", company_id, cc, yy, mm, tuple(coas or ()), q, limit, offset, tuple(cats or ()))
+    return _cached(key, lambda: _query_append(company_id, cc, yy, mm, coas, q, limit, offset, cats))
+
+
+def _query_append(company_id, cc, yy, mm, coas, q, limit, offset, cats) -> dict:
     uid = get_active_upload_id(company_id)
     if uid is None:
         return {"rows": [], "total": 0}
@@ -327,13 +369,16 @@ def query_append(company_id: int, cc=None, yy=None, mm=None, coas=None, q=None,
         params = params + [like] * 4
     conn = get_conn()
     try:
-        total = conn.execute(f"SELECT COUNT(*) FROM mr_append WHERE {where}", params).fetchone()[0]
         sql = f"SELECT {', '.join(_APPEND_COLS)} FROM mr_append WHERE {where} ORDER BY id"
         args = list(params)
         if limit is not None:
             sql += " LIMIT ? OFFSET ?"
             args += [limit, offset]
-        rows = [_as_row(r) for r in conn.execute(sql, args).fetchall()]
+        # Task 21: count and rows in one call (was two round trips; same snapshot for both).
+        count_cur, rows_cur = conn.batch([(f"SELECT COUNT(*) FROM mr_append WHERE {where}", params),
+                                          (sql, args)])
+        total = count_cur.fetchone()[0]
+        rows = [_as_row(r) for r in rows_cur.fetchall()]
         return {"rows": rows, "total": total}
     finally:
         conn.close()

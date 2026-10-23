@@ -183,3 +183,23 @@ def test_activate_upload_atomic_on_failure(monkeypatch):
         svc.activate_upload(1, a)
     assert mr_state() == before
     assert svc.get_active_upload_id(1) == b
+
+
+def test_snapshot_cache_reads_once_and_returns_independent_copies():
+    """Task 21: inside snapshot_cache() the snapshot lookups hit the DB once; results are copies."""
+    import fhdb
+    svc.save_upload(1, 'a.xlsb', 'u', [mkrow(), mkrow(cc='POCFAC')])
+    plain = svc.query_append(1, 'POCFAD')
+    opts = svc.get_filter_options(1)
+    with svc.snapshot_cache():
+        fhdb.reset_stats()
+        first = svc.query_append(1, 'POCFAD')
+        first["rows"][0]["coa"] = "changed"
+        again = svc.query_append(1, 'POCFAD')
+        assert svc.get_filter_options(1) == opts
+        svc.get_filter_options(1)
+        calls = fhdb.stats.calls
+    assert again == plain
+    assert calls == 3            # uid, append (count+rows in one batch), filter options (one batch)
+    svc.save_upload(1, 'b.xlsb', 'u', [mkrow(cc='ZZZ')])
+    assert svc.get_filter_options(1)["ccs"] == ['ZZZ']   # outside the block: no cache

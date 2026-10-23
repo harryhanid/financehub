@@ -297,6 +297,16 @@ def export_all():
     if not company_id:
         return jsonify({"ok": False, "pesan": "Pilih perusahaan terlebih dahulu."}), 400
     sheets = _sheets()
+    with service.snapshot_cache():   # Task 21: snapshot lookups once per export, not per CC
+        reports, ho_by_cc, append_by_cc, bgt_by_cc = _export_all_parts(company_id, f, sheets)
+    if not reports:
+        return jsonify({"ok": False, "pesan": "Tidak ada data untuk diexport."}), 404
+    data = exports.build_zip(reports, f, ho_by_cc, append_by_cc, bgt_by_cc)
+    suffix = {"1": " sheet 1", "12": " sheet 1-2", "123": ""}[sheets]
+    return _attachment(data, f"Management Report {date.today().isoformat()}{suffix}.zip", "application/zip")
+
+
+def _export_all_parts(company_id, f, sheets):
     meta = service.get_active_meta(company_id)
     reports, ho_by_cc, append_by_cc, bgt_by_cc = [], {}, {}, {}
     # every CC with data in the year; like export_one, one qualifies when it has data in the month
@@ -313,11 +323,7 @@ def export_all():
             ho_by_cc[cc] = ho_report.build_ho_report(company_id, cc, f["yy"], f["mm"], f["coas"], f["cats"])
         if "3" in sheets:
             append_by_cc[cc] = service.query_append(company_id, cc, f["yy"], f["mm"], f["coas"], cats=f["cats"])["rows"]
-    if not reports:
-        return jsonify({"ok": False, "pesan": "Tidak ada data untuk diexport."}), 404
-    data = exports.build_zip(reports, f, ho_by_cc, append_by_cc, bgt_by_cc)
-    suffix = {"1": " sheet 1", "12": " sheet 1-2", "123": ""}[sheets]
-    return _attachment(data, f"Management Report {date.today().isoformat()}{suffix}.zip", "application/zip")
+    return reports, ho_by_cc, append_by_cc, bgt_by_cc
 
 
 # ---------- GL Combine / Append1 (built from GL SMT, GL ETF and Sponsorship; no Excel upload) ----------

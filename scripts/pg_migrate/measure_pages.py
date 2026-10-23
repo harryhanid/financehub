@@ -346,7 +346,7 @@ def run_isolated(schema, routes_with_company, timeout=ROUTE_TIMEOUT, log=print):
                    "target": TARGET_HEAVY if heavy else TARGET_NORMAL, "error": reason}
         results.append(row)
         if "seconds" in row:
-            log(f"    {row['seconds']:6.2f}s (cold {row['cold']:.2f}s) calls={row['calls']:3d} "
+            log(f"    {row['seconds']:6.2f}s (cold {row['cold']:.2f}s) calls={row['calls']:3d} db={row['db_seconds']:.2f}s "
                 f"max={row['max_call']:.2f}s status={row['status']} {'ok' if row['pass'] else 'OVER'}")
         else:
             log(f"    {row['error']}  ({time.perf_counter() - t0:.1f}s)")
