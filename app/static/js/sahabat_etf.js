@@ -1410,7 +1410,7 @@ function setfUpdateExportLinks(qs) {
 
 function setfColorScaleAttr(value, min, max) {
   if (!value) return "";
-  const alpha = max > min ? 0.12 + ((value - min) / (max - min)) * 0.4 : 0.35;
+  const alpha = max > min ? 0.10 + ((value - min) / (max - min)) * 0.3 : 0.25;  // capped so cell text stays ≥4.5:1
   return ' style="background-color:rgba(99,102,241,' + alpha.toFixed(2) + ')"';
 }
 

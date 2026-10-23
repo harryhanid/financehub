@@ -223,6 +223,15 @@
 .beasiswa-dash-stat-card.tint-realisasi  .value { color: #15803d; }
 .beasiswa-dash-stat-card.tint-negative   { background: #fef2f2; border-color: #fecaca; }
 .beasiswa-dash-stat-card.tint-negative   .value { color: #b91c1c; }
+/* Dark: the pastel card fills stayed light while their labels flipped to light text (2.4:1) */
+[data-theme="dark"] .beasiswa-dash-stat-card.tint-budget    { background: var(--accent-surface);   border-color: var(--accent-border); }
+[data-theme="dark"] .beasiswa-dash-stat-card.tint-budget    .value { color: var(--accent-text); }
+[data-theme="dark"] .beasiswa-dash-stat-card.tint-klaim     { background: var(--caution-surface);  border-color: var(--caution-border); }
+[data-theme="dark"] .beasiswa-dash-stat-card.tint-klaim     .value { color: var(--caution-text); }
+[data-theme="dark"] .beasiswa-dash-stat-card.tint-realisasi { background: var(--positive-surface); border-color: var(--positive-border); }
+[data-theme="dark"] .beasiswa-dash-stat-card.tint-realisasi .value { color: var(--positive-text); }
+[data-theme="dark"] .beasiswa-dash-stat-card.tint-negative  { background: var(--negative-surface); border-color: var(--negative-border); }
+[data-theme="dark"] .beasiswa-dash-stat-card.tint-negative  .value { color: var(--negative-text); }
 
 /* ── Chart/table cards — neutral, uniform ────────────────────────────────── */
 .beasiswa-dash-chart-card {

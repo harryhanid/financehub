@@ -28,7 +28,7 @@ function dashMismatchCell(amount, mismatch) {
 
 function dashColorScaleAttr(value, min, max) {
   if (!value) return "";
-  const alpha = max > min ? 0.12 + ((value - min) / (max - min)) * 0.4 : 0.35;
+  const alpha = max > min ? 0.10 + ((value - min) / (max - min)) * 0.3 : 0.25;  // capped so cell text stays ≥4.5:1
   return ' style="background-color:rgba(99,102,241,' + alpha.toFixed(2) + ')"';
 }
 
@@ -302,7 +302,7 @@ function dashRenderProgramTable(rows) {
       "<td>" + r.program + "</td>" +
       '<td class="num-right">' + dashFmtJutaan(r.budget) + "</td>" +
       '<td class="num-right">' + dashFmtJutaan(r.realisasi) + "</td>" +
-      '<td class="num-right"' + (r.sisa < 0 ? ' style="color:#dc2626"' : '') + '>' + dashFmtJutaan(r.sisa) + "</td>" +
+      '<td class="num-right"' + (r.sisa < 0 ? ' style="color:var(--negative-text)"' : '') + '>' + dashFmtJutaan(r.sisa) + "</td>" +
       "</tr>";
   }).join("");
   
@@ -313,7 +313,7 @@ function dashRenderProgramTable(rows) {
   const totalRow = "<tr style=\"font-weight:bold\"><td>Total</td>" +
     '<td class="num-right">' + dashFmtJutaan(totalBudget) + "</td>" +
     '<td class="num-right">' + dashFmtJutaan(totalRealisasi) + "</td>" +
-    '<td class="num-right"' + (totalSisa < 0 ? ' style="color:#dc2626"' : '') + '>' + dashFmtJutaan(totalSisa) + "</td></tr>";
+    '<td class="num-right"' + (totalSisa < 0 ? ' style="color:var(--negative-text)"' : '') + '>' + dashFmtJutaan(totalSisa) + "</td></tr>";
   
   tbody.innerHTML = rowsHtml + totalRow;
 }
@@ -330,7 +330,7 @@ function dashRenderKategoriTable(kategoriRows) {
       "<td>" + dashCatBadge(k.cat1) + "</td>" +
       '<td class="num-right">' + dashFmtJutaan(k.budget) + "</td>" +
       '<td class="num-right">' + dashFmtJutaan(k.realisasi) + "</td>" +
-      '<td class="num-right"' + (sisa < 0 ? ' style="color:#dc2626"' : '') + '>' + dashFmtJutaan(sisa) + "</td>" +
+      '<td class="num-right"' + (sisa < 0 ? ' style="color:var(--negative-text)"' : '') + '>' + dashFmtJutaan(sisa) + "</td>" +
       "</tr>";
   }).join("");
   const totalBudget = kategoriRows.reduce(function (s, k) { return s + k.budget; }, 0);
@@ -339,7 +339,7 @@ function dashRenderKategoriTable(kategoriRows) {
   const totalRow = "<tr style=\"font-weight:bold\"><td>Total</td>" +
     '<td class="num-right">' + dashFmtJutaan(totalBudget) + "</td>" +
     '<td class="num-right">' + dashFmtJutaan(totalRealisasi) + "</td>" +
-    '<td class="num-right"' + (sisa < 0 ? ' style="color:#dc2626"' : '') + '>' + dashFmtJutaan(sisa) + "</td></tr>";
+    '<td class="num-right"' + (sisa < 0 ? ' style="color:var(--negative-text)"' : '') + '>' + dashFmtJutaan(sisa) + "</td></tr>";
   tbody.innerHTML = rows + totalRow;
 }
 
@@ -355,7 +355,7 @@ function dashRenderJenjangTable(jenjangRows) {
       "<td>" + dashCatBadge(j.jenjang) + "</td>" +
       '<td class="num-right">' + dashFmtJutaan(j.budget) + "</td>" +
       '<td class="num-right">' + dashFmtJutaan(j.realisasi) + "</td>" +
-      '<td class="num-right"' + (sisa < 0 ? ' style="color:#dc2626"' : '') + '>' + dashFmtJutaan(sisa) + "</td>" +
+      '<td class="num-right"' + (sisa < 0 ? ' style="color:var(--negative-text)"' : '') + '>' + dashFmtJutaan(sisa) + "</td>" +
       "</tr>";
   }).join("");
   const totalBudget = jenjangRows.reduce(function (s, j) { return s + j.budget; }, 0);
@@ -364,7 +364,7 @@ function dashRenderJenjangTable(jenjangRows) {
   const totalRow = "<tr style=\"font-weight:bold\"><td>Total</td>" +
     '<td class="num-right">' + dashFmtJutaan(totalBudget) + "</td>" +
     '<td class="num-right">' + dashFmtJutaan(totalRealisasi) + "</td>" +
-    '<td class="num-right"' + (sisa < 0 ? ' style="color:#dc2626"' : '') + '>' + dashFmtJutaan(sisa) + "</td>" +
+    '<td class="num-right"' + (sisa < 0 ? ' style="color:var(--negative-text)"' : '') + '>' + dashFmtJutaan(sisa) + "</td>" +
     "</tr>";
   tbody.innerHTML = rows + totalRow;
 }
@@ -424,7 +424,7 @@ function dashRenderPillarYearlyTable(pillarRows) {
     }
     return '<td class="num-right">' + dashFmtJutaan(t) + "</td>";
   }).join("");
-  const totalRow = '<tr style="background:#f8fafc;font-weight:bold"><td>Total</td>' + totalsByYear + 
+  const totalRow = '<tr style="background:var(--sl-50);font-weight:bold"><td>Total</td>' + totalsByYear + 
                    '<td class="num-right">' + dashFmtJutaan(grandTotal) + '</td><td class="num-right" style="font-size:0.75rem">100%</td></tr>';
   
   tbody.innerHTML = rows + totalRow;
@@ -521,7 +521,7 @@ function dashExportKategori(specificCat1) {
 
 
 const DASH_PAYMENT_STATUS_BADGE = {
-  open:     '<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:99px;font-size:.75rem;font-weight:600">Open</span>',
+  open:     '<span style="background:var(--caution-surface);color:var(--caution-text);padding:2px 8px;border-radius:99px;font-size:.75rem;font-weight:600">Open</span>',
   complete: '<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:99px;font-size:.75rem;font-weight:600">Complete</span>',
 };
 function dashPaymentStatusBadge(status) {

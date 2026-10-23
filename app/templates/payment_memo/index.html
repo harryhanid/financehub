@@ -40,7 +40,7 @@
 /* border-collapse:separate set inline on #smt-table — required, collapse breaks position:sticky */
 #smt-table th.smt-sc0,#smt-table td.smt-sc0,
 #smt-table th.smt-sc1,#smt-table td.smt-sc1,
-#smt-table th.smt-sc2,#smt-table td.smt-sc2{position:sticky;z-index:2;background:#fff}
+#smt-table th.smt-sc2,#smt-table td.smt-sc2{position:sticky;z-index:2;background:var(--card)}
 #smt-table thead th.smt-sc0,#smt-table thead th.smt-sc1,#smt-table thead th.smt-sc2{background:var(--sl-800);z-index:4}
 #smt-table th.smt-sc0,#smt-table td.smt-sc0{left:0;width:40px;min-width:40px;max-width:40px}
 #smt-table th.smt-sc1,#smt-table td.smt-sc1{left:40px;min-width:150px}
@@ -52,7 +52,7 @@
 [data-theme="dark"] #smt-table th.smt-sc2,[data-theme="dark"] #smt-table td.smt-sc2{background:var(--card) !important}
 [data-theme="dark"] #smt-table thead th.smt-sc0,[data-theme="dark"] #smt-table thead th.smt-sc1,[data-theme="dark"] #smt-table thead th.smt-sc2{background:#181b25 !important}
 /* inline zebra background on td.smt-sc0/sc1/sc2 beats the global tbody tr:hover td rule — restore hover highlight */
-#smt-table tbody tr:hover td.smt-sc0,#smt-table tbody tr:hover td.smt-sc1,#smt-table tbody tr:hover td.smt-sc2{background:#f1f5f9}
+#smt-table tbody tr:hover td.smt-sc0,#smt-table tbody tr:hover td.smt-sc1,#smt-table tbody tr:hover td.smt-sc2{background:var(--sl-100)}
 [data-theme="dark"] #smt-table tbody tr:hover td.smt-sc0,[data-theme="dark"] #smt-table tbody tr:hover td.smt-sc1,[data-theme="dark"] #smt-table tbody tr:hover td.smt-sc2{background:var(--positive-surface) !important}
 /* ── AGRI: frozen columns ─────────────────────────────────────────────── */
 /* border-collapse:separate required — collapse breaks position:sticky    */
@@ -61,7 +61,7 @@
 #pam-table th.s1,#pam-table td.s1,
 #pam-table th.s2,#pam-table td.s2,
 #pam-table th.s3,#pam-table td.s3,
-#pam-table th.s4,#pam-table td.s4{position:sticky;z-index:2;background:#fff}
+#pam-table th.s4,#pam-table td.s4{position:sticky;z-index:2;background:var(--card)}
 #pam-table thead th.s0,#pam-table thead th.s1,
 #pam-table thead th.s2,#pam-table thead th.s3,
 #pam-table thead th.s4{background:var(--sl-800);z-index:4}
@@ -76,7 +76,7 @@
 #pam-table tr.agri-detail-rows td.s4{background:#f0f9ff}
 #pam-table tbody tr:hover td.s0,#pam-table tbody tr:hover td.s1,
 #pam-table tbody tr:hover td.s2,#pam-table tbody tr:hover td.s3,
-#pam-table tbody tr:hover td.s4{background:#f1f5f9}
+#pam-table tbody tr:hover td.s4{background:var(--sl-100)}
 
 /* ── AGRI frozen columns — dark mode ─────────────────────────────────── */
 /* Rows are JS-rendered (loadPAM()) and each sticky td gets its OWN inline */
@@ -102,7 +102,7 @@
 /* ── Open PAM accordion ── */
 .pam-master-row { cursor: pointer; }
 .pam-master-row:hover { background: var(--hover-bg, #f8fafc); }
-.pam-detail-row { display: none; background: #f8fafc; }
+.pam-detail-row { display: none; background: var(--sl-50); }
 .pam-detail-row.expanded { display: table-row; }
 .pam-toggle { font-size: .75rem; color: var(--text-muted); margin-right: .25rem; user-select: none; }
 .badge-agri  { background: #fef3c7; color: #92400e; border: 1px solid #d97706; border-radius: .25rem; padding: .1rem .35rem; }
@@ -188,11 +188,11 @@
     <div id="pam-memo-bar">
       <span class="pam-memo-count">0 PAM dipilih</span>
       <span style="font-size:.85rem;opacity:.85">— centang PAM untuk set tanggal paid</span>
-      <input type="date" id="open-pam-paid-date" class="dm-inp" style="max-width:150px; background:#fff; padding:.25rem; border-radius:.25rem; margin-left:auto" required>
+      <input type="date" id="open-pam-paid-date" class="dm-inp" style="max-width:150px; background:var(--card); padding:.25rem; border-radius:.25rem; margin-left:auto" required>
       <button class="btn btn-success btn-sm" onclick="submitOpenPamPaid()">Mark Complete</button>
       <button class="btn btn-danger btn-sm" style="background:#7c2d12" onclick="rejectOpenPamGroups()">Reject</button>
       <button class="btn btn-secondary btn-sm"
-              style="background:#fff;color:#1e40af;border:none;"
+              style="background:var(--card);color:var(--accent-text);border:none;"
               onclick="document.getElementById('select-all-drafts').checked=false;toggleAllDrafts({checked:false})">
         Batal
       </button>
@@ -212,7 +212,7 @@
       <div class="form-group" style="margin:0">
         <label>Tipe PAM</label>
         <select id="ipay-type" onchange="ipayOnTypeChange()"
-                style="width:100%;border:1.5px solid #3b82f6;color:#1d4ed8;font-weight:700;background:#eff6ff">
+                style="width:100%;border:1.5px solid #3b82f6;color:var(--accent-text);font-weight:700;background:var(--accent-surface)">
           <option value="agri">AGRI</option>
           <option value="app">APP</option>
           <option value="sml">LAND</option>
@@ -242,7 +242,7 @@
       <div class="form-group" style="margin:0">
         <label>Due Date</label>
         <input type="text" id="ipay-due-date" readonly placeholder="—"
-               style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
+               style="background:var(--sl-100);cursor:default;color:var(--sl-700);font-weight:600">
       </div>
       <div class="form-group" style="margin:0">
         <label>No. PAM
@@ -262,7 +262,7 @@
                  autocomplete="off" oninput="ipayPerusahaanSearch()"
                  onblur="setTimeout(()=>document.getElementById('ipay-perusahaan-sugg').style.display='none',200)">
           <input type="hidden" id="ipay-perusahaan">
-          <div id="ipay-perusahaan-sugg" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
+          <div id="ipay-perusahaan-sugg" style="display:none;position:fixed;z-index:9999;background:var(--card);border:1px solid var(--accent-border);border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
         </div>
       </div>
     </div>
@@ -270,12 +270,12 @@
       <div class="form-group" style="margin:0">
         <label>Pillar</label>
         <input type="text" id="ipay-pillar" readonly placeholder="Auto dari vendor"
-               style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
+               style="background:var(--sl-100);cursor:default;color:var(--sl-700);font-weight:600">
       </div>
       <div class="form-group" style="margin:0">
         <label>CC</label>
         <input type="text" id="ipay-cc" readonly placeholder="Auto dari vendor"
-               style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
+               style="background:var(--sl-100);cursor:default;color:var(--sl-700);font-weight:600">
       </div>
       <div class="form-group" style="margin:0">
         <label>Catatan Payment <span style="font-size:.75rem;color:var(--text-muted);font-weight:400">(tampil di tab PAM)</span></label>
@@ -405,7 +405,7 @@
       <div class="form-group" style="margin:0">
         <label>Total <span style="font-size:.75rem;font-weight:400">(DPP+PPN+Others)</span></label>
         <div id="others-total"
-             style="border-bottom:2px solid #1d4ed8;padding:4px 6px;font-size:14px;font-weight:700;color:#1d4ed8;text-align:right;background:#eff6ff;border-radius:2px">
+             style="border-bottom:2px solid #1d4ed8;padding:4px 6px;font-size:14px;font-weight:700;color:var(--accent-text);text-align:right;background:var(--accent-surface);border-radius:2px">
           Rp 0
         </div>
       </div>
@@ -1209,9 +1209,9 @@
         <input id="dm-pam-search" type="text" autocomplete="off"
                placeholder="Ketik PAM No atau nama PT..."
                oninput="dmSearchDebounced()"
-               style="width:100%;border:1px solid #3b82f6;border-radius:6px;padding:6px 10px;font-size:13px;background:#eff6ff;color:#1e40af;font-weight:600;box-sizing:border-box">
+               style="width:100%;border:1px solid #3b82f6;border-radius:6px;padding:6px 10px;font-size:13px;background:var(--accent-surface);color:var(--accent-text);font-weight:600;box-sizing:border-box">
         <div id="dm-pam-dropdown"
-             style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px;max-height:200px;overflow-y:auto">
+             style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;background:var(--card);border:1px solid var(--sl-200);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px;max-height:200px;overflow-y:auto">
         </div>
       </div>
       <div id="dm-export-btns" style="display:none;margin-left:auto;gap:6px">
@@ -1330,7 +1330,7 @@
                onblur="setTimeout(()=>document.getElementById('edit-pam-pt-sugg').style.display='none',200)">
         <input type="hidden" id="edit-pam-pt">
         <input type="hidden" id="edit-pam-cost-center">
-        <div id="edit-pam-pt-sugg" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
+        <div id="edit-pam-pt-sugg" style="display:none;position:fixed;z-index:9999;background:var(--card);border:1px solid var(--accent-border);border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
         <p id="edit-pam-cc-display" style="font-size:.75rem;color:var(--text-muted);margin:.25rem 0 0">Cost Center: —</p>
       </div>
       <div class="form-group" style="grid-column:1/-1">
@@ -1414,7 +1414,7 @@
       <button class="modal-close" onclick="closeModal('modal-edit-draft')" aria-label="Tutup">x</button>
     </div>
     <input type="hidden" id="edit-draft-id">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;font-size:.8125rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.375rem;padding:.625rem .75rem;margin-bottom:.875rem">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;font-size:.8125rem;background:var(--sl-50);border:1px solid var(--sl-200);border-radius:.375rem;padding:.625rem .75rem;margin-bottom:.875rem">
       <div><span style="color:#6b7280">Siswa:</span> <strong id="edit-draft-ro-code"></strong></div>
       <div><span style="color:#6b7280">Nama:</span> <span id="edit-draft-ro-nama"></span></div>
       <div><span style="color:#6b7280">Tanggal:</span> <span id="edit-draft-ro-tgl"></span></div>
@@ -1431,11 +1431,11 @@
         <label>Kategori 2</label>
         <input type="hidden" id="edit-draft-cat2">
         <div id="edit-draft-cat2-display" onclick="draftCat2Toggle()"
-             style="border:1px solid #d1d5db;border-radius:.375rem;padding:.45rem .75rem;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:36px;font-size:.875rem">
+             style="border:1px solid var(--sl-300);border-radius:.375rem;padding:.45rem .75rem;background:var(--card);cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:36px;font-size:.875rem">
           <span id="edit-draft-cat2-text" style="color:#9ca3af">Pilih kategori...</span>
           <span style="color:#6b7280;font-size:.75rem">▾</span>
         </div>
-        <div id="edit-draft-cat2-panel" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:600;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px">
+        <div id="edit-draft-cat2-panel" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:600;background:var(--card);border:1px solid var(--sl-200);border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px">
           <div style="padding:5px">
             <input type="text" id="edit-draft-cat2-search" placeholder="Cari..."
                    oninput="draftCat2Filter()" autocomplete="off"
@@ -1459,13 +1459,13 @@
 <!-- MODAL: Quick Edit Siswa (dari tab Input PAM) -->
 <div class="modal-overlay" id="modal-pam-edit-siswa">
   <div class="modal" style="width:min(700px,95vw);max-height:90vh;overflow-y:auto">
-    <div class="modal-header" style="position:sticky;top:0;background:#fff;z-index:10;border-bottom:1px solid #e5e7eb;padding-bottom:.625rem">
+    <div class="modal-header" style="position:sticky;top:0;background:var(--card);z-index:10;border-bottom:1px solid var(--sl-200);padding-bottom:.625rem">
       <span class="modal-title" id="pam-esiswa-title">Update Data Siswa</span>
       <button class="modal-close" onclick="closeModal('modal-pam-edit-siswa')" aria-label="Tutup">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem">
       <div class="form-group"><label>Code Siswa</label>
-        <input type="text" id="pam-esiswa-code" readonly style="background:#f3f4f6;font-weight:700;font-family:monospace"></div>
+        <input type="text" id="pam-esiswa-code" readonly style="background:var(--sl-100);font-weight:700;font-family:monospace"></div>
       <div class="form-group"><label>Nama Lengkap</label>
         <input type="text" id="pam-esiswa-nama" placeholder="Nama lengkap"></div>
       <div class="form-group"><label>Jenjang</label>
@@ -1537,7 +1537,7 @@
     <input type="hidden" id="edit-line-pam-id">
     <div class="form-group">
       <label>Siswa</label>
-      <input type="text" id="edit-line-siswa-name" disabled style="background:#f3f4f6">
+      <input type="text" id="edit-line-siswa-name" disabled style="background:var(--sl-100)">
     </div>
     <div class="form-group">
       <label>Amount (Rp)</label>
@@ -1769,10 +1769,10 @@ function _pillarBadge(pillar) {
     ENERGY: 'background:#fce7f3;color:#9d174d;border:1px solid #be185d',
     SETF:   'background:#cffafe;color:#164e63;border:1px solid #0891b2',
     ENERGY: 'background:#fee2e2;color:#991b1b;border:1px solid #ef4444',
-    SSMT:   'background:#f3f4f6;color:#374151;border:1px solid #9ca3af',
+    SSMT:   'background:var(--sl-100);color:var(--sl-700);border:1px solid var(--sl-400)',
   };
   const p = pillar.toUpperCase();
-  const style = map[p] || 'background:#f3f4f6;color:#374151;border:1px solid #9ca3af';
+  const style = map[p] || 'background:var(--sl-100);color:var(--sl-700);border:1px solid var(--sl-400)';
   return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;${style}">${p}</span>`;
 }
 
@@ -1781,8 +1781,8 @@ function _dueDateBadge(dueDate) {
   const today = new Date().toISOString().slice(0, 10);
   const isOverdue = dueDate < today;
   const style = isOverdue
-    ? 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5'
-    : 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
+    ? 'background:var(--negative-surface);color:var(--negative-text);border:1px solid var(--negative-border)'
+    : 'background:var(--positive-surface);color:var(--positive-text);border:1px solid var(--positive-border)';
   return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;${style}">${dueDate}</span>`;
 }
 
@@ -1807,14 +1807,14 @@ function _dueDaysBadge(dueDate) {
   const diff = _workingDaysDiff(dueDate);
   if (diff === null) return '<span style="color:var(--text-muted)">—</span>';
   if (diff < 0) {
-    const style = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5';
+    const style = 'background:var(--negative-surface);color:var(--negative-text);border:1px solid var(--negative-border)';
     return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;${style}">${Math.abs(diff)} hari lewat</span>`;
   }
   if (diff === 0) {
-    const style = 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
+    const style = 'background:var(--positive-surface);color:var(--positive-text);border:1px solid var(--positive-border)';
     return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;${style}">Hari ini</span>`;
   }
-  const style = 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
+  const style = 'background:var(--positive-surface);color:var(--positive-text);border:1px solid var(--positive-border)';
   return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;${style}">${diff} hari lagi</span>`;
 }
 
@@ -1899,7 +1899,7 @@ function renderOpenPAM(drafts) {
   });
 
   // Grand total row
-  html += '<tr style="background:#f1f5f9;font-weight:700">' +
+  html += '<tr style="background:var(--sl-100);font-weight:700">' +
     '<td colspan="9" style="text-align:right;padding:.5rem .75rem">Grand Total</td>' +
     '<td class="num-right" style="padding:.5rem .75rem">' + fmtRupiah(grandTotal) + '</td>' +
     '</tr>';
@@ -2950,16 +2950,16 @@ async function smtFetchLines(masterTr, toggleEl, pamId) {
     const emptyTr = document.createElement('tr');
     emptyTr.classList.add('smt-detail-rows');
     emptyTr.dataset.pamId = pamId;
-    emptyTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:12px;color:#64748b;background:#f8fafc;font-style:italic">Tidak ada baris.</td>';
+    emptyTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:12px;color:var(--sl-500);background:var(--sl-50);font-style:italic">Tidak ada baris.</td>';
     masterTr.insertAdjacentElement('afterend', emptyTr);
     toggleEl.innerHTML = '&#9660;';
     return;
   }
 
   let html = `
-    <tr class="smt-detail-rows" data-pam-id="${pamId}" style="background:#f1f5f9;border-bottom:2px solid #cbd5e1">
+    <tr class="smt-detail-rows" data-pam-id="${pamId}" style="background:var(--sl-100);border-bottom:2px solid var(--sl-300)">
       <td colspan="27" style="padding:10px 40px">
-        <div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
+        <div style="background:var(--card);border:1px solid var(--sl-300);border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
           <table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead>
               <tr style="background:#e2e8f0;color:#334155">
@@ -3001,7 +3001,7 @@ async function smtFetchLines(masterTr, toggleEl, pamId) {
     `;
   });
   html += `
-            <tr style="background:#f1f5f9;font-weight:700;color:#0f172a;border-top:2px solid #cbd5e1">
+            <tr style="background:var(--sl-100);font-weight:700;color:var(--sl-900);border-top:2px solid var(--sl-300)">
               <td colspan="7" style="padding:6px;text-align:right">Total :</td>
               <td style="padding:6px;text-align:right">${fmtRupiah(sumDPP)}</td>
               <td style="padding:6px;text-align:right">${fmtRupiah(sumPPN)}</td>
@@ -3472,7 +3472,7 @@ function _statusBadge(status) {
     complete:   'background:#d1fae5;color:#065f46;border:1px solid #059669',
     rejected:   'background:#fef2f2;color:#991b1b;border:1px solid #fecaca',
   };
-  const st = styles[status] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+  const st = styles[status] || 'background:var(--sl-100);color:var(--sl-600);border:1px solid var(--sl-300)';
   return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;${st}">${esc(status || '-')}</span>`;
 }
 
@@ -4717,7 +4717,7 @@ function _vendorSuggRender(hits, suggEl, onSelect) {
     const cc = v.cost_center ? `<span style="font-size:.75rem;color:#9ca3af;margin-left:4px">${v.cost_center}</span>` : "";
     d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">
       <span style="flex:1">${v.name}${cc}</span>
-      <span style="font-size:.75rem;color:#6b7280;background:#f3f4f6;padding:1px 7px;border-radius:99px;white-space:nowrap">${v.pillar}</span>
+      <span style="font-size:.75rem;color:var(--sl-500);background:var(--sl-100);padding:1px 7px;border-radius:99px;white-space:nowrap">${v.pillar}</span>
     </div>`;
     d.addEventListener("mousedown", () => onSelect(v));
     d.addEventListener("mouseover", () => { d.style.background = "#eff6ff"; });
@@ -4801,14 +4801,14 @@ function _mkDrop(opts, ph) {
   const w   = document.createElement("div"); w.style.position = "relative";
   const hid = document.createElement("input"); hid.type = "hidden";
   const dsp = document.createElement("div");
-  dsp.style.cssText = "border:1px solid #d1d5db;border-radius:.375rem;padding:.45rem .75rem;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:38px";
+  dsp.style.cssText = "border:1px solid var(--sl-300);border-radius:.375rem;padding:.45rem .75rem;background:var(--card);cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:38px";
   const lbl = document.createElement("span");
   lbl.textContent = ph; lbl.style.cssText = "color:#9ca3af;font-size:.875rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
   const arr = document.createElement("span");
   arr.textContent = "▾"; arr.style.cssText = "color:#6b7280;font-size:.75rem;flex-shrink:0;margin-left:4px";
   dsp.appendChild(lbl); dsp.appendChild(arr);
   const pan = document.createElement("div");
-  pan.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12)";
+  pan.style.cssText = "display:none;position:fixed;z-index:9999;background:var(--card);border:1px solid var(--sl-200);border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12)";
   const sw = document.createElement("div"); sw.style.padding = "6px";
   const si = document.createElement("input"); si.type = "text"; si.placeholder = "Cari...";
   si.style.cssText = "width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:.25rem;padding:.3rem .6rem;font-size:.875rem";
@@ -4874,7 +4874,7 @@ function _ipayBuildPickerRow(tr, candidates) {
   pr.className = "ipay-pa-picker-row";
   const td = document.createElement("td");
   td.colSpan = 10;
-  td.style.cssText = "padding:4px 8px 10px 24px;background:#eff6ff;border-top:1px solid #bfdbfe";
+  td.style.cssText = "padding:4px 8px 10px 24px;background:var(--accent-surface);border-top:1px solid var(--accent-border)";
   const title = document.createElement("div");
   title.style.cssText = "font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px";
   title.textContent = candidates.length + " PA ditemukan — pilih salah satu:";
@@ -5111,7 +5111,7 @@ function _buildMedisRow(tr) {
 
   function mkSel(opts, placeholder) {
     const s = document.createElement("select");
-    s.style.cssText = "width:100%;border:1px solid #fcd34d;border-radius:4px;padding:5px 6px;font-size:12px;background:#fff;box-sizing:border-box";
+    s.style.cssText = "width:100%;border:1px solid #fcd34d;border-radius:4px;padding:5px 6px;font-size:12px;background:var(--card);box-sizing:border-box";
     s.innerHTML = `<option value="">${placeholder}</option>` +
       opts.map(o => `<option value="${o}">${o}</option>`).join("");
     return s;
@@ -5119,7 +5119,7 @@ function _buildMedisRow(tr) {
   function mkInp(placeholder) {
     const i = document.createElement("input");
     i.type = "text"; i.placeholder = placeholder;
-    i.style.cssText = "width:100%;box-sizing:border-box;border:1px solid #fcd34d;border-radius:4px;padding:5px 6px;font-size:12px;background:#fff";
+    i.style.cssText = "width:100%;box-sizing:border-box;border:1px solid #fcd34d;border-radius:4px;padding:5px 6px;font-size:12px;background:var(--card)";
     return i;
   }
   function lbl(text, required) {
@@ -5218,7 +5218,7 @@ function ipayAddRow() {
   siswaInp.style.cssText = "width:100%;box-sizing:border-box";
   const sugg = document.createElement("div");
   sugg.dataset.ipaysugg = "1";
-  sugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  sugg.style.cssText = "display:none;position:fixed;z-index:9999;background:var(--card);border:1px solid var(--accent-border);border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
   document.body.appendChild(sugg);
   function _posSugg() { const r = siswaInp.getBoundingClientRect(); sugg.style.top=(r.bottom+2)+"px"; sugg.style.left=r.left+"px"; sugg.style.width=r.width+"px"; }
 
@@ -5266,7 +5266,7 @@ function ipayAddRow() {
   const ipkStrip = document.createElement("div");
   ipkStrip.style.cssText = "display:none;align-items:center;gap:4px;margin-top:3px;flex-wrap:wrap";
   const ipkBadge = document.createElement("span");
-  ipkBadge.style.cssText = "background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:1px 7px;font-size:.75rem;font-weight:700";
+  ipkBadge.style.cssText = "background:var(--accent-surface);color:var(--accent-text);border:1px solid var(--accent-border);border-radius:4px;padding:1px 7px;font-size:.75rem;font-weight:700";
   const btnEditSiswa = document.createElement("button");
   btnEditSiswa.type = "button"; btnEditSiswa.className = "btn btn-sm";
   btnEditSiswa.style.cssText = "padding:1px 7px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #86efac;line-height:1.5;white-space:nowrap";
@@ -5590,7 +5590,7 @@ function klaimAddSiswa() {
   const tr = document.createElement("tr");
   tr.dataset.klaimRid = rid;
   tr.dataset.klaimType = "siswa";
-  tr.style.cssText = "background:#fff;border-bottom:1px solid #e2e8f0";
+  tr.style.cssText = "background:var(--card);border-bottom:1px solid var(--sl-200)";
 
   // Siswa autocomplete
   const tdSiswa = document.createElement("td");
@@ -5600,7 +5600,7 @@ function klaimAddSiswa() {
   inpSiswaSearch.className = "dm-inp";
   const inpSiswaCode = document.createElement("input"); inpSiswaCode.type = "hidden";
   const sugg = document.createElement("div");
-  sugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)";
+  sugg.style.cssText = "display:none;position:fixed;z-index:9999;background:var(--card);border:1px solid var(--accent-border);border-radius:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15)";
 
   inpSiswaSearch.oninput = async function() {
     const q = this.value.trim();
@@ -5739,7 +5739,7 @@ function klaimAddCat2Row(rid, siswaRow) {
 
   const tr = document.createElement("tr");
   tr.dataset.klaimRid = rid; tr.dataset.klaimType = "cat2";
-  tr.style.cssText = "background:#eff6ff;border-bottom:1px solid #dbeafe";
+  tr.style.cssText = "background:var(--accent-surface);border-bottom:1px solid var(--accent-border)";
 
   const tdLabel = document.createElement("td");
   tdLabel.style.cssText = "padding:4px 7px;color:#94a3b8;font-size:12px;font-style:italic;text-align:right";
@@ -6092,7 +6092,7 @@ function smtLinesAddRow() {
   const srInp = textInp("Cari jenis biaya...");
   srInp.autocomplete = "off";
   const srSugg = document.createElement("div");
-  srSugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:240px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  srSugg.style.cssText = "display:none;position:fixed;z-index:9999;background:var(--card);border:1px solid var(--accent-border);border-radius:.375rem;max-height:240px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
   document.body.appendChild(srSugg);
   srInp.addEventListener("input", () => {
     const q = srInp.value.toLowerCase().trim();
@@ -6143,7 +6143,7 @@ function smtLinesAddRow() {
   const vendorWrap = document.createElement("div"); vendorWrap.style.position = "relative";
   const vendorInp = textInp("Cari vendor..."); vendorInp.autocomplete = "off";
   const vendorSugg = document.createElement("div");
-  vendorSugg.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  vendorSugg.style.cssText = "display:none;position:fixed;z-index:9999;background:var(--card);border:1px solid var(--accent-border);border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
   document.body.appendChild(vendorSugg);
   
   vendorInp.addEventListener("input", () => {
@@ -6283,7 +6283,7 @@ function iklaimAddRow() {
   const tdSiswa=document.createElement("td"), siswaInp=document.createElement("input");
   siswaInp.type="text"; siswaInp.placeholder="Cari siswa..."; siswaInp.autocomplete="off"; siswaInp.style.cssText="width:100%;box-sizing:border-box";
   const sugg=document.createElement("div"); sugg.dataset.iklaimsugg="1";
-  sugg.style.cssText="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #f9a8d4;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
+  sugg.style.cssText="display:none;position:fixed;z-index:9999;background:var(--card);border:1px solid #f9a8d4;border-radius:.375rem;max-height:220px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)";
   document.body.appendChild(sugg);
   function _posSugg(){const r=siswaInp.getBoundingClientRect();sugg.style.top=(r.bottom+2)+"px";sugg.style.left=r.left+"px";sugg.style.width=r.width+"px";}
   siswaInp.addEventListener("input",()=>{const q=siswaInp.value.toLowerCase().trim();if(!q){sugg.style.display="none";return;}const hits=SISWA_LIST.filter(s=>(s.nama&&s.nama.toLowerCase().includes(q))||(s.code&&String(s.code).toLowerCase().includes(q))).slice(0,10);if(!hits.length){sugg.style.display="none";return;}sugg.innerHTML="";hits.forEach(s=>{const d=document.createElement("div");d.style.cssText="padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:.5rem";d.innerHTML=`<span style="font-weight:600;color:#db2777;min-width:72px">${s.code}</span><span style="color:#374151">${s.nama}</span>`;d.addEventListener("mousedown",()=>{siswaInp.value=`${s.code} — ${s.nama}`;tr.dataset.siswaCode=s.code;sugg.style.display="none";});d.addEventListener("mouseover",()=>{d.style.background="#fdf2f8";});d.addEventListener("mouseout",()=>{d.style.background="";});sugg.appendChild(d);});_posSugg();sugg.style.display="block";});

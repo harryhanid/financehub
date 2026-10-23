@@ -586,6 +586,74 @@ function hideLoading() {
   if (el) el.classList.remove("show");
 }
 
+/* ── Row action menu ("⋯") ─────────────────────────────────
+   One shared popover for per-row secondary actions, so a table row carries a
+   single visible action plus this menu instead of 3-4 buttons.
+   fhRowMenu(anchorButton, [{label, icon?, danger?, onClick} | "sep"]) */
+const FH_MENU_ICONS = {
+  wallet: '<path d="M17 8V5a1 1 0 0 0-1-1H6a2 2 0 0 0 0 4h12a1 1 0 0 1 1 1v3m0 4v3a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V6"/><path d="M20 12v4h-4a2 2 0 0 1 0-4h4"/>',
+  calc:   '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01M16 19h.01"/>',
+  edit:   '<path d="M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16v4"/><path d="m13.5 6.5 4 4"/>',
+  trash:  '<path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>',
+};
+function fhRowMenu(anchor, items) {
+  const open = document.getElementById("fh-row-menu");
+  if (open) {
+    const sameAnchor = open._anchor === anchor;
+    open._close();
+    if (sameAnchor) return;   // second click on the same "⋯" toggles it shut
+  }
+  const menu = document.createElement("div");
+  menu.id = "fh-row-menu";
+  menu.className = "fh-row-menu";
+  menu.setAttribute("role", "menu");
+  items.forEach(it => {
+    if (it === "sep") { menu.insertAdjacentHTML("beforeend", '<div class="fh-row-menu-sep" role="separator"></div>'); return; }
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "fh-row-menu-item" + (it.danger ? " danger" : "");
+    b.setAttribute("role", "menuitem");
+    b.innerHTML = (it.icon ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${FH_MENU_ICONS[it.icon] || ""}</svg>` : "") + "<span></span>";
+    b.querySelector("span").textContent = it.label;
+    b.addEventListener("click", () => { close(); it.onClick(); });
+    menu.appendChild(b);
+  });
+  document.body.appendChild(menu);
+
+  // Fixed positioning under the anchor, right-aligned; flip above near the viewport bottom.
+  const r = anchor.getBoundingClientRect();
+  const mh = menu.offsetHeight, mw = menu.offsetWidth;
+  menu.style.left = Math.max(8, Math.min(r.right - mw, innerWidth - mw - 8)) + "px";
+  menu.style.top = (r.bottom + 4 + mh > innerHeight ? r.top - mh - 4 : r.bottom + 4) + "px";
+
+  anchor.setAttribute("aria-expanded", "true");
+  const btns = [...menu.querySelectorAll(".fh-row-menu-item")];
+  btns[0] && btns[0].focus();
+
+  function onKey(e) {
+    const i = btns.indexOf(document.activeElement);
+    if (e.key === "Escape") { e.preventDefault(); close(); anchor.focus(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); btns[(i + 1) % btns.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); btns[(i - 1 + btns.length) % btns.length].focus(); }
+    else if (e.key === "Tab") close();
+  }
+  function onDown(e) { if (!menu.contains(e.target) && !anchor.contains(e.target)) close(); }
+  function close() {
+    menu.remove();
+    anchor.setAttribute("aria-expanded", "false");
+    document.removeEventListener("keydown", onKey, true);
+    document.removeEventListener("mousedown", onDown, true);
+    window.removeEventListener("scroll", close, true);
+    window.removeEventListener("resize", close);
+  }
+  menu._close = close;
+  menu._anchor = anchor;
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("mousedown", onDown, true);
+  window.addEventListener("scroll", close, true);
+  window.addEventListener("resize", close);
+}
+
 // Backdrop click closes a modal — but a stray click must not throw away what
 // the user typed into a form modal: ask first when it has unsaved edits.
 // Only user edits (input/change events) count; edit modals pre-filled by JS
@@ -640,7 +708,7 @@ function animateCounter(el, duration = 700) {
     const ease = 1 - Math.pow(1 - p, 3);
     el.textContent = prefix + fmt.format(Math.round(ease * target));
     if (p < 1) requestAnimationFrame(step);
-    else el.textContent = prefix + fmt.format(target);
+    else el.textContent = prefix + fmt.format(Math.round(target));  // money comes in as float (e.g. 111544685363.944)
   };
   requestAnimationFrame(step);
 }

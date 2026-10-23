@@ -666,12 +666,12 @@
   const _BADGE_BASE = 'border-radius:.25rem;padding:.1rem .4rem;font-size:.75rem;font-weight:700;white-space:nowrap;display:inline-block';
 
   function _pillarBadge(p) {
-    const s = _PILLAR_STYLE[p] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+    const s = _PILLAR_STYLE[p] || 'background:var(--sl-100);color:var(--sl-600);border:1px solid var(--sl-300)';
     return `<span style="${s};${_BADGE_BASE}">${_PILLAR_LABEL[p] || (p||'').toUpperCase()}</span>`;
   }
   function _statusBadge(st) {
     const k = (st||'').toLowerCase();
-    const s = _STATUS_STYLE[k] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+    const s = _STATUS_STYLE[k] || 'background:var(--sl-100);color:var(--sl-600);border:1px solid var(--sl-300)';
     return `<span style="${s};${_BADGE_BASE}">${_STATUS_LABEL[k] || st || '-'}</span>`;
   }
 
@@ -865,12 +865,12 @@
   const _BADGE_BASE = 'border-radius:.25rem;padding:.1rem .4rem;font-size:.75rem;font-weight:700;white-space:nowrap;display:inline-block';
 
   function _pillarBadge(p) {
-    const s = _PILLAR_STYLE[p] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+    const s = _PILLAR_STYLE[p] || 'background:var(--sl-100);color:var(--sl-600);border:1px solid var(--sl-300)';
     return `<span style="${s};${_BADGE_BASE}">${_PILLAR_LABEL[p] || (p||'').toUpperCase()}</span>`;
   }
   function _statusBadge(st) {
     const k = (st||'').toLowerCase();
-    const s = _STATUS_STYLE[k] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
+    const s = _STATUS_STYLE[k] || 'background:var(--sl-100);color:var(--sl-600);border:1px solid var(--sl-300)';
     return `<span style="${s};${_BADGE_BASE}">${_STATUS_LABEL[k] || st || '-'}</span>`;
   }
 
@@ -1023,13 +1023,13 @@
 {# ── Modal: Quick Edit Siswa ────────────────────────────────────────────── #}
 <div class="modal-overlay" id="modal-etfpa-edit-siswa">
   <div class="modal" style="width:min(700px,95vw);max-height:90vh;overflow-y:auto">
-    <div class="modal-header" style="position:sticky;top:0;background:#fff;z-index:10;border-bottom:1px solid #e5e7eb;padding-bottom:.625rem">
+    <div class="modal-header" style="position:sticky;top:0;background:var(--card);z-index:10;border-bottom:1px solid var(--sl-200);padding-bottom:.625rem">
       <span class="modal-title" id="etfpa-esiswa-title">Update Data Siswa</span>
       <button class="modal-close" onclick="closeModal('modal-etfpa-edit-siswa')" aria-label="Tutup">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem">
       <div class="form-group"><label>Code Siswa</label>
-        <input type="text" id="etfpa-esiswa-code" readonly style="background:#f3f4f6;font-weight:700;font-family:monospace"></div>
+        <input type="text" id="etfpa-esiswa-code" readonly style="background:var(--sl-100);font-weight:700;font-family:monospace"></div>
       <div class="form-group"><label>Nama Lengkap</label>
         <input type="text" id="etfpa-esiswa-nama" placeholder="Nama lengkap"></div>
       <div class="form-group"><label>Jenjang</label>

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Sahabat ETF{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}?v=4.1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/patternomaly@1.3.2/dist/patternomaly.min.js"></script>
-<script src="{{ url_for('static', filename='js/sahabat_etf.js') }}?v=5.012"></script>
+<script src="{{ url_for('static', filename='js/sahabat_etf.js') }}"></script>
 {% endblock %}
 {% block content %}
 {% include "sahabat_etf/_panel.html" %}

@@ -1,4 +1,5 @@
 # app.py
+import os
 from datetime import timedelta
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_jwt_extended import JWTManager
@@ -24,6 +25,16 @@ def create_app(testing=False):
 
     JWTManager(app)
     CORS(app, supports_credentials=True)
+
+    # Version every url_for('static', ...) with the file's mtime so browsers
+    # pick up changed CSS/JS right after a deploy instead of a stale cached copy.
+    @app.url_defaults
+    def _static_cache_bust(endpoint, values):
+        if endpoint == "static" and "v" not in values:
+            try:
+                values["v"] = int(os.path.getmtime(os.path.join(app.static_folder, values["filename"])))
+            except (OSError, KeyError):
+                pass
 
     from auth.routes import bp as auth_bp
     from modules.dashboard.routes import bp as dashboard_bp
