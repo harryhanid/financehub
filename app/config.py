@@ -16,6 +16,9 @@ DB_SCHEMA            = os.environ.get("DB_SCHEMA", "financehub")
 SUPABASE_URL         = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 FH_PG_DSN            = os.environ.get("FH_PG_DSN", "")
+# Header respons X-FH-DB-Calls / X-FH-DB-Seconds (jumlah & durasi panggilan fh_exec per request).
+# Default mati; untuk pengukuran performa (scripts/pg_migrate/measure_pages.py).
+DB_STATS_HEADER      = os.environ.get("DB_STATS_HEADER", "").lower() in ("1", "true", "yes")
 SOP_STORAGE_DIR = os.path.join(BASE_DIR, "storage", "sop")
 BACKUP_ROOT = r"Y:\Seagate\Flow"
 # Backup harian isi database (tasks/db_backup.py): satu folder YYYY-MM-DD per hari, retensi 30 hari.

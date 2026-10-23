@@ -11,6 +11,7 @@ Satu panggilan backend = satu transaksi. Tidak ada transaksi lintas panggilan:
 import logging
 import re
 import threading
+import time
 from typing import Iterable, Sequence
 
 from .errors import ProgrammingError
@@ -20,8 +21,12 @@ logger = logging.getLogger("fhdb")
 
 
 class _Stats(threading.local):
+    """Statistik panggilan backend per thread: jumlah, total detik, dan panggilan terlama."""
+
     def __init__(self):
         self.calls = 0
+        self.seconds = 0.0
+        self.max_seconds = 0.0
 
 
 stats = _Stats()
@@ -29,6 +34,8 @@ stats = _Stats()
 
 def reset_stats() -> None:
     stats.calls = 0
+    stats.seconds = 0.0
+    stats.max_seconds = 0.0
 
 
 # ---------------------------------------------------------------------------- Row
@@ -258,7 +265,14 @@ class Connection:
         results: list = []
         if stmts:
             stats.calls += 1
-            results = self._backend.execute_batch(stmts, self._schema)
+            t0 = time.perf_counter()
+            try:
+                results = self._backend.execute_batch(stmts, self._schema)
+            finally:
+                dt = time.perf_counter() - t0
+                stats.seconds += dt
+                if dt > stats.max_seconds:
+                    stats.max_seconds = dt
         if any(p.is_write for p in plans):
             self._dirty = True
         it = iter(results)

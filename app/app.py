@@ -129,6 +129,20 @@ def create_app(testing=False):
             return jsonify({"error": DB_UNREACHABLE_MSG}), 503
         return render_template("db_unavailable.html", message=DB_UNREACHABLE_MSG), 503
 
+    if config.DB_STATS_HEADER:
+        import fhdb
+
+        @app.before_request
+        def _fh_db_stats_reset():
+            fhdb.reset_stats()
+
+        @app.after_request
+        def _fh_db_stats_header(resp):
+            resp.headers["X-FH-DB-Calls"] = str(fhdb.stats.calls)
+            resp.headers["X-FH-DB-Seconds"] = f"{fhdb.stats.seconds:.3f}"
+            resp.headers["X-FH-DB-Max-Call-Seconds"] = f"{fhdb.stats.max_seconds:.3f}"
+            return resp
+
     @app.route("/")
     def index():
         return redirect(url_for("auth.login_page"))
