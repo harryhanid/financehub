@@ -192,7 +192,7 @@ async function mrAddAlias() {
 }
 async function mrDeleteAlias(alias) {
   const res = await mrPost(MR_CAT + '/pph/' + encodeURIComponent(alias), null, 'DELETE');
-  if (res.ok) location.reload(); else alert(res.pesan);
+  if (res.ok) location.reload(); else showToast(res.pesan, 'error');
 }
 </script>
 {% endif %}

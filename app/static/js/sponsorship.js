@@ -167,10 +167,10 @@ function sponsorshipDataEdit(id) {
   });
 }
 
-function sponsorshipDataDelete() {
+async function sponsorshipDataDelete() {
   const id = document.getElementById("sp-ed-id").value;
   if (!id) return;
-  if (!confirm("Apakah Anda yakin ingin menghapus transaksi ini?")) return;
+  if (!await confirmModal("Hapus transaksi ini? Tindakan ini tidak bisa dibatalkan.", { type: "danger" })) return;
   
   showLoading("Menghapus transaksi...");
   apiFetch("/sponsorship/data/" + id + "/delete", { method: "POST" })
@@ -902,12 +902,12 @@ function sponsorshipAddLine() {
     }
   });
 
-function sponsorshipDataSync() {
+async function sponsorshipDataSync() {
   const fileInput = document.getElementById("sp-sync-file");
   if (!fileInput.files.length) return;
   const file = fileInput.files[0];
-  
-  if (!confirm("Apakah Anda yakin ingin mensinkronisasi data menggunakan file: " + file.name + "?")) {
+
+  if (!await confirmModal("Sinkronisasi data menggunakan file: " + file.name + "?", { title: "Konfirmasi Sinkronisasi", confirmText: "Sinkronkan" })) {
     fileInput.value = "";
     return;
   }

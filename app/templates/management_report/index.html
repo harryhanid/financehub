@@ -304,8 +304,8 @@ async function mrActivate(id) {
   try {
     const r = await fetch('/management-report/uploads/' + id + '/activate', {method: 'POST', credentials: 'same-origin'});
     const j = await r.json();
-    if (j.ok) location.reload(); else alert(j.pesan);
-  } catch (e) { alert('Gagal: ' + e); }
+    if (j.ok) location.reload(); else showToast(j.pesan, 'error');
+  } catch (e) { showToast('Gagal: ' + e, 'error'); }
 }
 
 /* Filters (F opens the bar, Esc closes it: the app's generic collapsible filter panel).

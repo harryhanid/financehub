@@ -140,7 +140,7 @@
   text-align: center;
   cursor: pointer;
   color: #94a3b8;
-  font-size: .65rem;
+  font-size: .75rem;
 }
 .grp-toggle-cell:hover { color: #3b82f6; }
 
@@ -155,8 +155,8 @@
 /* date header controls */
 .th-date-wrap { display:flex; flex-direction:column; gap:3px; }
 .th-date-ctrl { display:flex; flex-wrap:wrap; gap:2px; align-items:center; }
-.th-date-ctrl input[type=date] { font-size:.6rem; padding:1px 3px; width:96px; border:1px solid #bae6fd; border-radius:3px; }
-.btn-fill-date { font-size:.6rem; padding:1px 5px; line-height:1.4; white-space:nowrap; border-radius:3px; cursor:pointer; border:1px solid; }
+.th-date-ctrl input[type=date] { font-size:.75rem; padding:1px 3px; width:96px; border:1px solid #bae6fd; border-radius:3px; }
+.btn-fill-date { font-size:.75rem; padding:1px 5px; line-height:1.4; white-space:nowrap; border-radius:3px; cursor:pointer; border:1px solid; }
 .btn-isi  { background:#e0f2fe; color:#0369a1; border-color:#bae6fd; }
 .btn-isi:hover  { background:#bae6fd; }
 .btn-hn   { background:#dcfce7; color:#15803d; border-color:#bbf7d0; }
@@ -241,7 +241,7 @@
   </select>
   <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Reset</button>
   <button class="btn btn-success btn-sm" onclick="exportETFExcel()">&#8595; Export Excel</button>
-  <span id="f-count" style="font-size:11px;color:var(--text-muted)">{{ start_row }}-{{ end_row }} dari {{ total_rows }} baris</span>
+  <span id="f-count" style="font-size:12px;color:var(--text-muted)">{{ start_row }}-{{ end_row }} dari {{ total_rows }} baris</span>
 </div>
 </div>
 
@@ -341,9 +341,9 @@
     </div>
     <div id="pa-siswa-info" style="font-size:.75rem;color:var(--text-muted);margin-top:.3rem"></div>
     <div id="pa-siswa-ipk-strip" style="display:none;align-items:center;gap:6px;margin-top:.3rem;flex-wrap:wrap">
-      <span id="pa-siswa-ipk-badge" style="background:var(--accent-surface);color:var(--accent-text);border:1px solid var(--accent-border);border-radius:4px;padding:1px 8px;font-size:.68rem;font-weight:700"></span>
-      <span id="pa-siswa-ipk-warn" style="display:none;font-size:.68rem;color:#dc2626;font-weight:600">⚠ IPK belum ada</span>
-      <button type="button" id="pa-siswa-edit-btn" class="btn btn-sm" style="padding:1px 8px;font-size:.68rem;line-height:1.5">✏ Update Siswa</button>
+      <span id="pa-siswa-ipk-badge" style="background:var(--accent-surface);color:var(--accent-text);border:1px solid var(--accent-border);border-radius:4px;padding:1px 8px;font-size:.75rem;font-weight:700"></span>
+      <span id="pa-siswa-ipk-warn" style="display:none;font-size:.75rem;color:#dc2626;font-weight:600">⚠ IPK belum ada</span>
+      <button type="button" id="pa-siswa-edit-btn" class="btn btn-sm" style="padding:1px 8px;font-size:.75rem;line-height:1.5">✏ Update Siswa</button>
     </div>
   </div>
   </div>
@@ -562,19 +562,19 @@
 {# Filter bar #}
 <div id="pa-filter-panel" class="filter-bar collapsible">
   <div class="form-group" style="margin:0; width:170px">
-    <label style="font-size:.72rem; font-weight:600">No PA</label>
+    <label style="font-size:.75rem; font-weight:600">No PA</label>
     <input type="text" id="sf-pa-number" placeholder="Cari no PA..." oninput="renderSummary()" style="font-size:.82rem">
   </div>
   <div class="form-group" style="margin:0; width:100px">
-    <label style="font-size:.72rem; font-weight:600">Tahun PA</label>
+    <label style="font-size:.75rem; font-weight:600">Tahun PA</label>
     <input type="number" id="sf-tahun-pa" min="2000" max="2099" placeholder="2026" oninput="renderSummary()" style="font-size:.82rem">
   </div>
   <div class="form-group" style="margin:0; width:130px">
-    <label style="font-size:.72rem; font-weight:600">Bulan PA</label>
+    <label style="font-size:.75rem; font-weight:600">Bulan PA</label>
     <input type="month" id="sf-bulan-pa" onchange="renderSummary()" style="font-size:.82rem">
   </div>
   <div class="form-group" style="margin:0; width:120px">
-    <label style="font-size:.72rem; font-weight:600">Pillar</label>
+    <label style="font-size:.75rem; font-weight:600">Pillar</label>
     <select id="sf-pillar" onchange="renderSummary()" style="font-size:.82rem">
       <option value="">Semua Pillar</option>
       <option value="agri">AGRI</option>
@@ -585,7 +585,7 @@
     </select>
   </div>
   <div class="form-group" style="margin:0; width:150px">
-    <label style="font-size:.72rem; font-weight:600">Status</label>
+    <label style="font-size:.75rem; font-weight:600">Status</label>
     <select id="sf-status" onchange="renderSummary()" style="font-size:.82rem">
       <option value="active" selected>Open & On Process</option>
       <option value="">Semua</option>
@@ -596,11 +596,11 @@
     </select>
   </div>
   <div class="form-group" style="margin:0; width:200px">
-    <label style="font-size:.72rem; font-weight:600">Cari Nama Student</label>
+    <label style="font-size:.75rem; font-weight:600">Cari Nama Student</label>
     <input type="text" id="sf-nama" placeholder="Ketik nama..." oninput="renderSummary()" style="font-size:.82rem">
   </div>
   <div class="form-group" style="margin:0; width:180px">
-    <label style="font-size:.72rem; font-weight:600">Jenis Pembayaran</label>
+    <label style="font-size:.75rem; font-weight:600">Jenis Pembayaran</label>
     <select id="sf-jenis" onchange="renderSummary()" style="font-size:.82rem">
       <option value="">Semua Jenis</option>
     </select>
@@ -663,7 +663,7 @@
     complete:   'background:#d1fae5;color:#065f46;border:1px solid #6ee7b7',
   };
   const _STATUS_LABEL = { open:'Open', on_process:'On Process', partial:'Partial', complete:'Complete' };
-  const _BADGE_BASE = 'border-radius:.25rem;padding:.1rem .4rem;font-size:.7rem;font-weight:700;white-space:nowrap;display:inline-block';
+  const _BADGE_BASE = 'border-radius:.25rem;padding:.1rem .4rem;font-size:.75rem;font-weight:700;white-space:nowrap;display:inline-block';
 
   function _pillarBadge(p) {
     const s = _PILLAR_STYLE[p] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
@@ -799,11 +799,11 @@
 
 <div id="pa-filter-panel" class="filter-bar collapsible">
   <div class="form-group" style="margin:0; width:170px">
-    <label style="font-size:.72rem; font-weight:600">No PA</label>
+    <label style="font-size:.75rem; font-weight:600">No PA</label>
     <input type="text" id="adv-pa-number" placeholder="Cari no PA..." oninput="renderAdvance()" style="font-size:.82rem">
   </div>
   <div class="form-group" style="margin:0; width:150px">
-    <label style="font-size:.72rem; font-weight:600">Status</label>
+    <label style="font-size:.75rem; font-weight:600">Status</label>
     <select id="adv-status" onchange="renderAdvance()" style="font-size:.82rem">
       <option value="">Semua</option>
       <option value="open">Open</option>
@@ -814,7 +814,7 @@
     </select>
   </div>
   <div class="form-group" style="margin:0; width:200px">
-    <label style="font-size:.72rem; font-weight:600">Cari Nama Student</label>
+    <label style="font-size:.75rem; font-weight:600">Cari Nama Student</label>
     <input type="text" id="adv-nama" placeholder="Ketik nama..." oninput="renderAdvance()" style="font-size:.82rem">
   </div>
   <button class="btn btn-secondary" onclick="document.getElementById('adv-pa-number').value=''; document.getElementById('adv-status').value=''; document.getElementById('adv-nama').value=''; renderAdvance();" style="font-size:.8rem; align-self:flex-end">Reset</button>
@@ -862,7 +862,7 @@
     complete:   'background:#d1fae5;color:#065f46;border:1px solid #6ee7b7',
   };
   const _STATUS_LABEL = { open:'Open', on_process:'On Process', paid:'Paid', complete:'Complete' };
-  const _BADGE_BASE = 'border-radius:.25rem;padding:.1rem .4rem;font-size:.7rem;font-weight:700;white-space:nowrap;display:inline-block';
+  const _BADGE_BASE = 'border-radius:.25rem;padding:.1rem .4rem;font-size:.75rem;font-weight:700;white-space:nowrap;display:inline-block';
 
   function _pillarBadge(p) {
     const s = _PILLAR_STYLE[p] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
@@ -1352,12 +1352,12 @@ function renderPaChips() {
   const shown  = hidden.length ? selected.slice(0, LIMIT) : selected;
   function chipHtml(entry) {
     const nama = entry.nama || entry.id;
-    return `<span style="background:var(--accent);color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${nama}<span onclick="removePaChip(${entry.id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+    return `<span style="background:var(--accent);color:#fff;border-radius:99px;padding:2px 9px;font-size:12px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${nama}<span onclick="removePaChip(${entry.id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:12px" title="Hapus dari pilihan">✕</span></span>`;
   }
-  let html = `<span style="font-size:10px;color:var(--accent-text);font-weight:700;white-space:nowrap;margin-right:2px">● Tandai:</span>`;
+  let html = `<span style="font-size:12px;color:var(--accent-text);font-weight:700;white-space:nowrap;margin-right:2px">● Tandai:</span>`;
   html += shown.map(chipHtml).join('');
   if (hidden.length) {
-    html += `<span id="pa-chips-expand" onclick="expandPaChips()" style="background:var(--accent-surface);color:var(--accent-text);border:1px solid var(--accent-border);border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
+    html += `<span id="pa-chips-expand" onclick="expandPaChips()" style="background:var(--accent-surface);color:var(--accent-text);border:1px solid var(--accent-border);border-radius:99px;padding:2px 9px;font-size:12px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
     html += `<span id="pa-chips-hidden" style="display:none">` + hidden.map(chipHtml).join('') + `</span>`;
   }
   container.innerHTML = html;

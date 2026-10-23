@@ -521,8 +521,8 @@ function dashExportKategori(specificCat1) {
 
 
 const DASH_PAYMENT_STATUS_BADGE = {
-  open:     '<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Open</span>',
-  complete: '<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600">Complete</span>',
+  open:     '<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:99px;font-size:.75rem;font-weight:600">Open</span>',
+  complete: '<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:99px;font-size:.75rem;font-weight:600">Complete</span>',
 };
 function dashPaymentStatusBadge(status) {
   return DASH_PAYMENT_STATUS_BADGE[status] || status || "";

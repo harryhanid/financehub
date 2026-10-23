@@ -66,7 +66,7 @@
 }
 .beasiswa-dash-filter-chip .lbl {
   display: block;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -79,7 +79,7 @@
 }
 .beasiswa-dash-filter-chip .caret {
   color: var(--text-muted);
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   float: right;
 }
 
@@ -111,7 +111,7 @@
   border: none;
   background: none;
   color: var(--primary);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
   padding: 0;
@@ -177,7 +177,7 @@
   padding: 0.8rem;
 }
 .beasiswa-dash-section-title {
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;

@@ -199,8 +199,8 @@
 <script>
   function openModal(id) { document.getElementById(id).classList.add('active'); }
   function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-  function confirmDelete(path) {
-    if (confirm('Are you sure you want to delete "' + path + '"? This cannot be undone.')) {
+  async function confirmDelete(path) {
+    if (await confirmModal('Hapus backup "' + path + '"? Tindakan ini tidak bisa dibatalkan.', { type: 'danger' })) {
       document.getElementById('deletePath').value = path;
       document.getElementById('deleteForm').submit();
     }

@@ -146,10 +146,12 @@ function confirmModal(message, opts) {
     cancelBtn.textContent = opts.cancelText || 'Batal';
 
     overlay.classList.add('open');
-    okBtn.focus();
+    // Enter on a focused destructive button would delete by reflex; start on Batal instead.
+    (type === 'danger' ? cancelBtn : okBtn).focus();
 
     function cleanup(result) {
       overlay.classList.remove('open');
+      if (result && window.fhMarkApproved) window.fhMarkApproved();
       okBtn.removeEventListener('click', onOk);
       cancelBtn.removeEventListener('click', onCancel);
       document.removeEventListener('keydown', onKeydown);
@@ -167,7 +169,124 @@ function confirmModal(message, opts) {
     overlay.addEventListener('click', onBackdrop);
   });
 }
+
+// In-app replacement for window.prompt(). Single field: resolves the string
+// (or null on cancel). With opts.fields = [{name,label,type,value,required,
+// placeholder,help}]: resolves {name: value} (or null).
+function promptModal(message, opts) {
+  opts = opts || {};
+  var overlay = document.getElementById('modal-prompt');
+  if (overlay.classList.contains('open')) return Promise.resolve(null);
+  var multi  = Array.isArray(opts.fields);
+  var fields = multi ? opts.fields : [{
+    name: 'value', label: opts.label || '', type: opts.inputType || 'text',
+    value: opts.defaultValue, required: opts.required, placeholder: opts.placeholder,
+    help: opts.help, multiline: opts.multiline, validate: opts.validate, inputmode: opts.inputmode
+  }];
+  return new Promise(function(resolve) {
+    var form      = document.getElementById('modal-prompt-form');
+    var body      = document.getElementById('modal-prompt-fields');
+    var okBtn     = document.getElementById('modal-prompt-ok');
+    var cancelBtn = document.getElementById('modal-prompt-cancel');
+    var danger    = opts.type === 'danger';
+
+    document.getElementById('modal-prompt-title').textContent = opts.title || 'Input';
+    var msgEl = document.getElementById('modal-prompt-message');
+    msgEl.textContent = message || '';
+    msgEl.style.display = message ? '' : 'none';
+    okBtn.textContent = opts.confirmText || 'Lanjutkan';
+    okBtn.className   = 'btn ' + (danger ? 'btn-danger' : 'btn-primary');
+    cancelBtn.textContent = opts.cancelText || 'Batal';
+
+    body.innerHTML = '';
+    fields.forEach(function(f, i) {
+      var id = 'modal-prompt-f' + i;
+      var wrap = document.createElement('div');
+      wrap.className = 'form-group';
+      if (f.label) {
+        var lb = document.createElement('label');
+        lb.htmlFor = id;
+        lb.textContent = f.label + (f.required ? ' *' : '');
+        wrap.appendChild(lb);
+      }
+      var inp = document.createElement(f.multiline ? 'textarea' : 'input');
+      if (!f.multiline) inp.type = f.type || 'text';
+      else inp.rows = 3;
+      inp.id = id; inp.name = f.name;
+      if (f.value != null) inp.value = f.value;
+      if (f.placeholder) inp.placeholder = f.placeholder;
+      if (f.required) inp.required = true;
+      if (f.inputmode) inp.inputMode = f.inputmode;
+      inp.autocomplete = 'off';
+      wrap.appendChild(inp);
+      if (f.help) {
+        var hp = document.createElement('div');
+        hp.className = 'modal-prompt-help';
+        hp.textContent = f.help;
+        wrap.appendChild(hp);
+      }
+      var err = document.createElement('div');
+      err.className = 'modal-prompt-err'; err.setAttribute('role', 'alert');
+      wrap.appendChild(err);
+      body.appendChild(wrap);
+    });
+
+    overlay.classList.add('open');
+    var first = body.querySelector('input, textarea');
+    if (first) { first.focus(); if (first.select) first.select(); }
+
+    function cleanup(result) {
+      overlay.classList.remove('open');
+      if (result !== null && window.fhMarkApproved) window.fhMarkApproved();
+      form.removeEventListener('submit', onSubmit);
+      cancelBtn.removeEventListener('click', onCancel);
+      document.removeEventListener('keydown', onKeydown);
+      resolve(result);
+    }
+    function onSubmit(e) {
+      e.preventDefault();
+      e.stopImmediatePropagation();   // not a server form: keep fh-feedback's submit guard out
+      var out = {}, bad = null;
+      fields.forEach(function(f, i) {
+        var inp = document.getElementById('modal-prompt-f' + i);
+        var err = inp.parentNode.querySelector('.modal-prompt-err');
+        var v = inp.value;
+        var msg = '';
+        if (f.required && !String(v).trim()) msg = (f.label || 'Kolom ini') + ' wajib diisi.';
+        else if (f.validate) msg = f.validate(v) || '';
+        err.textContent = msg;
+        inp.setAttribute('aria-invalid', msg ? 'true' : 'false');
+        if (msg && !bad) bad = inp;
+        out[f.name] = v;
+      });
+      if (bad) { bad.focus(); return; }
+      cleanup(multi ? out : out.value);
+    }
+    function onCancel()   { cleanup(null); }
+    function onKeydown(e) { if (e.key === 'Escape') cleanup(null); }
+
+    form.addEventListener('submit', onSubmit);
+    cancelBtn.addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKeydown);
+  });
+}
 </script>
+<div id="modal-prompt" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-prompt-title" style="z-index:500">
+  <form id="modal-prompt-form" class="modal" style="max-width:420px" novalidate data-no-confirm>
+    <div class="modal-header">
+      <span class="modal-title" id="modal-prompt-title">Input</span>
+    </div>
+    <div class="modal-body">
+      <p id="modal-prompt-message" style="margin:0 0 .75rem;line-height:1.5;white-space:pre-line"></p>
+      <div id="modal-prompt-fields"></div>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1rem 0">
+      <button type="button" id="modal-prompt-cancel" class="btn btn-secondary">Batal</button>
+      <button type="submit" id="modal-prompt-ok" class="btn btn-primary">Lanjutkan</button>
+    </div>
+  </form>
+</div>
+<script src="{{ url_for('static', filename='js/fh-feedback.js') }}"></script>
 <!-- ── Module-Switcher Carousel Overlay (Alt+↓) ──────────── -->
 <div id="fh-cmd-ov">
   <div class="fh-cmd-search">

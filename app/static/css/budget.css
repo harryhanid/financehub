@@ -133,7 +133,7 @@
   color: #ffffff;
   font-weight: 600;
   text-transform: uppercase;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   letter-spacing: 0.05em;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   border-bottom: none;
@@ -167,7 +167,7 @@
   display: inline-block;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 .badge-po { background: rgba(249, 115, 22, 0.15); color: var(--po-color); }
@@ -198,7 +198,7 @@
   display: inline-block;
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
   border-left: 3px solid currentColor;
 }
@@ -397,7 +397,7 @@
     position: fixed;
     top: 6px;
     right: 8px;
-    font-size: 9px;
+    font-size: 12px;
     color: #64748b;
   }
 
@@ -442,11 +442,11 @@
   }
   .setf-compact-scroll table th,
   .setf-compact-scroll table td {
-    font-size: 0.65rem !important;
+    font-size: 0.75rem !important;
     padding: 0.2rem 0.3rem !important;
   }
   .setf-compact-scroll table .budget-badge {
-    font-size: 0.6rem !important;
+    font-size: 0.75rem !important;
     padding: 0.1rem 0.3rem !important;
   }
 }
@@ -558,7 +558,7 @@
 .setf-laporan-subtotal-row { font-weight: 600; background: var(--bg-muted); }
 .setf-laporan-total-row { font-weight: 700; background: var(--accent-surface); }
 .setf-laporan-recap-row { font-style: italic; color: var(--text-muted); }
-.setf-laporan-pct-row { font-size: .72rem; color: var(--text-muted); }
+.setf-laporan-pct-row { font-size: .75rem; color: var(--text-muted); }
 
 @media print { .filter-bar, .setf-subtabs { display: none !important; } }
 

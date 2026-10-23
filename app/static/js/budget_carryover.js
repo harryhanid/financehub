@@ -37,7 +37,11 @@ async function budgetSubmitAdditional() {
 }
 
 async function budgetApproveRequest(budgetId, type) {
-  const months = prompt("Perpanjangan berapa bulan?", type === "Carryover" ? "12" : "3");
+  const months = await promptModal("", {
+    title: "Setujui " + type, label: "Perpanjangan (bulan)", inputType: "number", required: true,
+    defaultValue: type === "Carryover" ? "12" : "3", confirmText: "Setujui",
+    validate: v => (parseInt(v, 10) > 0 ? "" : "Isi jumlah bulan lebih dari 0."),
+  });
   if (months === null) return;
   const endpoint = type === "Carryover" ? "/budget/carryover/" : "/budget/additional/";
   showLoading("Memproses approval...");
@@ -56,7 +60,10 @@ async function budgetApproveRequest(budgetId, type) {
 }
 
 async function budgetRejectRequest(budgetId, type) {
-  const reason = prompt("Alasan penolakan?", "");
+  const reason = await promptModal("", {
+    title: "Tolak " + type, label: "Alasan penolakan", multiline: true,
+    type: "danger", confirmText: "Tolak",
+  });
   if (reason === null) return;
   const endpoint = type === "Carryover" ? "/budget/carryover/" : "/budget/additional/";
   showLoading("Menolak request...");

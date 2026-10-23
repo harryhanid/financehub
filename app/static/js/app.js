@@ -536,18 +536,37 @@ function fmtJutaanBulat(amount) {
 }
 
 
+const FH_TOAST_ICONS = {
+  success: '<path d="M20 6 9 17l-5-5"/>',
+  error:   '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',
+  warning: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>',
+  info:    '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+};
+
+// The CSS styles #fh-toast via .show + .fh-toast-<type>; the old version set
+// unrelated class names, so toasts rendered without a background (barely visible).
 function showToast(msg, type = "success") {
+  type = { danger: "error", warn: "warning" }[type] || type;
+  if (!FH_TOAST_ICONS[type]) type = "error";
+  // Swallow the caller's own "Gagal: AbortError" right after the user cancelled
+  // a confirmation (see the fetch wrapper below).
+  if (type === "error" && Date.now() < (window._fhSuppressErrorsUntil || 0)) return;
   let toast = document.getElementById("fh-toast");
   if (!toast) {
     toast = document.createElement("div");
     toast.id = "fh-toast";
+    toast.addEventListener("click", () => toast.classList.remove("show"));
     document.body.appendChild(toast);
   }
-  toast.textContent = msg;
-  toast.className = type === "success" ? "toast-success" : type === "info" ? "toast-info" : "toast-error";
-  toast.style.opacity = "1";
+  toast.innerHTML = `<span class="fh-toast-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${FH_TOAST_ICONS[type]}</svg></span><span class="fh-toast-msg"></span>`;
+  toast.querySelector(".fh-toast-msg").textContent = msg;
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+  toast.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
+  toast.className = "fh-toast-" + type;
+  void toast.offsetWidth;  // restart the enter transition when toasts replace each other
+  toast.classList.add("show");
   clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => { toast.style.opacity = "0"; }, 3000);
+  toast._timer = setTimeout(() => toast.classList.remove("show"), type === "error" ? 5500 : 3200);
 }
 
 function showLoading(msg) {
@@ -565,6 +584,38 @@ function showLoading(msg) {
 function hideLoading() {
   const el = document.getElementById("fh-load-ov");
   if (el) el.classList.remove("show");
+}
+
+// Backdrop click closes a modal — but a stray click must not throw away what
+// the user typed into a form modal: ask first when it has unsaved edits.
+// Only user edits (input/change events) count; edit modals pre-filled by JS
+// start clean. The confirm/prompt dialogs in base.html manage themselves.
+function initModalBackdrop(overlay) {
+  if (overlay.id === "modal-confirm" || overlay.id === "modal-prompt") return;
+  const markDirty = () => { overlay._fhDirty = true; };
+  overlay.addEventListener("input", markDirty);
+  overlay.addEventListener("change", markDirty);
+  new MutationObserver(() => {
+    if (overlay.classList.contains("open") && !overlay._fhWasOpen) overlay._fhDirty = false;
+    overlay._fhWasOpen = overlay.classList.contains("open");
+  }).observe(overlay, { attributes: true, attributeFilter: ["class"] });
+
+  overlay.addEventListener("click", async e => {
+    if (e.target !== overlay) return;
+    if (overlay._fhDirty) {
+      const modal = overlay.querySelector(".modal");
+      if (modal) {
+        modal.classList.remove("fh-modal-nudge");
+        void modal.offsetWidth;
+        modal.classList.add("fh-modal-nudge");
+      }
+      const discard = await confirmModal("Ada perubahan yang belum disimpan di form ini. Tutup dan buang perubahan?", {
+        type: "danger", title: "Buang Perubahan?", confirmText: "Buang", cancelText: "Lanjut Mengisi",
+      });
+      if (!discard) return;
+    }
+    overlay.classList.remove("open");
+  });
 }
 
 function openModal(id) { const el = document.getElementById(id); if (el) el.classList.add("open"); }
@@ -849,9 +900,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initHeaderTabFade();
   document.querySelectorAll("[data-tabs]").forEach(initTabs);
   restoreFilterOpenState();
-  document.querySelectorAll(".modal-overlay").forEach(overlay => {
-    overlay.addEventListener("click", e => { if (e.target === overlay) overlay.classList.remove("open"); });
-  });
+  document.querySelectorAll(".modal-overlay").forEach(initModalBackdrop);
   document.querySelectorAll("tbody").forEach(staggerRows);
   document.querySelectorAll(".stat-value[data-count]").forEach(el => animateCounter(el));
 });

@@ -21,10 +21,10 @@
 
 {% block head %}
 <style>
-.dm-inp{border:none;border-bottom:1px dashed #94a3b8;background:transparent;font-size:11px;font-family:Arial,sans-serif;padding:1px 2px;outline:none;width:100%;box-sizing:border-box;color:#1e293b}
+.dm-inp{border:none;border-bottom:1px dashed #94a3b8;background:transparent;font-size:12px;font-family:Arial,sans-serif;padding:1px 2px;outline:none;width:100%;box-sizing:border-box;color:#1e293b}
 .dm-inp:focus{border-bottom:1.5px solid #3b82f6;background:#eff6ff;border-radius:2px}
 .dm-inp[type=number]{text-align:right}
-.dm-inp[type=date]{font-size:10px}
+.dm-inp[type=date]{font-size:12px}
 .dm-cb{width:14px;height:14px;cursor:pointer;accent-color:#1e3a5f;flex-shrink:0}
 /* Pillar tabs — scrollable table with frozen header. Explicit width (same     */
 /* calc as ETF PA's #pa-scroll-wrap) keeps the table area maximally wide       */
@@ -246,14 +246,14 @@
       </div>
       <div class="form-group" style="margin:0">
         <label>No. PAM
-          <span id="ipay-pam-type-badge" style="font-size:.65rem;color:#10b981;font-weight:400">(auto AGRI)</span>
-          <span id="ipay-pam-manual-badge" style="display:none;font-size:.65rem;color:#f59e0b;font-weight:600;margin-left:.25rem">(manual)</span>
+          <span id="ipay-pam-type-badge" style="font-size:.75rem;color:#10b981;font-weight:400">(auto AGRI)</span>
+          <span id="ipay-pam-manual-badge" style="display:none;font-size:.75rem;color:#f59e0b;font-weight:600;margin-left:.25rem">(manual)</span>
         </label>
         <input type="text" id="ipay-pam-full" placeholder="Memuat..."
                style="font-family:monospace;font-weight:700;color:#1d4ed8;border:1.5px solid #93c5fd;background:#f0f9ff"
                oninput="ipayValidatePamNo()"
                onblur="ipayCheckPamCollision()">
-        <div id="ipay-pam-hint" style="display:none;font-size:.68rem;color:#dc2626;margin-top:.2rem"></div>
+        <div id="ipay-pam-hint" style="display:none;font-size:.75rem;color:#dc2626;margin-top:.2rem"></div>
       </div>
       <div class="form-group" style="margin:0">
         <label>Perusahaan</label>
@@ -278,7 +278,7 @@
                style="background:#f3f4f6;cursor:default;color:#374151;font-weight:600">
       </div>
       <div class="form-group" style="margin:0">
-        <label>Catatan Payment <span style="font-size:.65rem;color:var(--text-muted);font-weight:400">(tampil di tab PAM)</span></label>
+        <label>Catatan Payment <span style="font-size:.75rem;color:var(--text-muted);font-weight:400">(tampil di tab PAM)</span></label>
         <input type="text" id="ipay-catatan" placeholder="Opsional — muncul di kolom Catatan PAM tab"
                style="border:1px solid #93c5fd;background:#fafeff">
       </div>
@@ -403,7 +403,7 @@
                style="text-align:right">
       </div>
       <div class="form-group" style="margin:0">
-        <label>Total <span style="font-size:.65rem;font-weight:400">(DPP+PPN+Others)</span></label>
+        <label>Total <span style="font-size:.75rem;font-weight:400">(DPP+PPN+Others)</span></label>
         <div id="others-total"
              style="border-bottom:2px solid #1d4ed8;padding:4px 6px;font-size:14px;font-weight:700;color:#1d4ed8;text-align:right;background:#eff6ff;border-radius:2px">
           Rp 0
@@ -488,7 +488,7 @@
         <option value="2027">2027</option>
       </select>
       <select id="pam-filter-status" onchange="loadPAMDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
@@ -496,7 +496,7 @@
         <option value="rejected">Rejected</option>
       </select>
       <select id="pam-filter-source" onchange="loadPAMDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Source</option>
         <option value="beasiswa">Beasiswa</option>
         <option value="klaim_medis">Klaim Medis</option>
@@ -510,22 +510,22 @@
     <div id="agri-bulk-bar" style="display:none;align-items:center;flex-wrap:wrap;gap:8px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:7px 12px;margin-bottom:8px">
       <!-- kiri: kontrol kolom + tanggal + aksi -->
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Kolom:</span>
-        <select id="agri-bulk-field" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;min-width:110px">
+        <span style="font-size:12px;font-weight:600;color:#92400e;white-space:nowrap">Kolom:</span>
+        <select id="agri-bulk-field" style="font-size:12px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;min-width:110px">
           <option value="SLA_Date_2_HT">SLA HT</option>
           <option value="SLA_Date_3_YK">SLA A2</option>
           <option value="SLA_Date_6_C2">SLA LL</option>
         </select>
-        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Tanggal:</span>
-        <input type="date" id="agri-bulk-date" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;width:140px;box-sizing:border-box">
-        <button onclick="agriIsiTanggal()" style="font-size:11px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Simpan Tanggal</button>
-        <button onclick="agriHapusTanggal()" style="font-size:11px;padding:3px 11px;background:#dc2626;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Hapus Tanggal</button>
-        <button onclick="agriClearAll()" style="font-size:11px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;height:26px">✕ Batal</button>
+        <span style="font-size:12px;font-weight:600;color:#92400e;white-space:nowrap">Tanggal:</span>
+        <input type="date" id="agri-bulk-date" style="font-size:12px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;width:140px;box-sizing:border-box">
+        <button onclick="agriIsiTanggal()" style="font-size:12px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Simpan Tanggal</button>
+        <button onclick="agriHapusTanggal()" style="font-size:12px;padding:3px 11px;background:#dc2626;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Hapus Tanggal</button>
+        <button onclick="agriClearAll()" style="font-size:12px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;height:26px">✕ Batal</button>
       </div>
       <!-- pembatas -->
       <div style="width:1px;background:#f59e0b;height:20px;flex-shrink:0"></div>
       <!-- kanan: count + chips -->
-      <span id="agri-bulk-count" style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap;flex-shrink:0"></span>
+      <span id="agri-bulk-count" style="font-size:12px;font-weight:600;color:#92400e;white-space:nowrap;flex-shrink:0"></span>
       <div id="agri-chips-row" style="display:flex;flex-wrap:wrap;gap:4px;min-width:0;flex:1"></div>
     </div>
     <div class="pillar-table-wrap">
@@ -602,7 +602,7 @@
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
       <select id="fiori-filter-status" onchange="loadFIORIDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
@@ -610,7 +610,7 @@
         <option value="rejected">Rejected</option>
       </select>
       <select id="fiori-filter-source" onchange="loadFIORIDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Source</option>
         <option value="beasiswa">Beasiswa</option>
         <option value="klaim_medis">Klaim Medis</option>
@@ -620,12 +620,12 @@
         <option value="others">Others</option>
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('APP')">&#8595; Export Excel</button>
-      <span id="fiori-count" style="font-size:11px;color:var(--text-muted)"></span>
+      <span id="fiori-count" style="font-size:12px;color:var(--text-muted)"></span>
     </div>
     <div id="fiori-bulk-bar" style="display:none;align-items:center;flex-wrap:wrap;gap:8px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:7px 12px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Kolom:</span>
-        <select id="fiori-bulk-field" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;min-width:110px">
+        <span style="font-size:12px;font-weight:600;color:#92400e;white-space:nowrap">Kolom:</span>
+        <select id="fiori-bulk-field" style="font-size:12px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;min-width:110px">
           <option value="tgl_terima_doc">Terima Dok</option>
           <option value="tgl_proses">Proses</option>
           <option value="tgl_verifikasi_tax">Verif Tax</option>
@@ -634,14 +634,14 @@
           <option value="tgl_approval_3">App 3</option>
           <option value="tgl_kirim">Kirim</option>
         </select>
-        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Tanggal:</span>
-        <input type="date" id="fiori-bulk-date" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;width:140px;box-sizing:border-box">
-        <button onclick="fioriIsiTanggal()" style="font-size:11px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Simpan Tanggal</button>
-        <button onclick="fioriHapusTanggal()" style="font-size:11px;padding:3px 11px;background:#dc2626;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Hapus Tanggal</button>
-        <button onclick="fioriClearAllSelection()" style="font-size:11px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;height:26px">&#10005; Batal</button>
+        <span style="font-size:12px;font-weight:600;color:#92400e;white-space:nowrap">Tanggal:</span>
+        <input type="date" id="fiori-bulk-date" style="font-size:12px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;width:140px;box-sizing:border-box">
+        <button onclick="fioriIsiTanggal()" style="font-size:12px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Simpan Tanggal</button>
+        <button onclick="fioriHapusTanggal()" style="font-size:12px;padding:3px 11px;background:#dc2626;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Hapus Tanggal</button>
+        <button onclick="fioriClearAllSelection()" style="font-size:12px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;height:26px">&#10005; Batal</button>
       </div>
       <div style="width:1px;background:#f59e0b;height:20px;flex-shrink:0"></div>
-      <span id="fiori-bulk-count" style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap;flex-shrink:0"></span>
+      <span id="fiori-bulk-count" style="font-size:12px;font-weight:600;color:#92400e;white-space:nowrap;flex-shrink:0"></span>
       <div id="fiori-chips-row" style="display:flex;flex-wrap:wrap;gap:4px;min-width:0;flex:1"></div>
     </div>
     <div class="pillar-table-wrap">
@@ -707,7 +707,7 @@
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
       <select id="sml-filter-status" onchange="loadSMLDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
@@ -715,7 +715,7 @@
         <option value="rejected">Rejected</option>
       </select>
       <select id="sml-filter-source" onchange="loadSMLDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Source</option>
         <option value="beasiswa">Beasiswa</option>
         <option value="klaim_medis">Klaim Medis</option>
@@ -725,7 +725,7 @@
         <option value="others">Others</option>
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('LAND')">&#8595; Export Excel</button>
-      <span id="sml-count" style="font-size:11px;color:var(--text-muted)"></span>
+      <span id="sml-count" style="font-size:12px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
       <table id="sml-table" style="min-width:2350px;border-collapse:collapse;font-size:12px;">
@@ -790,7 +790,7 @@
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
       <select id="smt-filter-status" onchange="loadSMTDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
@@ -798,17 +798,17 @@
         <option value="rejected">Rejected</option>
       </select>
       <select id="smt-filter-source" onchange="loadSMTDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Source</option>
         <option value="others">Others</option>
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('SMT')">&#8595; Export Excel</button>
-      <span id="smt-count" style="font-size:11px;color:var(--text-muted)"></span>
+      <span id="smt-count" style="font-size:12px;color:var(--text-muted)"></span>
     </div>
     <div id="smt-bulk-bar" style="display:none;align-items:center;flex-wrap:wrap;gap:8px;background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:7px 12px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Kolom:</span>
-        <select id="smt-bulk-field" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;min-width:110px">
+        <span style="font-size:12px;font-weight:600;color:#92400e;white-space:nowrap">Kolom:</span>
+        <select id="smt-bulk-field" style="font-size:12px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;min-width:110px">
           <option value="tanggal_bayar">TGL BAYAR</option>
           <option value="tgl_received">Received</option>
           <option value="tgl_a0">A0 - S-JT</option>
@@ -817,14 +817,14 @@
           <option value="tgl_a3">A3 - S-LL</option>
           <option value="tgl_a4">A4 - A-LL</option>
         </select>
-        <span style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap">Tanggal:</span>
-        <input type="date" id="smt-bulk-date" style="font-size:11px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;width:140px;box-sizing:border-box">
-        <button onclick="smtDoBulk(true)" style="font-size:11px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Update Tgl</button>
-        <button onclick="smtDoBulk(false)" style="font-size:11px;padding:3px 11px;background:#dc2626;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Hapus Tgl</button>
-        <button onclick="smtToggleAllBulk(false)" style="font-size:11px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;height:26px">&#10005; Batal</button>
+        <span style="font-size:12px;font-weight:600;color:#92400e;white-space:nowrap">Tanggal:</span>
+        <input type="date" id="smt-bulk-date" style="font-size:12px;padding:3px 6px;border:1px solid #fbbf24;border-radius:4px;height:26px;width:140px;box-sizing:border-box">
+        <button onclick="smtDoBulk(true)" style="font-size:12px;padding:3px 11px;background:#2563eb;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Update Tgl</button>
+        <button onclick="smtDoBulk(false)" style="font-size:12px;padding:3px 11px;background:#dc2626;border:none;border-radius:4px;cursor:pointer;color:#fff;font-weight:600;height:26px;white-space:nowrap">Hapus Tgl</button>
+        <button onclick="smtToggleAllBulk(false)" style="font-size:12px;padding:3px 10px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer;color:#64748b;height:26px">&#10005; Batal</button>
       </div>
       <div style="width:1px;background:#f59e0b;height:20px;flex-shrink:0"></div>
-      <span id="smt-bulk-count" style="font-size:11px;font-weight:600;color:#92400e;white-space:nowrap;flex-shrink:0"></span>
+      <span id="smt-bulk-count" style="font-size:12px;font-weight:600;color:#92400e;white-space:nowrap;flex-shrink:0"></span>
     </div>
     <div class="pillar-table-wrap">
       <table id="smt-table" style="min-width:2550px;border-collapse:separate;border-spacing:0;font-size:12px;">
@@ -896,14 +896,14 @@
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
       <select id="advance-filter-status" onchange="loadAdvanceDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
         <option value="rejected">Rejected</option>
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('ADVANCE')">&#8595; Export Excel</button>
-      <span id="advance-count" style="font-size:11px;color:var(--text-muted)"></span>
+      <span id="advance-count" style="font-size:12px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
       <table id="advance-table" style="min-width:1600px;border-collapse:collapse;font-size:12px;">
@@ -960,7 +960,7 @@
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
       <select id="setf-filter-status" onchange="loadSETFDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
@@ -968,7 +968,7 @@
         <option value="rejected">Rejected</option>
       </select>
       <select id="setf-filter-source" onchange="loadSETFDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Source</option>
         <option value="beasiswa">Beasiswa</option>
         <option value="klaim_medis">Klaim Medis</option>
@@ -978,7 +978,7 @@
         <option value="others">Others</option>
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('SETF')">&#8595; Export Excel</button>
-      <span id="setf-count" style="font-size:11px;color:var(--text-muted)"></span>
+      <span id="setf-count" style="font-size:12px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
       <table id="setf-table" style="min-width:1500px;border-collapse:collapse;font-size:12px;">
@@ -1033,7 +1033,7 @@
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
       <select id="energy-filter-status" onchange="loadENERGYDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="on_process">On Process</option>
@@ -1041,7 +1041,7 @@
         <option value="rejected">Rejected</option>
       </select>
       <select id="energy-filter-source" onchange="loadENERGYDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Source</option>
         <option value="beasiswa">Beasiswa</option>
         <option value="klaim_medis">Klaim Medis</option>
@@ -1051,7 +1051,7 @@
         <option value="others">Others</option>
       </select>
       <button class="btn btn-success btn-sm" onclick="exportPillarExcel('ENERGY')">&#8595; Export Excel</button>
-      <span id="energy-count" style="font-size:11px;color:var(--text-muted)"></span>
+      <span id="energy-count" style="font-size:12px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
       <table id="energy-table" style="min-width:1500px;border-collapse:collapse;font-size:12px;">
@@ -1106,14 +1106,14 @@
         <option value="2026">2026</option><option value="2027">2027</option>
       </select>
       <select id="pa-advance-filter-status" onchange="loadPaAdvanceDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:90px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:90px">
         <option value="">Semua Status</option>
         <option value="open">Open</option>
         <option value="paid">Paid</option>
         <option value="complete">Complete</option>
         <option value="rejected">Rejected</option>
       </select>
-      <span id="pa-advance-count" style="font-size:11px;color:var(--text-muted)"></span>
+      <span id="pa-advance-count" style="font-size:12px;color:var(--text-muted)"></span>
     </div>
     <div class="pillar-table-wrap">
       <table id="pa-advance-table" style="min-width:1600px;border-collapse:collapse;font-size:12px;">
@@ -1152,7 +1152,7 @@
              style="padding:4px 8px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:220px;"
              oninput="loadVendorsDebounced()">
       <select id="vendors-filter-pillar" onchange="loadVendorsDebounced()"
-              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:11px;width:100px">
+              style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:100px">
         <option value="">Semua Pillar</option>
         <option value="AGRI">AGRI</option>
         <option value="APP">APP</option>
@@ -1160,15 +1160,15 @@
         <option value="ENERGY">EFIN</option>
         <option value="SETF">SETF</option>
       </select>
-      <span id="vendors-count" style="font-size:11px;color:var(--text-muted)"></span>
+      <span id="vendors-count" style="font-size:12px;color:var(--text-muted)"></span>
     </div>
     <div style="display:flex;align-items:end;gap:8px;margin-bottom:10px;flex-wrap:wrap">
       <div class="form-group" style="margin:0">
-        <label style="font-size:.72rem;font-weight:600">Nama Vendor</label>
+        <label style="font-size:.75rem;font-weight:600">Nama Vendor</label>
         <input id="vendors-add-name" type="text" placeholder="Nama perusahaan..." style="font-size:.82rem">
       </div>
       <div class="form-group" style="margin:0">
-        <label style="font-size:.72rem;font-weight:600">Pillar</label>
+        <label style="font-size:.75rem;font-weight:600">Pillar</label>
         <select id="vendors-add-pillar" style="font-size:.82rem">
           <option value="AGRI">AGRI</option>
           <option value="APP">APP</option>
@@ -1178,7 +1178,7 @@
         </select>
       </div>
       <div class="form-group" style="margin:0">
-        <label style="font-size:.72rem;font-weight:600">Cost Center</label>
+        <label style="font-size:.75rem;font-weight:600">Cost Center</label>
         <input id="vendors-add-cc" type="text" placeholder="Opsional" style="font-size:.82rem">
       </div>
       <button class="btn btn-primary btn-sm" onclick="addVendor()">+ Tambah Vendor</button>
@@ -1321,7 +1321,7 @@
         <label>No. PAM</label>
         <input type="text" id="edit-pam-no" placeholder="Nomor PAM"
                style="font-family:monospace;font-weight:600;color:#1e40af">
-        <p style="font-size:.7rem;color:#f59e0b;margin:.25rem 0 0">⚠️ Mengubah No. PAM akan mengupdate semua referensi terkait (payment beasiswa, ETF/APP/SML PA).</p>
+        <p style="font-size:.75rem;color:#f59e0b;margin:.25rem 0 0">⚠️ Mengubah No. PAM akan mengupdate semua referensi terkait (payment beasiswa, ETF/APP/SML PA).</p>
       </div>
       <div class="form-group" style="grid-column:1/-1;position:relative">
         <label>PT / Vendor</label>
@@ -1331,7 +1331,7 @@
         <input type="hidden" id="edit-pam-pt">
         <input type="hidden" id="edit-pam-cost-center">
         <div id="edit-pam-pt-sugg" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #93c5fd;border-radius:.375rem;max-height:260px;overflow-y:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)"></div>
-        <p id="edit-pam-cc-display" style="font-size:.7rem;color:var(--text-muted);margin:.25rem 0 0">Cost Center: —</p>
+        <p id="edit-pam-cc-display" style="font-size:.75rem;color:var(--text-muted);margin:.25rem 0 0">Cost Center: —</p>
       </div>
       <div class="form-group" style="grid-column:1/-1">
         <label>Keterangan</label>
@@ -1433,7 +1433,7 @@
         <div id="edit-draft-cat2-display" onclick="draftCat2Toggle()"
              style="border:1px solid #d1d5db;border-radius:.375rem;padding:.45rem .75rem;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:36px;font-size:.875rem">
           <span id="edit-draft-cat2-text" style="color:#9ca3af">Pilih kategori...</span>
-          <span style="color:#6b7280;font-size:.7rem">▾</span>
+          <span style="color:#6b7280;font-size:.75rem">▾</span>
         </div>
         <div id="edit-draft-cat2-panel" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:600;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12);margin-top:2px">
           <div style="padding:5px">
@@ -1661,7 +1661,8 @@ async function submitOpenPamPaid() {
   var tglInput = document.getElementById('open-pam-paid-date');
   var tanggalBayar = tglInput ? tglInput.value : '';
   if (!tanggalBayar) {
-    alert("Silakan isi Tanggal Paid terlebih dahulu.");
+    showToast("Silakan isi Tanggal Paid terlebih dahulu.", "warning");
+    if (tglInput) tglInput.focus();
     return;
   }
   
@@ -1677,7 +1678,7 @@ async function submitOpenPamPaid() {
   });
   
   if (pams.length === 0) {
-    alert("Hanya data yang memiliki nomor PAM yang dapat di-mark complete.");
+    showToast("Hanya data yang memiliki nomor PAM yang dapat di-mark complete.", "warning");
     return;
   }
 
@@ -1700,14 +1701,14 @@ async function rejectOpenPamGroups() {
     if (pamKey && pamKey !== '__unassigned__') pamIds.push(pamKey);
   });
   if (pamIds.length === 0) {
-    alert("Pilih minimal 1 PAM group untuk di-reject (centang di kolom paling kiri).");
+    showToast("Pilih minimal 1 PAM group untuk di-reject (centang di kolom paling kiri).", "warning");
     return;
   }
   if (!await confirmModal(
     "Reject " + pamIds.length + " PAM group?\nData akan disimpan dengan status Rejected (tidak dihapus), dan PA terkait tidak bisa dipakai lagi.",
     { type: 'danger', confirmText: 'Reject' }
   )) return;
-  const reason = prompt('Alasan reject (opsional):');
+  const reason = await promptModal('', { title: 'Alasan Reject', label: 'Alasan reject (opsional)', multiline: true, type: 'danger', confirmText: 'Reject' });
   if (reason === null) return;
 
   showLoading("Merejek PAM...");
@@ -1772,7 +1773,7 @@ function _pillarBadge(pillar) {
   };
   const p = pillar.toUpperCase();
   const style = map[p] || 'background:#f3f4f6;color:#374151;border:1px solid #9ca3af';
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;${style}">${p}</span>`;
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;${style}">${p}</span>`;
 }
 
 function _dueDateBadge(dueDate) {
@@ -1782,7 +1783,7 @@ function _dueDateBadge(dueDate) {
   const style = isOverdue
     ? 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5'
     : 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${dueDate}</span>`;
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;${style}">${dueDate}</span>`;
 }
 
 function _workingDaysDiff(dueDate) {
@@ -1807,14 +1808,14 @@ function _dueDaysBadge(dueDate) {
   if (diff === null) return '<span style="color:var(--text-muted)">—</span>';
   if (diff < 0) {
     const style = 'background:#fee2e2;color:#dc2626;border:1px solid #fca5a5';
-    return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${Math.abs(diff)} hari lewat</span>`;
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;${style}">${Math.abs(diff)} hari lewat</span>`;
   }
   if (diff === 0) {
     const style = 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
-    return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">Hari ini</span>`;
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;${style}">Hari ini</span>`;
   }
   const style = 'background:#dcfce7;color:#16a34a;border:1px solid #86efac';
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${style}">${diff} hari lagi</span>`;
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;${style}">${diff} hari lagi</span>`;
 }
 
 function togglePAMRow(key) {
@@ -2022,10 +2023,10 @@ async function loadSML() {
   tbody.innerHTML = data.rows.map((r, i) => `
     <tr class="setf-row" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};"
       ${r.source === 'beasiswa' ? `onclick="smlToggleExpand(this.querySelector('.sml-toggle'),${r.id})"` : ''}>
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${r.source === 'beasiswa' ? `<span class="sml-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-right:4px" onclick="smlToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:12px;white-space:nowrap">${r.source === 'beasiswa' ? `<span class="sml-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-right:4px" onclick="smlToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
@@ -2074,7 +2075,7 @@ async function smlFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   const loadingTr = document.createElement('tr');
   loadingTr.classList.add('sml-detail-rows');
   loadingTr.dataset.pamId = pamId;
-  loadingTr.innerHTML = '<td colspan="25" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  loadingTr.innerHTML = '<td colspan="25" style="padding:8px 36px;font-size:12px;color:#94a3b8;">Memuat detail beasiswa…</td>';
   masterTr.insertAdjacentElement('afterend', loadingTr);
 
   const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
@@ -2085,7 +2086,7 @@ async function smlFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('sml-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = '<td colspan="25" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    errTr.innerHTML = '<td colspan="25" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -2096,7 +2097,7 @@ async function smlFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('sml-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = `<td colspan="25" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    errTr.innerHTML = `<td colspan="25" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -2107,7 +2108,7 @@ async function smlFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const emptyTr = document.createElement('tr');
     emptyTr.classList.add('sml-detail-rows');
     emptyTr.dataset.pamId = pamId;
-    emptyTr.innerHTML = '<td colspan="25" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    emptyTr.innerHTML = '<td colspan="25" style="padding:8px 36px;font-size:12px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
     masterTr.insertAdjacentElement('afterend', emptyTr);
     toggleEl.innerHTML = '&#9660;';
     return;
@@ -2118,10 +2119,10 @@ async function smlFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     tr.classList.add('sml-detail-rows');
     tr.dataset.pamId = pamId;
     tr.innerHTML =
-      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td style="padding:4px 6px;font-size:12px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
       `<td colspan="21" style="padding:4px 8px;vertical-align:middle"></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
@@ -2196,16 +2197,16 @@ function smlRenderChips() {
   const shown  = hidden.length ? ids.slice(0, LIMIT) : ids;
   function chipHtml(id) {
     const m = _smlSelectionMeta.get(id) || { label: String(id), cat1: '' };
-    const cat = m.cat1 ? `<span style="font-size:9px;opacity:.65;margin-left:3px">${m.cat1}</span>` : '';
-    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${m.label}${cat}<span onclick="smlRemoveChip(${id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+    const cat = m.cat1 ? `<span style="font-size:12px;opacity:.65;margin-left:3px">${m.cat1}</span>` : '';
+    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:12px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${m.label}${cat}<span onclick="smlRemoveChip(${id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:12px" title="Hapus dari pilihan">✕</span></span>`;
   }
-  let html = `<span style="font-size:10px;color:#1d4ed8;font-weight:700;white-space:nowrap;margin-right:2px">● Terpilih:</span>`;
+  let html = `<span style="font-size:12px;color:#1d4ed8;font-weight:700;white-space:nowrap;margin-right:2px">● Terpilih:</span>`;
   html += shown.map(chipHtml).join('');
   if (hidden.length) {
-    html += `<span id="sml-chips-expand" onclick="smlExpandChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
+    html += `<span id="sml-chips-expand" onclick="smlExpandChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:12px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
     html += `<span id="sml-chips-hidden" style="display:none">` + hidden.map(chipHtml).join('') + `</span>`;
   }
-  html += `<span onclick="smlClearAllChips()" style="font-size:10px;color:#dc2626;cursor:pointer;margin-left:6px;white-space:nowrap">Hapus semua</span>`;
+  html += `<span onclick="smlClearAllChips()" style="font-size:12px;color:#dc2626;cursor:pointer;margin-left:6px;white-space:nowrap">Hapus semua</span>`;
   row.innerHTML = html;
   row.style.display = 'flex';
 }
@@ -2329,10 +2330,10 @@ async function loadSETF() {
   tbody.innerHTML = data.rows.map((r, i) => `
     <tr class="sml-row" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};"
       ${r.source === 'beasiswa' ? `onclick="setfToggleExpand(this.querySelector('.setf-toggle'),${r.id})"` : ''}>
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${r.source === 'beasiswa' ? `<span class="setf-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-right:4px" onclick="setfToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:12px;white-space:nowrap">${r.source === 'beasiswa' ? `<span class="setf-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-right:4px" onclick="setfToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
@@ -2372,7 +2373,7 @@ async function setfFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   const loadingTr = document.createElement('tr');
   loadingTr.classList.add('setf-detail-rows');
   loadingTr.dataset.pamId = pamId;
-  loadingTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  loadingTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:12px;color:#94a3b8;">Memuat detail beasiswa…</td>';
   masterTr.insertAdjacentElement('afterend', loadingTr);
 
   const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
@@ -2383,7 +2384,7 @@ async function setfFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('setf-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    errTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -2394,7 +2395,7 @@ async function setfFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('setf-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = `<td colspan="16" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    errTr.innerHTML = `<td colspan="16" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -2405,7 +2406,7 @@ async function setfFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const emptyTr = document.createElement('tr');
     emptyTr.classList.add('setf-detail-rows');
     emptyTr.dataset.pamId = pamId;
-    emptyTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    emptyTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:12px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
     masterTr.insertAdjacentElement('afterend', emptyTr);
     toggleEl.innerHTML = '&#9660;';
     return;
@@ -2416,11 +2417,11 @@ async function setfFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     tr.classList.add('setf-detail-rows');
     tr.dataset.pamId = pamId;
     tr.innerHTML =
-      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
-      `<td colspan="12" style="padding:4px 8px;vertical-align:middle;text-align:right"><button class="btn btn-sm" style="padding:2px 8px;font-size:10px" onclick="openEditLineModal(${r.id}, ${pamId}, '${esc(r.nama || r.siswa_code || '')}', ${r.amount})">Edit</button></td>`;
+      `<td style="padding:4px 6px;font-size:12px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td colspan="12" style="padding:4px 8px;vertical-align:middle;text-align:right"><button class="btn btn-sm" style="padding:2px 8px;font-size:12px" onclick="openEditLineModal(${r.id}, ${pamId}, '${esc(r.nama || r.siswa_code || '')}', ${r.amount})">Edit</button></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
 
@@ -2452,10 +2453,10 @@ async function loadENERGY() {
   tbody.innerHTML = data.rows.map((r, i) => `
     <tr class="sml-row" data-pam-id="${r.id}" style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};"
       ${r.source === 'beasiswa' ? `onclick="energyToggleExpand(this.querySelector('.energy-toggle'),${r.id})"` : ''}>
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${r.source === 'beasiswa' ? `<span class="energy-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-right:4px" onclick="energyToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:12px;white-space:nowrap">${r.source === 'beasiswa' ? `<span class="energy-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-right:4px" onclick="energyToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
@@ -2495,7 +2496,7 @@ async function energyFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   const loadingTr = document.createElement('tr');
   loadingTr.classList.add('energy-detail-rows');
   loadingTr.dataset.pamId = pamId;
-  loadingTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  loadingTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:12px;color:#94a3b8;">Memuat detail beasiswa…</td>';
   masterTr.insertAdjacentElement('afterend', loadingTr);
 
   const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
@@ -2506,7 +2507,7 @@ async function energyFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('energy-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    errTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -2517,7 +2518,7 @@ async function energyFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('energy-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = `<td colspan="16" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    errTr.innerHTML = `<td colspan="16" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -2528,7 +2529,7 @@ async function energyFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const emptyTr = document.createElement('tr');
     emptyTr.classList.add('energy-detail-rows');
     emptyTr.dataset.pamId = pamId;
-    emptyTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    emptyTr.innerHTML = '<td colspan="16" style="padding:8px 36px;font-size:12px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
     masterTr.insertAdjacentElement('afterend', emptyTr);
     toggleEl.innerHTML = '&#9660;';
     return;
@@ -2539,11 +2540,11 @@ async function energyFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     tr.classList.add('energy-detail-rows');
     tr.dataset.pamId = pamId;
     tr.innerHTML =
-      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
-      `<td colspan="12" style="padding:4px 8px;vertical-align:middle;text-align:right"><button class="btn btn-sm" style="padding:2px 8px;font-size:10px" onclick="openEditLineModal(${r.id}, ${pamId}, '${esc(r.nama || r.siswa_code || '')}', ${r.amount})">Edit</button></td>`;
+      `<td style="padding:4px 6px;font-size:12px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td colspan="12" style="padding:4px 8px;vertical-align:middle;text-align:right"><button class="btn btn-sm" style="padding:2px 8px;font-size:12px" onclick="openEditLineModal(${r.id}, ${pamId}, '${esc(r.nama || r.siswa_code || '')}', ${r.amount})">Edit</button></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
 
@@ -2573,10 +2574,10 @@ async function loadPaAdvance() {
   if (count) count.textContent = data.rows.length + ' baris';
   tbody.innerHTML = data.rows.map(r => `
     <tr>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.pam)}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.pam)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || r.tanggal || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px">${esc(r.perusahaan || '-')}</td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
@@ -2680,22 +2681,28 @@ async function submitRealize(paymentId, realizedAmount, tglRealisasi) {
   });
   if (!res) return;
   const data = await res.json();
-  if (!data.ok) { alert(data.pesan); return; }
-  alert(`Realisasi tersimpan. Selisih: ${fmtRupiah(data.selisih)}`);
+  if (!data.ok) { showToast(data.pesan, 'error'); return; }
+  showToast(`Realisasi tersimpan. Selisih: ${fmtRupiah(data.selisih)}`, 'success');
   loadPaAdvance();
 }
 
-function openRealizeModal(paymentId, advanceAmount) {
-  const realizedStr = prompt(`Advance amount: ${fmtRupiah(advanceAmount)}\nMasukkan realized amount:`);
-  if (realizedStr === null) return;
+async function openRealizeModal(paymentId, advanceAmount) {
   // Strip ALL non-digit characters (not just non-numeric) — Rupiah amounts
   // are always whole numbers in this app, and users commonly type the same
-  // dot-thousands format this prompt just displayed to them (e.g. "5.000.000"),
-  // which parseFloat would otherwise misparse as 5.0 (stops at the 2nd '.').
-  const realizedAmount = parseFloat(realizedStr.replace(/[^0-9]/g, ''));
-  if (!realizedAmount || realizedAmount <= 0) { alert('Realized amount tidak valid.'); return; }
-  const tglRealisasi = prompt('Tanggal realisasi (YYYY-MM-DD):', new Date().toISOString().slice(0, 10));
-  if (!tglRealisasi) return;
+  // dot-thousands format shown here (e.g. "5.000.000"), which parseFloat
+  // would otherwise misparse as 5.0 (stops at the 2nd '.').
+  const toAmount = v => parseFloat(String(v).replace(/[^0-9]/g, ''));
+  const vals = await promptModal(`Advance amount: ${fmtRupiah(advanceAmount)}`, {
+    title: 'Realisasi Advance', confirmText: 'Simpan Realisasi',
+    fields: [
+      { name: 'amount', label: 'Realized amount', inputmode: 'numeric', required: true, placeholder: 'mis. 5.000.000',
+        validate: v => (toAmount(v) > 0 ? '' : 'Realized amount tidak valid.') },
+      { name: 'tgl', label: 'Tanggal realisasi', type: 'date', required: true, value: new Date().toISOString().slice(0, 10) },
+    ],
+  });
+  if (!vals) return;
+  const realizedAmount = toAmount(vals.amount);
+  const tglRealisasi = vals.tgl;
   submitRealize(paymentId, realizedAmount, tglRealisasi);
 }
 
@@ -2794,10 +2801,10 @@ function _smtRenderPage() {
         <input type="checkbox" class="smt-cb" value="${r.id}" ${_smtSelectedIds.has(r.id) ? 'checked' : ''} onchange="_smtToggleSelect(${r.id}, this.checked)" onclick="event.stopPropagation()">
         <span class="smt-toggle" style="font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:2px">&#9658;</span>
       </td>
-      <td class="smt-sc1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">${esc(r.pam_no)}</td>
+      <td class="smt-sc1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:12px;white-space:nowrap;background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">${esc(r.pam_no)}</td>
       <td class="smt-sc2" style="padding:6px 8px;white-space:nowrap;background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'}">${esc(r.pam_date || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
@@ -2912,7 +2919,7 @@ async function smtFetchLines(masterTr, toggleEl, pamId) {
   const loadingTr = document.createElement('tr');
   loadingTr.classList.add('smt-detail-rows');
   loadingTr.dataset.pamId = pamId;
-  loadingTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail...</td>';
+  loadingTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:12px;color:#94a3b8;">Memuat detail...</td>';
   masterTr.insertAdjacentElement('afterend', loadingTr);
 
   const res = await apiFetch('/payment-memo/pam/' + pamId + '/transaction-lines');
@@ -2923,7 +2930,7 @@ async function smtFetchLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('smt-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail.</td>';
+    errTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">Gagal memuat detail.</td>';
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -2933,7 +2940,7 @@ async function smtFetchLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('smt-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">' + esc(data.pesan) + '</td>';
+    errTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">' + esc(data.pesan) + '</td>';
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -2943,7 +2950,7 @@ async function smtFetchLines(masterTr, toggleEl, pamId) {
     const emptyTr = document.createElement('tr');
     emptyTr.classList.add('smt-detail-rows');
     emptyTr.dataset.pamId = pamId;
-    emptyTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:11px;color:#64748b;background:#f8fafc;font-style:italic">Tidak ada baris.</td>';
+    emptyTr.innerHTML = '<td colspan="27" style="padding:8px 36px;font-size:12px;color:#64748b;background:#f8fafc;font-style:italic">Tidak ada baris.</td>';
     masterTr.insertAdjacentElement('afterend', emptyTr);
     toggleEl.innerHTML = '&#9660;';
     return;
@@ -2953,7 +2960,7 @@ async function smtFetchLines(masterTr, toggleEl, pamId) {
     <tr class="smt-detail-rows" data-pam-id="${pamId}" style="background:#f1f5f9;border-bottom:2px solid #cbd5e1">
       <td colspan="27" style="padding:10px 40px">
         <div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
-          <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead>
               <tr style="background:#e2e8f0;color:#334155">
                 <th style="padding:6px;text-align:left">No</th>
@@ -3033,7 +3040,7 @@ async function loadAdvance() {
   if (count) count.textContent = data.rows.length + ' baris';
   tbody.innerHTML = data.rows.map((r, i) => `
     <tr style="background:${i % 2 === 0 ? 'var(--card)' : 'var(--bg)'};">
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:12px;white-space:nowrap">${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
       <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
@@ -3088,11 +3095,11 @@ async function loadFIORI() {
     <tr class="fiori-row" data-pam-id="${r.id}" style="background:${isSel ? '#eff6ff' : (i % 2 === 0 ? 'var(--card)' : 'var(--bg)')};"
       ${r.source === 'beasiswa' ? `onclick="fioriToggleExpand(this.querySelector('.fiori-toggle'),${r.id})"` : ''}>
       <td style="padding:6px 8px;text-align:center"><input type="checkbox" class="fiori-cb" data-id="${r.id}" ${isSel ? 'checked' : ''} style="cursor:pointer;vertical-align:middle" onclick="event.stopPropagation()" onchange="fioriToggleCb(this)">${r.source === 'beasiswa' ? `<span class="fiori-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:4px" onclick="fioriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span>` : ''}</td>
-      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap">${esc(r.pam_no)}</td>
+      <td style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:12px;white-space:nowrap">${esc(r.pam_no)}</td>
       <td style="padding:6px 8px;white-space:nowrap">${esc(r.pam_date || '-')}</td>
       <td style="padding:6px 8px">${esc(r.pt || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.cost_center || '-')}</td>
-      <td style="padding:6px 8px;font-family:monospace;font-size:11px">${esc(r.gl_account || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.cost_center || '-')}</td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:12px">${esc(r.gl_account || '-')}</td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
       <td style="padding:6px 8px">${esc(r.mata_uang || 'IDR')}</td>
@@ -3141,7 +3148,7 @@ async function fioriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   const loadingTr = document.createElement('tr');
   loadingTr.classList.add('fiori-detail-rows');
   loadingTr.dataset.pamId = pamId;
-  loadingTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  loadingTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:12px;color:#94a3b8;">Memuat detail beasiswa…</td>';
   masterTr.insertAdjacentElement('afterend', loadingTr);
 
   const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
@@ -3152,7 +3159,7 @@ async function fioriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('fiori-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    errTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -3163,7 +3170,7 @@ async function fioriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('fiori-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = `<td colspan="26" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    errTr.innerHTML = `<td colspan="26" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -3174,7 +3181,7 @@ async function fioriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const emptyTr = document.createElement('tr');
     emptyTr.classList.add('fiori-detail-rows');
     emptyTr.dataset.pamId = pamId;
-    emptyTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    emptyTr.innerHTML = '<td colspan="26" style="padding:8px 36px;font-size:12px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
     masterTr.insertAdjacentElement('afterend', emptyTr);
     toggleEl.innerHTML = '&#9660;';
     return;
@@ -3186,10 +3193,10 @@ async function fioriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     tr.dataset.pamId = pamId;
     tr.innerHTML =
       `<td style="padding:4px 8px;vertical-align:middle"></td>` +
-      `<td style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td style="padding:4px 6px;font-size:12px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
       `<td colspan="21" style="padding:4px 8px;vertical-align:middle"></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
   });
@@ -3336,11 +3343,11 @@ function _fioriAllChipsHtml() {
   const shown  = hidden.length ? ids.slice(0, LIMIT) : ids;
   function chipHtml(id) {
     const m = _fioriSelectionMeta.get(id) || { label: String(id) };
-    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${esc(m.label)}<span onclick="fioriRemoveChip(${id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+    return `<span style="background:#1d4ed8;color:#fff;border-radius:99px;padding:2px 9px;font-size:12px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${esc(m.label)}<span onclick="fioriRemoveChip(${id})" style="cursor:pointer;margin-left:3px;opacity:.8;font-size:12px" title="Hapus dari pilihan">✕</span></span>`;
   }
   let html = shown.map(chipHtml).join('');
   if (hidden.length) {
-    html += `<span id="fiori-chips-expand" onclick="fioriExpandChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:11px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
+    html += `<span id="fiori-chips-expand" onclick="fioriExpandChips()" style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;border-radius:99px;padding:2px 9px;font-size:12px;cursor:pointer;white-space:nowrap">+${hidden.length} lagi ▾</span>`;
     html += `<span id="fiori-chips-hidden" style="display:none">` + hidden.map(chipHtml).join('') + `</span>`;
   }
   return html;
@@ -3466,7 +3473,7 @@ function _statusBadge(status) {
     rejected:   'background:#fef2f2;color:#991b1b;border:1px solid #fecaca',
   };
   const st = styles[status] || 'background:#f1f5f9;color:#475569;border:1px solid #cbd5e1';
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;${st}">${esc(status || '-')}</span>`;
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap;${st}">${esc(status || '-')}</span>`;
 }
 
 // Inline-editable date cell for {pillar}_pam_lines
@@ -3480,7 +3487,7 @@ async function pamLineDateEdit(pamId, pillar, field, tdEl) {
   const inp = document.createElement('input');
   inp.type = 'date';
   inp.value = oldVal;
-  inp.style.cssText = 'border:1px solid #3b82f6;border-radius:3px;font-size:11px;padding:1px 3px;width:118px;cursor:text';
+  inp.style.cssText = 'border:1px solid #3b82f6;border-radius:3px;font-size:12px;padding:1px 3px;width:118px;cursor:text';
   tdEl.textContent = '';
   tdEl.appendChild(inp);
   inp.focus();
@@ -3520,7 +3527,7 @@ function _attachmentCell(r) {
   const ids = r.attachment_file_id.split(',').filter(id => id.trim());
   if (!ids.length) return '<td style="padding:6px 8px;text-align:center">-</td>';
   return `<td style="padding:6px 8px;text-align:center;white-space:nowrap">
-    ${ids.map((id, idx) => `<a href="/etf-payment-application/attachment/${id}" target="_blank" style="color:#2563eb;text-decoration:underline;font-size:11px;margin-right:4px" onclick="event.stopPropagation()">View ${idx+1}</a>`).join('<br>')}
+    ${ids.map((id, idx) => `<a href="/etf-payment-application/attachment/${id}" target="_blank" style="color:#2563eb;text-decoration:underline;font-size:12px;margin-right:4px" onclick="event.stopPropagation()">View ${idx+1}</a>`).join('<br>')}
   </td>`;
 }
 
@@ -3641,11 +3648,11 @@ function _agriRenderPage() {
       ${r.source === 'beasiswa' ? `onclick="agriToggleExpand(this.querySelector('.pam-toggle'),${r.id})"` : ''}>
       ${r.source === 'beasiswa'
         ? `<td class="s0" style="padding:4px 2px;text-align:center;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}"><input type="checkbox" id="pam-cb-${r.id}" style="cursor:pointer;vertical-align:middle" onclick="event.stopPropagation()" onchange="agriTogglePamSelect(${r.id},this.checked)"><span class="pam-toggle" style="cursor:pointer;font-size:1rem;color:#3b82f6;font-weight:700;vertical-align:middle;margin-left:4px" onclick="agriToggleExpand(this,${r.id});event.stopPropagation()">&#9658;</span></td>`
-        : `<td class="s0" style="text-align:center;color:#cbd5e1;font-size:11px;padding:4px;background:${i%2===0?'var(--card)':'var(--bg)'}">&#8212;</td>`}
-      <td class="s1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:11px;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pam_no)}</td>
+        : `<td class="s0" style="text-align:center;color:#cbd5e1;font-size:12px;padding:4px;background:${i%2===0?'var(--card)':'var(--bg)'}">&#8212;</td>`}
+      <td class="s1" style="padding:6px 8px;font-weight:600;font-family:monospace;font-size:12px;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pam_no)}</td>
       <td class="s2" style="padding:6px 8px;white-space:nowrap;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pam_date || '-')}</td>
       <td class="s3" style="padding:6px 8px;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.pt || '-')}</td>
-      <td class="s4" style="padding:6px 8px;font-family:monospace;font-size:11px;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.cost_center || '-')}</td>
+      <td class="s4" style="padding:6px 8px;font-family:monospace;font-size:12px;background:${i%2===0?'var(--card)':'var(--bg)'}">${esc(r.cost_center || '-')}</td>
       <td style="padding:6px 8px" id="gl-cell-${r.id}"></td>
       <td style="padding:6px 8px">${esc(r.requestors_name || '-')}</td>
       <td style="padding:6px 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.keterangan||'')}">${esc(r.keterangan || '-')}</td>
@@ -3731,7 +3738,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
   const loadingTr = document.createElement('tr');
   loadingTr.classList.add('agri-detail-rows');
   loadingTr.dataset.pamId = pamId;
-  loadingTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:11px;color:#94a3b8;">Memuat detail beasiswa…</td>';
+  loadingTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:12px;color:#94a3b8;">Memuat detail beasiswa…</td>';
   masterTr.insertAdjacentElement('afterend', loadingTr);
 
   const res = await apiFetch(`/payment-memo/pam/${pamId}/beasiswa-lines`);
@@ -3742,7 +3749,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('agri-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
+    errTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">Gagal memuat detail beasiswa.</td>';
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -3753,7 +3760,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const errTr = document.createElement('tr');
     errTr.classList.add('agri-detail-rows');
     errTr.dataset.pamId = pamId;
-    errTr.innerHTML = `<td colspan="28" style="padding:8px 36px;font-size:11px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
+    errTr.innerHTML = `<td colspan="28" style="padding:8px 36px;font-size:12px;color:#ef4444;background:#fff5f5;">${esc(data.pesan || 'Gagal memuat.')}</td>`;
     masterTr.insertAdjacentElement('afterend', errTr);
     return;
   }
@@ -3764,7 +3771,7 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
     const emptyTr = document.createElement('tr');
     emptyTr.classList.add('agri-detail-rows');
     emptyTr.dataset.pamId = pamId;
-    emptyTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:11px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
+    emptyTr.innerHTML = '<td colspan="28" style="padding:8px 36px;font-size:12px;color:#94a3b8;font-style:italic;">Tidak ada data beasiswa untuk PAM ini.</td>';
     masterTr.insertAdjacentElement('afterend', emptyTr);
     toggleEl.innerHTML = '&#9660;';
     return;
@@ -3783,22 +3790,22 @@ async function agriFetchBeasiswaLines(masterTr, toggleEl, pamId) {
         `<input type="checkbox" data-pb-id="${r.id}" style="cursor:pointer"` +
         ` onchange="agriToggleCheckbox(${pamId}, ${r.id}, this.checked)">` +
       `</td>` +
-      `<td class="s1" style="padding:4px 6px;font-size:10px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
-      `<td class="s2" style="padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
-      `<td class="s3" style="padding:4px 8px;font-size:11px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
-      `<td class="s4" style="padding:4px 8px;font-size:11px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
+      `<td class="s1" style="padding:4px 6px;font-size:12px;font-family:monospace;color:#94a3b8;white-space:nowrap;vertical-align:middle">${esc(r.siswa_code || '')}</td>` +
+      `<td class="s2" style="padding:4px 8px;font-size:12px;font-weight:600;white-space:nowrap;vertical-align:middle">${esc(r.nama || '—')}</td>` +
+      `<td class="s3" style="padding:4px 8px;font-size:12px;color:var(--text-muted);vertical-align:middle">${esc(r.cat1 || '')}${r.cat2 ? ' · ' + esc(r.cat2) : ''}</td>` +
+      `<td class="s4" style="padding:4px 8px;font-size:12px;font-weight:700;color:#1a56db;vertical-align:middle;background:#f0f9ff;white-space:nowrap">${fmtRupiah(r.amount)}</td>` +
       `<td colspan="11" style="padding:4px 8px;vertical-align:middle"></td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pengajuan)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_receive)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pa)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.tgl_final)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_1_LL)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_2_HT)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_3_YK)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_4_AK)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_5_PD)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_6_C2)}</td>` +
-      `<td style="padding:4px 8px;font-size:11px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_7_MSIG)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pengajuan)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle">${d(r.tgl_receive)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle">${d(r.tgl_pa)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle">${d(r.tgl_final)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_1_LL)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_2_HT)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_3_YK)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_4_AK)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_5_PD)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle">${d(r.SLA_Date_6_C2)}</td>` +
+      `<td style="padding:4px 8px;font-size:12px;white-space:nowrap;vertical-align:middle;display:none">${d(r.SLA_Date_7_MSIG)}</td>` +
       `<td></td>`;
     masterTr.insertAdjacentElement('afterend', tr);
     // A normal (not "select all children") partial selection made in a
@@ -3876,10 +3883,10 @@ function _agriUpdateMasterDot(pamId, field) {
 function _agriAllChipsHtml() {
   let html = '';
   for (const [pbId, meta] of _pamBeasiswaSelectionMeta.entries()) {
-    html += `<span style="background:#f59e0b;color:#fff;border-radius:99px;padding:2px 9px;font-size:11px;` +
+    html += `<span style="background:#f59e0b;color:#fff;border-radius:99px;padding:2px 9px;font-size:12px;` +
             `display:inline-flex;align-items:center;gap:3px;white-space:nowrap">` +
             `${esc(meta.nama)}<span onclick="agriRemovePaChip(${meta.pamId},${pbId})" ` +
-            `style="cursor:pointer;margin-left:3px;opacity:.85;font-size:10px" title="Hapus dari pilihan">✕</span></span>`;
+            `style="cursor:pointer;margin-left:3px;opacity:.85;font-size:12px" title="Hapus dari pilihan">✕</span></span>`;
   }
   return html;
 }
@@ -4254,7 +4261,7 @@ async function rejectStudentFromPAM(paymentBeasiswaId, namaLabel) {
     'Reject ' + label + ' dari PAM ini?\nData akan disimpan dengan status Rejected (tidak dihapus), dan PA terkait tidak bisa dipakai lagi.',
     { type: 'danger', confirmText: 'Reject' }
   )) return;
-  const reason = prompt('Alasan reject (opsional):');
+  const reason = await promptModal('', { title: 'Alasan Reject', label: 'Alasan reject (opsional)', multiline: true, type: 'danger', confirmText: 'Reject' });
   if (reason === null) return;
   showLoading("Merejek dari PAM...");
   try {
@@ -4423,17 +4430,17 @@ function dmRenderForm(p) {
 
   const field = (lbl, inputHtml) =>
     `<div style="display:flex;align-items:stretch;border-bottom:1px solid #f1f5f9">
-      <div style="background:#f8fafc;padding:5px 8px;font-weight:700;font-size:11px;color:#374151;min-width:140px;border-right:1px solid #e2e8f0;display:flex;align-items:center">${esc(lbl)}</div>
-      <div style="padding:4px 8px;font-size:11px;color:#1e293b;flex:1;display:flex;align-items:center">
+      <div style="background:#f8fafc;padding:5px 8px;font-weight:700;font-size:12px;color:#374151;min-width:140px;border-right:1px solid #e2e8f0;display:flex;align-items:center">${esc(lbl)}</div>
+      <div style="padding:4px 8px;font-size:12px;color:#1e293b;flex:1;display:flex;align-items:center">
         <span style="color:#94a3b8;margin-right:4px">:</span>${inputHtml}
       </div>
     </div>`;
 
   const sectionH = t =>
-    `<div style="background:#e2e8f0;padding:4px 8px;font-weight:700;font-size:10px;color:#374151;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #d1d5db">${t}</div>`;
+    `<div style="background:#e2e8f0;padding:4px 8px;font-weight:700;font-size:12px;color:#374151;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #d1d5db">${t}</div>`;
 
   const cbRow = (id, label, checked) =>
-    `<div style="padding:4px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;align-items:center">
+    `<div style="padding:4px 8px;font-size:12px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;align-items:center">
       <input type="checkbox" id="${id}" class="dm-cb" ${checked ? 'checked' : ''}>
       <label for="${id}" style="cursor:pointer;margin-left:4px;color:#374151">${label}</label>
     </div>`;
@@ -4488,7 +4495,7 @@ function dmRenderForm(p) {
       </div>
     </div>
     ${sectionH('Business Unit')}
-    <div style="padding:5px 8px;font-size:11px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;gap:20px;align-items:center">
+    <div style="padding:5px 8px;font-size:12px;background:#fffbeb;border-bottom:1px solid #f1f5f9;display:flex;gap:20px;align-items:center">
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151"><input type="checkbox" id="dm-f-bu-upstream"   class="dm-cb"> Upstream</label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151"><input type="checkbox" id="dm-f-bu-downstream" class="dm-cb"> Downstream</label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151"><input type="checkbox" id="dm-f-bu-corporate"  class="dm-cb" checked> Corporate</label>
@@ -4514,18 +4521,18 @@ function dmRenderForm(p) {
     ${field('Bank Account Number', inp('dm-f-bank-no',   bankAccountNos))}
     <div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #e2e8f0">
       <div style="padding:8px 10px;border-right:1px solid #e2e8f0">
-        <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Request by</div>
-        <span style="font-size:11px;color:#1e293b;border-bottom:1px dashed #94a3b8;display:block;padding:2px 0;min-height:18px">&nbsp;</span>
+        <div style="font-size:12px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Request by</div>
+        <span style="font-size:12px;color:#1e293b;border-bottom:1px dashed #94a3b8;display:block;padding:2px 0;min-height:18px">&nbsp;</span>
       </div>
       <div style="padding:8px 10px">
-        <div style="font-size:10px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Approved by</div>
+        <div style="font-size:12px;font-weight:700;color:#374151;background:#f8fafc;padding:3px 5px;margin-bottom:6px">Approved by</div>
         <div style="display:flex;gap:8px">
           ${inp('dm-f-ab1', PAM_APPROVED_BY_1)}
           ${inp('dm-f-ab2', PAM_APPROVED_BY_2)}
         </div>
       </div>
     </div>
-    <div style="padding:6px 10px;font-weight:700;font-size:10px;color:#374151;background:#f8fafc;border-top:1px solid #e2e8f0">Checked by (QA)</div>
+    <div style="padding:6px 10px;font-weight:700;font-size:12px;color:#374151;background:#f8fafc;border-top:1px solid #e2e8f0">Checked by (QA)</div>
     <div style="height:36px;border-top:1px solid #e2e8f0"></div>
   </div>`;
 }
@@ -4608,7 +4615,7 @@ function dmRenderLampiran(payments, lines) {
 
     const hdrs = ['NO', 'Nama Karyawan', 'Invoice #', 'Bank', 'No. Rekening', 'GL Account', 'Invoice Amount'];
     const thRow = hdrs.map((h, i) =>
-      `<th style="padding:7px 8px;background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;text-align:${i===6?'right':'left'};white-space:nowrap">${h}</th>`
+      `<th style="padding:7px 8px;background:#1e3a5f;color:#fff;font-size:12px;font-weight:700;text-align:${i===6?'right':'left'};white-space:nowrap">${h}</th>`
     ).join('');
 
     let total = 0;
@@ -4622,16 +4629,16 @@ function dmRenderLampiran(payments, lines) {
         const amt = parseFloat(l.total_amount || 0);
         rowsHtml += `<tr style="background:${bg}">`;
         if (j === 0) {
-          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;text-align:center;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${idx+1}</td>`;
-          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.v)}</td>`;
-          rowsHtml += `<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(l.no_invoice)}</td>`;
-          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.b)}</td>`;
-          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0;font-family:monospace">${esc(grp.nr)}</td>`;
-          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:11px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.gl)}</td>`;
-          rowsHtml += `<td style="padding:6px 8px;font-size:11px;text-align:right;border-bottom:1px solid #e2e8f0">${fmtRupiah(amt)}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;text-align:center;font-size:12px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${idx+1}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:12px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.v)}</td>`;
+          rowsHtml += `<td style="padding:6px 8px;font-size:12px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(l.no_invoice)}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:12px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.b)}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:12px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0;font-family:monospace">${esc(grp.nr)}</td>`;
+          rowsHtml += `<td rowspan="${rowspan}" style="padding:6px 8px;font-size:12px;vertical-align:middle;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(grp.gl)}</td>`;
+          rowsHtml += `<td style="padding:6px 8px;font-size:12px;text-align:right;border-bottom:1px solid #e2e8f0">${fmtRupiah(amt)}</td>`;
         } else {
-          rowsHtml += `<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(l.no_invoice)}</td>`;
-          rowsHtml += `<td style="padding:6px 8px;font-size:11px;text-align:right;border-bottom:1px solid #e2e8f0">${fmtRupiah(amt)}</td>`;
+          rowsHtml += `<td style="padding:6px 8px;font-size:12px;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0">${esc(l.no_invoice)}</td>`;
+          rowsHtml += `<td style="padding:6px 8px;font-size:12px;text-align:right;border-bottom:1px solid #e2e8f0">${fmtRupiah(amt)}</td>`;
         }
         rowsHtml += `</tr>`;
       });
@@ -4642,8 +4649,8 @@ function dmRenderLampiran(payments, lines) {
       <tbody>${rowsHtml}</tbody>
       <tfoot>
         <tr style="background:#e8f0fe;font-weight:700">
-          <td colspan="6" style="padding:6px 8px;font-size:11px;text-align:right">TOTAL</td>
-          <td style="padding:6px 8px;font-size:11px;text-align:right">${fmtRupiah(total)}</td>
+          <td colspan="6" style="padding:6px 8px;font-size:12px;text-align:right">TOTAL</td>
+          <td style="padding:6px 8px;font-size:12px;text-align:right">${fmtRupiah(total)}</td>
         </tr>
       </tfoot>
     </table>`;
@@ -4664,7 +4671,7 @@ function dmRenderLampiran(payments, lines) {
 
   const hdrs = ['No','Nama Siswa','Bank','No. Rekening','Amount (Rp)'];
   const thRow = hdrs.map((h, i) =>
-    `<th style="padding:7px 8px;background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;text-align:${i===4?'right':'left'};white-space:nowrap">${h}</th>`
+    `<th style="padding:7px 8px;background:#1e3a5f;color:#fff;font-size:12px;font-weight:700;text-align:${i===4?'right':'left'};white-space:nowrap">${h}</th>`
   ).join('');
 
   let total = 0;
@@ -4673,11 +4680,11 @@ function dmRenderLampiran(payments, lines) {
     total += amt;
     const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
     return `<tr style="background:${bg}">
-      <td style="padding:6px 8px;text-align:center;font-size:11px">${i+1}</td>
-      <td style="padding:6px 8px;font-size:11px">${esc(pb.nama)}</td>
-      <td style="padding:6px 8px;font-size:11px">${esc(pb.bank)}</td>
-      <td style="padding:6px 8px;font-size:11px;font-family:monospace">${esc(pb.norek)}</td>
-      <td style="padding:6px 8px;font-size:11px;text-align:right">${fmtRupiah(amt)}</td>
+      <td style="padding:6px 8px;text-align:center;font-size:12px">${i+1}</td>
+      <td style="padding:6px 8px;font-size:12px">${esc(pb.nama)}</td>
+      <td style="padding:6px 8px;font-size:12px">${esc(pb.bank)}</td>
+      <td style="padding:6px 8px;font-size:12px;font-family:monospace">${esc(pb.norek)}</td>
+      <td style="padding:6px 8px;font-size:12px;text-align:right">${fmtRupiah(amt)}</td>
     </tr>`;
   }).join('');
 
@@ -4686,8 +4693,8 @@ function dmRenderLampiran(payments, lines) {
     <tbody>${rows}</tbody>
     <tfoot>
       <tr style="background:#e8f0fe;font-weight:700">
-        <td colspan="4" style="padding:6px 8px;font-size:11px;text-align:right">TOTAL</td>
-        <td style="padding:6px 8px;font-size:11px;text-align:right">${fmtRupiah(total)}</td>
+        <td colspan="4" style="padding:6px 8px;font-size:12px;text-align:right">TOTAL</td>
+        <td style="padding:6px 8px;font-size:12px;text-align:right">${fmtRupiah(total)}</td>
       </tr>
     </tfoot>
   </table>`;
@@ -4707,10 +4714,10 @@ function _vendorSuggRender(hits, suggEl, onSelect) {
   hits.forEach(v => {
     const d = document.createElement("div");
     d.style.cssText = "padding:8px 12px;cursor:pointer;font-size:.875rem;border-bottom:1px solid #f3f4f6";
-    const cc = v.cost_center ? `<span style="font-size:.68rem;color:#9ca3af;margin-left:4px">${v.cost_center}</span>` : "";
+    const cc = v.cost_center ? `<span style="font-size:.75rem;color:#9ca3af;margin-left:4px">${v.cost_center}</span>` : "";
     d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">
       <span style="flex:1">${v.name}${cc}</span>
-      <span style="font-size:.72rem;color:#6b7280;background:#f3f4f6;padding:1px 7px;border-radius:99px;white-space:nowrap">${v.pillar}</span>
+      <span style="font-size:.75rem;color:#6b7280;background:#f3f4f6;padding:1px 7px;border-radius:99px;white-space:nowrap">${v.pillar}</span>
     </div>`;
     d.addEventListener("mousedown", () => onSelect(v));
     d.addEventListener("mouseover", () => { d.style.background = "#eff6ff"; });
@@ -4798,7 +4805,7 @@ function _mkDrop(opts, ph) {
   const lbl = document.createElement("span");
   lbl.textContent = ph; lbl.style.cssText = "color:#9ca3af;font-size:.875rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
   const arr = document.createElement("span");
-  arr.textContent = "▾"; arr.style.cssText = "color:#6b7280;font-size:.7rem;flex-shrink:0;margin-left:4px";
+  arr.textContent = "▾"; arr.style.cssText = "color:#6b7280;font-size:.75rem;flex-shrink:0;margin-left:4px";
   dsp.appendChild(lbl); dsp.appendChild(arr);
   const pan = document.createElement("div");
   pan.style.cssText = "display:none;position:fixed;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:.375rem;box-shadow:0 4px 12px rgba(0,0,0,.12)";
@@ -4869,7 +4876,7 @@ function _ipayBuildPickerRow(tr, candidates) {
   td.colSpan = 10;
   td.style.cssText = "padding:4px 8px 10px 24px;background:#eff6ff;border-top:1px solid #bfdbfe";
   const title = document.createElement("div");
-  title.style.cssText = "font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px";
+  title.style.cssText = "font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px";
   title.textContent = candidates.length + " PA ditemukan — pilih salah satu:";
   const tbl = document.createElement("table");
   tbl.style.cssText = "border-collapse:collapse;font-size:.8rem";
@@ -5117,7 +5124,7 @@ function _buildMedisRow(tr) {
   }
   function lbl(text, required) {
     const d = document.createElement("div");
-    d.style.cssText = "font-size:10px;color:#6b7280;margin-bottom:3px";
+    d.style.cssText = "font-size:12px;color:#6b7280;margin-bottom:3px";
     d.innerHTML = text + (required ? ' <span style="color:#ef4444">*</span>' : "");
     return d;
   }
@@ -5151,7 +5158,7 @@ function _buildMedisRow(tr) {
   const inner = document.createElement("div");
   inner.style.cssText = "background:#fff8ed;border:1px dashed #f59e0b;border-radius:6px;padding:10px 12px";
   const title = document.createElement("div");
-  title.style.cssText = "font-size:10px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px";
+  title.style.cssText = "font-size:12px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px";
   title.textContent = "📋 Data Medis — Wajib diisi";
   inner.appendChild(title); inner.appendChild(grid); inner.appendChild(catRow);
   td.appendChild(warnBar); td.appendChild(inner);
@@ -5259,10 +5266,10 @@ function ipayAddRow() {
   const ipkStrip = document.createElement("div");
   ipkStrip.style.cssText = "display:none;align-items:center;gap:4px;margin-top:3px;flex-wrap:wrap";
   const ipkBadge = document.createElement("span");
-  ipkBadge.style.cssText = "background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:1px 7px;font-size:.67rem;font-weight:700";
+  ipkBadge.style.cssText = "background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:1px 7px;font-size:.75rem;font-weight:700";
   const btnEditSiswa = document.createElement("button");
   btnEditSiswa.type = "button"; btnEditSiswa.className = "btn btn-sm";
-  btnEditSiswa.style.cssText = "padding:1px 7px;font-size:.67rem;background:#f0fdf4;color:#15803d;border:1px solid #86efac;line-height:1.5;white-space:nowrap";
+  btnEditSiswa.style.cssText = "padding:1px 7px;font-size:.75rem;background:#f0fdf4;color:#15803d;border:1px solid #86efac;line-height:1.5;white-space:nowrap";
   btnEditSiswa.textContent = "✏ Edit Siswa";
   btnEditSiswa.addEventListener("click", () => {
     const code = tr.dataset.siswaCode;
@@ -5530,7 +5537,7 @@ let _klaimRid = 0;
 
 function _klaimMkSelect(opts, placeholder) {
   const sel = document.createElement("select");
-  sel.style.cssText = "font-size:10px;width:100%;border:1px solid #d1d5db;border-radius:3px;padding:2px 4px";
+  sel.style.cssText = "font-size:12px;width:100%;border:1px solid #d1d5db;border-radius:3px;padding:2px 4px";
   if (placeholder) {
     const ph = document.createElement("option");
     ph.value = ""; ph.textContent = placeholder; ph.disabled = true; ph.selected = true;
@@ -5605,7 +5612,7 @@ function klaimAddSiswa() {
     sugg.innerHTML = "";
     (data || []).forEach(s => {
       const d = document.createElement("div");
-      d.style.cssText = "padding:5px 8px;cursor:pointer;font-size:11px;border-bottom:1px solid #f3f4f6";
+      d.style.cssText = "padding:5px 8px;cursor:pointer;font-size:12px;border-bottom:1px solid #f3f4f6";
       d.textContent = `${s.nama} (${s.code})`;
       d.onmousedown = async () => {
         inpSiswaSearch.value = `${s.nama} / ${s.code}`;
@@ -5695,7 +5702,7 @@ function klaimAddSiswa() {
   tdAmt.appendChild(inpAmt); tr._amt = inpAmt;
 
   const tdBudget = document.createElement("td");
-  tdBudget.style.cssText = "padding:4px 7px;text-align:right;color:#10b981;font-size:10px;font-weight:600";
+  tdBudget.style.cssText = "padding:4px 7px;text-align:right;color:#10b981;font-size:12px;font-weight:600";
   tdBudget.className = "klaim-budget"; tdBudget.textContent = "-";
 
   const tdTgl = document.createElement("td"); tdTgl.style.padding = "4px 7px";
@@ -5719,7 +5726,7 @@ function klaimAddSiswa() {
   const tdBtn = document.createElement("td"); tdBtn.colSpan = 11; tdBtn.style.padding = "3px 7px";
   const btnAddCat2 = document.createElement("button");
   btnAddCat2.className = "btn btn-secondary btn-sm";
-  btnAddCat2.style.cssText = "border:1px dashed #10b981;color:#059669;background:none;font-size:9px";
+  btnAddCat2.style.cssText = "border:1px dashed #10b981;color:#059669;background:none;font-size:12px";
   btnAddCat2.textContent = "+ cat 2 tambahan";
   btnAddCat2.onclick = () => klaimAddCat2Row(rid, tr);
   tdBtn.appendChild(btnAddCat2); trBtn.appendChild(tdBtn);
@@ -5735,7 +5742,7 @@ function klaimAddCat2Row(rid, siswaRow) {
   tr.style.cssText = "background:#eff6ff;border-bottom:1px solid #dbeafe";
 
   const tdLabel = document.createElement("td");
-  tdLabel.style.cssText = "padding:4px 7px;color:#94a3b8;font-size:9px;font-style:italic;text-align:right";
+  tdLabel.style.cssText = "padding:4px 7px;color:#94a3b8;font-size:12px;font-style:italic;text-align:right";
   tdLabel.textContent = "↳ cat 2 tambahan";
 
   const hidEtfLineId_3 = document.createElement("input"); hidEtfLineId_3.type = "hidden"; hidEtfLineId_3.className = "klaim-line-id"; tr._hidEtfLineId = hidEtfLineId_3;
@@ -6127,7 +6134,7 @@ function smtLinesAddRow() {
   
   const dueCell = document.createElement("div");
   dueCell.className = "smt-due-cell";
-  dueCell.style.cssText = "font-family:monospace;font-size:11px;color:#4b5563;white-space:nowrap;padding-top:6px;text-align:center";
+  dueCell.style.cssText = "font-family:monospace;font-size:12px;color:#4b5563;white-space:nowrap;padding-top:6px;text-align:center";
   dueCell.textContent = document.getElementById("ipay-due-date")?.value || "-";
 
   const ccSel = selInp(SMT_PAM_COST_CENTERS, "— Cost Center —");

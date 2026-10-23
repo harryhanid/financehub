@@ -1,3 +1,9 @@
+// Render failures used to pop a blocking browser alert(); log + toast instead.
+function setfReportError(label, e) {
+  console.error(label, e);
+  if (typeof showToast === "function") showToast(label.replace(/:\s*$/, "") + ": " + (e && e.message), "error");
+}
+
 
 
 
@@ -1008,7 +1014,7 @@ function setfRenderTahunanKategori() {
   setfRenderCustomYearlyStackedChart("chart-tahunan-kategori", "kategori", "name", mode);
   } catch(e) {
     console.error("Error in setfRenderTahunanKategori:", e);
-    alert("Error in setfRenderTahunanKategori: " + e.message);
+    setfReportError("Error in setfRenderTahunanKategori: ", e);
   }
 }
 
@@ -1045,7 +1051,7 @@ function setfRenderTahunanPillar() {
   setfRenderCustomYearlyStackedChart("chart-tahunan-pillar", "pillar", "name", mode);
   } catch(e) {
     console.error("Error in setfRenderTahunanPillar:", e);
-    alert("Error in setfRenderTahunanPillar: " + e.message);
+    setfReportError("Error in setfRenderTahunanPillar: ", e);
   }
 }
 
@@ -1441,7 +1447,7 @@ function setfRenderDrilldownChip() {
   }
   chip.style.display = "inline-flex";
   chip.innerHTML = "Filter aktif: Kategori = " + setfActiveKategoriDrilldown +
-    ' <button type="button" class="budget-btn" style="padding:.15rem .6rem;font-size:.72rem" ' +
+    ' <button type="button" class="budget-btn" style="padding:.15rem .6rem;font-size:.75rem" ' +
     'onclick="setfClearKategoriDrilldown()">Hapus filter</button>';
 }
 
@@ -2004,8 +2010,8 @@ function setfApplyFilters() {
     .then(function (r) { return r.json(); })
     .then(function (data) {
       setfFamilyData = data;
-      try { setfRenderKeluargaChart(); } catch(e) { alert("Err Keluarga Chart: " + e.message); }
-      try { setfRenderFamilyTable(data.families); } catch(e) { alert("Err Keluarga Table: " + e.message); }
+      try { setfRenderKeluargaChart(); } catch(e) { setfReportError("Err Keluarga Chart: ", e); }
+      try { setfRenderFamilyTable(data.families); } catch(e) { setfReportError("Err Keluarga Table: ", e); }
     })
     .catch(function () { showToast("Gagal memuat data sahabat.", "error"); });
 
@@ -2020,14 +2026,14 @@ function setfApplyFilters() {
   fetch("/beasiswa/sahabat/api/breakdown" + (qs ? "?" + qs : ""))
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      try { setfRenderKategoriChartCustom("chart-kategori", data.kategori); } catch(e) { alert("Err Kategori Chart: " + e.message); }
-      try { setfRenderKategoriTable(data.kategori); } catch(e) { alert("Err Kategori Table: " + e.message); }
-      try { setfRenderAlert(data.over_budget); } catch(e) { alert("Err Alert: " + e.message); }
-      try { setfRenderTahunanData(data.yearly); } catch(e) { alert("Err Tahunan Data: " + e.message); }
-      try { setfRenderPillarTable(data.pillar); } catch(e) { alert("Err Pillar Table: " + e.message); }
-      try { setfRenderCustomBudgetChart("chart-pillar", data.pillar, "pillar"); } catch(e) { alert("Err Pillar Chart: " + e.message); }
+      try { setfRenderKategoriChartCustom("chart-kategori", data.kategori); } catch(e) { setfReportError("Err Kategori Chart: ", e); }
+      try { setfRenderKategoriTable(data.kategori); } catch(e) { setfReportError("Err Kategori Table: ", e); }
+      try { setfRenderAlert(data.over_budget); } catch(e) { setfReportError("Err Alert: ", e); }
+      try { setfRenderTahunanData(data.yearly); } catch(e) { setfReportError("Err Tahunan Data: ", e); }
+      try { setfRenderPillarTable(data.pillar); } catch(e) { setfReportError("Err Pillar Table: ", e); }
+      try { setfRenderCustomBudgetChart("chart-pillar", data.pillar, "pillar"); } catch(e) { setfReportError("Err Pillar Chart: ", e); }
     })
-    .catch(function (e) { alert("Fetch failed: " + e.message); showToast("Gagal memuat breakdown kategori.", "error"); });
+    .catch(function (e) { console.error("Fetch failed:", e); showToast("Gagal memuat breakdown kategori.", "error"); });
 
   if (filters.years.length) {
     document.querySelector("#setf-monthly-table tbody").innerHTML = skeletonRows(2, 4);
@@ -2596,7 +2602,7 @@ function renderTree(data) {
              html += '<hr style="margin:8px 0; border:0; border-top:1px solid #ddd">';
              d.partners.forEach(p => {
                  let pIdStr = p.id ? ' | ' + p.id : '';
-                   html += '<div style=\"font-weight:bold;margin-bottom:3px;\">' + (p.name || '') + ' <span style=\"font-size:11px;color:#666;font-weight:normal;\">(Partner)</span>' + pIdStr + '</div>';
+                   html += '<div style=\"font-weight:bold;margin-bottom:3px;\">' + (p.name || '') + ' <span style=\"font-size:12px;color:#666;font-weight:normal;\">(Partner)</span>' + pIdStr + '</div>';
                  let hasPInfo = false;
                  if (p.tanggal_lahir) { html += '<div style="font-size:12px;"><b>Tanggal Lahir:</b> ' + p.tanggal_lahir + '</div>'; hasPInfo = true; }
                  if (p.catatan) { html += '<div style="font-size:12px;max-width:250px;white-space:normal;"><b>Catatan:</b> ' + p.catatan + '</div>'; hasPInfo = true; }
