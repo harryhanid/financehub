@@ -200,7 +200,7 @@ def test_rows_without_code_key_and_no_cc_rows_still_work():
 def test_resync_same_file_after_table_was_emptied_refills_it():
     cm.sync_coa("m.xlsb", "admin", rows_a(), cc_a())
     conn = get_conn()
-    conn.execute("DELETE FROM gl_coa_map")
+    conn.execute("DELETE FROM gl_coa_map WHERE true")
     conn.commit()
     conn.close()
     assert cm.sync_coa("m.xlsb", "admin", rows_a(), cc_a())["changed"] is True
@@ -210,7 +210,7 @@ def test_resync_same_file_after_table_was_emptied_refills_it():
 def test_resync_same_file_after_cc_table_was_emptied_refills_it():
     cm.sync_coa("m.xlsb", "admin", rows_a(), cc_a())
     conn = get_conn()
-    conn.execute("DELETE FROM gl_cc_map")
+    conn.execute("DELETE FROM gl_cc_map WHERE true")
     conn.commit()
     conn.close()
     assert cm.sync_coa("m.xlsb", "admin", rows_a(), cc_a())["changed"] is True

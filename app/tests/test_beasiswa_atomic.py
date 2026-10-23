@@ -631,7 +631,7 @@ def test_beasiswa_batches_take_r51_lock_first(app, monkeypatch):
     conn.close()
 
     conn = get_conn()
-    conn.execute("DELETE FROM etf_pa_lines")  # FK siswa <- etf_pa_lines menghalangi delete_siswa
+    conn.execute("DELETE FROM etf_pa_lines WHERE true")  # FK siswa <- etf_pa_lines menghalangi delete_siswa
     conn.close()
 
     batches = _spy_batches(monkeypatch)

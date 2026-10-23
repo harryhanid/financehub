@@ -14,6 +14,7 @@ import threading
 import time
 from urllib.parse import urlparse
 
+from . import safeupdate
 from .errors import DatabaseError, OperationalError, from_sqlstate
 
 Result = dict
@@ -189,6 +190,10 @@ class PgBackend:
     def execute_batch(self, stmts: list[str], schema: str) -> list[Result]:
         import psycopg2
 
+        # R59: Supabase (pg_safeupdate) menolak UPDATE/DELETE tanpa WHERE; tolak hal yang sama di sini
+        # sebelum apa pun dikirim (semantik batch: tidak ada yang tertulis).
+        for stmt in stmts:
+            safeupdate.check(stmt)
         conn = self._conn()
         try:
             with conn.cursor() as cur:

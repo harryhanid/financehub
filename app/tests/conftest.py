@@ -79,7 +79,7 @@ _RESET_ALL = (
     "do 'declare r record; begin "
     "perform set_config(''session_replication_role'', ''replica'', true); "
     "for r in select tablename from pg_tables where schemaname = ''financehub_test'' loop "
-    "execute format(''delete from financehub_test.%I'', r.tablename); end loop; "
+    "execute format(''delete from financehub_test.%I where true'', r.tablename); end loop; "
     "for r in select sequencename from pg_sequences "
     "where schemaname = ''financehub_test'' and last_value is not null loop "
     "perform setval(format(''financehub_test.%I'', r.sequencename), 1, false); end loop; "

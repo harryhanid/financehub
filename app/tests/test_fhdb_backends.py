@@ -61,7 +61,7 @@ def test_insert_returning_and_rowcount(backend):
     b, schema = backend
     r = b.execute_batch([
         "insert into t (\"Nama\", jumlah) values ('a', 1.5) returning id",
-        "update t set jumlah = 2",
+        "update t set jumlah = 2 where true",
     ], schema)
     assert r[0]["columns"] == ["id"] and isinstance(r[0]["rows"][0][0], int)
     assert r[1] == {"rowcount": 1}
@@ -348,8 +348,8 @@ def test_with_cte_and_dml_returning_and_duplicates_typed(backend):
         "with x as (select 5::float8 as v) select v, v from x",
         # (WITH berisi DML tidak didukung fh_exec sejak awal: dibungkus CTE -> 0A000; di luar R48)
         "insert into t (\"Nama\", jumlah) values ('w', 8) returning jumlah",
-        "update t set jumlah = 9 returning jumlah",
-        "delete from t returning jumlah",
+        "update t set jumlah = 9 where true returning jumlah",
+        "delete from t where true returning jumlah",
         "select jumlah from t where false",
     ], schema)
     assert r[0] == {"columns": ["v", "v"], "rows": [[5.0, 5.0]]}

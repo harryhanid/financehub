@@ -490,7 +490,7 @@ def test_update_beasiswa_line_amount_atomic_on_failure():
     assert _one("SELECT amount FROM payment_beasiswa")["amount"] == 1_500_000.0
     # diff 0 -> header tidak disentuh (NULL tetap NULL, seperti `if diff != 0` dulu)
     conn = get_conn()
-    conn.execute("UPDATE pam_records SET total_amount=NULL")
+    conn.execute("UPDATE pam_records SET total_amount=NULL WHERE true")
     conn.close()
     assert update_beasiswa_line_amount(pb_id, 1_500_000, ETF)["ok"] is True
     assert _one("SELECT total_amount FROM pam_records")["total_amount"] is None

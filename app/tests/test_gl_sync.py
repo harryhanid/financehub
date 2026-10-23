@@ -149,7 +149,7 @@ def test_reading_never_destroys_a_legacy_table():
 def test_resync_same_file_after_table_was_emptied_refills_it():
     glsync.sync_rows("smt", 2026, "m.xlsb", "admin", rows_a())
     conn = get_conn()
-    conn.execute('DELETE FROM "GLSMT"')
+    conn.execute('DELETE FROM "GLSMT" WHERE true')
     conn.commit()
     conn.close()
     out = glsync.sync_rows("smt", 2026, "m.xlsb", "admin", rows_a())

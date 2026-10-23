@@ -166,7 +166,7 @@ def sync_categories(filename, user, rows) -> dict:
         # lock serialises two concurrent replace-all syncs (READ COMMITTED does not).
         conn.batch([
             staging.lock("mr:category_map"),
-            ("DELETE FROM gl_category_map", ()),
+            ("DELETE FROM gl_category_map WHERE true", ()),   # replace-all; WHERE: pg_safeupdate (R59)
             *staging.insert_items(
                 "gl_category_map",
                 ("source", "account", "categories_expense", "category_lk", "category_spt"),

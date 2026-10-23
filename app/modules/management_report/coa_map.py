@@ -210,8 +210,8 @@ def sync_coa(filename, user, rows, cc_rows=()) -> dict:
         # concurrent replace-all syncs (READ COMMITTED would let the second hit duplicate keys).
         conn.batch([
             staging.lock("mr:coa_map"),
-            ("DELETE FROM gl_coa_map", ()),
-            ("DELETE FROM gl_cc_map", ()),
+            ("DELETE FROM gl_coa_map WHERE true", ()),   # replace-all; WHERE: pg_safeupdate (R59)
+            ("DELETE FROM gl_cc_map WHERE true", ()),
             *staging.insert_items(
                 "gl_coa_map", ("source", "account", "coa_ho", "category", "code"),
                 [(r["source"], r["account"], r["coa_ho"], r["category"], r.get("code", ""))
