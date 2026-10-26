@@ -189,7 +189,6 @@ def create_app(testing=False):
             app.logger.warning("init_db dilewati, database tidak terjangkau saat start: %s", e)
         
         # --- Scheduler Setup ---
-        import os
         # Ensure we only run scheduler in the main werkzeug process if reloading, or if debug is off
         if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
             try:
