@@ -125,7 +125,7 @@ def _dump(conn, out_dir: str) -> dict:
     return manifest
 
 
-def run_db_backup(dest_root: str | None = None, keep_days: int = 30) -> str:
+def run_db_backup(dest_root: str | None = None, keep_days: int = 7) -> str:
     """Backup semua tabel ke `<dest_root>/YYYY-MM-DD/` (default config.DB_BACKUP_ROOT); path folder.
     Backup ulang di hari yang sama menggantikan folder hari itu."""
     root = dest_root if dest_root is not None else config.DB_BACKUP_ROOT
