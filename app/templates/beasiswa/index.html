@@ -2135,6 +2135,17 @@ async function loadLaporan(code) {
     ipkSec.innerHTML = h + `</div>`;
   } else { ipkSec.innerHTML = ""; }
 
+  // Catatan Budget / Catatan Payment (kolom siswa)
+  const notes = [["Catatan Budget", s.catatan_budget], ["Catatan Payment", s.catatan_payment]]
+    .map(([k, v]) => [k, (v || "").trim()]).filter(([, v]) => v);
+  if (notes.length) {
+    ipkSec.innerHTML += `<div style="border-top:1px solid #e5e7eb;padding-top:.625rem;margin-top:.625rem;display:grid;grid-template-columns:repeat(${notes.length},1fr);gap:.75rem">` +
+      notes.map(([k, v]) => `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:.375rem;padding:.5rem .75rem">
+        <div style="font-size:.75rem;font-weight:600;color:#92400e;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem">${k}</div>
+        <div style="font-size:.8rem;color:#78350f;white-space:pre-wrap">${escapeHtml(v)}</div></div>`).join("") +
+      `</div>`;
+  }
+
   // Summary badges — 5 cards (4 cats + Total) each with Budget / Payment / Selisih
   const catMap = {};
   (d.cat_summary || []).forEach(c => { catMap[c.cat1] = c; });

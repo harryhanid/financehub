@@ -771,6 +771,7 @@ def laporan_export(code, fmt):
         w.writerow(["Universitas", s.get("universitas",""), "Fakultas", s.get("fakultas",""), "Status", s.get("status","")])
         w.writerow(["Bank", s.get("bank",""), "No. Rekening", s.get("norek",""), "Nama Rekening", s.get("namarek","")])
         w.writerow(["Referensi", s.get("referensi",""), "Catatan", s.get("catatan","")])
+        w.writerow(["Catatan Budget", s.get("catatan_budget") or "", "Catatan Payment", s.get("catatan_payment") or ""])
         ipk_sems = [(i, s.get(f"ipk_sem{i}","")) for i in range(1,11) if s.get(f"ipk_sem{i}")]
         if ipk_sems:
             w.writerow(["IPK Semester"] + [f"Sem {i}: {v}" for i, v in ipk_sems])
@@ -983,6 +984,28 @@ def laporan_export(code, fmt):
                 ("LEFTPADDING", (0,0), (0,-1), 0),
             ]))
             elems += [ipk_tbl, Spacer(1, 0.5*cm)]
+
+        # Catatan budget / payment (kolom siswa), teks bebas: di-escape dan baris baru dipertahankan
+        from xml.sax.saxutils import escape as _xml_escape
+        notes = [(label, (s.get(key) or "").strip())
+                 for label, key in (("Catatan Budget", "catatan_budget"), ("Catatan Payment", "catatan_payment"))]
+        notes = [(label, text) for label, text in notes if text]
+        if notes:
+            elems.append(section_header("Catatan"))
+            note_tbl = Table(
+                [[Paragraph(label.upper(), label_style),
+                  Paragraph(_xml_escape(text).replace("\n", "<br/>"), cell_style)] for label, text in notes],
+                colWidths=[3*cm, 14*cm],
+            )
+            note_tbl.setStyle(TableStyle([
+                ("FONTSIZE",   (0,0), (-1,-1), 8),
+                ("LINEBELOW",  (0,0), (-1,-1), 0.5, HAIRLINE),
+                ("VALIGN",     (0,0), (-1,-1), "TOP"),
+                ("TOPPADDING", (0,0), (-1,-1), 4),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+                ("LEFTPADDING", (0,0), (0,-1), 0),
+            ]))
+            elems += [note_tbl, Spacer(1, 0.5*cm)]
 
         # Summary table
         elems.append(section_header("Rekapitulasi per Kategori"))

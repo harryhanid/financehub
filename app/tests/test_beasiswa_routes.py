@@ -52,6 +52,44 @@ def test_laporan_export_pdf_with_long_text_fields_renders_ok(client):
     assert resp.data[:4] == b"%PDF"
 
 
+def _seed_siswa_with_catatan(company_id: int = 2, code: str = "1250098") -> None:
+    from database import get_conn
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO siswa (company_id, code, nama, status, catatan_budget, catatan_payment)
+           VALUES (?,?,?,?,?,?)""",
+        (company_id, code, "Siswa Uji Catatan", "Aktif",
+         "Budget S6 & S7 <dipecah>\nbaris kedua", "Payment semester 5 dan 6 dibagi rata"),
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_laporan_export_pdf_shows_catatan_budget_and_payment(client):
+    pypdf = __import__("pytest").importorskip("pypdf")
+    import io
+    _seed_siswa_with_catatan()
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/laporan/siswa/1250098/export/pdf")
+    assert resp.status_code == 200
+    text = "".join(p.extract_text() for p in pypdf.PdfReader(io.BytesIO(resp.data)).pages)
+    assert "Budget S6 & S7 <dipecah>" in text
+    assert "baris kedua" in text
+    assert "Payment semester 5 dan 6 dibagi rata" in text
+
+
+def test_laporan_export_csv_shows_catatan_budget_and_payment(client):
+    _seed_siswa_with_catatan()
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/laporan/siswa/1250098/export/csv")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    assert "Catatan Budget" in body and "Budget S6 & S7" in body
+    assert "Catatan Payment" in body and "Payment semester 5 dan 6 dibagi rata" in body
+
+
 def test_index_renders_for_etf(client):
     login(client)
     _select_etf(client)
