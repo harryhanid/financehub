@@ -1,3 +1,4 @@
+import re
 import uuid
 # modules/beasiswa/service.py
 from datetime import datetime
@@ -968,12 +969,33 @@ def get_sisa_budget(company_id: int, siswa_code: str) -> dict:
     }
 
 
+_LAPORAN_CAT1_ORDER = ("By Pendidikan", "By Tunjangan", "By Penelitian", "By Medical")
+
+
+def _cat1_key(cat1) -> tuple:
+    c = cat1 or ""
+    return (_LAPORAN_CAT1_ORDER.index(c), "") if c in _LAPORAN_CAT1_ORDER else (len(_LAPORAN_CAT1_ORDER), c)
+
+
+def _natural_key(text) -> list:
+    """'Semester 10' setelah 'Semester 9': potongan angka dibandingkan sebagai angka."""
+    return [(0, int(p), "") if p.isdigit() else (1, 0, p.lower())
+            for p in re.split(r"(\d+)", text or "") if p]
+
+
+def _laporan_row_key(r) -> tuple:
+    return (_cat1_key(r.get("cat1")), _natural_key(r.get("cat2")), r.get("tanggal") or "")
+
+
 def get_laporan_siswa(company_id: int, code: str) -> dict | None:
+    """Data Report Siswa; baris budget/payment urut kategori 1 (Pendidikan, Tunjangan, Penelitian,
+    Medical, lainnya A-Z), lalu kategori 2 natural (Semester 1, 2, ..., 10), lalu tanggal."""
     siswa = get_siswa_detail(company_id, code)
     if not siswa:
         return None
     bgt  = get_budget(company_id, code)
-    pay_rows = get_payment(company_id, code)
+    bgt["rows"] = sorted(bgt["rows"], key=_laporan_row_key)
+    pay_rows = sorted(get_payment(company_id, code), key=_laporan_row_key)
 
     pay_totals: dict = {}
     pay_grand = 0.0
@@ -981,7 +1003,7 @@ def get_laporan_siswa(company_id: int, code: str) -> dict | None:
         pay_totals[r["cat1"]] = pay_totals.get(r["cat1"], 0) + r["amount"]
         pay_grand += r["amount"]
 
-    all_cats = list(dict.fromkeys(list(bgt["totals"].keys()) + list(pay_totals.keys())))
+    all_cats = sorted(dict.fromkeys(list(bgt["totals"].keys()) + list(pay_totals.keys())), key=_cat1_key)
     cat_summary = [
         {"cat1": c, "budget": bgt["totals"].get(c, 0),
          "payment": pay_totals.get(c, 0),

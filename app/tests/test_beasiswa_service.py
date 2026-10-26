@@ -1215,3 +1215,27 @@ def test_get_laporan_siswa_payment_rows_include_tanggal_bayar():
     by_pillar = {r["pillar"]: r["tanggal_bayar"] for r in result["payment_rows"]}
     assert by_pillar["APP"] == "2026-03-20", "APP must use its own tgl_Paid_APP column"
     assert by_pillar["AGRI"] == "2026-03-22", "AGRI must fall back to pam_records.tanggal_bayar"
+
+
+def test_get_laporan_siswa_sorts_by_kategori_then_semester():
+    conn = get_conn()
+    conn.execute("INSERT INTO siswa (company_id, code, nama, status) VALUES (?,?,?,?)",
+                 (COMPANY_ID, "1250097", "Siswa Urut", "Aktif"))
+    rows = [("By Tunjangan", "Semester 2", "2025-01-01"), ("By Medical", "Rawat Jalan", "2025-01-01"),
+            ("By Pendidikan", "Semester 10", "2024-01-01"), ("By Pendidikan", "Semester 2", "2026-01-01"),
+            ("By Penelitian", "Tahap 1", "2025-01-01"), ("By Tunjangan", "Semester 1", "2026-01-01"),
+            ("By Pendidikan", "Semester 1", "2026-02-01")]
+    for cat1, cat2, tgl in rows:
+        for table in ("budget_beasiswa", "payment_beasiswa"):
+            conn.execute(f"INSERT INTO {table} (company_id, siswa_code, cat1, cat2, tanggal, amount) VALUES (?,?,?,?,?,?)",
+                         (COMPANY_ID, "1250097", cat1, cat2, tgl, 1000))
+    conn.commit()
+    conn.close()
+
+    d = get_laporan_siswa(COMPANY_ID, "1250097")
+    expected = [("By Pendidikan", "Semester 1"), ("By Pendidikan", "Semester 2"), ("By Pendidikan", "Semester 10"),
+                ("By Tunjangan", "Semester 1"), ("By Tunjangan", "Semester 2"),
+                ("By Penelitian", "Tahap 1"), ("By Medical", "Rawat Jalan")]
+    assert [(r["cat1"], r["cat2"]) for r in d["budget_rows"]] == expected
+    assert [(r["cat1"], r["cat2"]) for r in d["payment_rows"]] == expected
+    assert [c["cat1"] for c in d["cat_summary"]] == ["By Pendidikan", "By Tunjangan", "By Penelitian", "By Medical"]
