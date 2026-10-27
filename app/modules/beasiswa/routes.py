@@ -10,7 +10,7 @@ from modules.beasiswa.service import (get_budget_requests, approve_budget_reques
     add_budget_batch, get_budget, delete_budget_row, update_budget_row,
     add_payment_batch, add_payment_multi, get_payment, get_payment_list, delete_payment_row,
     update_payment_row,
-    get_sisa_budget, get_rekap, get_budget_list, get_laporan_siswa,
+    get_sisa_budget, get_rekap, get_budget_list, set_budget_status, get_laporan_siswa,
     get_financial_summary,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
     get_vendors, get_distinct_universitas, get_distinct_angkatan,
@@ -273,6 +273,14 @@ def budget_update_row(row_id):
     return jsonify(update_budget_row(_cid(), row_id, request.get_json(force=True) or {}, _ctx()["current_user"]))
 
 
+@bp.route("/budget/<int:row_id>/status", methods=["POST"])
+@role_required("Fin", "Admin")
+@etf_company_required
+def budget_set_status(row_id):
+    data = request.get_json(force=True, silent=True) or {}
+    return jsonify(set_budget_status(_cid(), row_id, (data.get("status") or "").strip()))
+
+
 @bp.route("/budget/tambah", methods=["POST"])
 @role_required("FC", "Admin")
 @etf_company_required
@@ -310,6 +318,7 @@ def budget_list():
         bulan=request.args.get("bulan", ""),
         tahun=request.args.get("tahun", ""),
         program=request.args.get("program", ""),
+        status=request.args.get("status", ""),
     )
     return jsonify({"ok": True, **data})
 

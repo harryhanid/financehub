@@ -464,7 +464,8 @@
           data-tgl-pa="{{ r.tgl_payment_application or '' }}"
           class="{% if r.status == 'on_process' %}row-op{% endif %}">
         <td class="s0"><input type="checkbox" class="row-chk" onchange="onRowCheck()" value="{{ r.line_id }}"></td>
-        <td class="s1"><code style="white-space:nowrap">{{ r.pa_number }}</code></td>
+        <td class="s1"><code style="white-space:nowrap">{{ r.pa_number }}</code>
+          {% if r.source == 'prportal' %}<span class="badge badge-blue badge-prportal" title="Diajukan via PR Portal{% if r.requested_by %} oleh {{ r.requested_by }}{% endif %}" style="margin-left:.25rem">PR Portal{% if r.requested_by %} · {{ r.requested_by }}{% endif %}</span>{% endif %}</td>
         <td class="s2">{{ r.student_code }}</td>
         <td class="s3" style="white-space:nowrap">{{ r.nama }}</td>
         <td class="grp-toggle-cell" onclick="toggleSiswaGroup()" title="Expand/collapse Data Siswa">·</td>
@@ -969,7 +970,10 @@
     </div>
 
     <div style="border-top:1px solid var(--border);margin-top:.75rem;padding-top:.75rem">
-      <div style="font-size:.75rem;font-weight:600;color:var(--sl-700);margin-bottom:.5rem">Data Siswa (Line)</div>
+      <div style="font-size:.75rem;font-weight:600;color:var(--sl-700);margin-bottom:.5rem">Data Siswa (Line)
+        <span id="edit-prportal-badge" class="badge badge-blue badge-prportal" style="display:none;margin-left:.5rem"></span>
+      </div>
+      <div id="edit-budget-note" style="display:none;font-size:.75rem;color:var(--text-muted);margin-bottom:.5rem"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
         <div class="form-group"><label>Jenis Bayar</label>
           <select id="edit-jenis-bayar">
@@ -1858,6 +1862,23 @@ async function openEditById(paId, lineId) {
   if (lineResp && lineResp.ok) {
     const lines = await lineResp.json();
     const line = lines.find(l => l.id === lineId);
+    const jb = document.getElementById("edit-jenis-bayar"), sm = document.getElementById("edit-semester");
+    const jm = document.getElementById("edit-jumlah"), pb = document.getElementById("edit-prportal-badge");
+    const bn = document.getElementById("edit-budget-note");
+    jb.disabled = sm.disabled = false; jm.removeAttribute("data-max"); bn.style.display = "none";
+    pb.style.display = "none";
+    if (line && line.source === "prportal") {
+      pb.textContent = "PR Portal" + (line.requested_by ? " · " + line.requested_by : "");
+      pb.style.display = "inline-block";
+    }
+    if (line && line.budget_id) {
+      jb.disabled = sm.disabled = true;           // terkunci ke budget (server tetap menegakkan)
+      jm.setAttribute("data-max", line.budget_amount || 0);
+      jm.max = line.budget_amount || 0;
+      bn.textContent = "Baris terhubung budget: Jenis Bayar/Semester terkunci, jumlah maks Rp " +
+        parseInt(line.budget_amount || 0, 10).toLocaleString("id-ID") + ".";
+      bn.style.display = "block";
+    }
     if (line) {
       document.getElementById("edit-jenis-bayar").value  = line.jenis_pembayaran || "";
       document.getElementById("edit-semester").value     = line.semester || "";
@@ -1869,6 +1890,11 @@ async function openEditById(paId, lineId) {
   openModal("modal-edit-pa");
 }
 async function saveEdit() {
+  const _jm = document.getElementById("edit-jumlah"), _mx = parseFloat(_jm.getAttribute("data-max"));
+  if (_mx > 0 && (parseFloat(_jm.value.replace(/,/g, '')) || 0) > _mx) {
+    showToast("Jumlah melebihi budget " + _mx.toLocaleString("id-ID") + ".", "error");
+    return;
+  }
   if (!await confirmModal("Simpan perubahan PA ini?")) return;
   const paId = document.getElementById("edit-pa-id").value;
   const payload = {

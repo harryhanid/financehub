@@ -482,6 +482,16 @@
           {% for p in program %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
         </select>
       </div>
+      <div class="form-group" style="margin:0">
+        <label>Status</label>
+        <select id="bgt-list-status" onchange="loadBudgetList()">
+          <option value="">Semua Status</option>
+          <option value="open">Open</option>
+          <option value="on_progress">On Progress</option>
+          <option value="complete">Complete</option>
+          <option value="non_aktif">Non Aktif</option>
+        </select>
+      </div>
       <div style="align-self:flex-end;display:flex;gap:.375rem">
         <button class="btn btn-secondary btn-sm btn-icon-excel" onclick="exportBudget('xlsx')" title="Export Excel">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -502,11 +512,11 @@
         <thead>
           <tr>
             <th>Kode</th><th>Nama Siswa</th><th>Program</th><th>Kategori 1</th><th>Kategori 2</th>
-            <th>Tanggal</th><th>Expired</th><th>Pillar</th><th class="num-right">Amount</th><th>Aksi</th>
+            <th>Tanggal</th><th>Expired</th><th>Pillar</th><th class="num-right">Amount</th><th>Status</th><th>Aksi</th>
           </tr>
         </thead>
         <tbody id="bgt-list-tbody">
-          <tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Klik tab Data Budget untuk memuat data.</td></tr>
+          <tr><td colspan="11" style="text-align:center;color:var(--text-muted)">Klik tab Data Budget untuk memuat data.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1272,6 +1282,26 @@ function bgtEditRow(id, cat1, cat2, tanggal, pillar, amount, tgl_expired) {
   openModal("modal-bgt-form");
 }
 
+const CAN_SET_BGT_STATUS = {{ 'true' if current_role in ['Fin', 'Admin', 'admin'] or current_user == 'admin' else 'false' }};
+const _BGT_STATUS_STYLE = {
+  open: "background:#dcfce7;color:#166534", on_progress: "background:#fef3c7;color:#92400e",
+  complete: "background:#dbeafe;color:#1e40af", non_aktif: "background:#e5e7eb;color:#4b5563",
+};
+const _BGT_STATUS_LBL = { open: "Open", on_progress: "On Progress", complete: "Complete" };
+function _bgtStatusBadge(st, label) {
+  return `<span class="badge-bgt-status" style="display:inline-block;padding:.1rem .5rem;border-radius:999px;font-size:.72rem;font-weight:600;white-space:nowrap;${_BGT_STATUS_STYLE[st]||""}">${label||st||""}</span>`;
+}
+async function bgtSetStatus(id, sel) {
+  const cur = sel.dataset.cur;
+  const d = await (await apiFetch(`/beasiswa/budget/${id}/status`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: sel.value }),
+  })).json();
+  showToast(d.pesan, d.ok ? "success" : "error");
+  if (!d.ok) { sel.value = cur; return; }
+  loadBudgetList();
+}
+
 let _bgtListTimer = null;
 async function loadBudgetList() {
   clearTimeout(_bgtListTimer);
@@ -1282,13 +1312,14 @@ async function loadBudgetList() {
     const bulan   = document.getElementById("bgt-list-bulan")?.value || "";
     const tahun   = document.getElementById("bgt-list-tahun")?.value || "";
     const program = document.getElementById("bgt-list-program")?.value || "";
-    const params  = new URLSearchParams({ search, cat1, pillar, bulan, tahun, program });
+    const status  = document.getElementById("bgt-list-status")?.value || "";
+    const params  = new URLSearchParams({ search, cat1, pillar, bulan, tahun, program, status });
     const tbody   = document.getElementById("bgt-list-tbody");
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--text-muted)">Memuat...</td></tr>`;
     const d = await (await apiFetch(`/beasiswa/budget/list?${params}`)).json();
     _renderTabSummary('bgt', d.totals, d.payment_totals);
     if (!d.ok || !d.rows?.length) {
-      tbody.innerHTML = _emptyHtml(10, 'Tidak ada data');
+      tbody.innerHTML = _emptyHtml(11, 'Tidak ada data');
       document.getElementById("bgt-list-info").textContent = "";
       return;
     }
@@ -1306,7 +1337,11 @@ async function loadBudgetList() {
         <td style="white-space:nowrap">${row.tgl_expired||"-"}</td>
         <td>${row.pillar||""}</td>
         <td class="num-right">${fmtRupiah(a)}</td>
+        <td>${_bgtStatusBadge(row.status, row.status_label)}</td>
         <td style="white-space:nowrap">
+          ${CAN_SET_BGT_STATUS && row.status !== "non_aktif" ? `<select class="bgt-status-sel" title="Ubah status" onchange="bgtSetStatus(${row.id}, this)" data-cur="${row.status}">
+            ${["open","on_progress","complete"].map(v => `<option value="${v}"${v===row.status?" selected":""}>${_BGT_STATUS_LBL[v]}</option>`).join("")}
+          </select>` : ""}
           <button class="btn btn-secondary btn-sm" onclick="bgtEditRow(${row.id},'${(row.cat1||"").replace(/'/g,"\\'")}','${(row.cat2||"").replace(/'/g,"\\'")}','${row.tanggal||""}','${row.pillar||""}',${a},'${row.tgl_expired||""}')">Edit</button>
           <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="bgtDeleteRow(${row.id})">Hapus</button>
         </td>
@@ -1323,6 +1358,7 @@ function exportBudget(fmt) {
     bulan:   document.getElementById("bgt-list-bulan")?.value || "",
     tahun:   document.getElementById("bgt-list-tahun")?.value || "",
     program: document.getElementById("bgt-list-program")?.value || "",
+    status:  document.getElementById("bgt-list-status")?.value || "",
   });
   window.location.href = `/beasiswa/budget/export/${fmt}?${p}`;
 }

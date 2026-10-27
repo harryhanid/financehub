@@ -574,11 +574,21 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
         conn.close()
 
 
+BUDGET_STATUS_LABELS = {"open": "Open", "on_progress": "On Progress",
+                        "complete": "Complete", "non_aktif": "Non Aktif"}
+# Sama dengan fn_prp_budget_status di SQL: siswa non-Aktif => non_aktif.
+_BUDGET_EFF_STATUS_SQL = "(CASE WHEN COALESCE(s.status,'') <> 'Aktif' THEN 'non_aktif' ELSE bb.status END)"
+
+
+def budget_effective_status(stored, siswa_status) -> str:
+    return "non_aktif" if (siswa_status or "") != "Aktif" else (stored or "open")
+
+
 def get_budget_list(company_id: int, search: str = "", cat1: str = "",
                     pillar: str = "", bulan: str = "", tahun: str = "",
-                    program: str = "", limit: int = 500) -> dict:
+                    program: str = "", limit: int = 500, status: str = "") -> dict:
     sql = (
-        "SELECT bb.*, s.nama, s.program FROM budget_beasiswa bb "
+        "SELECT bb.*, s.nama, s.program, s.status AS siswa_status FROM budget_beasiswa bb "
         "LEFT JOIN siswa s ON s.company_id=bb.company_id AND s.code=bb.siswa_code "
         "WHERE bb.company_id=?"
     )
@@ -597,6 +607,9 @@ def get_budget_list(company_id: int, search: str = "", cat1: str = "",
     if program:
         sql += " AND s.program=?"
         params += [program]
+    if status:
+        sql += f" AND {_BUDGET_EFF_STATUS_SQL} = ?"
+        params += [status]
     if bulan:
         sql += " AND fh_strftime('%m', bb.tanggal) = ?"
         params += [bulan.zfill(2)]
@@ -605,7 +618,7 @@ def get_budget_list(company_id: int, search: str = "", cat1: str = "",
         params += [tahun]
     conn  = get_conn()
     agg_sql = sql.replace(
-        "SELECT bb.*, s.nama, s.program FROM",
+        "SELECT bb.*, s.nama, s.program, s.status AS siswa_status FROM",
         "SELECT bb.cat1, SUM(bb.amount) AS total FROM"
     ) + " GROUP BY bb.cat1"
     totals = {r[0]: r[1] for r in conn.execute(agg_sql, params).fetchall()}
@@ -644,6 +657,9 @@ def get_budget_list(company_id: int, search: str = "", cat1: str = "",
     total  = conn.execute(f"SELECT COUNT(*) FROM ({sql}) AS _q", params).fetchone()[0]
     rows   = [dict(r) for r in conn.execute(sql + " LIMIT ?", params + [limit]).fetchall()]
     conn.close()
+    for r in rows:
+        r["status"] = budget_effective_status(r.get("status"), r.get("siswa_status"))
+        r["status_label"] = BUDGET_STATUS_LABELS.get(r["status"], r["status"] or "")
     return {
         "rows": rows, "total": total,
         "totals": totals, "grand": grand,
@@ -1906,3 +1922,25 @@ def reject_budget_request_batch(company_id: int, request_ids: list, processed_by
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": f"{rejected} baris pengajuan ditolak."}
+
+
+def set_budget_status(company_id: int, row_id: int, status: str) -> dict:
+    """Ubah status tersimpan baris budget secara langsung (aksi Fin/Admin, bukan request)."""
+    if status not in ("open", "on_progress", "complete"):
+        return {"ok": False, "pesan": "Status tidak valid."}
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT id FROM budget_beasiswa WHERE id=? AND company_id=?",
+                           (row_id, company_id)).fetchone()
+        if not row:
+            return {"ok": False, "pesan": "Baris budget tidak ditemukan."}
+        if status == "open":
+            use = _budget_pa_usage(conn, row_id)
+            if use:
+                return {"ok": False, "pesan": f"Budget dipakai PA {use[0]}; hapus PA dulu."}
+        conn.execute("UPDATE budget_beasiswa SET status=? WHERE id=? AND company_id=?",
+                     (status, row_id, company_id))
+        conn.commit()
+        return {"ok": True, "pesan": f"Status budget diubah ke {BUDGET_STATUS_LABELS[status]}."}
+    finally:
+        conn.close()
