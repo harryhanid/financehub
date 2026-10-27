@@ -1654,12 +1654,45 @@ def check_budget_sufficient(company_id: int, rows: list, default_cat1: str = Non
 
 # ================= BUDGET APPROVAL =================
 
+_PA_LINE_TABLES = (("etf_pa", "etf_pa_lines"), ("app_pa", "app_pa_lines"), ("sml_pa", "sml_pa_lines"),
+                   ("setf_pa", "setf_pa_lines"), ("energy_pa", "energy_pa_lines"))
+
+
+def _budget_pa_usage(conn, budget_id: int):
+    """(pa_number, jumlah_baris) PA terbaru yang memakai baris budget ini, atau None."""
+    sql = " UNION ALL ".join(
+        f"SELECT p.id AS pid, p.pa_number, l.jumlah_pembayaran AS jumlah FROM {pa} p "
+        f"JOIN {ln} l ON l.pa_id = p.id WHERE l.budget_id=?" for pa, ln in _PA_LINE_TABLES)
+    row = conn.execute(f"SELECT pa_number, jumlah FROM ({sql}) u ORDER BY pid DESC, pa_number DESC LIMIT 1",
+                       (budget_id,) * len(_PA_LINE_TABLES)).fetchone()
+    return (row["pa_number"], row["jumlah"]) if row else None
+
+
+# Syarat SQL atomik saat approve: baris budget hanya boleh diubah/dihapus bila tidak dipakai PA.
+def _budget_unused_sql(col: str = "budget_beasiswa.id") -> str:
+    return " AND ".join(
+        f"NOT EXISTS (SELECT 1 FROM {ln} ul WHERE ul.budget_id = {col})" for _, ln in _PA_LINE_TABLES)
+
+
+def _budget_delete_violation(conn, row):
+    if row["status"] == "complete":
+        return "Budget sudah Complete; tidak bisa dihapus."
+    if row["status"] == "on_progress":
+        use = _budget_pa_usage(conn, row["id"])
+        return f"Budget sedang dipakai PA {use[0] if use else 'lain'}; tidak bisa dihapus."
+    return None
+
+
 def delete_budget_row(company_id: int, row_id: int, created_by: str) -> dict:
     conn = get_conn()
     row  = conn.execute("SELECT * FROM budget_beasiswa WHERE id=? AND company_id=?", (row_id, company_id)).fetchone()
     if not row:
         conn.close()
         return {"ok": False, "pesan": "Baris budget tidak ditemukan."}
+    viol = _budget_delete_violation(conn, row)
+    if viol:
+        conn.close()
+        return {"ok": False, "pesan": viol}
     conn.execute(
         "INSERT INTO budget_beasiswa_requests (company_id, siswa_code, action_type, budget_id, cat1, cat2, tanggal, amount, pillar, tgl_expired, created_by, batch_id) VALUES (?, ?, 'DELETE', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (company_id, row["siswa_code"], row["id"], row["cat1"], row["cat2"], row["tanggal"], row["amount"], row["pillar"], row["tgl_expired"], created_by, str(uuid.uuid4())[:8])
@@ -1681,6 +1714,11 @@ def update_budget_row(company_id: int, row_id: int, data: dict, created_by: str)
     if amount <= 0:
         conn.close()
         return {"ok": False, "pesan": "Amount harus lebih dari 0."}
+    if row["status"] == "on_progress":
+        use = _budget_pa_usage(conn, row["id"])
+        if use and amount < float(use[1] or 0):
+            conn.close()
+            return {"ok": False, "pesan": f"Amount tidak boleh di bawah jumlah PA {use[0]} ({int(use[1])})."}
     conn.execute(
         "INSERT INTO budget_beasiswa_requests (company_id, siswa_code, action_type, budget_id, cat1, cat2, tanggal, amount, pillar, tgl_expired, created_by, batch_id) VALUES (?, ?, 'EDIT', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (company_id, row["siswa_code"], row["id"], data.get("cat1",""), data.get("cat2",""), data.get("tanggal",""), amount, data.get("pillar",""), data.get("tgl_expired") or None, created_by, str(uuid.uuid4())[:8])
@@ -1796,13 +1834,18 @@ def approve_budget_request_batch(company_id: int, request_ids: list, processed_b
             "UPDATE budget_beasiswa SET cat1=r.cat1, cat2=r.cat2, tanggal=r.tanggal, amount=r.amount, "
             "pillar=r.pillar, tgl_expired=r.tgl_expired "
             f"FROM budget_beasiswa_requests r WHERE {pending} AND r.action_type='EDIT' "
-            "AND budget_beasiswa.id=r.budget_id AND budget_beasiswa.company_id=?",
+            "AND budget_beasiswa.id=r.budget_id AND budget_beasiswa.company_id=? "
+            "AND (budget_beasiswa.status='open' OR NOT EXISTS ("
+            + " UNION ALL ".join(f"SELECT 1 FROM {ln} ul WHERE ul.budget_id=r.budget_id "
+                                 "AND ul.jumlah_pembayaran > r.amount" for _, ln in _PA_LINE_TABLES)
+            + "))",
             (req_id, company_id, company_id)
         ))
         stmts.append((
             "DELETE FROM budget_beasiswa USING budget_beasiswa_requests r "
             f"WHERE {pending} AND r.action_type='DELETE' "
-            "AND budget_beasiswa.id=r.budget_id AND budget_beasiswa.company_id=?",
+            "AND budget_beasiswa.id=r.budget_id AND budget_beasiswa.company_id=? "
+            "AND budget_beasiswa.status='open' AND " + _budget_unused_sql(),
             (req_id, company_id, company_id)
         ))
         mark_idx.append(len(stmts))
