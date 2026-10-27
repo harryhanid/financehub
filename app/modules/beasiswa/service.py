@@ -1683,6 +1683,9 @@ def _budget_delete_violation(conn, row):
     return None
 
 
+_MSG_BUDGET_DIPAKAI_BATAL = "Budget sudah dipakai PA; pengajuan dibatalkan."
+
+
 def delete_budget_row(company_id: int, row_id: int, created_by: str) -> dict:
     conn = get_conn()
     row  = conn.execute("SELECT * FROM budget_beasiswa WHERE id=? AND company_id=?", (row_id, company_id)).fetchone()
@@ -1821,8 +1824,23 @@ def approve_budget_request_batch(company_id: int, request_ids: list, processed_b
         "ORDER BY id FOR UPDATE",
         list(ids) + [company_id]
     )]
+    # Lock-first: baris budget yang disentuh request dikunci sebelum guard dievaluasi (R51), supaya
+    # tidak menyelip dengan update_pa / submit PA di antara statement (READ COMMITTED).
+    stmts.append((
+        "SELECT id FROM budget_beasiswa WHERE id IN (SELECT budget_id FROM budget_beasiswa_requests "
+        f"WHERE id IN ({ph}) AND company_id=? AND budget_id IS NOT NULL) ORDER BY id FOR UPDATE",
+        list(ids) + [company_id]
+    ))
     mark_idx = []
+    rej_idx = []
     pending = "r.id=? AND r.company_id=? AND r.status='PENDING'"
+    used = " OR ".join(f"EXISTS (SELECT 1 FROM {ln} ul WHERE ul.budget_id=bb.id)" for _, ln in _PA_LINE_TABLES)
+    over = " OR ".join(f"EXISTS (SELECT 1 FROM {ln} ul WHERE ul.budget_id=bb.id "
+                       "AND ul.jumlah_pembayaran > rq.amount)" for _, ln in _PA_LINE_TABLES)
+    # request EDIT/DELETE yang diblokir oleh kunci budget (budget dipakai PA); alias request = rq.
+    blocked = ("(rq.action_type IN ('EDIT','DELETE') AND EXISTS (SELECT 1 FROM budget_beasiswa bb "
+               "WHERE bb.id=rq.budget_id AND ((rq.action_type='DELETE' AND (bb.status<>'open' OR "
+               f"{used})) OR (rq.action_type='EDIT' AND bb.status<>'open' AND ({over})))))")
     for req_id in ids:
         stmts.append((
             "INSERT INTO budget_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, tgl_expired) "
@@ -1848,17 +1866,28 @@ def approve_budget_request_batch(company_id: int, request_ids: list, processed_b
             "AND budget_beasiswa.status='open' AND " + _budget_unused_sql(),
             (req_id, company_id, company_id)
         ))
+        # Hanya yang benar-benar terterap yang APPROVED; yang diblokir kunci budget -> REJECTED.
         mark_idx.append(len(stmts))
         stmts.append((
-            f"UPDATE budget_beasiswa_requests SET status='APPROVED', processed_by=?, processed_at={_NOW_UTC} "
-            "WHERE id=? AND company_id=? AND status='PENDING'",
+            f"UPDATE budget_beasiswa_requests rq SET status='APPROVED', processed_by=?, processed_at={_NOW_UTC} "
+            f"WHERE rq.id=? AND rq.company_id=? AND rq.status='PENDING' AND NOT {blocked}",
             (processed_by, req_id, company_id)
+        ))
+        rej_idx.append(len(stmts))
+        stmts.append((
+            f"UPDATE budget_beasiswa_requests SET status='REJECTED', processed_by=?, processed_at={_NOW_UTC}, "
+            "reject_reason=? WHERE id=? AND company_id=? AND status='PENDING'",
+            (processed_by, _MSG_BUDGET_DIPAKAI_BATAL, req_id, company_id)
         ))
     curs = conn.batch(stmts)
     approved = sum(1 for i in mark_idx if curs[i].rowcount > 0)
+    cancelled = sum(1 for i in rej_idx if curs[i].rowcount > 0)
     conn.commit()
     conn.close()
-    return {"ok": True, "pesan": f"{approved} baris pengajuan disetujui."}
+    pesan = f"{approved} baris pengajuan disetujui."
+    if cancelled:
+        pesan = f"{approved} baris pengajuan disetujui, {cancelled} dibatalkan karena budget dipakai PA."
+    return {"ok": True, "pesan": pesan}
 
 def reject_budget_request_batch(company_id: int, request_ids: list, processed_by: str, reason: str) -> dict:
     """Atomik (atomic-flows.md Task 15): satu UPDATE untuk semua request PENDING milik company;

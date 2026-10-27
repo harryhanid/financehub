@@ -55,7 +55,7 @@ def test_delete_pa_releases_budget():
 def test_update_line_over_budget_rejected():
     pa_id, _, line_id, _ = _seed_pa()
     res = _upd(pa_id, line_id, jumlah_pembayaran=1001)
-    assert res["ok"] is False and res["pesan"].startswith("Jumlah melebihi budget 1")
+    assert res == {"ok": False, "pesan": "Jumlah melebihi budget 1000."}
     assert [l["jumlah_pembayaran"] for l in get_pa_lines(pa_id, COMPANY_ID)] == [800]
 
 
@@ -144,5 +144,37 @@ def test_approve_delete_of_in_use_budget_is_noop():
         "tanggal, amount, created_by) VALUES (?, 'B1', 'DELETE', ?, 'By Pendidikan', 'Semester 1', "
         "'2026-01-01', 1000, 't') RETURNING id", (COMPANY_ID, bid)).fetchone()["id"]
     conn.commit(); conn.close()
-    approve_budget_request_batch(COMPANY_ID, [rid], "bc")
+    res = approve_budget_request_batch(COMPANY_ID, [rid], "bc")
     assert _bstatus(bid) == "on_progress"
+    assert res["pesan"] == "0 baris pengajuan disetujui, 1 dibatalkan karena budget dipakai PA."
+    conn = get_conn()
+    r = conn.execute("SELECT status, reject_reason FROM budget_beasiswa_requests WHERE id=?", (rid,)).fetchone()
+    conn.close()
+    assert r["status"] == "REJECTED" and r["reject_reason"] == "Budget sudah dipakai PA; pengajuan dibatalkan."
+
+
+def test_approve_delete_of_open_budget_applies():
+    from modules.beasiswa.service import approve_budget_request_batch
+    _siswa("O2", "Open Dua"); _budget("O2")
+    conn = get_conn()
+    bid = conn.execute("SELECT id FROM budget_beasiswa WHERE siswa_code='O2'").fetchone()["id"]
+    rid = conn.execute(
+        "INSERT INTO budget_beasiswa_requests (company_id, siswa_code, action_type, budget_id, cat1, cat2, "
+        "tanggal, amount, created_by) VALUES (?, 'O2', 'DELETE', ?, 'By Pendidikan', 'Semester 1', "
+        "'2026-01-01', 1000, 't') RETURNING id", (COMPANY_ID, bid)).fetchone()["id"]
+    conn.commit(); conn.close()
+    assert approve_budget_request_batch(COMPANY_ID, [rid], "bc")["pesan"] == "1 baris pengajuan disetujui."
+    conn = get_conn()
+    n = conn.execute("SELECT count(*) AS n FROM budget_beasiswa WHERE id=?", (bid,)).fetchone()["n"]
+    st = conn.execute("SELECT status FROM budget_beasiswa_requests WHERE id=?", (rid,)).fetchone()["status"]
+    conn.close()
+    assert n == 0 and st == "APPROVED"
+
+
+def test_delete_pa_keeps_complete_budget_complete():
+    pa_id, _, _, bid = _seed_pa()
+    conn = get_conn()
+    conn.execute("UPDATE budget_beasiswa SET status='complete' WHERE id=?", (bid,))
+    conn.commit(); conn.close()
+    assert delete_pa(pa_id, COMPANY_ID)["ok"] is True
+    assert _bstatus(bid) == "complete"

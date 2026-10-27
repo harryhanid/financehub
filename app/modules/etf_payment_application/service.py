@@ -576,13 +576,22 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
         b_params = (line_id, data.get("jenis_pembayaran") or "", data.get("semester") or "",
                     data.get("jumlah_pembayaran") or 0)
         g_sql, g_params = g_sql + b_sql, g_params + b_params
-    items = [_pb_lock_stmt(company_id), (
+    items = [_pb_lock_stmt(company_id)]
+    if line_id:
+        # Lock-first (R51): baris budget dikunci sebelum guard dievaluasi, jadi guard header/line/payment
+        # dan approve EDIT budget tidak bisa saling menyelip antar statement.
+        items.append((f"SELECT 1 FROM budget_beasiswa WHERE id=(SELECT budget_id FROM {lines_tbl} "
+                      "WHERE id=? AND pa_id=?) FOR UPDATE", (line_id, pa_id)))
+    hdr_idx = len(items)
+    items.append((
         f"UPDATE {pa_tbl} SET {', '.join(update_fields)} WHERE id=? AND company_id=?{g_sql} "
         "RETURNING nomor_pam",
         tuple(values) + g_params
-    )]
+    ))
 
+    line_idx = None
     if line_id:
+        line_idx = len(items)
         items.append((
             f"""UPDATE {lines_tbl} SET
                  jenis_pembayaran   = ?,
@@ -620,7 +629,8 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
                    WHERE pam_no=? AND company_id=? AND """ + _PAM_OPEN_GUARD,
                 (pb_row["pam"], company_id, pb_row["pam"], company_id, pb_row["pam"], company_id)
             ))
-    hdr = conn.batch(items)[1].fetchone()
+    curs = conn.batch(items)
+    hdr = curs[hdr_idx].fetchone()
     if line_id and hdr is None:
         viol = _budget_line_violation(conn, lines_tbl, line_id, pa_id, data)
         if viol:
@@ -632,6 +642,10 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
         if st is None or st["status"] != "open":
             conn.close()
             return _pam_not_open(guard_pam, st["status"] if st else None)
+    if line_idx is not None and curs[line_idx].rowcount == 0:
+        viol = _budget_line_violation(conn, lines_tbl, line_id, pa_id, data)
+        conn.close()
+        return {"ok": False, "pesan": viol or "Baris PA tidak ditemukan atau tidak dapat diubah."}
     conn.close()
     if gen_nomor_pam:
         nomor_pam = hdr["nomor_pam"] if hdr else None
@@ -670,7 +684,7 @@ def delete_pa(pa_id: int, company_id: int, tab: str = "agri") -> dict:
     # Atomik (atomic-flows.md Task 11): kedua DELETE dalam SATU batch.
     # Budget yang ditunjuk baris PA kembali 'open' di batch yang sama (urutan: sebelum baris dihapus).
     conn.batch([
-        (f"UPDATE budget_beasiswa SET status='open' WHERE company_id=? AND id IN "
+        (f"UPDATE budget_beasiswa SET status='open' WHERE company_id=? AND status='on_progress' AND id IN "
          f"(SELECT budget_id FROM {lines_tbl} WHERE pa_id=? AND budget_id IS NOT NULL)",
          (company_id, pa_id)),
         (f"DELETE FROM {lines_tbl} WHERE pa_id=?", (pa_id,)),
