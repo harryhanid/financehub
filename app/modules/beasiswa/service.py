@@ -1934,12 +1934,13 @@ def set_budget_status(company_id: int, row_id: int, status: str) -> dict:
                            (row_id, company_id)).fetchone()
         if not row:
             return {"ok": False, "pesan": "Baris budget tidak ditemukan."}
-        if status == "open":
+        extra = f" AND {_budget_unused_sql('budget_beasiswa.id')}" if status == "open" else ""
+        cur = conn.execute(f"UPDATE budget_beasiswa SET status=? WHERE id=? AND company_id=?{extra}",
+                           (status, row_id, company_id))
+        if status == "open" and not cur.rowcount:
+            conn.rollback()
             use = _budget_pa_usage(conn, row_id)
-            if use:
-                return {"ok": False, "pesan": f"Budget dipakai PA {use[0]}; hapus PA dulu."}
-        conn.execute("UPDATE budget_beasiswa SET status=? WHERE id=? AND company_id=?",
-                     (status, row_id, company_id))
+            return {"ok": False, "pesan": f"Budget dipakai PA {use[0] if use else 'lain'}; hapus PA dulu."}
         conn.commit()
         return {"ok": True, "pesan": f"Status budget diubah ke {BUDGET_STATUS_LABELS[status]}."}
     finally:

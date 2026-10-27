@@ -339,6 +339,7 @@ def budget_export_xlsx():
     bulan = request.args.get("bulan", "")
     tahun = request.args.get("tahun", "")
     program = request.args.get("program", "")
+    status = request.args.get("status", "")
 
     xls_bytes = export_budget_excel(
         _cid(),
@@ -348,6 +349,7 @@ def budget_export_xlsx():
         bulan=bulan,
         tahun=tahun,
         program=program,
+        status=status,
     )
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"Budget_Beasiswa_ETF_{timestamp}.xlsx"
@@ -469,14 +471,14 @@ def budget_export_csv():
         search=request.args.get("search",""), cat1=request.args.get("cat1",""),
         pillar=request.args.get("pillar",""), bulan=request.args.get("bulan",""),
         tahun=request.args.get("tahun",""), program=request.args.get("program",""),
-        limit=100000)["rows"]
+        status=request.args.get("status",""), limit=100000)["rows"]
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["Kode","Nama","Program","Kategori 1","Kategori 2","Tanggal","Pillar","Amount"])
+    w.writerow(["Kode","Nama","Program","Kategori 1","Kategori 2","Tanggal","Pillar","Amount","Status"])
     for r in rows:
         w.writerow([r.get("siswa_code",""), r.get("nama",""), r.get("program",""),
                     r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                    r.get("pillar",""), r.get("amount",0)])
+                    r.get("pillar",""), r.get("amount",0), r.get("status_label","")])
     out.seek(0)
     return Response(out.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=budget_beasiswa.csv"})
@@ -497,7 +499,7 @@ def budget_export_pdf():
         search=request.args.get("search",""), cat1=request.args.get("cat1",""),
         pillar=request.args.get("pillar",""), bulan=request.args.get("bulan",""),
         tahun=request.args.get("tahun",""), program=request.args.get("program",""),
-        limit=100000)["rows"]
+        status=request.args.get("status",""), limit=100000)["rows"]
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
                             leftMargin=1.5*cm, rightMargin=1.5*cm,
@@ -505,22 +507,22 @@ def budget_export_pdf():
     styles = getSampleStyleSheet()
     elems  = [Paragraph(f"Data Budget Beasiswa — {session.get('company_name','')}", styles["Title"]),
               Spacer(1, 0.4*cm)]
-    data = [["No","Kode","Nama","Program","Kategori 1","Kategori 2","Tanggal","Pillar","Amount"]]
+    data = [["No","Kode","Nama","Program","Kategori 1","Kategori 2","Tanggal","Pillar","Amount","Status"]]
     total = 0
     for i, r in enumerate(rows, 1):
         a = r.get("amount",0); total += a
         data.append([i, r.get("siswa_code",""), r.get("nama",""), r.get("program",""),
                      r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                     r.get("pillar",""), format_rupiah(a, prefix="")])
+                     r.get("pillar",""), format_rupiah(a, prefix=""), r.get("status_label","")])
     if rows:
-        data.append(["","","TOTAL","","","","","",format_rupiah(total, prefix="")])
+        data.append(["","","TOTAL","","","","","",format_rupiah(total, prefix=""),""])
     tbl = Table(data, repeatRows=1)
     tbl.setStyle(TableStyle([
         ("BACKGROUND",(0,0),(-1,0), colors.HexColor("#1a56db")),
         ("TEXTCOLOR",(0,0),(-1,0), colors.white),
         ("FONTNAME",(0,0),(-1,0), "Helvetica-Bold"),
         ("FONTSIZE",(0,0),(-1,-1), 7),
-        ("ALIGN",(8,0),(-1,-1), "RIGHT"),
+        ("ALIGN",(8,0),(8,-1), "RIGHT"),
         ("GRID",(0,0),(-1,-1), 0.5, colors.HexColor("#e5e7eb")),
         ("BACKGROUND",(0,-1),(-1,-1), colors.HexColor("#f3f4f6")),
         ("FONTNAME",(0,-1),(-1,-1), "Helvetica-Bold"),

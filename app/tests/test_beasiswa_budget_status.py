@@ -95,3 +95,60 @@ def test_pages_render_new_markers(client):
     assert r.status_code == 200 and b"bgt-list-status" in r.data
     r = client.get("/etf-payment-application/")
     assert r.status_code == 200 and b"badge-prportal" in r.data
+
+
+def _seed_mixed():
+    _siswa("S1", "Aktif Satu")
+    _siswa("S2", "Lulus Dua", status="Lulus")
+    _siswa("S3", "Aktif Tiga")
+    _budget("S1")
+    _budget("S2")
+    _budget("S3", status="complete")
+
+
+def test_export_csv_respects_status_filter(client):
+    _seed_mixed()
+    _login(client)
+    body = client.get("/beasiswa/budget/export/csv?status=complete").data.decode("utf-8-sig")
+    assert "S3" in body and "S1" not in body and "S2" not in body
+    assert "Status" in body.splitlines()[0] and "Complete" in body
+    body = client.get("/beasiswa/budget/export/csv?status=non_aktif").data.decode("utf-8-sig")
+    assert "S2" in body and "S1" not in body and "S3" not in body and "Non Aktif" in body
+
+
+def test_export_xlsx_respects_status_filter(client):
+    import io, openpyxl
+    _seed_mixed()
+    _login(client)
+    r = client.get("/beasiswa/budget/export/xlsx?status=complete")
+    assert r.status_code == 200
+    ws = openpyxl.load_workbook(io.BytesIO(r.data)).active
+    hdr = [c.value for c in ws[6]]
+    assert hdr[-1] == "Status"
+    codes = [ws.cell(row=i, column=2).value for i in range(7, ws.max_row + 1)]
+    assert [c for c in codes if c] == ["S3"]
+    assert ws.cell(row=7, column=11).value == "Complete"
+
+
+def test_export_pdf_with_status_filter_ok(client):
+    _seed_mixed()
+    _login(client)
+    r = client.get("/beasiswa/budget/export/pdf?status=open")
+    assert r.status_code == 200 and r.data[:4] == b"%PDF"
+
+
+def test_set_budget_status_fin_role_ok(client):
+    import bcrypt
+    pw = bcrypt.hashpw(b"Fin@12345", bcrypt.gensalt(4)).decode()
+    conn = get_conn()
+    conn.execute("INSERT INTO users (username, password_hash, role, must_change_pw) "
+                 "VALUES (?, ?, 'Fin', 0)", ("fin1", pw))
+    conn.commit()
+    conn.close()
+    _siswa("S1", "Aktif Satu")
+    _budget("S1")
+    bid = _bid("S1")
+    _login(client, "fin1", "Fin@12345")
+    r = client.post(f"/beasiswa/budget/{bid}/status", json={"status": "complete"})
+    assert r.status_code == 200 and r.get_json()["ok"] is True
+    assert _bstatus(bid) == "complete"
