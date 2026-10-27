@@ -295,12 +295,14 @@ begin
     -- 2. Kunci siswa lalu baris budget (urut id) supaya submit bersamaan berurutan.
     select id into v_company from companies where code = ''ETF'';
     select * into v_siswa from siswa
-     where company_id = v_company and code = p->>''siswa_code''
+     where company_id = v_company and code = trim(p->>''siswa_code'')
        for update;
     if not found then
         return jsonb_build_object(''ok'', false, ''pesan'', ''Data PA tidak valid: siswa_code.'');
     end if;
-    perform 1 from budget_beasiswa where id = any(v_ids) order by id for update;
+    perform 1 from budget_beasiswa
+     where id = any(v_ids) and company_id = v_company and siswa_code = v_siswa.code
+     order by id for update;
 
     -- 3. Validasi bisnis (baca ulang setelah lock: snapshot statement baru melihat commit pemegang lock).
     if coalesce(v_siswa.status, '''') <> ''Aktif'' then
@@ -375,5 +377,74 @@ begin
     update budget_beasiswa set status = ''on_progress'' where id = any(v_ids);
     return jsonb_build_object(''ok'', true, ''pa_id'', v_pa_id, ''pa_number'', v_pa_number,
                               ''jenis'', v_jenis, ''total'', v_total);
+end
+';
+
+-- Data cetak PA milik pemohon (hanya source='prportal', requested_by sama tanpa peka huruf besar). Cari di kelima
+-- tabel PA; null bila tidak ada. Siswa dimasking (tanpa norek lengkap) lewat fn_prp_siswa_json.
+create or replace function {{schema}}.fn_prp_pa_for_print(p_pa_number text, p_requested_by text)
+returns jsonb
+language plpgsql
+stable
+set search_path = {{schema}}
+as '
+declare
+    v_cfg text[][] := array[
+        array[''agri'', ''etf_pa'', ''etf_pa_lines''], array[''app'', ''app_pa'', ''app_pa_lines''],
+        array[''sml'', ''sml_pa'', ''sml_pa_lines''], array[''setf'', ''setf_pa'', ''setf_pa_lines''],
+        array[''energy'', ''energy_pa'', ''energy_pa_lines'']];
+    v_i int;
+    v_hdr jsonb;
+    v_lines jsonb;
+    v_siswa siswa%rowtype;
+    v_sj jsonb;
+begin
+    if p_pa_number is null or p_requested_by is null or trim(p_requested_by) = '''' then
+        return null;
+    end if;
+    for v_i in 1 .. 5 loop
+        execute format(
+            ''select to_jsonb(p) from %I.%I p where p.pa_number = $1 and p.source = ''''prportal'''' ''
+            || ''and lower(p.requested_by) = lower($2) order by p.id desc limit 1'',
+            ''{{schema}}'', v_cfg[v_i][2])
+          into v_hdr using p_pa_number, trim(p_requested_by);
+        if v_hdr is null then
+            continue;
+        end if;
+        execute format(
+            ''select coalesce(jsonb_agg(jsonb_build_object(''
+            || ''''''jenis_pembayaran'''', l.jenis_pembayaran, ''''semester'''', l.semester, ''''tahun_ajaran'''', l.tahun_ajaran, ''
+            || ''''''ipk_sem_sebelumnya'''', l.ipk_sem_sebelumnya, ''''jumlah_pembayaran'''', l.jumlah_pembayaran) order by l.id), ''''[]''''::jsonb) ''
+            || ''from %I.%I l where l.pa_id = $1'',
+            ''{{schema}}'', v_cfg[v_i][3])
+          into v_lines using (v_hdr->>''id'')::bigint;
+        execute format(
+            ''select s.* from %I.siswa s join %I.%I l on l.student_id = s.id where l.pa_id = $1 order by l.id limit 1'',
+            ''{{schema}}'', ''{{schema}}'', v_cfg[v_i][3])
+          into v_siswa using (v_hdr->>''id'')::bigint;
+        v_sj := fn_prp_siswa_json(v_siswa);
+        return jsonb_build_object(
+            ''pa_number'', v_hdr->>''pa_number'',
+            ''jenis'', v_cfg[v_i][1],
+            ''tgl_payment_application'', coalesce(v_hdr->>''tgl_payment_application'', ''''),
+            ''tgl_surat_pengajuan'', coalesce(v_hdr->>''tgl_surat_pengajuan'', ''''),
+            ''doc_received_by_educ'', coalesce(v_hdr->>''doc_received_by_educ'', ''''),
+            ''received_pa_from_educ'', coalesce(v_hdr->>''received_pa_from_educ'', ''''),
+            ''keterangan'', coalesce(v_hdr->>''keterangan'', ''''),
+            ''route'', v_hdr->>''route'',
+            ''klasifikasi'', v_hdr->>''klasifikasi'',
+            ''status'', v_hdr->>''status'',
+            ''created_at'', v_hdr->>''created_at'',
+            ''requested_by'', v_hdr->>''requested_by'',
+            ''cost_center'', v_hdr->>''cost_center'',
+            ''siswa'', jsonb_build_object(
+                ''code'', v_sj->''code'', ''nama'', v_sj->''nama'', ''jenjang'', v_sj->''jenjang'',
+                ''universitas'', v_sj->''universitas'', ''program'', v_sj->''program'', ''bank'', v_sj->''bank'',
+                ''rekening_last4'', v_sj->''rekening_last4'', ''nama_rekening'', v_sj->''nama_rekening''),
+            ''lines'', v_lines,
+            ''total'', (select coalesce(sum((e->>''jumlah_pembayaran'')::numeric), 0)::bigint
+                         from jsonb_array_elements(v_lines) e));
+    end loop;
+    return null;
 end
 ';

@@ -449,3 +449,63 @@ def test_submit_concurrent_same_budget_one_wins(pg_dsn):
             c.close()
     counts, _ = _state()
     assert counts["etf_pa"] == 1 and counts["etf_pa_lines"] == 2
+
+
+# ---------------------------------------------------------------- fn_prp_pa_for_print (Task 4)
+def _print(pa_number, requested_by):
+    conn = get_conn()
+    try:
+        r = conn.execute("SELECT fn_prp_pa_for_print(?, ?)::text", (pa_number, requested_by)).fetchone()[0]
+    finally:
+        conn.close()
+    return _j(r)
+
+
+def test_print_returns_pa_for_owner():
+    _std_siswa("P1")
+    lines = _std_lines("P1")
+    res = _submit(_payload("P1", lines, jenis="sml"))
+    assert res["ok"] is True
+    out = _print(res["pa_number"], "HARRY@sinarmas.test")  # pencocokan requested_by tidak peka huruf besar
+    assert out["pa_number"] == res["pa_number"] and out["jenis"] == "sml"
+    assert out["tgl_payment_application"] == "2026-10-27" and out["tgl_surat_pengajuan"] == "2026-10-20"
+    assert out["doc_received_by_educ"] == "" and out["received_pa_from_educ"] == ""
+    assert out["keterangan"] == "Pembayaran semester" and out["route"] == "gl"
+    assert out["klasifikasi"] == "Normal" and out["status"] == "open"
+    assert len(out["created_at"]) == 19
+    assert out["requested_by"] == "harry@sinarmas.test" and out["cost_center"] == "CC-01"
+    assert out["siswa"] == {"code": "P1", "nama": "Test P1", "jenjang": "S1", "universitas": "UI",
+                            "program": "SMART", "bank": "BCA", "rekening_last4": "7890",
+                            "nama_rekening": "Nama Rek"}
+    assert [(l["jenis_pembayaran"], l["semester"], l["tahun_ajaran"], l["ipk_sem_sebelumnya"],
+             l["jumlah_pembayaran"]) for l in out["lines"]] == [
+        ("By Pendidikan", "Semester 1", "2026/2027", 3.4, 18662875),
+        ("By Tunjangan", "Semester 1", "2026/2027", 3.4, 10500000)]
+    assert out["total"] == sum(l["jumlah_pembayaran"] for l in out["lines"]) == res["total"]
+    raw = json.dumps(out)
+    assert "123-456-7890" not in raw and "1234567890" not in raw
+
+
+def test_print_null_for_other_requester():
+    _std_siswa("P2")
+    res = _submit(_payload("P2", _std_lines("P2")))
+    assert _print(res["pa_number"], "orang.lain@sinarmas.test") is None
+    assert _print("PA/ETF/999/2099", "harry@sinarmas.test") is None
+
+
+def test_print_null_for_flow_created_pa():
+    conn = get_conn()
+    try:
+        conn.execute("INSERT INTO etf_pa (company_id, pa_number, status, source, requested_by, created_at)"
+                     " VALUES (?,?,?,?,?,?)",
+                     (COMPANY_ID, "PA/ETF/500/2026", "open", "flow", "harry@sinarmas.test", "2026-10-27T10:00:00"))
+        conn.commit()
+    finally:
+        conn.close()
+    assert _print("PA/ETF/500/2026", "harry@sinarmas.test") is None
+
+
+def test_submit_trims_siswa_code():
+    _std_siswa("TR1")
+    res = _submit(_payload("  TR1 ", _std_lines("TR1")))
+    assert res["ok"] is True
