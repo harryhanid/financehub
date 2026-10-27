@@ -102,6 +102,30 @@ def test_rejected_payment_ignored():
     assert r[1]["status"] == "open"
 
 
+def test_marking_idempotent_after_payment_created_from_marked_line():
+    bs = [B(1, status="complete"), B(2, status="on_progress"), B(3)]
+    lines = [L(5, budget_id=2, pa_status="complete")]
+    pays = [P(10, "complete"), P(11, "open", line=5, pillar="AGRI")]
+    r = mbs.plan_marking(bs, pays, lines, AKTIF)
+    assert [(x["budget_id"], x["status"]) for x in r] == [(3, "open")]
+
+
+def test_unknown_pillar_fallback_limited_to_same_key():
+    # payment tanpa pillar line 5 milik S1; app_pa_lines id 5 milik S2 tidak boleh ikut dianggap terbayar
+    pays = [P(10, "open", code="S1", line=5, pillar=None)]
+    lines = [L(5, tbl="app_pa_lines", code="S2"), L(5, tbl="etf_pa_lines", code="S1")]
+    r = by_id(mbs.plan_marking([B(1, code="S2")], pays, lines, {"S2": "Aktif"}))
+    assert r[1]["match_ref"] == "app_pa_lines:5"
+    assert [p["id"] for p in mbs.unknown_pillar_payments(pays)] == [10]
+
+
+def test_report_lists_unknown_pillar_sheet(tmp_path):
+    path = tmp_path / "r.xlsx"
+    mbs.write_report(str(path), [], {}, [P(10, line=5, pillar=None)])
+    ws = load_workbook(path)["Perlu dicek"]
+    assert list(ws.iter_rows(values_only=True))[1][-1] == "payment_pillar_unknown"
+
+
 class FakeBackend:
     def __init__(self):
         self.calls = []
@@ -144,7 +168,7 @@ def test_report_xlsx_columns(tmp_path):
     rows = list(ws.iter_rows(values_only=True))
     assert list(rows[0]) == ["Kode", "Nama", "Kategori 1", "Kategori 2", "Amount",
                              "Status Hasil", "Dasar", "Referensi"]
-    assert rows[1][:2] == ("S1", "Budi") and rows[1][5] == "complete" and rows[1][6] == "payment_complete"
+    assert rows[1][:2] == ("S1", "Budi") and rows[1][5] == "Complete" and rows[1][6] == "payment_complete"
     assert rows[2][6] == "siswa_non_aktif"
 
 

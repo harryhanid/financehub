@@ -16,7 +16,10 @@ Algoritme per kunci (siswa_code, cat1, cat2), budget urut id (company ETF):
 Tautan payment ke baris PA: payment_beasiswa.etf_pa_line_id adalah id baris di tabel yang ditunjuk
 payment_beasiswa.pillar (AGRI/APP/LAND/ENERGY/SETF -> etf/app/sml/energy/setf_pa_lines; id per tabel
 bisa kembar, lihat payment_memo/service.py _PILLAR_PA_TBL). Payment tanpa pillar dikenali dianggap
-menutup baris berid itu di SEMUA tabel (konservatif: baris tidak ditandai dobel).
+menutup baris berid itu hanya bila kunci (siswa, cat1, cat2) baris sama dengan payment; payment
+seperti itu dicantumkan di sheet "Perlu dicek" laporan. Payment yang tertaut ke baris PA ber-budget_id
+tidak ikut pemasangan posisional (budget-nya sudah ditandai lewat baris itu).
+CATATAN OPERATOR: budget yang sudah non-open tetap memakai jatah payment menurut urutan id.
 Idempoten: budget yang sudah bukan open tidak diubah (tetapi tetap "memakai" jatah payment urutannya,
 kecuali sudah ditunjuk baris PA lewat budget_id), baris PA yang sudah ber-budget_id tidak dipakai lagi.
 Penulisan = SATU execute_batch (satu transaksi); setiap UPDATE dijaga status='open' / budget_id is null.
@@ -52,25 +55,44 @@ def _key(row):
             str(row.get("cat2") or "").strip())
 
 
+def payment_line_refs(p, pa_lines):
+    """Set (tabel_lines, line_id) yang ditunjuk payment p."""
+    lid = int(p["etf_pa_line_id"])
+    tbl = _PILLAR_LINES.get(str(p.get("pillar") or "").upper())
+    if tbl:
+        return {(tbl, lid)}
+    return {(l["table"], lid) for l in pa_lines
+            if int(l["line_id"]) == lid and _key(l) == _key(p)}
+
+
+def unknown_pillar_payments(payments):
+    """Payment berbaris PA tapi pillar tak dikenal: perlu dicek Finance."""
+    return [p for p in payments if p.get("etf_pa_line_id") and str(p.get("status") or "").lower() != "rejected"
+            and str(p.get("pillar") or "").upper() not in _PILLAR_LINES]
+
+
 def plan_marking(budgets, payments, pa_lines, siswa_status):
     """Murni: kembalikan satu hasil per budget yang MASIH 'open' (urut id)."""
-    pays = {}
-    for p in sorted(payments, key=lambda x: x["id"]):
-        if str(p.get("status") or "").lower() == "rejected":
-            continue
-        pays.setdefault(_key(p), []).append(p)
-
-    # baris PA yang sudah punya payment (per tabel dari pillar; pillar tak dikenal = semua tabel)
-    paid = set()
+    # Tautan payment -> baris PA (per tabel dari pillar). Pillar tak dikenal: hanya baris ber-id sama
+    # DAN kunci (siswa, cat1, cat2) sama dengan payment itu.
+    paid, linked_pays = set(), set()
+    linked = {(l["table"], int(l["line_id"])): int(l["budget_id"]) for l in pa_lines if l.get("budget_id")}
     for p in payments:
         lid = p.get("etf_pa_line_id")
         if not lid or str(p.get("status") or "").lower() == "rejected":
             continue
-        tbl = _PILLAR_LINES.get(str(p.get("pillar") or "").upper())
-        for t in ([tbl] if tbl else _LINES_SET):
-            paid.add((t, int(lid)))
+        for ref in payment_line_refs(p, pa_lines):
+            paid.add(ref)
+            if ref in linked:
+                linked_pays.add(p["id"])  # budget-nya sudah ditandai lewat baris PA ber-budget_id
 
-    referenced = {int(l["budget_id"]) for l in pa_lines if l.get("budget_id")}
+    pays = {}
+    for p in sorted(payments, key=lambda x: x["id"]):
+        if str(p.get("status") or "").lower() == "rejected" or p["id"] in linked_pays:
+            continue
+        pays.setdefault(_key(p), []).append(p)
+
+    referenced = set(linked.values())
     free_lines = {}
     for l in sorted(pa_lines, key=lambda x: (_LINES_ORDER.get(x["table"], 99), x["line_id"])):
         if str(l.get("pa_status") or "").lower() not in OPEN_PA_STATUS:
@@ -135,7 +157,10 @@ def write_changes(backend, schema, results):
     return n
 
 
-def write_report(path, results, names):
+STATUS_LABEL = {"open": "Open", "on_progress": "On Progress", "complete": "Complete"}
+
+
+def write_report(path, results, names, review=()):
     from openpyxl import Workbook
 
     wb = Workbook()
@@ -144,7 +169,13 @@ def write_report(path, results, names):
     ws.append(REPORT_HEADER)
     for r in results:
         ws.append([r["siswa_code"], names.get(r["siswa_code"], ""), r["cat1"], r["cat2"], r["amount"],
-                   r["status"], r["match_type"], r["match_ref"]])
+                   STATUS_LABEL.get(r["status"], r["status"]), r["match_type"], r["match_ref"]])
+    if review:
+        ws2 = wb.create_sheet("Perlu dicek")
+        ws2.append(["Payment ID", "Kode", "Kategori 1", "Kategori 2", "Status", "Line ID", "Dasar"])
+        for p in review:
+            ws2.append([p["id"], p.get("siswa_code"), p.get("cat1"), p.get("cat2"), p.get("status"),
+                        p.get("etf_pa_line_id"), "payment_pillar_unknown"])
     wb.save(path)
 
 
@@ -166,7 +197,8 @@ def load_inputs(backend, schema):
             f"select '{lines}' as \"table\", l.id as line_id, s.code as siswa_code, l.jenis_pembayaran as cat1,"
             f" l.semester as cat2, l.budget_id, p.status as pa_status, p.pa_number"
             f" from {lines} l join {pa} p on p.id = l.pa_id join siswa s on s.id = l.student_id"
-            f" where p.company_id = {etf} and lower(p.status) in ('open', 'on_process')")
+            f" where p.company_id = {etf}"
+            f" and (lower(p.status) in ('open', 'on_process') or l.budget_id is not null)")
     results = backend.execute_batch(sqls, schema)
     budgets, payments, siswa = _rows(results[0]), _rows(results[1]), _rows(results[2])
     pa_lines = [r for res in results[3:] for r in _rows(res)]
@@ -212,7 +244,7 @@ def main(argv=None, backend=None):
     try:
         budgets, payments, pa_lines, status, names = load_inputs(backend, args.schema)
         results = plan_marking(budgets, payments, pa_lines, status)
-        write_report(args.report, results, names)
+        write_report(args.report, results, names, unknown_pillar_payments(payments))
         counts = {}
         for r in results:
             counts[r["match_type"]] = counts.get(r["match_type"], 0) + 1
