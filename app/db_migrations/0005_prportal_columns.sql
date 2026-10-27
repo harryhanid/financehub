@@ -1,0 +1,52 @@
+-- 0005_prportal_columns.sql
+-- Kolom tambahan untuk integrasi PR Portal -> Flow (PA Beasiswa).
+-- Placeholder {{schema}} diganti apply_migrations.py. Idempoten (aman dijalankan ulang).
+--
+-- 1. budget_beasiswa.status: open | on_progress | complete (status efektif non_aktif dihitung saat dibaca).
+-- 2. budget_id di baris PA kelima jenis (etf/app/sml/setf/energy): budget yang dibayar oleh baris itu.
+-- 3. source / requested_by / cost_center di header PA: asal PA ('flow' = dibuat di Flow, 'prportal').
+-- Badan DO ditulis sebagai literal '...' (bukan $$) supaya split_script (fhdb.sqlbind) tidak memecah
+-- di ';' di dalam badan.
+
+alter table {{schema}}.budget_beasiswa add column if not exists "status" text collate "C" not null default 'open';
+
+do '
+begin
+    if not exists (
+        select 1 from pg_constraint
+        where conname = ''budget_beasiswa_status_check''
+          and conrelid = ''{{schema}}.budget_beasiswa''::regclass
+    ) then
+        alter table {{schema}}.budget_beasiswa
+            add constraint budget_beasiswa_status_check check ("status" in (''open'', ''on_progress'', ''complete''));
+    end if;
+end
+';
+
+alter table {{schema}}.etf_pa_lines add column if not exists "budget_id" bigint;
+alter table {{schema}}.app_pa_lines add column if not exists "budget_id" bigint;
+alter table {{schema}}.sml_pa_lines add column if not exists "budget_id" bigint;
+alter table {{schema}}.setf_pa_lines add column if not exists "budget_id" bigint;
+alter table {{schema}}.energy_pa_lines add column if not exists "budget_id" bigint;
+
+create index if not exists etf_pa_lines_budget_id_idx on {{schema}}.etf_pa_lines ("budget_id");
+create index if not exists app_pa_lines_budget_id_idx on {{schema}}.app_pa_lines ("budget_id");
+create index if not exists sml_pa_lines_budget_id_idx on {{schema}}.sml_pa_lines ("budget_id");
+create index if not exists setf_pa_lines_budget_id_idx on {{schema}}.setf_pa_lines ("budget_id");
+create index if not exists energy_pa_lines_budget_id_idx on {{schema}}.energy_pa_lines ("budget_id");
+
+alter table {{schema}}.etf_pa add column if not exists "source" text collate "C" not null default 'flow';
+alter table {{schema}}.etf_pa add column if not exists "requested_by" text collate "C";
+alter table {{schema}}.etf_pa add column if not exists "cost_center" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "source" text collate "C" not null default 'flow';
+alter table {{schema}}.app_pa add column if not exists "requested_by" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "cost_center" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "source" text collate "C" not null default 'flow';
+alter table {{schema}}.sml_pa add column if not exists "requested_by" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "cost_center" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "source" text collate "C" not null default 'flow';
+alter table {{schema}}.setf_pa add column if not exists "requested_by" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "cost_center" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "source" text collate "C" not null default 'flow';
+alter table {{schema}}.energy_pa add column if not exists "requested_by" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "cost_center" text collate "C";
