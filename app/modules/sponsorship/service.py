@@ -1075,3 +1075,467 @@ def sync_transaksi_excel(company_id: int, file_bytes: bytes) -> dict:
         raise  # R25: DB tidak terjangkau -> handler 503 aplikasi
     except Exception as e:
         return {"ok": False, "pesan": f"Gagal sync transaksi: {str(e)}"}
+
+
+# --- Sponsorship Proposal Module Functions ---
+
+def generate_next_proposal_number(company_id: int, year: str) -> str:
+    conn = get_conn()
+    prefix = f"PROP-{year}-"
+    try:
+        row = conn.execute(
+            "SELECT nomor_proposal FROM sponsorship_proposal WHERE company_id = ? AND nomor_proposal LIKE ? ORDER BY nomor_proposal DESC LIMIT 1",
+            (company_id, f"{prefix}%")
+        ).fetchone()
+        if row and row["nomor_proposal"]:
+            try:
+                last_seq = int(row["nomor_proposal"].split("-")[-1])
+                new_seq = last_seq + 1
+            except Exception:
+                new_seq = 1
+        else:
+            new_seq = 1
+        return f"PROP-{year}-{new_seq:04d}"
+    finally:
+        conn.close()
+
+
+def list_proposals(company_id: int, filters: dict, limit: int = 100, offset: int = 0) -> list:
+    conn = get_conn()
+    try:
+        clauses = ["company_id = ?"]
+        params = [company_id]
+
+        if filters.get("tahun"):
+            years = filters["tahun"] if isinstance(filters["tahun"], list) else [filters["tahun"]]
+            year_clauses = ["SUBSTR(tanggal, 1, 4) = ?" for _ in years]
+            clauses.append(f"({' OR '.join(year_clauses)})")
+            params.extend(years)
+
+        if filters.get("status"):
+            st = filters["status"]
+            if st and st != "all":
+                clauses.append("LOWER(status) = LOWER(?)")
+                params.append(st)
+
+        if filters.get("keyword"):
+            kw = f"%{filters['keyword']}%"
+            clauses.append("(nomor_proposal LIKE ? OR referensi LIKE ? OR kegiatan LIKE ?)")
+            params.extend([kw, kw, kw])
+
+        where_sql = " AND ".join(clauses)
+        query = f"""
+            SELECT id, company_id, nomor_proposal, tanggal, referensi, kegiatan,
+                   app_amount, agri_amount, energy_amount, land_amount, finance_amount,
+                   total_amount, diajukan_oleh, versi, status, approval_date, catatan,
+                   created_at, updated_at
+            FROM sponsorship_proposal
+            WHERE {where_sql}
+            ORDER BY tanggal DESC, id DESC
+            LIMIT ? OFFSET ?
+        """
+        params.extend([limit, offset])
+        rows = [dict(r) for r in conn.execute(query, tuple(params)).fetchall()]
+        return rows
+    finally:
+        conn.close()
+
+
+def count_proposals(company_id: int, filters: dict) -> int:
+    conn = get_conn()
+    try:
+        clauses = ["company_id = ?"]
+        params = [company_id]
+
+        if filters.get("tahun"):
+            years = filters["tahun"] if isinstance(filters["tahun"], list) else [filters["tahun"]]
+            year_clauses = ["SUBSTR(tanggal, 1, 4) = ?" for _ in years]
+            clauses.append(f"({' OR '.join(year_clauses)})")
+            params.extend(years)
+
+        if filters.get("status"):
+            st = filters["status"]
+            if st and st != "all":
+                clauses.append("LOWER(status) = LOWER(?)")
+                params.append(st)
+
+        if filters.get("keyword"):
+            kw = f"%{filters['keyword']}%"
+            clauses.append("(nomor_proposal LIKE ? OR referensi LIKE ? OR kegiatan LIKE ?)")
+            params.extend([kw, kw, kw])
+
+        where_sql = " AND ".join(clauses)
+        row = conn.execute(f"SELECT COUNT(*) FROM sponsorship_proposal WHERE {where_sql}", tuple(params)).fetchone()
+        return int(row[0]) if row else 0
+    finally:
+        conn.close()
+
+
+def get_proposal(company_id: int, proposal_id: int) -> dict:
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT * FROM sponsorship_proposal WHERE company_id = ? AND id = ?", (company_id, proposal_id)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def get_available_proposal_years(company_id: int) -> list:
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT SUBSTR(tanggal, 1, 4) as thn FROM sponsorship_proposal WHERE company_id = ? AND tanggal IS NOT NULL AND tanggal != '' ORDER BY thn DESC",
+            (company_id,)
+        ).fetchall()
+        years = [str(r["thn"]) for r in rows if r["thn"]]
+        if not years:
+            years = [str(datetime.now().year)]
+        return sorted(list(set(years)), reverse=True)
+    finally:
+        conn.close()
+
+
+def create_proposal(company_id: int, payload: dict) -> dict:
+    conn = get_conn()
+    try:
+        tgl = payload.get("tanggal") or datetime.now().strftime("%Y-%m-%d")
+        year = str(tgl)[:4] if len(str(tgl)) >= 4 else str(datetime.now().year)
+        nomor_prop = payload.get("nomor_proposal")
+        if not nomor_prop:
+            nomor_prop = generate_next_proposal_number(company_id, year)
+
+        app_amt = float(payload.get("app_amount") or 0)
+        agri_amt = float(payload.get("agri_amount") or 0)
+        energy_amt = float(payload.get("energy_amount") or 0)
+        land_amt = float(payload.get("land_amount") or 0)
+        fin_amt = float(payload.get("finance_amount") or 0)
+        tot_amt = float(payload.get("total_amount") or (app_amt + agri_amt + energy_amt + land_amt + fin_amt))
+
+        status = payload.get("status") or "Open"
+        approval_date = payload.get("approval_date") or ""
+        if status.lower() == "approved" and not approval_date:
+            approval_date = datetime.now().strftime("%Y-%m-%d")
+
+        row = conn.execute("""
+            INSERT INTO sponsorship_proposal
+            (company_id, nomor_proposal, tanggal, referensi, kegiatan,
+             app_amount, agri_amount, energy_amount, land_amount, finance_amount,
+             total_amount, diajukan_oleh, versi, status, approval_date, catatan)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
+        """, (
+            company_id, nomor_prop, tgl,
+            payload.get("referensi") or "",
+            payload.get("kegiatan") or "",
+            app_amt, agri_amt, energy_amt, land_amt, fin_amt, tot_amt,
+            payload.get("diajukan_oleh") or "AR/JT",
+            payload.get("versi") or "",
+            status, approval_date,
+            payload.get("catatan") or "Nilai Sumbangan diatas netto excluded/ diluar pajak PPN/PPh"
+        )).fetchone()
+        new_id = row[0] if row else None
+        return {"ok": True, "pesan": "Proposal berhasil ditambahkan.", "id": new_id, "nomor_proposal": nomor_prop}
+    except Exception as e:
+        return {"ok": False, "pesan": f"Gagal menambahkan proposal: {str(e)}"}
+    finally:
+        conn.close()
+
+
+def update_proposal(company_id: int, proposal_id: int, payload: dict) -> dict:
+    conn = get_conn()
+    try:
+        app_amt = float(payload.get("app_amount") or 0)
+        agri_amt = float(payload.get("agri_amount") or 0)
+        energy_amt = float(payload.get("energy_amount") or 0)
+        land_amt = float(payload.get("land_amount") or 0)
+        fin_amt = float(payload.get("finance_amount") or 0)
+        tot_amt = float(payload.get("total_amount") or (app_amt + agri_amt + energy_amt + land_amt + fin_amt))
+
+        status = payload.get("status") or "Open"
+        approval_date = payload.get("approval_date") or ""
+        if status.lower() == "approved" and not approval_date:
+            approval_date = datetime.now().strftime("%Y-%m-%d")
+
+        conn.execute("""
+            UPDATE sponsorship_proposal
+            SET tanggal = ?, referensi = ?, kegiatan = ?,
+                app_amount = ?, agri_amount = ?, energy_amount = ?, land_amount = ?, finance_amount = ?,
+                total_amount = ?, diajukan_oleh = ?, versi = ?, status = ?, approval_date = ?, catatan = ?,
+                updated_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')
+            WHERE company_id = ? AND id = ?
+        """, (
+            payload.get("tanggal") or "",
+            payload.get("referensi") or "",
+            payload.get("kegiatan") or "",
+            app_amt, agri_amt, energy_amt, land_amt, fin_amt, tot_amt,
+            payload.get("diajukan_oleh") or "AR/JT",
+            payload.get("versi") or "",
+            status, approval_date,
+            payload.get("catatan") or "Nilai Sumbangan diatas netto excluded/ diluar pajak PPN/PPh",
+            company_id, proposal_id
+        ))
+        return {"ok": True, "pesan": "Proposal berhasil diperbarui."}
+    except Exception as e:
+        return {"ok": False, "pesan": f"Gagal update proposal: {str(e)}"}
+    finally:
+        conn.close()
+
+
+def update_proposal_status(company_id: int, proposal_id: int, status: str, approval_date: str = "") -> dict:
+    conn = get_conn()
+    try:
+        if status.lower() == "approved" and not approval_date:
+            approval_date = datetime.now().strftime("%Y-%m-%d")
+        elif status.lower() != "approved":
+            approval_date = ""
+
+        conn.execute("""
+            UPDATE sponsorship_proposal
+            SET status = ?, approval_date = ?,
+                updated_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')
+            WHERE company_id = ? AND id = ?
+        """, (status, approval_date, company_id, proposal_id))
+        return {"ok": True, "pesan": f"Status berhasil diubah menjadi {status}."}
+    except Exception as e:
+        return {"ok": False, "pesan": f"Gagal update status: {str(e)}"}
+    finally:
+        conn.close()
+
+
+def delete_proposal(company_id: int, proposal_id: int) -> dict:
+    conn = get_conn()
+    try:
+        conn.execute("DELETE FROM sponsorship_proposal WHERE company_id = ? AND id = ?", (company_id, proposal_id))
+        return {"ok": True, "pesan": "Proposal berhasil dihapus."}
+    except Exception as e:
+        return {"ok": False, "pesan": f"Gagal menghapus proposal: {str(e)}"}
+    finally:
+        conn.close()
+
+
+def import_proposals_excel(company_id: int, file_stream_or_path) -> dict:
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(file_stream_or_path, data_only=True)
+        ws = wb.active
+        headers = [str(ws.cell(1, c).value or '').strip().lower() for c in range(1, ws.max_column + 1)]
+        
+        col_map = {}
+        for idx, h in enumerate(headers, start=1):
+            if "tgl" in h or "tanggal" in h: col_map["tanggal"] = idx
+            elif "ref" in h: col_map["referensi"] = idx
+            elif "kegiatan" in h or "acara" in h or "perihal" in h: col_map["kegiatan"] = idx
+            elif h == "app": col_map["app"] = idx
+            elif "agri" in h or "agro" in h: col_map["agri"] = idx
+            elif "energy" in h: col_map["energy"] = idx
+            elif "land" in h: col_map["land"] = idx
+            elif "finance" in h or "fin" in h: col_map["finance"] = idx
+            elif "total" in h or "nilai" in h: col_map["total"] = idx
+            elif "diajukan" in h: col_map["diajukan_oleh"] = idx
+            elif "versi" in h: col_map["versi"] = idx
+            elif "status" in h: col_map["status"] = idx
+            elif "approval" in h or "approved" in h: col_map["approval_date"] = idx
+
+        count_inserted = 0
+        for r in range(2, ws.max_row + 1):
+            row_vals = [ws.cell(r, c).value for c in range(1, ws.max_column + 1)]
+            if not any(row_vals):
+                continue
+            
+            raw_tgl = ws.cell(r, col_map.get("tanggal", 2)).value if "tanggal" in col_map else ws.cell(r, 2).value
+            if isinstance(raw_tgl, datetime):
+                tgl_str = raw_tgl.strftime('%Y-%m-%d')
+            elif raw_tgl:
+                tgl_str = str(raw_tgl)[:10]
+            else:
+                tgl_str = datetime.now().strftime('%Y-%m-%d')
+            
+            year = tgl_str[:4] if len(tgl_str) >= 4 else str(datetime.now().year)
+            nomor_prop = generate_next_proposal_number(company_id, year)
+
+            def get_num(key, default_col):
+                c = col_map.get(key, default_col)
+                val = ws.cell(r, c).value if c <= ws.max_column else 0
+                try: return float(val or 0)
+                except Exception: return 0.0
+
+            app_amt = get_num("app", 5)
+            agri_amt = get_num("agri", 6)
+            energy_amt = get_num("energy", 7)
+            land_amt = get_num("land", 8)
+            fin_amt = get_num("finance", 9)
+            tot_amt = get_num("total", 10)
+            if tot_amt == 0:
+                tot_amt = app_amt + agri_amt + energy_amt + land_amt + fin_amt
+
+            ref_val = str(ws.cell(r, col_map.get("referensi", 3)).value or "").strip()
+            keg_val = str(ws.cell(r, col_map.get("kegiatan", 4)).value or "").strip()
+            diajukan = str(ws.cell(r, col_map.get("diajukan_oleh", 11)).value or "AR/JT").strip()
+            versi = str(ws.cell(r, col_map.get("versi", 12)).value or "").strip()
+            st_val = str(ws.cell(r, col_map.get("status", 13)).value or "Open").strip()
+            st_clean = "Approved" if st_val.lower() == "approved" else ("Reject" if st_val.lower() == "reject" else "Open")
+            
+            raw_app_date = ws.cell(r, col_map.get("approval_date", 14)).value if "approval_date" in col_map else ""
+            if isinstance(raw_app_date, datetime):
+                app_date_str = raw_app_date.strftime('%Y-%m-%d')
+            elif raw_app_date:
+                app_date_str = str(raw_app_date)[:10]
+            else:
+                app_date_str = ""
+
+            create_proposal(company_id, {
+                "nomor_proposal": nomor_prop,
+                "tanggal": tgl_str,
+                "referensi": ref_val,
+                "kegiatan": keg_val,
+                "app_amount": app_amt,
+                "agri_amount": agri_amt,
+                "energy_amount": energy_amt,
+                "land_amount": land_amt,
+                "finance_amount": fin_amt,
+                "total_amount": tot_amt,
+                "diajukan_oleh": diajukan,
+                "versi": versi,
+                "status": st_clean,
+                "approval_date": app_date_str
+            })
+            count_inserted += 1
+
+        return {"ok": True, "pesan": f"Berhasil mengimpor {count_inserted} baris data proposal."}
+    except Exception as e:
+        return {"ok": False, "pesan": f"Gagal mengimpor file: {str(e)}"}
+
+
+def sync_proposals_excel(company_id: int, file_bytes: bytes) -> dict:
+    """Sinkronisasi data proposal dari Excel: update jika nomor proposal sudah ada, insert jika baru."""
+    import io
+    import openpyxl
+    from datetime import datetime
+
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        ws = wb.active
+    except Exception as e:
+        return {"ok": False, "pesan": f"Gagal membaca file Excel: {str(e)}"}
+
+    rows = list(ws.iter_rows(values_only=True))
+    if len(rows) < 2:
+        return {"ok": False, "pesan": "File Excel kosong atau tidak memiliki data."}
+
+    headers = [str(c or '').strip().lower() for c in rows[0]]
+    col_map = {}
+    for idx, h in enumerate(headers):
+        if h == "id" or "nomor" in h: col_map["nomor_proposal"] = idx
+        elif "tgl" in h or "tanggal" in h: col_map["tanggal"] = idx
+        elif "ref" in h: col_map["referensi"] = idx
+        elif "kegiatan" in h or "acara" in h or "perihal" in h: col_map["kegiatan"] = idx
+        elif h == "app": col_map["app"] = idx
+        elif "agri" in h or "agro" in h: col_map["agri"] = idx
+        elif "energy" in h: col_map["energy"] = idx
+        elif "land" in h: col_map["land"] = idx
+        elif "finance" in h or "fin" in h: col_map["finance"] = idx
+        elif "total" in h or "nilai" in h: col_map["total"] = idx
+        elif "diajukan" in h: col_map["diajukan_oleh"] = idx
+        elif "versi" in h: col_map["versi"] = idx
+        elif "status" in h: col_map["status"] = idx
+        elif "approval" in h or "approved" in h: col_map["approval_date"] = idx
+
+    conn = get_conn()
+    try:
+        updated_count = 0
+        inserted_count = 0
+
+        existing_rows = conn.execute(
+            "SELECT id, nomor_proposal FROM sponsorship_proposal WHERE company_id = ?",
+            (company_id,)
+        ).fetchall()
+        existing_map = {str(r["nomor_proposal"] or '').strip().upper(): r["id"] for r in existing_rows if r["nomor_proposal"]}
+
+        items = []
+        for r_idx, row in enumerate(rows[1:], start=2):
+            if not any(row):
+                continue
+
+            def get_val(key, default_col):
+                c = col_map.get(key, default_col)
+                return row[c] if c < len(row) else None
+
+            raw_nomor = str(get_val("nomor_proposal", 0) or '').strip()
+            raw_tgl = get_val("tanggal", 1)
+            raw_ref = str(get_val("referensi", 2) or '').strip()
+            raw_keg = str(get_val("kegiatan", 3) or '').strip()
+
+            if isinstance(raw_tgl, datetime):
+                tgl_str = raw_tgl.strftime('%Y-%m-%d')
+            elif raw_tgl:
+                tgl_str = str(raw_tgl)[:10]
+            else:
+                tgl_str = datetime.now().strftime('%Y-%m-%d')
+
+            def to_num(val):
+                try: return float(val or 0)
+                except Exception: return 0.0
+
+            app_amt = to_num(get_val("app", 4))
+            agri_amt = to_num(get_val("agri", 5))
+            energy_amt = to_num(get_val("energy", 6))
+            land_amt = to_num(get_val("land", 7))
+            fin_amt = to_num(get_val("finance", 8))
+            tot_amt = to_num(get_val("total", 9))
+            if tot_amt == 0:
+                tot_amt = app_amt + agri_amt + energy_amt + land_amt + fin_amt
+
+            diajukan = str(get_val("diajukan_oleh", 10) or 'AR/JT').strip()
+            versi = str(get_val("versi", 11) or '').strip()
+            st_raw = str(get_val("status", 12) or 'Open').strip()
+            status = "Approved" if st_raw.lower() == 'approved' else ("Reject" if st_raw.lower() == 'reject' else "Open")
+
+            raw_app_date = get_val("approval_date", 13)
+            if isinstance(raw_app_date, datetime):
+                app_date_str = raw_app_date.strftime('%Y-%m-%d')
+            elif raw_app_date:
+                app_date_str = str(raw_app_date)[:10]
+            else:
+                app_date_str = ""
+
+            prop_id = existing_map.get(raw_nomor.upper()) if raw_nomor else None
+
+            if prop_id:
+                items.append((
+                    """
+                    UPDATE sponsorship_proposal
+                    SET tanggal = ?, referensi = ?, kegiatan = ?,
+                        app_amount = ?, agri_amount = ?, energy_amount = ?, land_amount = ?, finance_amount = ?,
+                        total_amount = ?, diajukan_oleh = ?, versi = ?, status = ?, approval_date = ?,
+                        updated_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')
+                    WHERE id = ? AND company_id = ?
+                    """,
+                    (tgl_str, raw_ref, raw_keg, app_amt, agri_amt, energy_amt, land_amt, fin_amt,
+                     tot_amt, diajukan, versi, status, app_date_str, prop_id, company_id)
+                ))
+                updated_count += 1
+            else:
+                year = tgl_str[:4] if len(tgl_str) >= 4 else str(datetime.now().year)
+                final_nomor = raw_nomor if (raw_nomor and raw_nomor.upper().startswith("PROP-")) else generate_next_proposal_number(company_id, year)
+                items.append((
+                    """
+                    INSERT INTO sponsorship_proposal
+                    (company_id, nomor_proposal, tanggal, referensi, kegiatan,
+                     app_amount, agri_amount, energy_amount, land_amount, finance_amount,
+                     total_amount, diajukan_oleh, versi, status, approval_date, catatan)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Nilai Sumbangan diatas netto excluded/ diluar pajak PPN/PPh')
+                    """,
+                    (company_id, final_nomor, tgl_str, raw_ref, raw_keg,
+                     app_amt, agri_amt, energy_amt, land_amt, fin_amt,
+                     tot_amt, diajukan, versi, status, app_date_str)
+                ))
+                inserted_count += 1
+                existing_map[final_nomor.upper()] = True
+
+        if items:
+            conn.batch(items)
+        return {"ok": True, "pesan": f"Sync sukses: {updated_count} proposal di-update, {inserted_count} proposal baru ditambahkan."}
+    except Exception as e:
+        return {"ok": False, "pesan": f"Gagal sync data proposal: {str(e)}"}
+    finally:
+        conn.close()

@@ -2,6 +2,7 @@ import os
 import socket
 from waitress import serve
 from app import create_app
+import config
 from database import init_db
 
 
@@ -33,6 +34,8 @@ if __name__ == "__main__":
     zc, svc = None, None
     mdns_ok = False
     try:
+        if not config.ENABLE_MDNS:
+            raise RuntimeError('mDNS disabled')
         from zeroconf import ServiceInfo, Zeroconf
         zc = Zeroconf()
         svc = ServiceInfo(
@@ -49,12 +52,14 @@ if __name__ == "__main__":
         mdns_ok = False
 
     print("=" * 55)
-    print("  FLOW — Production Server")
+    print(f"  FLOW — Server ({config.FH_ENV.upper()} | schema: {config.DB_SCHEMA})")
     print("=" * 55)
     print(f"  Local    :  http://localhost:{port}")
     print(f"  LAN      :  http://{local_ip}:{port}")
     if mdns_ok:
         print(f"  Domain   :  http://financehub.local:{port}  ✓")
+    elif not config.ENABLE_MDNS:
+        print(f"  Domain   :  - (mDNS dimatikan di mode {config.FH_ENV})")
     else:
         print(f"  Domain   :  ✗ (jalankan: pip install zeroconf)")
     print("=" * 55)

@@ -60,6 +60,25 @@
   color: #fff;
   font-weight: bold;
 }
+.outstanding-proposal-header {
+  background: #0d9488;
+  color: #fff;
+  font-weight: bold;
+}
+.outstanding-overall-total {
+  background: #1e293b;
+  color: #fff;
+  font-weight: bold;
+}
+.badge-status-open {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+}
 .num-right { text-align: right; }
 </style>
 
@@ -139,6 +158,29 @@
         </tr>
         {% endfor %}
         {% endfor %}
+        {% if open_proposals %}
+        <tr class="outstanding-proposal-header">
+          <td colspan="5">Proposal Sponsor (Status: Open) &mdash; {{ open_proposals | length }} Proposal</td>
+          <td class="num-right">{{ open_proposals_total | rupiah(false) }}</td>
+          <td></td>
+        </tr>
+        {% for p in open_proposals %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ p.tanggal_approval or p.tanggal }}</td>
+          <td>{{ p.referensi }}</td>
+          <td></td>
+          <td>{{ p.kegiatan }}</td>
+          <td class="num-right">{{ p.total_amount | rupiah(false) }}</td>
+          <td></td>
+        </tr>
+        {% endfor %}
+        <tr class="outstanding-overall-total">
+          <td colspan="5">Total Keseluruhan (Outstanding + Proposal Open)</td>
+          <td class="num-right">{{ (grand_total + open_proposals_total) | rupiah(false) }}</td>
+          <td></td>
+        </tr>
+        {% endif %}
       </tbody>
     </table>
   </div>

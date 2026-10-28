@@ -11,6 +11,65 @@
 #sp-report-filter .sp-check-all-row { display: flex; gap: 6px; padding: 4px 6px 6px; border-bottom: 1px solid var(--border, #e5e7eb); margin-bottom: 4px; }
 #sp-report-filter .sp-report-check-all { flex: 1; padding: 3px 6px; font-size: 0.8em; cursor: pointer; border: 1px solid var(--border, #d1d5db); border-radius: 4px; background: transparent; color: inherit; }
 #sp-report-filter .sp-report-check-all:hover { background: rgba(128,128,128,.15); }
+
+/* Outstanding table inside Report */
+.outstanding-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: var(--bg-card);
+}
+.outstanding-table th, .outstanding-table td {
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.6rem 0.9rem;
+}
+.outstanding-table th {
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  color: #ffffff;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-bottom: none;
+}
+.outstanding-table th:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+.outstanding-grand-total {
+  background: #256d7b;
+  color: #fff;
+  font-weight: bold;
+}
+.outstanding-cat2-header {
+  background: #5b929e;
+  color: #fff;
+  font-weight: bold;
+}
+.outstanding-proposal-header {
+  background: #0d9488;
+  color: #fff;
+  font-weight: bold;
+}
+.outstanding-overall-total {
+  background: #1e293b;
+  color: #fff;
+  font-weight: bold;
+}
+.badge-status-open {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+}
+.num-right { text-align: right; }
 </style>
 {% endblock %}
 {% block module_tabs %}
@@ -27,6 +86,7 @@
     <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="bib_include">BIB Include</button>
     <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="exclude">Exclude</button>
     <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="all">All</button>
+    <button type="button" class="budget-btn sp-report-cat4-btn" data-cat4="outstanding">Outstanding</button>
     <div class="budget-dropdown-check" id="sp-report-tahun-container">
       <button type="button" class="budget-dropdown-btn" onclick="this.nextElementSibling.classList.toggle('show')">
         Tahun <span style="font-size: 0.7em;">▼</span>

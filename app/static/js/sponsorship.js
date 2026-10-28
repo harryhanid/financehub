@@ -649,6 +649,66 @@ let sponsorshipReportState = { cat4: "include", tahun: "", bulan: [] };
   }
 
 function _sponsorshipRenderReportTable(container, data) {
+  if (data.is_outstanding) {
+    var hasSections = data.sections && data.sections.length > 0;
+    var hasProposals = data.open_proposals && data.open_proposals.length > 0;
+    if (!hasSections && !hasProposals) {
+      container.innerHTML = '<div class="budget-card"><p>Tidak ada data outstanding sponsorship' +
+        (data.tahun ? ' untuk tahun ' + _sponsorshipEsc(data.tahun) : '') + '.</p></div>';
+      return;
+    }
+    let html = '<div class="budget-table-container"><table class="budget-table outstanding-table">';
+    html += '<thead><tr><th>NO</th><th>TANGGAL APPROVAL</th><th>REFF</th><th>LEMBAGA/ PERORANGAN</th><th>PERIHAL</th>' +
+      '<th class="num-right">AMOUNT IN RP</th><th>STATUS SPONSOR</th></tr></thead><tbody>';
+    
+    html += '<tr class="outstanding-grand-total"><td colspan="5">Total Outstanding Sponsorship (Data Transaksi)</td>' +
+      '<td class="num-right">' + (typeof fmtRupiah === 'function' ? fmtRupiah(data.grand_total) : data.grand_total) + '</td><td></td></tr>';
+      
+    if (hasSections) {
+      data.sections.forEach(function (sec) {
+        html += '<tr class="outstanding-cat2-header"><td colspan="5">' + _sponsorshipEsc(sec.cat2_label) + '</td>' +
+          '<td class="num-right">' + (typeof fmtRupiah === 'function' ? fmtRupiah(sec.subtotal) : sec.subtotal) + '</td><td></td></tr>';
+        sec.rows.forEach(function (r) {
+          html += '<tr><td>' + r.no + '</td><td>' + _sponsorshipEsc(r.tanggal_approval || "") + '</td><td>' +
+            _sponsorshipEsc(r.reff || "") + '</td><td>' + _sponsorshipEsc(r.lembaga_perorangan || "") + '</td><td>' +
+            _sponsorshipEsc(r.perihal || "") + '</td><td class="num-right">' +
+            (typeof fmtRupiah === 'function' ? fmtRupiah(r.amount) : r.amount) + '</td><td>' +
+            _sponsorshipEsc(r.status || "") + '</td></tr>';
+        });
+      });
+    }
+
+    if (hasProposals) {
+      html += '<tr class="outstanding-proposal-header"><td colspan="5">Proposal Sponsor (Status: Open) &mdash; ' +
+        data.open_proposals.length + ' Proposal</td>' +
+        '<td class="num-right">' + (typeof fmtRupiah === 'function' ? fmtRupiah(data.open_proposals_total) : data.open_proposals_total) + '</td>' +
+        '<td></td></tr>';
+      
+      data.open_proposals.forEach(function (p, idx) {
+        var tgl = p.tanggal_approval || p.tanggal || "";
+        if (tgl && /^\d{4}-\d{2}/.test(tgl)) {
+          var mList = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+          var parts = tgl.split("-");
+          var mIdx = parseInt(parts[1], 10) - 1;
+          if (mIdx >= 0 && mIdx < 12) {
+            tgl = mList[mIdx] + " " + parts[0];
+          }
+        }
+        html += '<tr><td>' + (idx + 1) + '</td><td>' + _sponsorshipEsc(tgl) + '</td><td>' +
+          _sponsorshipEsc(p.referensi || "") + '</td><td></td><td>' +
+          _sponsorshipEsc(p.kegiatan || "") + '</td><td class="num-right">' +
+          (typeof fmtRupiah === 'function' ? fmtRupiah(p.total_amount) : p.total_amount) + '</td>' +
+          '<td></td></tr>';
+      });
+
+      html += '<tr class="outstanding-overall-total"><td colspan="5">Total Keseluruhan (Outstanding + Proposal Open)</td>' +
+        '<td class="num-right">' + (typeof fmtRupiah === 'function' ? fmtRupiah(data.grand_total + data.open_proposals_total) : (data.grand_total + data.open_proposals_total)) + '</td><td></td></tr>';
+    }
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+    return;
+  }
   if (!data.sections || data.sections.length === 0) {
     container.innerHTML = '<div class="budget-card"><p>Belum ada data sponsorship untuk tahun ' +
       _sponsorshipEsc(data.tahun) + (data.bulan_label ? ', bulan ' + _sponsorshipEsc(data.bulan_label) : '') +
@@ -700,6 +760,10 @@ document.addEventListener("DOMContentLoaded", function () {
       document.querySelectorAll(".sp-report-cat4-btn").forEach(function (b) { b.classList.remove("active"); });
       btn.classList.add("active");
       sponsorshipReportState.cat4 = btn.dataset.cat4;
+      const bulanWrap = document.getElementById("sp-report-bulan-container");
+      if (bulanWrap) {
+        bulanWrap.style.display = (btn.dataset.cat4 === "outstanding") ? "none" : "";
+      }
       sponsorshipLoadReport();
     });
   });

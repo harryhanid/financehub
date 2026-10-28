@@ -2,7 +2,7 @@
 from datetime import datetime
 from functools import wraps
 import io
-from flask import Blueprint, render_template, request, jsonify, session, send_file
+from flask import Blueprint, render_template, request, jsonify, session, send_file, redirect, url_for
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required
 from modules.sponsorship.service import (
@@ -98,7 +98,7 @@ def _parse_report_params():
         years = get_available_years(_cid())
         tahun = [years[0]] if years else [str(datetime.now().year)]
     cat4 = (request.args.get("cat4") or "all").lower()
-    if cat4 not in ("include", "exclude", "all", "bib_include"):
+    if cat4 not in ("include", "exclude", "all", "bib_include", "outstanding"):
         cat4 = "all"
     bulan = normalise_bulan(request.args.getlist("bulan"))
     return tahun, cat4, bulan
@@ -142,6 +142,34 @@ def api_dashboard_data():
 @smt_company_required
 def api_report_data():
     tahun, cat4, bulan = _parse_report_params()
+    if cat4 == "outstanding":
+        from modules.sponsorship.service import get_sponsorship_outstanding, list_proposals
+        filters = {"tahun": tahun} if tahun else {}
+        sections, grand_total = get_sponsorship_outstanding(_cid(), filters)
+        prop_filters = {"status": "Open"}
+        if tahun:
+            prop_filters["tahun"] = tahun
+        open_proposals = list_proposals(_cid(), prop_filters, limit=2000, offset=0)
+        open_total = sum(float(p.get("total_amount") or 0) for p in open_proposals)
+        months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+        for p in open_proposals:
+            tgl_raw = p.get("tanggal") or ""
+            tgl_display = tgl_raw
+            if tgl_raw and len(tgl_raw) >= 7:
+                try:
+                    dt = datetime.strptime(tgl_raw[:10], "%Y-%m-%d")
+                    tgl_display = f"{months[dt.month - 1]} {dt.year}"
+                except Exception:
+                    pass
+            p["tanggal_approval"] = tgl_display
+        return jsonify({
+            "is_outstanding": True,
+            "sections": sections,
+            "grand_total": grand_total,
+            "open_proposals": open_proposals,
+            "open_proposals_total": open_total,
+            "tahun": ", ".join(tahun) if tahun else ""
+        })
     data = get_sponsorship_report(_cid(), tahun, cat4, bulan)
     return jsonify(data)
 
@@ -151,9 +179,15 @@ def api_report_data():
 @smt_company_required
 def export_report_route():
     tahun, cat4, bulan = _parse_report_params()
-    xls_bytes = export_report_excel(_cid(), tahun, cat4, bulan)
-    month_part = f"_{'-'.join(bulan)}" if bulan else ""
-    filename = f"Sponsorship_Report_{cat4}_{'-'.join(tahun)}{month_part}.xlsx"
+    if cat4 == "outstanding":
+        from modules.sponsorship.exports import export_outstanding_excel
+        filters = {"tahun": tahun} if tahun else {}
+        xls_bytes = export_outstanding_excel(_cid(), filters)
+        filename = f"Sponsorship_Outstanding_{'-'.join(tahun) if tahun else 'ALL'}.xlsx"
+    else:
+        xls_bytes = export_report_excel(_cid(), tahun, cat4, bulan)
+        month_part = f"_{'-'.join(bulan)}" if bulan else ""
+        filename = f"Sponsorship_Report_{cat4}_{'-'.join(tahun)}{month_part}.xlsx"
     return send_file(
         io.BytesIO(xls_bytes),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -233,18 +267,38 @@ def outstanding_page():
     
     # We will pass filters directly to get_sponsorship_outstanding
     if not _wrong_company():
-        from .service import get_sponsorship_outstanding
+        from .service import get_sponsorship_outstanding, list_proposals
         sections, grand_total = get_sponsorship_outstanding(_cid(), filters)
+        prop_filters = {"status": "Open"}
+        if filters.get("tahun"):
+            prop_filters["tahun"] = filters.get("tahun")
+        open_proposals = list_proposals(_cid(), prop_filters, limit=2000, offset=0)
+        open_proposals_total = sum(float(p.get("total_amount") or 0) for p in open_proposals)
+        months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+        for p in open_proposals:
+            tgl_raw = p.get("tanggal") or ""
+            tgl_display = tgl_raw
+            if tgl_raw and len(tgl_raw) >= 7:
+                try:
+                    dt = datetime.strptime(tgl_raw[:10], "%Y-%m-%d")
+                    tgl_display = f"{months[dt.month - 1]} {dt.year}"
+                except Exception:
+                    pass
+            p["tanggal_approval"] = tgl_display
         years = get_available_years(_cid())
     else:
         sections = []
         grand_total = 0.0
+        open_proposals = []
+        open_proposals_total = 0.0
         years = []
 
     return render_template(
         "sponsorship/outstanding.html", active_page="sponsorship", use_unified_header=True,
         wrong_company=_wrong_company(),
-        sections=sections, grand_total=grand_total, years=years,
+        sections=sections, grand_total=grand_total,
+        open_proposals=open_proposals, open_proposals_total=open_proposals_total,
+        years=years,
         filters=filters,
         cat_choices=config.SPONSORSHIP_CAT, description_choices=config.SPONSORSHIP_DESCRIPTION,
         pillar_choices=config.SPONSORSHIP_PILLARS, cat4_choices=config.SPONSORSHIP_CAT4,
@@ -398,3 +452,227 @@ def data_sync_route():
     file_bytes = file.read()
     result = sync_transaksi_excel(_cid(), file_bytes)
     return jsonify(result)
+
+
+# --- Proposal & Sponsorship Form Routes ---
+
+from modules.sponsorship.service import (
+    list_proposals, count_proposals, get_proposal,
+    create_proposal, update_proposal, update_proposal_status, delete_proposal,
+    import_proposals_excel, get_available_proposal_years
+)
+from modules.sponsorship.exports import (
+    export_proposal_form_excel, export_proposals_bulk_zip,
+    terbilang_id, format_terbilang, format_terbilang_pillar
+)
+
+
+@bp.route("/proposal")
+@jwt_html_required
+def proposal_page():
+    if _wrong_company():
+        return render_template(
+            "sponsorship/proposal.html", active_page="sponsorship", active_tab="proposal",
+            use_unified_header=True, wrong_company=True, rows=[], total_count=0,
+            page=1, page_size=PER_PAGE, total_pages=1, years=[], filters={},
+            **_ctx()
+        )
+
+    filters = {}
+    for key in ("tahun", "status", "keyword"):
+        val = request.args.get(key)
+        if val:
+            filters[key] = val
+
+    total = count_proposals(_cid(), filters)
+    page_size = _resolve_page_size()
+    page = request.args.get("page", 1, type=int) or 1
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = max(1, min(page, total_pages))
+    
+    rows = list_proposals(_cid(), filters, limit=page_size, offset=(page - 1) * page_size)
+    from modules.sponsorship.exports import format_terbilang, format_terbilang_pillar
+    for r in rows:
+        tot = float(r.get("total_amount") or 0)
+        r["terbilang_total"] = format_terbilang(tot)
+        for pillar in ("app", "agri", "energy", "land", "finance"):
+            amt = float(r.get(f"{pillar}_amount") or 0)
+            r[f"terbilang_{pillar}"] = format_terbilang_pillar(amt)
+    years = get_available_proposal_years(_cid())
+
+    return render_template(
+        "sponsorship/proposal.html", active_page="sponsorship", active_tab="proposal",
+        use_unified_header=True, wrong_company=False,
+        rows=rows, total_count=total, page=page, page_size=page_size,
+        total_pages=total_pages, years=years, filters=filters,
+        **_ctx()
+    )
+
+
+@bp.route("/proposal/create", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def proposal_create_route():
+    payload = request.get_json(force=True, silent=True) or request.form.to_dict()
+    result = create_proposal(_cid(), payload)
+    return jsonify(result)
+
+
+@bp.route("/proposal/<int:proposal_id>/update", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def proposal_update_route(proposal_id):
+    payload = request.get_json(force=True, silent=True) or request.form.to_dict()
+    result = update_proposal(_cid(), proposal_id, payload)
+    return jsonify(result)
+
+
+@bp.route("/proposal/<int:proposal_id>/status", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def proposal_status_route(proposal_id):
+    payload = request.get_json(force=True, silent=True) or request.form.to_dict()
+    status = payload.get("status", "Open")
+    approval_date = payload.get("approval_date", "")
+    result = update_proposal_status(_cid(), proposal_id, status, approval_date)
+    return jsonify(result)
+
+
+@bp.route("/proposal/<int:proposal_id>/delete", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def proposal_delete_route(proposal_id):
+    result = delete_proposal(_cid(), proposal_id)
+    return jsonify(result)
+
+
+@bp.route("/proposal/import-excel", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def proposal_import_excel_route():
+    if "file" not in request.files:
+        return jsonify({"ok": False, "pesan": "File excel tidak ditemukan."})
+    file = request.files["file"]
+    if not (file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
+        return jsonify({"ok": False, "pesan": "Format file harus .xlsx"})
+
+    file_bytes = io.BytesIO(file.read())
+    result = import_proposals_excel(_cid(), file_bytes)
+    return jsonify(result)
+
+
+@bp.route("/proposal/export")
+@jwt_html_required
+@smt_company_required
+def proposal_export_route():
+    from modules.sponsorship.exports import export_proposals_master_excel
+    filters = {}
+    for key in ("tahun", "status", "keyword"):
+        val = request.args.get(key)
+        if val:
+            filters[key] = val
+    xls_bytes = export_proposals_master_excel(_cid(), filters)
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="Proposal_Sponsorship_MASTER.xlsx"
+    )
+
+
+@bp.route("/proposal/sync", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def proposal_sync_route():
+    from modules.sponsorship.service import sync_proposals_excel
+    if "file" not in request.files:
+        return jsonify({"ok": False, "pesan": "File excel tidak ditemukan."})
+    file = request.files["file"]
+    if not (file.filename.endswith(".xlsx") or file.filename.endswith(".xls")):
+        return jsonify({"ok": False, "pesan": "Format file harus .xlsx"})
+
+    file_bytes = file.read()
+    result = sync_proposals_excel(_cid(), file_bytes)
+    return jsonify(result)
+
+
+@bp.route("/form")
+@bp.route("/form/<int:proposal_id>")
+@jwt_html_required
+def form_page(proposal_id=None):
+    prop_id = proposal_id or request.args.get("proposal_id")
+    if prop_id:
+        return redirect(url_for("sponsorship.proposal_page", open_form=prop_id))
+    return redirect(url_for("sponsorship.proposal_page"))
+
+
+@bp.route("/proposal/<int:proposal_id>/form-data")
+@jwt_html_required
+@smt_company_required
+def proposal_form_data(proposal_id):
+    from modules.sponsorship.service import get_proposal
+    from modules.sponsorship.exports import format_terbilang, format_terbilang_pillar
+    p = get_proposal(_cid(), proposal_id)
+    if not p:
+        return jsonify({"ok": False, "pesan": "Proposal tidak ditemukan"}), 404
+    tot = float(p.get("total_amount") or 0)
+    p["terbilang_total"] = format_terbilang(tot)
+    for pillar in ("app", "agri", "energy", "land", "finance"):
+        amt = float(p.get(f"{pillar}_amount") or 0)
+        p[f"terbilang_{pillar}"] = format_terbilang_pillar(amt)
+    return jsonify({"ok": True, "proposal": p})
+
+
+@bp.route("/form/<int:proposal_id>/export-excel")
+@jwt_html_required
+@smt_company_required
+def form_export_excel_route(proposal_id):
+    proposal = get_proposal(_cid(), proposal_id)
+    if not proposal:
+        return jsonify({"ok": False, "pesan": "Proposal tidak ditemukan."}), 404
+
+    xls_bytes = export_proposal_form_excel(proposal)
+    no_clean = (proposal.get("nomor_proposal") or f"PROP_{proposal_id}").replace("/", "_").replace("\\", "_")
+    filename = f"Sponsorship_Form_{no_clean}.xlsx"
+
+    return send_file(
+        io.BytesIO(xls_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        download_name=filename,
+        as_attachment=True
+    )
+
+
+@bp.route("/form/export-bulk")
+@jwt_html_required
+@smt_company_required
+def form_export_bulk_route():
+    filters = {}
+    for key in ("tahun", "status", "keyword"):
+        val = request.args.get(key)
+        if val:
+            filters[key] = val
+
+    proposals = list_proposals(_cid(), filters, limit=1000, offset=0)
+    if not proposals:
+        return jsonify({"ok": False, "pesan": "Tidak ada data proposal untuk diekspor."}), 404
+
+    zip_bytes = export_proposals_bulk_zip(proposals)
+    filename = "Sponsorship_Forms_Bulk.zip"
+
+    return send_file(
+        io.BytesIO(zip_bytes),
+        mimetype="application/zip",
+        download_name=filename,
+        as_attachment=True
+    )
+
+
+@bp.route("/api/proposals")
+@jwt_html_required
+@smt_company_required
+def api_proposals_route():
+    keyword = request.args.get("q", "")
+    filters = {"keyword": keyword} if keyword else {}
+    rows = list_proposals(_cid(), filters, limit=50, offset=0)
+    return jsonify(rows)

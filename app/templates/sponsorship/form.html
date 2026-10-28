@@ -1,0 +1,632 @@
+{% extends "base.html" %}
+{% set full_bleed = true %}
+{% block title %}Sponsorship Form{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+<style>
+/* Page & Container Styles */
+.sp-form-page-wrap {
+  padding: 1.5rem;
+  max-width: 950px;
+  margin: 0 auto;
+}
+
+/* Selector Toolbar */
+.form-selector-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-card, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.1));
+  border-radius: 8px;
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Sheet Paper Representation */
+.paper-sheet {
+  background: #ffffff;
+  color: #111827;
+  padding: 2.5rem 3rem;
+  border-radius: 4px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  margin-bottom: 2rem;
+  font-family: Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.4;
+  border: 1px solid #d1d5db;
+}
+
+.sheet-header-title {
+  text-align: center;
+  font-size: 16pt;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #111827;
+}
+
+.meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.25rem;
+}
+.meta-table td {
+  padding: 0.35rem 0.5rem;
+  vertical-align: top;
+}
+.meta-label {
+  width: 15%;
+  font-weight: 700;
+}
+.meta-colon {
+  width: 2%;
+  text-align: center;
+  font-weight: 700;
+}
+.meta-val {
+  width: 83%;
+}
+
+.pillar-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  margin-bottom: 2.5rem;
+}
+.pillar-table th, .pillar-table td {
+  border: 1px solid #4b5563;
+  padding: 0.5rem 0.75rem;
+}
+.pillar-table th {
+  background: #f3f4f6;
+  font-weight: 700;
+  text-align: center;
+}
+
+.check-box-symbol {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  text-align: center;
+  border: 1px solid #111827;
+  font-weight: 900;
+  font-size: 11pt;
+}
+.check-box-symbol.checked {
+  background: #e5e7eb;
+}
+
+.sign-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 2rem;
+}
+.sign-table th, .sign-table td {
+  border: 1px solid #4b5563;
+  text-align: center;
+}
+.sign-table th {
+  padding: 0.5rem;
+  background: #f3f4f6;
+  font-weight: 700;
+  width: 33.33%;
+}
+.sign-space {
+  height: 85px;
+}
+.sign-name {
+  padding: 0.5rem;
+  font-weight: 700;
+}
+
+/* Print Specific Media Query */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .navbar, .budget-toolbar, .tabs, .form-selector-bar, .no-print, header, nav {
+    display: none !important;
+  }
+  .sp-form-page-wrap {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+  .paper-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0.5cm 1cm !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 1cm;
+  }
+}
+
+/* Autocomplete Search Dropdown */
+.sp-search-box-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 540px;
+}
+.sp-search-input-field {
+  width: 100%;
+  padding: 0.55rem 2.2rem 0.55rem 2.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.2));
+  background: var(--bg-card, rgba(255,255,255,0.06));
+  color: var(--text-main, #fff);
+  font-size: 0.85rem;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+.sp-search-input-field:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  background: var(--bg-card, rgba(255,255,255,0.1));
+}
+.sp-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  max-height: 380px;
+  overflow-y: auto;
+  z-index: 1000;
+  display: none;
+}
+.sp-dropdown-item {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid #334155;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.sp-dropdown-item:last-child {
+  border-bottom: none;
+}
+.sp-dropdown-item:hover, .sp-dropdown-item.active {
+  background: #2563eb;
+}
+.sp-dd-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.2rem;
+}
+.sp-dd-ref {
+  font-weight: 700;
+  color: #f8fafc;
+  font-size: 0.85rem;
+}
+.sp-dd-nomor {
+  font-family: monospace;
+  font-size: 0.75rem;
+  background: rgba(255,255,255,0.15);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  color: #93c5fd;
+}
+.sp-dd-keg {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-dropdown-item:hover .sp-dd-keg {
+  color: #e2e8f0;
+}
+.sp-dd-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: #10b981;
+  margin-top: 0.2rem;
+}
+.sp-dropdown-item:hover .sp-dd-meta {
+  color: #a7f3d0;
+}
+</style>
+{% endblock %}
+
+{% block module_tabs %}
+{% set active_tab = "form" %}
+{% include "sponsorship/_toolbar.html" with context %}
+{% endblock %}
+
+{% block content %}
+<div class="budget-page">
+  {% if wrong_company %}
+    {% include "sponsorship/_notice.html" %}
+  {% else %}
+
+  <div class="sp-form-page-wrap">
+    
+    <!-- Top Action & Selection Bar -->
+    <div class="form-selector-bar no-print">
+      <div class="sp-search-box-wrap">
+        <div style="position: relative; display: flex; align-items: center;">
+          <span style="position: absolute; left: 10px; color: #94a3b8; font-size: 0.9rem; pointer-events: none;">🔍</span>
+          <input 
+            type="text" 
+            id="sp-form-search-input" 
+            class="sp-search-input-field"
+            placeholder="Cari kata kunci Referensi atau Kegiatan..." 
+            value="{% if proposal %}{{ proposal.referensi }} — {{ proposal.kegiatan[:35] }}{% if proposal.kegiatan|length > 35 %}...{% endif %}{% endif %}"
+            autocomplete="off"
+            oninput="handleSearchInput(this.value)"
+            onfocus="handleSearchFocus()"
+          >
+          <button 
+            type="button" 
+            id="sp-clear-search-btn"
+            onclick="clearSearchInput()" 
+            style="position: absolute; right: 8px; background: none; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 2px 6px;">
+            &times;
+          </button>
+        </div>
+        <div id="sp-search-dropdown" class="sp-search-dropdown"></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto;">
+        {% if proposal %}
+        <button type="button" class="budget-btn" style="background-color: #2563eb;" onclick="window.print()">
+          🖨️ Cetak Form (Print)
+        </button>
+        <a href="{{ url_for('sponsorship.form_export_excel_route', proposal_id=proposal.id) }}" class="budget-btn" style="background-color: #10b981;">
+          📥 Export Excel
+        </a>
+        {% endif %}
+        <a href="{{ url_for('sponsorship.proposal_page') }}" class="budget-btn" style="background-color: transparent; border: 1px solid var(--border-subtle, rgba(255,255,255,0.2)); color: var(--text-muted, #94a3b8);">
+          ← Daftar Proposal
+        </a>
+      </div>
+    </div>
+
+    {% if proposal %}
+    <!-- Printed Form Sheet -->
+    <div class="paper-sheet" id="printable-form">
+      <div class="sheet-header-title">
+        SPONSORSHIP FORM
+      </div>
+
+      <table class="meta-table">
+        <tr>
+          <td class="meta-label">Tanggal</td>
+          <td class="meta-colon">:</td>
+          <td class="meta-val" style="font-weight: 600;">{{ proposal.tanggal }}</td>
+        </tr>
+        <tr>
+          <td class="meta-label">Referensi</td>
+          <td class="meta-colon">:</td>
+          <td class="meta-val" style="font-weight: 600;">{{ proposal.referensi }}</td>
+        </tr>
+        <tr>
+          <td class="meta-label">Kegiatan</td>
+          <td class="meta-colon">:</td>
+          <td class="meta-val">{{ proposal.kegiatan }}</td>
+        </tr>
+        <tr>
+          <td class="meta-label">Nilai</td>
+          <td class="meta-colon">:</td>
+          <td class="meta-val" style="font-weight: 700; font-size: 12pt;">
+            Rp. {{ "{:,.0f}".format(proposal.total_amount or 0).replace(",", ".") }}
+          </td>
+        </tr>
+        <tr>
+          <td class="meta-label">Terbilang</td>
+          <td class="meta-colon">:</td>
+          <td class="meta-val" style="font-style: italic; font-weight: 600;">
+            {{ proposal.terbilang_total }}
+          </td>
+        </tr>
+        <tr>
+          <td class="meta-label">Catatan</td>
+          <td class="meta-colon">:</td>
+          <td class="meta-val">
+            {{ proposal.catatan or "Nilai Sumbangan diatas netto excluded/ diluar pajak PPN/PPh" }}
+          </td>
+        </tr>
+      </table>
+
+      <div style="font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.5rem;">
+        Diteruskan kepada :
+      </div>
+
+      <table class="pillar-table">
+        <thead>
+          <tr>
+            <th style="width: 8%;">Check</th>
+            <th style="width: 22%;">Pillar / Divisi</th>
+            <th style="width: 25%;">Nominal (Rp)</th>
+            <th style="width: 45%;">Terbilang</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 1. APP -->
+          <tr>
+            <td style="text-align: center;">
+              {% if proposal.app_amount and proposal.app_amount > 0 %}
+              <span class="check-box-symbol checked">✓</span>
+              {% else %}
+              <span class="check-box-symbol">X</span>
+              {% endif %}
+            </td>
+            <td style="font-weight: 700;">APP</td>
+            <td style="text-align: right; font-weight: 600;">
+              {% if proposal.app_amount and proposal.app_amount > 0 %}
+              Rp. {{ "{:,.0f}".format(proposal.app_amount).replace(",", ".") }}
+              {% else %}-{% endif %}
+            </td>
+            <td style="font-style: italic; font-size: 9.5pt;">
+              {{ proposal.terbilang_app or '' }}
+            </td>
+          </tr>
+
+          <!-- 2. AGRI -->
+          <tr>
+            <td style="text-align: center;">
+              {% if proposal.agri_amount and proposal.agri_amount > 0 %}
+              <span class="check-box-symbol checked">✓</span>
+              {% else %}
+              <span class="check-box-symbol">X</span>
+              {% endif %}
+            </td>
+            <td style="font-weight: 700;">AGRO / DSS</td>
+            <td style="text-align: right; font-weight: 600;">
+              {% if proposal.agri_amount and proposal.agri_amount > 0 %}
+              Rp. {{ "{:,.0f}".format(proposal.agri_amount).replace(",", ".") }}
+              {% else %}-{% endif %}
+            </td>
+            <td style="font-style: italic; font-size: 9.5pt;">
+              {{ proposal.terbilang_agri or '' }}
+            </td>
+          </tr>
+
+          <!-- 3. ENERGY -->
+          <tr>
+            <td style="text-align: center;">
+              {% if proposal.energy_amount and proposal.energy_amount > 0 %}
+              <span class="check-box-symbol checked">✓</span>
+              {% else %}
+              <span class="check-box-symbol">X</span>
+              {% endif %}
+            </td>
+            <td style="font-weight: 700;">ENERGY</td>
+            <td style="text-align: right; font-weight: 600;">
+              {% if proposal.energy_amount and proposal.energy_amount > 0 %}
+              Rp. {{ "{:,.0f}".format(proposal.energy_amount).replace(",", ".") }}
+              {% else %}-{% endif %}
+            </td>
+            <td style="font-style: italic; font-size: 9.5pt;">
+              {{ proposal.terbilang_energy or '' }}
+            </td>
+          </tr>
+
+          <!-- 4. LAND -->
+          <tr>
+            <td style="text-align: center;">
+              {% if proposal.land_amount and proposal.land_amount > 0 %}
+              <span class="check-box-symbol checked">✓</span>
+              {% else %}
+              <span class="check-box-symbol">X</span>
+              {% endif %}
+            </td>
+            <td style="font-weight: 700;">LAND</td>
+            <td style="text-align: right; font-weight: 600;">
+              {% if proposal.land_amount and proposal.land_amount > 0 %}
+              Rp. {{ "{:,.0f}".format(proposal.land_amount).replace(",", ".") }}
+              {% else %}-{% endif %}
+            </td>
+            <td style="font-style: italic; font-size: 9.5pt;">
+              {{ proposal.terbilang_land or '' }}
+            </td>
+          </tr>
+
+          <!-- 5. FINANCE -->
+          <tr>
+            <td style="text-align: center;">
+              {% if proposal.finance_amount and proposal.finance_amount > 0 %}
+              <span class="check-box-symbol checked">✓</span>
+              {% else %}
+              <span class="check-box-symbol">X</span>
+              {% endif %}
+            </td>
+            <td style="font-weight: 700;">FINANCE</td>
+            <td style="text-align: right; font-weight: 600;">
+              {% if proposal.finance_amount and proposal.finance_amount > 0 %}
+              Rp. {{ "{:,.0f}".format(proposal.finance_amount).replace(",", ".") }}
+              {% else %}-{% endif %}
+            </td>
+            <td style="font-style: italic; font-size: 9.5pt;">
+              {{ proposal.terbilang_finance or '' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Signatures Box -->
+      <table class="sign-table">
+        <thead>
+          <tr>
+            <th>Diajukan</th>
+            <th>Disetujui</th>
+            <th>Diketahui</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="sign-space"></td>
+            <td class="sign-space"></td>
+            <td class="sign-space"></td>
+          </tr>
+          <tr>
+            <td class="sign-name">{{ proposal.diajukan_oleh or 'AR/JT' }}</td>
+            <td class="sign-name">FS</td>
+            <td class="sign-name">SC</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <div style="text-align:center; padding: 4rem 1rem; color: var(--text-muted, #94a3b8);">
+      <p style="font-size: 1.1rem; margin-bottom: 1rem;">Belum ada proposal yang dipilih.</p>
+      <a href="{{ url_for('sponsorship.proposal_page') }}" class="budget-btn" style="background-color: #2563eb;">
+        Buka Daftar Proposal Sponsor
+      </a>
+    </div>
+    {% endif %}
+
+  </div>
+
+  {% endif %}
+</div>
+
+<script id="sp-suggestions-data" type="application/json">
+{{ suggestions | tojson | safe }}
+</script>
+
+<script>
+let allProposals = [];
+try {
+  allProposals = JSON.parse(document.getElementById('sp-suggestions-data')?.textContent || '[]');
+} catch (e) {
+  console.error("Gagal parse data suggestions:", e);
+}
+
+const searchInput = document.getElementById('sp-form-search-input');
+const dropdown = document.getElementById('sp-search-dropdown');
+let activeIndex = -1;
+
+function formatRupiah(num) {
+  if (!num) return 'Rp 0';
+  return 'Rp ' + Math.round(num).toLocaleString('id-ID');
+}
+
+function renderDropdown(items) {
+  if (!items || items.length === 0) {
+    dropdown.innerHTML = '<div style="padding: 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem;">Tidak ditemukan proposal yang sesuai kata kunci.</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  activeIndex = -1;
+  dropdown.innerHTML = items.slice(0, 25).map((p, idx) => `
+    <div class="sp-dropdown-item" data-id="${p.id}" data-index="${idx}" onclick="selectProposal(${p.id})">
+      <div class="sp-dd-head">
+        <span class="sp-dd-ref">${escapeHtml(p.referensi || '-')}</span>
+        <span class="sp-dd-nomor">${escapeHtml(p.nomor_proposal || '')}</span>
+      </div>
+      <div class="sp-dd-keg">${escapeHtml(p.kegiatan || '-')}</div>
+      <div class="sp-dd-meta">
+        <span>Total: <strong>${formatRupiah(p.total_amount)}</strong></span>
+        <span>Tanggal: ${escapeHtml(p.tanggal || '-')}</span>
+      </div>
+    </div>
+  `).join('');
+  dropdown.style.display = 'block';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function handleSearchInput(val) {
+  const q = (val || '').trim().toLowerCase();
+  if (!q) {
+    renderDropdown(allProposals.slice(0, 15));
+    return;
+  }
+  const filtered = allProposals.filter(p => {
+    const ref = (p.referensi || '').toLowerCase();
+    const keg = (p.kegiatan || '').toLowerCase();
+    const no = (p.nomor_proposal || '').toLowerCase();
+    return ref.includes(q) || keg.includes(q) || no.includes(q);
+  });
+  renderDropdown(filtered);
+}
+
+function handleSearchFocus() {
+  const val = searchInput.value || '';
+  handleSearchInput(val);
+}
+
+function clearSearchInput() {
+  searchInput.value = '';
+  searchInput.focus();
+  renderDropdown(allProposals.slice(0, 15));
+}
+
+function selectProposal(id) {
+  if (id) {
+    window.location.href = `/sponsorship/form/${id}`;
+  }
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.sp-search-box-wrap')) {
+    if (dropdown) dropdown.style.display = 'none';
+  }
+});
+
+// Keyboard support (Arrow keys + Enter)
+if (searchInput) {
+  searchInput.addEventListener('keydown', function(e) {
+    const items = dropdown.querySelectorAll('.sp-dropdown-item');
+    if (!items.length || dropdown.style.display === 'none') return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % items.length;
+      updateActiveItem(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + items.length) % items.length;
+      updateActiveItem(items);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < items.length) {
+        items[activeIndex].click();
+      } else if (items.length > 0) {
+        items[0].click();
+      }
+    } else if (e.key === 'Escape') {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function updateActiveItem(items) {
+  items.forEach((item, idx) => {
+    if (idx === activeIndex) {
+      item.classList.add('active');
+      item.scrollIntoView({ block: 'nearest' });
+    } else {
+      item.classList.remove('active');
+    }
+  });
+}
+</script>
+{% endblock %}

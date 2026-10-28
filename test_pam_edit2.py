@@ -1,0 +1,6 @@
+with open("app/modules/payment_memo/service.py", "r", encoding="utf-8") as f:
+    text = f.read()
+
+import re
+m = re.search(r'def update_pam_and_application.*?_PAM_FIELDS.*?(def|$)', text, re.DOTALL)
+if m: print(m.group(0)[:2000])

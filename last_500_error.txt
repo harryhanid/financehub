@@ -1,0 +1,52 @@
+Traceback (most recent call last):
+  File "C:\Financehub\.worktrees\supabase-primary-db\app\tests\..\fhdb\backends.py", line 147, in execute_batch
+    cur.execute("select public.fh_exec(%s::jsonb, %s)", (json.dumps(list(stmts)), schema))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedFunction: function strftime(unknown, text) does not exist
+LINE 4:                b.pillar AS pillar, CAST(strftime('%Y', b.tan...
+                                                ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+QUERY:  with _q as (
+        SELECT s.nama AS nama, s.jenjang AS jenjang, s.angkatan AS angkatan, s.group_setf AS group_setf,
+               b.cat1 AS cat1, b.cat2 AS cat2,
+               b.pillar AS pillar, CAST(strftime('%Y', b.tanggal) AS INTEGER) AS tahun,
+               CAST(strftime('%m', b.tanggal) AS INTEGER) AS bulan,
+               b.amount AS amount
+        FROM budget_beasiswa b
+        JOIN siswa s ON s.code = b.siswa_code AND s.company_id = b.company_id
+        WHERE b.company_id = 2 AND s.program = 'Sahabat ETF' AND b.tanggal IS NOT NULL AND b.tanggal != ''
+) select json_agg(_q)::text from _q
+CONTEXT:  PL/pgSQL function fh_exec(jsonb,text) line 32 at EXECUTE
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Financehub\.worktrees\supabase-primary-db\app\tests\..\modules\sahabat_etf\routes.py", line 159, in api_report
+    data = build_report_data(_cid(), int(year_param), month, pillars)
+  File "C:\Financehub\.worktrees\supabase-primary-db\app\tests\..\modules\sahabat_etf\service.py", line 417, in build_report_data
+    buckets = _build_buckets(company_id, report_year, report_month, pillars)
+  File "C:\Financehub\.worktrees\supabase-primary-db\app\tests\..\modules\sahabat_etf\service.py", line 115, in _build_buckets
+    budget_rows, payment_rows = _fetch_report_rows(company_id)
+                                ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Financehub\.worktrees\supabase-primary-db\app\tests\..\modules\sahabat_etf\service.py", line 47, in _fetch_report_rows
+    budget_rows = conn.execute(
+                  ~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<9 lines>...
+        (company_id, PROGRAM_NAME),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).fetchall()
+    ^
+  File "C:\Financehub\.worktrees\supabase-primary-db\app\tests\..\fhdb\connection.py", line 294, in execute
+    return self._run([(sql, params)], [Cursor(self)])[0]
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Financehub\.worktrees\supabase-primary-db\app\tests\..\fhdb\connection.py", line 283, in _run
+    for cur, plan, res in zip(cursors, plans, self._send(plans)):
+                                              ~~~~~~~~~~^^^^^^^
+  File "C:\Financehub\.worktrees\supabase-primary-db\app\tests\..\fhdb\connection.py", line 261, in _send
+    results = self._backend.execute_batch(stmts, self._schema)
+  File "C:\Financehub\.worktrees\supabase-primary-db\app\tests\..\fhdb\backends.py", line 156, in execute_batch
+    raise _map_pg_error(e) from e
+fhdb.errors.ProgrammingError: [42883] function strftime(unknown, text) does not exist

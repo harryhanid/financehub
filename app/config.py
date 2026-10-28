@@ -11,18 +11,30 @@ DB_PATH  = os.path.join(BASE_DIR, "finance_hub.db")
 
 # Supabase/Postgres lewat fhdb (public.fh_exec). DB_BACKEND: "http" (produksi) | "pg" (test);
 # DB_PATH (SQLite lama) tidak dipakai lagi oleh database.get_conn; dibiarkan untuk skrip lama.
+def _env_bool(name: str, default: bool) -> bool:
+    val = os.environ.get(name)
+    if val is None or val == "":
+        return default
+    return val.strip().lower() in ("1", "true", "yes", "on")
+
+# Mode environment: "production" (Komputer Tetap) | "development" (Laptop Dev)
+FH_ENV        = os.environ.get("FH_ENV", "production").strip().lower()
+IS_PRODUCTION = (FH_ENV == "production")
+
 DB_BACKEND           = os.environ.get("DB_BACKEND", "http")
-DB_SCHEMA            = os.environ.get("DB_SCHEMA", "financehub")
+DB_SCHEMA            = os.environ.get("DB_SCHEMA", "financehub" if IS_PRODUCTION else "financehub_staging")
 SUPABASE_URL         = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 FH_PG_DSN            = os.environ.get("FH_PG_DSN", "")
 # Header respons X-FH-DB-Calls / X-FH-DB-Seconds (jumlah & durasi panggilan fh_exec per request).
 # Default mati; untuk pengukuran performa (scripts/pg_migrate/measure_pages.py).
-DB_STATS_HEADER      = os.environ.get("DB_STATS_HEADER", "").lower() in ("1", "true", "yes")
-SOP_STORAGE_DIR = os.path.join(BASE_DIR, "storage", "sop")
-BACKUP_ROOT = r"Y:\Seagate\Flow"
+DB_STATS_HEADER      = _env_bool("DB_STATS_HEADER", default=False)
+ENABLE_MDNS          = _env_bool("ENABLE_MDNS", default=IS_PRODUCTION)
+ENABLE_SCHEDULER     = _env_bool("ENABLE_SCHEDULER", default=IS_PRODUCTION)
+SOP_STORAGE_DIR = os.environ.get("SOP_STORAGE_DIR", os.path.join(BASE_DIR, "storage", "sop"))
+BACKUP_ROOT = os.environ.get("BACKUP_ROOT", r"Y:\Seagate\Flow")
 # Backup harian isi database (tasks/db_backup.py): satu folder YYYY-MM-DD per hari, retensi 30 hari.
-DB_BACKUP_ROOT = r"Y:\Seagate\Flow\db-backup"
+DB_BACKUP_ROOT = os.environ.get("DB_BACKUP_ROOT", r"Y:\Seagate\Flow\db-backup")
 
 def _load_or_create_secret(env_var: str, filename: str) -> str:
     val = os.environ.get(env_var)

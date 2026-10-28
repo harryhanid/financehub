@@ -190,7 +190,7 @@ def create_app(testing=False):
         
         # --- Scheduler Setup ---
         # Ensure we only run scheduler in the main werkzeug process if reloading, or if debug is off
-        if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+        if config.ENABLE_SCHEDULER and (os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug):
             try:
                 from apscheduler.schedulers.background import BackgroundScheduler
                 from tasks.flow_backup import run_flow_backups

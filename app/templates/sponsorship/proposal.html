@@ -1,0 +1,1519 @@
+{% extends "base.html" %}
+{% set full_bleed = true %}
+{% block title %}Daftar Proposal Sponsor{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sponsorship.css') }}">
+<style>
+/* Full bleed spreadsheet layout */
+.budget-page {
+  padding: 0 !important;
+}
+.budget-toolbar.filter-bar {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+}
+#sp-table-wrap {
+  max-height: none !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  width: 100% !important;
+}
+.budget-table {
+  width: 100% !important;
+  font-size: 0.82rem;
+  border-radius: 0 !important;
+}
+.budget-table th, .budget-table td {
+  padding: 0.45rem 0.65rem !important;
+  vertical-align: middle;
+}
+.budget-table th {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.nowrap-cell {
+  white-space: nowrap !important;
+}
+.sp-prop-table-row {
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.sp-prop-table-row:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.04));
+}
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.badge-status.open {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+.badge-status.approved {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.badge-status.reject {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.pillar-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+}
+.pillar-pill {
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: var(--bg-card, rgba(255,255,255,0.06));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.1));
+}
+.action-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.btn-sm-action {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.2));
+  background: var(--bg-card, rgba(255,255,255,0.08));
+  color: var(--text-main, #fff);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all 0.15s ease;
+}
+.btn-sm-action:hover {
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  border-color: var(--accent, #3b82f6);
+}
+.btn-sm-action.btn-form {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+.btn-sm-action.btn-form:hover {
+  background: #2563eb;
+  color: #fff;
+}
+.btn-sm-action.btn-status {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+/* Sheet Paper Representation inside Form modal */
+.paper-sheet {
+  background: #ffffff;
+  color: #111827;
+  padding: 2.5rem 3rem;
+  border-radius: 4px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.4;
+  border: 1px solid #d1d5db;
+  max-width: 820px;
+}
+.sheet-header-title {
+  text-align: center;
+  font-size: 16pt;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #111827;
+  color: #111827;
+}
+.meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.25rem;
+}
+.meta-table td {
+  padding: 0.35rem 0.5rem;
+  vertical-align: top;
+  color: #111827;
+}
+.meta-label {
+  width: 15%;
+  font-weight: 700;
+}
+.meta-colon {
+  width: 2%;
+  text-align: center;
+  font-weight: 700;
+}
+.meta-val {
+  width: 83%;
+}
+.pillar-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+.pillar-table th, .pillar-table td {
+  border: 1px solid #4b5563;
+  padding: 0.5rem 0.75rem;
+  color: #111827;
+}
+.pillar-table th {
+  background: #f3f4f6;
+  font-weight: 700;
+  text-align: center;
+}
+.check-box-symbol {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  text-align: center;
+  border: 1px solid #111827;
+  font-weight: 900;
+  font-size: 11pt;
+  color: #111827;
+}
+.check-box-symbol.checked {
+  background: #e5e7eb;
+}
+.sign-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5rem;
+}
+.sign-table th, .sign-table td {
+  border: 1px solid #4b5563;
+  text-align: center;
+  color: #111827;
+}
+.sign-table th {
+  padding: 0.5rem;
+  background: #f3f4f6;
+  font-weight: 700;
+  width: 33.33%;
+}
+.sign-space {
+  height: 80px;
+}
+.sign-name {
+  padding: 0.5rem;
+  font-weight: 700;
+}
+.btn-sm-action.btn-status:hover {
+  background: #d97706;
+  color: #fff;
+}
+</style>
+{% endblock %}
+
+{% block module_tabs %}
+{% set active_tab = "proposal" %}
+{% include "sponsorship/_toolbar.html" with context %}
+{% endblock %}
+
+{% block content %}
+<div class="budget-page">
+  {% if wrong_company %}
+    {% include "sponsorship/_notice.html" %}
+  {% else %}
+
+  <!-- Filter & Actions Toolbar -->
+  <form class="budget-toolbar filter-bar collapsible" method="get" id="sp-prop-filter-form">
+    <div class="budget-dropdown-check">
+      <button type="button" class="budget-dropdown-btn" onclick="this.nextElementSibling.classList.toggle('show')">
+        Tahun {% if filters.tahun %}({{ filters.tahun }}){% endif %} <span style="font-size: 0.7em;">▼</span>
+      </button>
+      <div class="budget-dropdown-content">
+        <label><input type="radio" name="tahun" value="" {% if not filters.tahun %}checked{% endif %} onchange="this.form.submit()"> Semua Tahun</label>
+        {% for y in years %}
+        <label><input type="radio" name="tahun" value="{{ y }}" {% if filters.tahun == y %}checked{% endif %} onchange="this.form.submit()"> {{ y }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <select name="status" onchange="this.form.submit()">
+      <option value="">Semua Status</option>
+      <option value="Open" {% if filters.status == 'Open' %}selected{% endif %}>Open</option>
+      <option value="Approved" {% if filters.status == 'Approved' %}selected{% endif %}>Approved</option>
+      <option value="Reject" {% if filters.status == 'Reject' %}selected{% endif %}>Reject</option>
+    </select>
+
+    <input type="text" name="keyword" placeholder="Cari No, Referensi, Kegiatan..." value="{{ filters.keyword or '' }}" style="min-width: 260px;">
+    <button type="submit" class="budget-btn">Cari</button>
+    {% if filters.tahun or filters.status or filters.keyword %}
+    <a href="{{ url_for('sponsorship.proposal_page') }}" class="budget-btn" style="background-color: transparent; border: 1px solid var(--border-subtle, rgba(255,255,255,0.2)); color: var(--text-muted, #94a3b8);">Reset</a>
+    {% endif %}
+
+    <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
+      <button type="button" class="budget-btn" style="background-color:#2563eb;" onclick="openCreateModal()">+ Input Baru</button>
+      <button type="button" class="budget-btn" style="background-color:#10b981;" onclick="exportProposalExcel()">Export to Excel</button>
+      <button type="button" class="budget-btn" style="background-color:#3b82f6;" onclick="document.getElementById('sp-prop-sync-file').click()">Sync Data</button>
+      <input type="file" id="sp-prop-sync-file" style="display:none" accept=".xlsx" onchange="proposalDataSync()" />
+      <a href="{{ url_for('sponsorship.form_export_bulk_route', tahun=filters.tahun or '', status=filters.status or '', keyword=filters.keyword or '') }}" class="budget-btn" style="background-color:#059669;" title="Download seluruh form proposal yang terfilter dalam format ZIP">Export Forms (ZIP)</a>
+    </div>
+  </form>
+
+  <!-- Table Container -->
+  <div class="budget-table-container" id="sp-table-wrap">
+    <table class="budget-table">
+      <thead>
+        <tr>
+          <th>No Proposal</th>
+          <th>Tanggal</th>
+          <th>Referensi</th>
+          <th>Kegiatan</th>
+          <th class="num-right">Total Nilai</th>
+          <th>Alokasi Pilar</th>
+          <th>Diajukan</th>
+          <th>Versi</th>
+          <th>Status</th>
+          <th>Approval Date</th>
+          <th style="text-align: center;">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if rows %}
+          {% for r in rows %}
+          <tr class="sp-prop-table-row">
+            <td class="nowrap-cell">
+              <span style="font-family: monospace; font-weight: 600; color: #60a5fa;">{{ r.nomor_proposal }}</span>
+            </td>
+            <td class="nowrap-cell">{{ r.tanggal }}</td>
+            <td style="font-weight: 500; min-width: 120px; max-width: 220px;">{{ r.referensi }}</td>
+            <td style="min-width: 240px; max-width: 440px; white-space: normal; line-height: 1.35;">{{ r.kegiatan }}</td>
+            <td class="num-right nowrap-cell" style="font-weight: 600;">
+              Rp {{ "{:,.0f}".format(r.total_amount or 0).replace(",", ".") }}
+            </td>
+            <td>
+              <div class="pillar-breakdown" style="display: flex; flex-wrap: wrap; gap: 3px;">
+                {% if r.app_amount and r.app_amount > 0 %}
+                <span class="pillar-pill nowrap-cell">APP: {{ "{:,.0f}".format(r.app_amount).replace(",", ".") }}</span>
+                {% endif %}
+                {% if r.agri_amount and r.agri_amount > 0 %}
+                <span class="pillar-pill nowrap-cell">AGRI: {{ "{:,.0f}".format(r.agri_amount).replace(",", ".") }}</span>
+                {% endif %}
+                {% if r.energy_amount and r.energy_amount > 0 %}
+                <span class="pillar-pill nowrap-cell">ENERGY: {{ "{:,.0f}".format(r.energy_amount).replace(",", ".") }}</span>
+                {% endif %}
+                {% if r.land_amount and r.land_amount > 0 %}
+                <span class="pillar-pill nowrap-cell">LAND: {{ "{:,.0f}".format(r.land_amount).replace(",", ".") }}</span>
+                {% endif %}
+                {% if r.finance_amount and r.finance_amount > 0 %}
+                <span class="pillar-pill nowrap-cell">FIN: {{ "{:,.0f}".format(r.finance_amount).replace(",", ".") }}</span>
+                {% endif %}
+              </div>
+            </td>
+            <td class="nowrap-cell" style="text-align: center;">{{ r.diajukan_oleh or '-' }}</td>
+            <td class="nowrap-cell" style="text-align: center;">{{ r.versi or '-' }}</td>
+            <td class="nowrap-cell" style="text-align: center;">
+              {% set st_low = (r.status or 'open') | lower %}
+              <span class="badge-status {{ st_low }}">
+                {% if st_low == 'approved' %}✓ Approved
+                {% elif st_low == 'reject' %}✕ Reject
+                {% else %}● Open{% endif %}
+              </span>
+            </td>
+            <td class="nowrap-cell" style="text-align: center;">{{ r.approval_date or '-' }}</td>
+            <td class="nowrap-cell" style="text-align: center;">
+              <div class="action-btn-group">
+                <button type="button" class="btn-sm-action btn-form" onclick="openFormModal({{ r.id }})" title="Lihat & Cetak Sponsorship Form">
+                  📄 Form
+                </button>
+                <button type="button" class="btn-sm-action btn-status" onclick="openStatusModal({{ r.id }})" title="Ubah Status & Tanggal Approval">
+                  ⚡ Status
+                </button>
+                <button type="button" class="btn-sm-action" onclick="openEditModal({{ r.id }})" title="Edit Data Proposal">
+                  ✏️ Edit
+                </button>
+                <button type="button" class="btn-sm-action" style="color:#ef4444;" onclick="confirmDeleteProposal({{ r.id }})" title="Hapus Proposal">
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-muted, #94a3b8);">
+              Tidak ada data proposal sponsor yang sesuai filter.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="floating-pagination">
+    <span class="budget-pagination-info">Halaman {{ page }} dari {{ total_pages }} ({{ total_count }} data proposal)</span>
+    <div class="budget-pagination-nav">
+      {% set query_str = [] %}
+      {% for k, v in filters.items() %}
+        {% if v %}
+          {% set _ = query_str.append(k ~ '=' ~ v|urlencode) %}
+        {% endif %}
+      {% endfor %}
+      {% set filter_qs = ('&' ~ query_str|join('&')) if query_str else '' %}
+      <a class="budget-btn {% if page <= 1 %}disabled{% endif %}" href="?page={{ page - 1 }}&page_size={{ page_size }}{{ filter_qs }}">&lt; Prev</a>
+      <a class="budget-btn {% if page >= total_pages %}disabled{% endif %}" href="?page={{ page + 1 }}&page_size={{ page_size }}{{ filter_qs }}">Next &gt;</a>
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+
+<!-- Modal: Input Proposal Baru -->
+<div id="sp-create-modal" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;">
+  <div class="modal" style="max-width: 680px; width: 95%;">
+    <div class="modal-header">
+      <span class="modal-title" style="font-weight: 700; font-size: 1.15rem;">Tambah Proposal Sponsor Baru</span>
+      <button type="button" onclick="closeCreateModal()" style="background:none;border:none;color:#aaa;font-size:1.25rem;cursor:pointer;">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 1.25rem 1.5rem;">
+      <form id="sp-create-form" onsubmit="submitCreateProposal(event)">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Tanggal Pengajuan *</label>
+            <input type="date" id="cr-tanggal" required class="budget-input" style="width: 100%;">
+          </div>
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Diajukan Oleh</label>
+            <input type="text" id="cr-diajukan" value="AR/JT" class="budget-input" style="width: 100%;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Referensi *</label>
+          <input type="text" id="cr-referensi" required placeholder="Contoh: Bp. Burhanudin Abdullah, Komdigi, dll." class="budget-input" style="width: 100%;">
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Kegiatan / Program *</label>
+          <textarea id="cr-kegiatan" required rows="2" placeholder="Nama acara, program, atau rincian kegiatan..." class="budget-input" style="width: 100%;"></textarea>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display:block; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.25rem; color: #10b981;">
+            Total Nilai Sponsor (Rp) *
+          </label>
+          <div style="position: relative; display: flex; align-items: center;">
+            <span style="position: absolute; left: 10px; color: #10b981; font-weight: 700; font-size: 0.95rem;">Rp</span>
+            <input type="number" id="cr-total" required min="0" step="any" placeholder="0"
+              oninput="onTotalChange('cr')"
+              class="budget-input"
+              style="width: 100%; padding-left: 2.2rem; font-weight: 700; font-size: 1.05rem; background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.3); color: #10b981;">
+          </div>
+          <div id="cr-total-preview" style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; font-style: italic;">
+            Rp 0
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+          <div style="font-size: 0.85rem; font-weight: 700; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.05em;">
+            Alokasi Pilar (Persentase &amp; Nominal)
+          </div>
+          <div id="cr-alloc-summary" style="font-size: 0.75rem; font-weight: 600;"></div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); border-radius: 6px; padding: 0.4rem; margin-bottom: 1rem;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+            <thead>
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: #94a3b8; text-align: left;">
+                <th style="padding: 0.35rem 0.5rem; width: 30%;">Pilar</th>
+                <th style="padding: 0.35rem 0.5rem; width: 28%;">Persen (%)</th>
+                <th style="padding: 0.35rem 0.5rem; width: 42%;">Nominal (Rp)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">APP</td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="cr-app-pct" min="0" max="100" step="any" placeholder="0"
+                      oninput="onPillarPctChange('cr', 'app')" class="budget-input" style="width: 100%; padding-right: 1.25rem;">
+                    <span style="position: absolute; right: 6px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;">%</span>
+                  </div>
+                </td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <input type="number" id="cr-app" min="0" step="any" placeholder="0"
+                    oninput="onPillarNomChange('cr', 'app')" class="budget-input" style="width: 100%;">
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">AGRO / DSS</td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="cr-agri-pct" min="0" max="100" step="any" placeholder="0"
+                      oninput="onPillarPctChange('cr', 'agri')" class="budget-input" style="width: 100%; padding-right: 1.25rem;">
+                    <span style="position: absolute; right: 6px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;">%</span>
+                  </div>
+                </td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <input type="number" id="cr-agri" min="0" step="any" placeholder="0"
+                    oninput="onPillarNomChange('cr', 'agri')" class="budget-input" style="width: 100%;">
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">ENERGY</td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="cr-energy-pct" min="0" max="100" step="any" placeholder="0"
+                      oninput="onPillarPctChange('cr', 'energy')" class="budget-input" style="width: 100%; padding-right: 1.25rem;">
+                    <span style="position: absolute; right: 6px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;">%</span>
+                  </div>
+                </td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <input type="number" id="cr-energy" min="0" step="any" placeholder="0"
+                    oninput="onPillarNomChange('cr', 'energy')" class="budget-input" style="width: 100%;">
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">LAND</td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="cr-land-pct" min="0" max="100" step="any" placeholder="0"
+                      oninput="onPillarPctChange('cr', 'land')" class="budget-input" style="width: 100%; padding-right: 1.25rem;">
+                    <span style="position: absolute; right: 6px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;">%</span>
+                  </div>
+                </td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <input type="number" id="cr-land" min="0" step="any" placeholder="0"
+                    oninput="onPillarNomChange('cr', 'land')" class="budget-input" style="width: 100%;">
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">FINANCE</td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="cr-finance-pct" min="0" max="100" step="any" placeholder="0"
+                      oninput="onPillarPctChange('cr', 'finance')" class="budget-input" style="width: 100%; padding-right: 1.25rem;">
+                    <span style="position: absolute; right: 6px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;">%</span>
+                  </div>
+                </td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <input type="number" id="cr-finance" min="0" step="any" placeholder="0"
+                    oninput="onPillarNomChange('cr', 'finance')" class="budget-input" style="width: 100%;">
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr style="border-top: 1px solid rgba(255,255,255,0.1); font-weight: 700;">
+                <td style="padding: 0.4rem 0.5rem;">Total Alokasi</td>
+                <td style="padding: 0.4rem 0.5rem;" id="cr-tot-pct">0%</td>
+                <td style="padding: 0.4rem 0.5rem;" id="cr-tot-nom">Rp 0</td>
+              </tr>
+              <tr style="font-size: 0.75rem;">
+                <td style="padding: 0.15rem 0.5rem; color: #94a3b8;">Sisa Alokasi</td>
+                <td style="padding: 0.15rem 0.5rem;" id="cr-sisa-pct">100%</td>
+                <td style="padding: 0.15rem 0.5rem;" id="cr-sisa-nom">Rp 0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Versi</label>
+            <input type="text" id="cr-versi" placeholder="Versi 1" class="budget-input" style="width: 100%;">
+          </div>
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Status</label>
+            <select id="cr-status" class="budget-input" style="width: 100%;" onchange="toggleApprovalDate('cr')">
+              <option value="Open">Open</option>
+              <option value="Approved">Approved</option>
+              <option value="Reject">Reject</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Approval Date</label>
+            <input type="date" id="cr-approval-date" class="budget-input" style="width: 100%;" disabled>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <button type="button" class="budget-btn" style="background:#e2e8f0; border:1px solid #cbd5e1; color:#334155; font-weight:600;" onclick="closeCreateModal()">Batal</button>
+          <button type="submit" class="budget-btn" style="background-color:#2563eb;">Simpan Proposal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit Proposal -->
+<div id="sp-edit-modal" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;">
+  <div class="modal" style="max-width: 680px; width: 95%;">
+    <div class="modal-header">
+      <span class="modal-title" style="font-weight: 700; font-size: 1.15rem;">Edit Proposal Sponsor (<span id="ed-nomor-label"></span>)</span>
+      <button type="button" onclick="closeEditModal()" style="background:none;border:none;color:#aaa;font-size:1.25rem;cursor:pointer;">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 1.25rem 1.5rem;">
+      <form id="sp-edit-form" onsubmit="submitEditProposal(event)">
+        <input type="hidden" id="ed-id">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Tanggal Pengajuan *</label>
+            <input type="date" id="ed-tanggal" required class="budget-input" style="width: 100%;">
+          </div>
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Diajukan Oleh</label>
+            <input type="text" id="ed-diajukan" class="budget-input" style="width: 100%;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Referensi *</label>
+          <input type="text" id="ed-referensi" required class="budget-input" style="width: 100%;">
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Kegiatan / Program *</label>
+          <textarea id="ed-kegiatan" required rows="2" class="budget-input" style="width: 100%;"></textarea>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="display:block; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.25rem; color: #10b981;">
+            Total Nilai Sponsor (Rp) *
+          </label>
+          <div style="position: relative; display: flex; align-items: center;">
+            <span style="position: absolute; left: 10px; color: #10b981; font-weight: 700; font-size: 0.95rem;">Rp</span>
+            <input type="number" id="ed-total" required min="0" step="any" placeholder="0"
+              oninput="onTotalChange('ed')"
+              class="budget-input"
+              style="width: 100%; padding-left: 2.2rem; font-weight: 700; font-size: 1.05rem; background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.3); color: #10b981;">
+          </div>
+          <div id="ed-total-preview" style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; font-style: italic;">
+            Rp 0
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+          <div style="font-size: 0.85rem; font-weight: 700; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.05em;">
+            Alokasi Pilar (Persentase &amp; Nominal)
+          </div>
+          <div id="ed-alloc-summary" style="font-size: 0.75rem; font-weight: 600;"></div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); border-radius: 6px; padding: 0.4rem; margin-bottom: 1rem;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+            <thead>
+              <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: #94a3b8; text-align: left;">
+                <th style="padding: 0.35rem 0.5rem; width: 30%;">Pilar</th>
+                <th style="padding: 0.35rem 0.5rem; width: 28%;">Persen (%)</th>
+                <th style="padding: 0.35rem 0.5rem; width: 42%;">Nominal (Rp)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">APP</td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="ed-app-pct" min="0" max="100" step="any" placeholder="0"
+                      oninput="onPillarPctChange('ed', 'app')" class="budget-input" style="width: 100%; padding-right: 1.25rem;">
+                    <span style="position: absolute; right: 6px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;">%</span>
+                  </div>
+                </td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <input type="number" id="ed-app" min="0" step="any" placeholder="0"
+                    oninput="onPillarNomChange('ed', 'app')" class="budget-input" style="width: 100%;">
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">AGRO / DSS</td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="ed-agri-pct" min="0" max="100" step="any" placeholder="0"
+                      oninput="onPillarPctChange('ed', 'agri')" class="budget-input" style="width: 100%; padding-right: 1.25rem;">
+                    <span style="position: absolute; right: 6px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;">%</span>
+                  </div>
+                </td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <input type="number" id="ed-agri" min="0" step="any" placeholder="0"
+                    oninput="onPillarNomChange('ed', 'agri')" class="budget-input" style="width: 100%;">
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">ENERGY</td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="ed-energy-pct" min="0" max="100" step="any" placeholder="0"
+                      oninput="onPillarPctChange('ed', 'energy')" class="budget-input" style="width: 100%; padding-right: 1.25rem;">
+                    <span style="position: absolute; right: 6px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;">%</span>
+                  </div>
+                </td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <input type="number" id="ed-energy" min="0" step="any" placeholder="0"
+                    oninput="onPillarNomChange('ed', 'energy')" class="budget-input" style="width: 100%;">
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">LAND</td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="ed-land-pct" min="0" max="100" step="any" placeholder="0"
+                      oninput="onPillarPctChange('ed', 'land')" class="budget-input" style="width: 100%; padding-right: 1.25rem;">
+                    <span style="position: absolute; right: 6px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;">%</span>
+                  </div>
+                </td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <input type="number" id="ed-land" min="0" step="any" placeholder="0"
+                    oninput="onPillarNomChange('ed', 'land')" class="budget-input" style="width: 100%;">
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">FINANCE</td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="number" id="ed-finance-pct" min="0" max="100" step="any" placeholder="0"
+                      oninput="onPillarPctChange('ed', 'finance')" class="budget-input" style="width: 100%; padding-right: 1.25rem;">
+                    <span style="position: absolute; right: 6px; color: #94a3b8; font-size: 0.75rem; pointer-events: none;">%</span>
+                  </div>
+                </td>
+                <td style="padding: 0.35rem 0.5rem;">
+                  <input type="number" id="ed-finance" min="0" step="any" placeholder="0"
+                    oninput="onPillarNomChange('ed', 'finance')" class="budget-input" style="width: 100%;">
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr style="border-top: 1px solid rgba(255,255,255,0.1); font-weight: 700;">
+                <td style="padding: 0.4rem 0.5rem;">Total Alokasi</td>
+                <td style="padding: 0.4rem 0.5rem;" id="ed-tot-pct">0%</td>
+                <td style="padding: 0.4rem 0.5rem;" id="ed-tot-nom">Rp 0</td>
+              </tr>
+              <tr style="font-size: 0.75rem;">
+                <td style="padding: 0.15rem 0.5rem; color: #94a3b8;">Sisa Alokasi</td>
+                <td style="padding: 0.15rem 0.5rem;" id="ed-sisa-pct">100%</td>
+                <td style="padding: 0.15rem 0.5rem;" id="ed-sisa-nom">Rp 0</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Versi</label>
+            <input type="text" id="ed-versi" class="budget-input" style="width: 100%;">
+          </div>
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Status</label>
+            <select id="ed-status" class="budget-input" style="width: 100%;" onchange="toggleApprovalDate('ed')">
+              <option value="Open">Open</option>
+              <option value="Approved">Approved</option>
+              <option value="Reject">Reject</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Approval Date</label>
+            <input type="date" id="ed-approval-date" class="budget-input" style="width: 100%;">
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <button type="button" class="budget-btn" style="background:#e2e8f0; border:1px solid #cbd5e1; color:#334155; font-weight:600;" onclick="closeEditModal()">Batal</button>
+          <button type="submit" class="budget-btn" style="background-color:#2563eb;">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Quick Status Update -->
+<div id="sp-status-modal" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;">
+  <div class="modal" style="max-width: 440px; width: 90%;">
+    <div class="modal-header">
+      <span class="modal-title" style="font-weight: 700;">Ubah Status Proposal</span>
+      <button type="button" onclick="closeStatusModal()" style="background:none;border:none;color:#aaa;font-size:1.25rem;cursor:pointer;">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 1.25rem;">
+      <form id="sp-quick-status-form" onsubmit="submitQuickStatus(event)">
+        <input type="hidden" id="qs-id">
+        <p style="font-size: 0.85rem; color: var(--text-muted, #aaa); margin-bottom: 1rem;">
+          Ubah status untuk proposal <strong id="qs-nomor" style="color:#60a5fa;"></strong>:
+        </p>
+        <div style="margin-bottom: 1rem;">
+          <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Pilih Status</label>
+          <select id="qs-status" class="budget-input" style="width: 100%;" onchange="onQuickStatusChange()">
+            <option value="Open">Open</option>
+            <option value="Approved">Approved</option>
+            <option value="Reject">Reject</option>
+          </select>
+        </div>
+        <div id="qs-date-container" style="margin-bottom: 1.25rem;">
+          <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Tanggal Approval</label>
+          <input type="date" id="qs-date" class="budget-input" style="width: 100%;">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <button type="button" class="budget-btn" style="background:#e2e8f0; border:1px solid #cbd5e1; color:#334155; font-weight:600;" onclick="closeStatusModal()">Batal</button>
+          <button type="submit" class="budget-btn" style="background-color:#10b981;">Update Status</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Sponsorship Form Popup -->
+<div id="sp-form-modal" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;">
+  <div class="modal" style="max-width: 900px; width: 95%; max-height: 92vh; display: flex; flex-direction: column;">
+    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 0.75rem 1.25rem;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span class="modal-title" style="font-weight: 700; font-size: 1.1rem;">Sponsorship Form</span>
+        <span id="form-modal-nomor" style="font-family: monospace; font-size: 0.85rem; font-weight: 700; color: #60a5fa; background: rgba(59,130,246,0.15); padding: 2px 8px; border-radius: 4px;"></span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <button type="button" class="budget-btn" style="background-color: #2563eb; font-size: 0.82rem; padding: 0.35rem 0.75rem;" onclick="printFormModal()">
+          🖨️ Cetak Form
+        </button>
+        <a id="form-modal-export-btn" href="#" class="budget-btn" style="background-color: #10b981; font-size: 0.82rem; padding: 0.35rem 0.75rem;">
+          📥 Export Excel
+        </a>
+        <button type="button" onclick="closeFormModal()" style="background:none; border:none; color:#aaa; font-size:1.4rem; cursor:pointer; line-height: 1; padding: 0 4px;" title="Tutup">&times;</button>
+      </div>
+    </div>
+    <div class="modal-body" style="padding: 1.25rem; overflow-y: auto; background: #374151;">
+      <div class="paper-sheet" id="sp-form-sheet-content">
+        <div class="sheet-header-title">
+          SPONSORSHIP FORM
+        </div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="meta-label">Tanggal</td>
+            <td class="meta-colon">:</td>
+            <td class="meta-val" id="fm-tanggal" style="font-weight: 600;"></td>
+          </tr>
+          <tr>
+            <td class="meta-label">Referensi</td>
+            <td class="meta-colon">:</td>
+            <td class="meta-val" id="fm-referensi" style="font-weight: 600;"></td>
+          </tr>
+          <tr>
+            <td class="meta-label">Kegiatan</td>
+            <td class="meta-colon">:</td>
+            <td class="meta-val" id="fm-kegiatan"></td>
+          </tr>
+          <tr>
+            <td class="meta-label">Nilai</td>
+            <td class="meta-colon">:</td>
+            <td class="meta-val" id="fm-nilai" style="font-weight: 700; font-size: 12pt;"></td>
+          </tr>
+          <tr>
+            <td class="meta-label">Terbilang</td>
+            <td class="meta-colon">:</td>
+            <td class="meta-val" id="fm-terbilang" style="font-style: italic; font-weight: 600;"></td>
+          </tr>
+          <tr>
+            <td class="meta-label">Catatan</td>
+            <td class="meta-colon">:</td>
+            <td class="meta-val" id="fm-catatan"></td>
+          </tr>
+        </table>
+
+        <div style="font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #111827;">
+          Diteruskan kepada :
+        </div>
+
+        <table class="pillar-table">
+          <thead>
+            <tr>
+              <th style="width: 8%;">Check</th>
+              <th style="width: 22%;">Pillar / Divisi</th>
+              <th style="width: 25%;">Nominal (Rp)</th>
+              <th style="width: 45%;">Terbilang</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- APP -->
+            <tr>
+              <td style="text-align: center;"><span id="fm-check-app" class="check-box-symbol">X</span></td>
+              <td style="font-weight: 700;">APP</td>
+              <td style="text-align: right; font-weight: 600;" id="fm-amt-app">-</td>
+              <td style="font-style: italic; font-size: 9.5pt;" id="fm-terb-app"></td>
+            </tr>
+            <!-- AGRI -->
+            <tr>
+              <td style="text-align: center;"><span id="fm-check-agri" class="check-box-symbol">X</span></td>
+              <td style="font-weight: 700;">AGRO / DSS</td>
+              <td style="text-align: right; font-weight: 600;" id="fm-amt-agri">-</td>
+              <td style="font-style: italic; font-size: 9.5pt;" id="fm-terb-agri"></td>
+            </tr>
+            <!-- ENERGY -->
+            <tr>
+              <td style="text-align: center;"><span id="fm-check-energy" class="check-box-symbol">X</span></td>
+              <td style="font-weight: 700;">ENERGY</td>
+              <td style="text-align: right; font-weight: 600;" id="fm-amt-energy">-</td>
+              <td style="font-style: italic; font-size: 9.5pt;" id="fm-terb-energy"></td>
+            </tr>
+            <!-- LAND -->
+            <tr>
+              <td style="text-align: center;"><span id="fm-check-land" class="check-box-symbol">X</span></td>
+              <td style="font-weight: 700;">LAND</td>
+              <td style="text-align: right; font-weight: 600;" id="fm-amt-land">-</td>
+              <td style="font-style: italic; font-size: 9.5pt;" id="fm-terb-land"></td>
+            </tr>
+            <!-- FINANCE -->
+            <tr>
+              <td style="text-align: center;"><span id="fm-check-finance" class="check-box-symbol">X</span></td>
+              <td style="font-weight: 700;">FINANCE</td>
+              <td style="text-align: right; font-weight: 600;" id="fm-amt-finance">-</td>
+              <td style="font-style: italic; font-size: 9.5pt;" id="fm-terb-finance"></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Signatures Box -->
+        <table class="sign-table">
+          <thead>
+            <tr>
+              <th>Diajukan</th>
+              <th>Disetujui</th>
+              <th>Diketahui</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="sign-space"></td>
+              <td class="sign-space"></td>
+              <td class="sign-space"></td>
+            </tr>
+            <tr>
+              <td class="sign-name" id="fm-diajukan">AR/JT</td>
+              <td class="sign-name">FS</td>
+              <td class="sign-name">SC</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="sp-proposals-json" type="application/json">
+{{ rows | tojson | safe }}
+</script>
+
+<script>
+const proposalsMap = {};
+try {
+  const raw = document.getElementById('sp-proposals-json')?.textContent || '[]';
+  const list = JSON.parse(raw);
+  list.forEach(p => { proposalsMap[p.id] = p; });
+} catch (e) {
+  console.error("Gagal parse data proposal JSON:", e);
+}
+
+function todayDateStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const PILLAR_KEYS = ['app', 'agri', 'energy', 'land', 'finance'];
+
+function formatRupiahPreview(num) {
+  if (!num || isNaN(num)) return 'Rp 0';
+  return 'Rp ' + Math.round(num).toLocaleString('id-ID');
+}
+
+// When Total Nilai Sponsor changes
+function onTotalChange(prefix) {
+  const totInput = document.getElementById(`${prefix}-total`);
+  const total = parseFloat(totInput.value) || 0;
+
+  const prevEl = document.getElementById(`${prefix}-total-preview`);
+  if (prevEl) prevEl.textContent = formatRupiahPreview(total);
+
+  // Recalculate nominal for pillars that have percentages
+  PILLAR_KEYS.forEach(key => {
+    const pctInput = document.getElementById(`${prefix}-${key}-pct`);
+    const nomInput = document.getElementById(`${prefix}-${key}`);
+    const pct = parseFloat(pctInput.value) || 0;
+    if (pct > 0) {
+      const calcNom = Math.round(total * (pct / 100));
+      nomInput.value = calcNom > 0 ? calcNom : 0;
+    } else {
+      const nom = parseFloat(nomInput.value) || 0;
+      if (total > 0 && nom > 0) {
+        pctInput.value = +((nom / total) * 100).toFixed(2);
+      }
+    }
+  });
+
+  updateAllocSummary(prefix);
+}
+
+// When user inputs Percentage (%) on a pillar
+function onPillarPctChange(prefix, pillar) {
+  const total = parseFloat(document.getElementById(`${prefix}-total`).value) || 0;
+  const pctInput = document.getElementById(`${prefix}-${pillar}-pct`);
+  const nomInput = document.getElementById(`${prefix}-${pillar}`);
+  const pct = parseFloat(pctInput.value) || 0;
+
+  if (total > 0) {
+    const calcNom = Math.round(total * (pct / 100));
+    nomInput.value = calcNom > 0 ? calcNom : 0;
+  }
+  updateAllocSummary(prefix);
+}
+
+// When user inputs Nominal (Rp) on a pillar
+function onPillarNomChange(prefix, pillar) {
+  const total = parseFloat(document.getElementById(`${prefix}-total`).value) || 0;
+  const pctInput = document.getElementById(`${prefix}-${pillar}-pct`);
+  const nomInput = document.getElementById(`${prefix}-${pillar}`);
+  const nom = parseFloat(nomInput.value) || 0;
+
+  if (total > 0) {
+    pctInput.value = +((nom / total) * 100).toFixed(2);
+  }
+  updateAllocSummary(prefix);
+}
+
+// Update the allocation summary, totals, and remaining balance
+function updateAllocSummary(prefix) {
+  const total = parseFloat(document.getElementById(`${prefix}-total`).value) || 0;
+  let sumNom = 0;
+  let sumPct = 0;
+
+  PILLAR_KEYS.forEach(key => {
+    const nom = parseFloat(document.getElementById(`${prefix}-${key}`).value) || 0;
+    const pct = parseFloat(document.getElementById(`${prefix}-${key}-pct`).value) || 0;
+    sumNom += nom;
+    sumPct += pct;
+  });
+
+  const totPctEl = document.getElementById(`${prefix}-tot-pct`);
+  const totNomEl = document.getElementById(`${prefix}-tot-nom`);
+  const sisaPctEl = document.getElementById(`${prefix}-sisa-pct`);
+  const sisaNomEl = document.getElementById(`${prefix}-sisa-nom`);
+  const summaryEl = document.getElementById(`${prefix}-alloc-summary`);
+
+  if (totPctEl) totPctEl.textContent = (+sumPct.toFixed(2)) + '%';
+  if (totNomEl) totNomEl.textContent = formatRupiahPreview(sumNom);
+
+  const sisaNom = total - sumNom;
+  const sisaPct = 100 - sumPct;
+
+  if (sisaPctEl) {
+    sisaPctEl.textContent = (+sisaPct.toFixed(2)) + '%';
+    sisaPctEl.style.color = Math.abs(sisaPct) < 0.05 ? '#10b981' : (sisaPct > 0 ? '#fbbf24' : '#ef4444');
+  }
+  if (sisaNomEl) {
+    sisaNomEl.textContent = formatRupiahPreview(sisaNom);
+    sisaNomEl.style.color = Math.abs(sisaNom) < 1 ? '#10b981' : (sisaNom > 0 ? '#fbbf24' : '#ef4444');
+  }
+
+  if (summaryEl) {
+    if (total === 0) {
+      summaryEl.innerHTML = '<span style="color: #94a3b8;">Masukkan Total terlebih dahulu</span>';
+    } else if (Math.abs(sisaNom) < 1 || Math.abs(sisaPct) < 0.05) {
+      summaryEl.innerHTML = '<span style="color: #10b981;">✓ 100% Pas Teralokasi</span>';
+    } else if (sisaNom > 0) {
+      summaryEl.innerHTML = `<span style="color: #fbbf24;">Sisa: ${formatRupiahPreview(sisaNom)} (${(+sisaPct.toFixed(2))}%)</span>`;
+    } else {
+      summaryEl.innerHTML = `<span style="color: #ef4444;">⚠️ Lebih: ${formatRupiahPreview(-sisaNom)} (${(+(-sisaPct).toFixed(2))}%)</span>`;
+    }
+  }
+}
+
+function toggleApprovalDate(prefix) {
+  const status = document.getElementById(`${prefix}-status`).value;
+  const dateInput = document.getElementById(`${prefix}-approval-date`);
+  if (status === 'Approved') {
+    dateInput.disabled = false;
+    if (!dateInput.value) {
+      dateInput.value = todayDateStr();
+    }
+  } else {
+    dateInput.value = '';
+    dateInput.disabled = true;
+  }
+}
+
+// Modal Create
+function openCreateModal() {
+  document.getElementById('sp-create-form').reset();
+  document.getElementById('cr-tanggal').value = todayDateStr();
+  document.getElementById('cr-diajukan').value = 'AR/JT';
+  document.getElementById('cr-total').value = '';
+  document.getElementById('cr-total-preview').textContent = 'Rp 0';
+  PILLAR_KEYS.forEach(key => {
+    document.getElementById(`cr-${key}`).value = '';
+    document.getElementById(`cr-${key}-pct`).value = '';
+  });
+  updateAllocSummary('cr');
+  toggleApprovalDate('cr');
+  document.getElementById('sp-create-modal').style.display = 'flex';
+}
+function closeCreateModal() {
+  document.getElementById('sp-create-modal').style.display = 'none';
+}
+
+async function submitCreateProposal(e) {
+  e.preventDefault();
+  const payload = {
+    tanggal: document.getElementById('cr-tanggal').value,
+    diajukan_oleh: document.getElementById('cr-diajukan').value,
+    referensi: document.getElementById('cr-referensi').value,
+    kegiatan: document.getElementById('cr-kegiatan').value,
+    app_amount: parseFloat(document.getElementById('cr-app').value) || 0,
+    agri_amount: parseFloat(document.getElementById('cr-agri').value) || 0,
+    energy_amount: parseFloat(document.getElementById('cr-energy').value) || 0,
+    land_amount: parseFloat(document.getElementById('cr-land').value) || 0,
+    finance_amount: parseFloat(document.getElementById('cr-finance').value) || 0,
+    total_amount: parseFloat(document.getElementById('cr-total').value) || (
+      (parseFloat(document.getElementById('cr-app').value) || 0) +
+      (parseFloat(document.getElementById('cr-agri').value) || 0) +
+      (parseFloat(document.getElementById('cr-energy').value) || 0) +
+      (parseFloat(document.getElementById('cr-land').value) || 0) +
+      (parseFloat(document.getElementById('cr-finance').value) || 0)
+    ),
+    versi: document.getElementById('cr-versi').value,
+    status: document.getElementById('cr-status').value,
+    approval_date: document.getElementById('cr-approval-date').value
+  };
+
+  try {
+    const res = await fetch("{{ url_for('sponsorship.proposal_create_route') }}", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert("Proposal berhasil ditambahkan dengan nomor: " + data.nomor_proposal);
+      window.location.reload();
+    } else {
+      alert("Gagal: " + data.pesan);
+    }
+  } catch (err) {
+    alert("Terjadi kesalahan: " + err.message);
+  }
+}
+
+// Modal Edit
+function openEditModal(id) {
+  const prop = proposalsMap[id];
+  if (!prop) {
+    alert("Data proposal tidak ditemukan.");
+    return;
+  }
+  document.getElementById('ed-id').value = prop.id;
+  document.getElementById('ed-nomor-label').innerText = prop.nomor_proposal;
+  document.getElementById('ed-tanggal').value = prop.tanggal || '';
+  document.getElementById('ed-diajukan').value = prop.diajukan_oleh || 'AR/JT';
+  document.getElementById('ed-referensi').value = prop.referensi || '';
+  document.getElementById('ed-kegiatan').value = prop.kegiatan || '';
+
+  const total = parseFloat(prop.total_amount) || 0;
+  document.getElementById('ed-total').value = total || '';
+  document.getElementById('ed-total-preview').textContent = formatRupiahPreview(total);
+
+  PILLAR_KEYS.forEach(key => {
+    const amt = parseFloat(prop[`${key}_amount`]) || 0;
+    const nomInput = document.getElementById(`ed-${key}`);
+    const pctInput = document.getElementById(`ed-${key}-pct`);
+    nomInput.value = amt > 0 ? amt : '';
+    if (total > 0 && amt > 0) {
+      pctInput.value = +((amt / total) * 100).toFixed(2);
+    } else {
+      pctInput.value = '';
+    }
+  });
+
+  updateAllocSummary('ed');
+
+  document.getElementById('ed-versi').value = prop.versi || '';
+  document.getElementById('ed-status').value = prop.status || 'Open';
+  document.getElementById('ed-approval-date').value = prop.approval_date || '';
+  toggleApprovalDate('ed');
+  document.getElementById('sp-edit-modal').style.display = 'flex';
+}
+function closeEditModal() {
+  document.getElementById('sp-edit-modal').style.display = 'none';
+}
+
+async function submitEditProposal(e) {
+  e.preventDefault();
+  const id = document.getElementById('ed-id').value;
+  const payload = {
+    tanggal: document.getElementById('ed-tanggal').value,
+    diajukan_oleh: document.getElementById('ed-diajukan').value,
+    referensi: document.getElementById('ed-referensi').value,
+    kegiatan: document.getElementById('ed-kegiatan').value,
+    app_amount: parseFloat(document.getElementById('ed-app').value) || 0,
+    agri_amount: parseFloat(document.getElementById('ed-agri').value) || 0,
+    energy_amount: parseFloat(document.getElementById('ed-energy').value) || 0,
+    land_amount: parseFloat(document.getElementById('ed-land').value) || 0,
+    finance_amount: parseFloat(document.getElementById('ed-finance').value) || 0,
+    total_amount: parseFloat(document.getElementById('ed-total').value) || (
+      (parseFloat(document.getElementById('ed-app').value) || 0) +
+      (parseFloat(document.getElementById('ed-agri').value) || 0) +
+      (parseFloat(document.getElementById('ed-energy').value) || 0) +
+      (parseFloat(document.getElementById('ed-land').value) || 0) +
+      (parseFloat(document.getElementById('ed-finance').value) || 0)
+    ),
+    versi: document.getElementById('ed-versi').value,
+    status: document.getElementById('ed-status').value,
+    approval_date: document.getElementById('ed-approval-date').value
+  };
+
+  try {
+    const res = await fetch(`/sponsorship/proposal/${id}/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert("Proposal berhasil diperbarui.");
+      window.location.reload();
+    } else {
+      alert("Gagal: " + data.pesan);
+    }
+  } catch (err) {
+    alert("Terjadi kesalahan: " + err.message);
+  }
+}
+
+// Quick Status Modal
+function openStatusModal(id) {
+  const prop = proposalsMap[id];
+  if (!prop) return;
+  document.getElementById('qs-id').value = id;
+  document.getElementById('qs-nomor').innerText = prop.nomor_proposal;
+  document.getElementById('qs-status').value = prop.status || 'Open';
+  const dateInput = document.getElementById('qs-date');
+  dateInput.value = prop.approval_date || (prop.status === 'Approved' ? todayDateStr() : '');
+  onQuickStatusChange();
+  document.getElementById('sp-status-modal').style.display = 'flex';
+}
+function closeStatusModal() {
+  document.getElementById('sp-status-modal').style.display = 'none';
+}
+
+function onQuickStatusChange() {
+  const st = document.getElementById('qs-status').value;
+  const dateContainer = document.getElementById('qs-date-container');
+  const dateInput = document.getElementById('qs-date');
+  if (st === 'Approved') {
+    dateContainer.style.display = 'block';
+    if (!dateInput.value) dateInput.value = todayDateStr();
+  } else {
+    dateContainer.style.display = 'none';
+    dateInput.value = '';
+  }
+}
+
+async function submitQuickStatus(e) {
+  e.preventDefault();
+  const id = document.getElementById('qs-id').value;
+  const status = document.getElementById('qs-status').value;
+  const approvalDate = document.getElementById('qs-date').value;
+
+  try {
+    const res = await fetch(`/sponsorship/proposal/${id}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: status, approval_date: approvalDate })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      window.location.reload();
+    } else {
+      alert("Gagal update status: " + data.pesan);
+    }
+  } catch (err) {
+    alert("Terjadi kesalahan: " + err.message);
+  }
+}
+
+// Delete Proposal
+async function confirmDeleteProposal(id) {
+  const prop = proposalsMap[id];
+  const nomor = prop ? prop.nomor_proposal : `ID ${id}`;
+  if (!confirm(`Apakah Anda yakin ingin menghapus proposal ${nomor}? Tindakan ini tidak dapat dibatalkan.`)) {
+    return;
+  }
+  try {
+    const res = await fetch(`/sponsorship/proposal/${id}/delete`, {
+      method: "POST"
+    });
+    const data = await res.json();
+    if (data.ok) {
+      window.location.reload();
+    } else {
+      alert("Gagal menghapus: " + data.pesan);
+    }
+  } catch (err) {
+    alert("Terjadi kesalahan: " + err.message);
+  }
+}
+
+// Import Excel
+async function uploadProposalExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch("{{ url_for('sponsorship.proposal_import_excel_route') }}", {
+      method: "POST",
+      body: formData
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert(data.pesan);
+      window.location.reload();
+    } else {
+      alert("Gagal import: " + data.pesan);
+    }
+  } catch (err) {
+    alert("Terjadi kesalahan: " + err.message);
+  } finally {
+    event.target.value = "";
+  }
+}
+
+function exportProposalExcel() {
+  const form = document.getElementById("sp-prop-filter-form");
+  const params = new URLSearchParams(new FormData(form));
+  window.location.href = "/sponsorship/proposal/export?" + params.toString();
+}
+
+async function proposalDataSync() {
+  const fileInput = document.getElementById("sp-prop-sync-file");
+  if (!fileInput.files.length) return;
+  const file = fileInput.files[0];
+
+  let confirmed = false;
+  if (typeof confirmModal === "function") {
+    confirmed = await confirmModal("Sinkronisasi data proposal menggunakan file: " + file.name + "?", {
+      title: "Konfirmasi Sinkronisasi Proposal",
+      confirmText: "Sinkronkan"
+    });
+  } else {
+    confirmed = confirm("Sinkronisasi data proposal menggunakan file: " + file.name + "?");
+  }
+
+  if (!confirmed) {
+    fileInput.value = "";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  if (typeof showLoading === "function") {
+    showLoading("Memproses Sinkronisasi Proposal...");
+  }
+
+  fetch("/sponsorship/proposal/sync", {
+    method: "POST",
+    body: formData
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (typeof showToast === "function") {
+      showToast(data.pesan, data.ok ? "success" : "error");
+    } else {
+      alert(data.pesan);
+    }
+    if (data.ok) {
+      setTimeout(() => { window.location.reload(); }, 1000);
+    }
+  })
+  .catch(err => {
+    if (typeof showToast === "function") {
+      showToast("Terjadi kesalahan saat sync data proposal.", "error");
+    } else {
+      alert("Terjadi kesalahan saat sync data: " + err.message);
+    }
+  })
+  .finally(() => {
+    if (typeof hideLoading === "function") hideLoading();
+    fileInput.value = "";
+  });
+}
+
+// Modal Form Popup
+async function openFormModal(id) {
+  let prop = proposalsMap[id];
+  if (!prop) {
+    try {
+      const res = await fetch('/sponsorship/proposal/' + id + '/form-data');
+      const data = await res.json();
+      if (data.ok && data.proposal) {
+        prop = data.proposal;
+        proposalsMap[id] = prop;
+      }
+    } catch (err) {
+      console.error("Gagal load form data proposal:", err);
+    }
+  }
+
+  if (!prop) {
+    alert("Data proposal tidak ditemukan.");
+    return;
+  }
+
+  document.getElementById('form-modal-export-btn').href = "/sponsorship/form/" + id + "/export-excel";
+  document.getElementById('form-modal-nomor').textContent = prop.nomor_proposal || "";
+
+  document.getElementById('fm-tanggal').textContent = prop.tanggal || "-";
+  document.getElementById('fm-referensi').textContent = prop.referensi || "-";
+  document.getElementById('fm-kegiatan').textContent = prop.kegiatan || "-";
+  document.getElementById('fm-nilai').textContent = "Rp. " + Math.round(prop.total_amount || 0).toLocaleString('id-ID');
+  document.getElementById('fm-terbilang').textContent = prop.terbilang_total || "-";
+  document.getElementById('fm-catatan').textContent = prop.catatan || "Nilai Sumbangan diatas netto excluded/ diluar pajak PPN/PPh";
+
+  const pillars = [
+    { key: "app", checkId: "fm-check-app", amtId: "fm-amt-app", terbId: "fm-terb-app" },
+    { key: "agri", checkId: "fm-check-agri", amtId: "fm-amt-agri", terbId: "fm-terb-agri" },
+    { key: "energy", checkId: "fm-check-energy", amtId: "fm-amt-energy", terbId: "fm-terb-energy" },
+    { key: "land", checkId: "fm-check-land", amtId: "fm-amt-land", terbId: "fm-terb-land" },
+    { key: "finance", checkId: "fm-check-finance", amtId: "fm-amt-finance", terbId: "fm-terb-finance" }
+  ];
+
+  pillars.forEach(p => {
+    const amt = parseFloat(prop[p.key + "_amount"] || 0);
+    const checkEl = document.getElementById(p.checkId);
+    const amtEl = document.getElementById(p.amtId);
+    const terbEl = document.getElementById(p.terbId);
+
+    if (amt > 0) {
+      checkEl.textContent = "✓";
+      checkEl.className = "check-box-symbol checked";
+      amtEl.textContent = "Rp. " + Math.round(amt).toLocaleString('id-ID');
+      terbEl.textContent = prop["terbilang_" + p.key] || "";
+    } else {
+      checkEl.textContent = "X";
+      checkEl.className = "check-box-symbol";
+      amtEl.textContent = "-";
+      terbEl.textContent = "";
+    }
+  });
+
+  document.getElementById('fm-diajukan').textContent = prop.diajukan_oleh || "AR/JT";
+  document.getElementById('sp-form-modal').style.display = 'flex';
+}
+
+function closeFormModal() {
+  document.getElementById('sp-form-modal').style.display = 'none';
+}
+
+function printFormModal() {
+  const printContents = document.getElementById('sp-form-sheet-content').innerHTML;
+  const printFrame = document.createElement('iframe');
+  printFrame.style.position = 'fixed';
+  printFrame.style.right = '0';
+  printFrame.style.bottom = '0';
+  printFrame.style.width = '0';
+  printFrame.style.height = '0';
+  printFrame.style.border = '0';
+  document.body.appendChild(printFrame);
+
+  const doc = printFrame.contentWindow.document;
+  doc.open();
+  doc.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Sponsorship Form</title>
+      <style>
+        @page { size: A4 portrait; margin: 1cm; }
+        body { font-family: Arial, sans-serif; font-size: 11pt; color: #111827; margin: 0; padding: 0.5cm; }
+        .sheet-header-title { text-align: center; font-size: 16pt; font-weight: 800; letter-spacing: 0.05em; padding-bottom: 1.25rem; margin-bottom: 1.5rem; border-bottom: 2px solid #111827; }
+        .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 1.25rem; }
+        .meta-table td { padding: 0.35rem 0.5rem; vertical-align: top; }
+        .meta-label { width: 15%; font-weight: 700; }
+        .meta-colon { width: 2%; text-align: center; font-weight: 700; }
+        .meta-val { width: 83%; }
+        .pillar-table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 2.5rem; }
+        .pillar-table th, .pillar-table td { border: 1px solid #4b5563; padding: 0.5rem 0.75rem; }
+        .pillar-table th { background: #f3f4f6; font-weight: 700; text-align: center; }
+        .check-box-symbol { display: inline-block; width: 20px; height: 20px; line-height: 18px; text-align: center; border: 1px solid #111827; font-weight: 900; font-size: 11pt; }
+        .check-box-symbol.checked { background: #e5e7eb; }
+        .sign-table { width: 100%; border-collapse: collapse; margin-top: 2rem; }
+        .sign-table th, .sign-table td { border: 1px solid #4b5563; text-align: center; }
+        .sign-table th { padding: 0.5rem; background: #f3f4f6; font-weight: 700; width: 33.33%; }
+        .sign-space { height: 85px; }
+        .sign-name { padding: 0.5rem; font-weight: 700; }
+      </style>
+    </head>
+    <body>
+      ${printContents}
+    </body>
+    </html>
+  `);
+  doc.close();
+  printFrame.contentWindow.focus();
+  setTimeout(() => {
+    printFrame.contentWindow.print();
+    setTimeout(() => {
+      if (document.body.contains(printFrame)) {
+        document.body.removeChild(printFrame);
+      }
+    }, 1000);
+  }, 300);
+}
+
+// Auto open form modal if open_form parameter is present in URL
+document.addEventListener('DOMContentLoaded', function() {
+  const params = new URLSearchParams(window.location.search);
+  const openFormId = params.get('open_form');
+  if (openFormId) {
+    openFormModal(openFormId);
+  }
+});
+</script>
+
+<script>
+// ─── Size sp-table-wrap to fill the entire remaining viewport ────────────
+(function() {
+  function sizeWrap() {
+    const wrap = document.getElementById('sp-table-wrap');
+    if (!wrap) return;
+    requestAnimationFrame(() => {
+      wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top) + 'px';
+    });
+  }
+  window.addEventListener('load', sizeWrap);
+  window.addEventListener('resize', sizeWrap);
+  document.addEventListener('DOMContentLoaded', sizeWrap);
+  document.addEventListener('DOMContentLoaded', () => {
+    const filterForm = document.getElementById('sp-prop-filter-form');
+    if (filterForm && window.ResizeObserver) new ResizeObserver(sizeWrap).observe(filterForm);
+  });
+})();
+</script>
+{% endblock %}

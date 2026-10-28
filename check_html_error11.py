@@ -1,0 +1,4 @@
+with open("app/templates/payment_memo/index.html", "r", encoding="utf-8") as f:
+    lines = f.readlines()
+for i in range(5620, 5645):
+    print(f"Line {i+1}: {lines[i].rstrip()}")

@@ -1,0 +1,10 @@
+import sqlite3
+conn = sqlite3.connect('C:/Financehub/app/finance_hub.db')
+c = conn.cursor()
+c.execute('UPDATE users SET role = ? WHERE role = ?', ('Admin', 'releaser'))
+c.execute('UPDATE users SET role = ? WHERE role = ?', ('Fin', 'verificator'))
+c.execute('UPDATE users SET role = ? WHERE role = ?', ('BC', 'requester'))
+c.execute('UPDATE users SET role = ? WHERE username = ?', ('Admin', 'admin'))
+conn.commit()
+conn.close()
+print('Migration complete')

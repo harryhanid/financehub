@@ -244,8 +244,14 @@ def export_data_excel(company_id: int, filters: dict) -> bytes:
 
 
 def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
-    from modules.sponsorship.service import get_sponsorship_outstanding
+    from modules.sponsorship.service import get_sponsorship_outstanding, list_proposals
     sections, grand_total = get_sponsorship_outstanding(company_id, filters)
+    
+    prop_filters = {"status": "Open"}
+    if filters.get("tahun"):
+        prop_filters["tahun"] = filters.get("tahun")
+    open_proposals = list_proposals(company_id, prop_filters, limit=2000, offset=0)
+    open_total = sum(float(p.get("total_amount") or 0) for p in open_proposals)
     
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -365,6 +371,85 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
                     cell.alignment = align_right
                     cell.number_format = _NUM_FMT
 
+    if open_proposals:
+        prop_sec_fill = PatternFill("solid", fgColor="0D9488")
+        ws.append([f"Proposal Sponsor (Status: Open) - {len(open_proposals)} Proposal", "", "", "", "", open_total, ""])
+        prop_row = ws.max_row
+        ws.row_dimensions[prop_row].height = 20
+        ws.merge_cells(start_row=prop_row, start_column=1, end_row=prop_row, end_column=5)
+        for col_idx in range(1, num_cols + 1):
+            cell = ws.cell(row=prop_row, column=col_idx)
+            cell.fill = prop_sec_fill
+            cell.font = font_bold_white
+            cell.border = cell_border
+            if col_idx == 1:
+                cell.alignment = align_left
+            elif col_idx == 6:
+                cell.alignment = align_right
+                cell.number_format = _NUM_FMT
+            elif col_idx == 7:
+                cell.alignment = align_center
+
+        months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+        for idx, p in enumerate(open_proposals, start=1):
+            tgl_raw = str(p.get("tanggal") or "")
+            tgl_display = tgl_raw
+            if len(tgl_raw) >= 7 and "-" in tgl_raw:
+                try:
+                    parts = tgl_raw.split("-")
+                    m_idx = int(parts[1]) - 1
+                    if 0 <= m_idx < 12:
+                        tgl_display = f"{months[m_idx]} {parts[0]}"
+                except Exception:
+                    pass
+
+            ws.append([
+                idx,
+                tgl_display,
+                p.get("referensi") or "",
+                "",
+                p.get("kegiatan") or "",
+                float(p.get("total_amount") or 0.0),
+                ""
+            ])
+            r_idx = ws.max_row
+            ws.row_dimensions[r_idx].height = 19
+            is_even = (idx % 2 == 1)
+            row_fill = zebra_fill if is_even else None
+            
+            for col_idx in range(1, num_cols + 1):
+                cell = ws.cell(row=r_idx, column=col_idx)
+                cell.font = font_regular
+                cell.border = cell_border
+                if row_fill:
+                    cell.fill = row_fill
+                if col_idx in [1, 2, 3, 7]:
+                    cell.alignment = align_center
+                elif col_idx in [4, 5]:
+                    cell.alignment = align_left
+                elif col_idx == 6:
+                    cell.alignment = align_right
+                    cell.number_format = _NUM_FMT
+
+        # Overall Grand Total row
+        overall_fill = PatternFill("solid", fgColor="1E293B")
+        ws.append(["Total Keseluruhan (Outstanding + Proposal Open)", "", "", "", "", grand_total + open_total, ""])
+        tot_row = ws.max_row
+        ws.row_dimensions[tot_row].height = 22
+        ws.merge_cells(start_row=tot_row, start_column=1, end_row=tot_row, end_column=5)
+        for col_idx in range(1, num_cols + 1):
+            cell = ws.cell(row=tot_row, column=col_idx)
+            cell.fill = overall_fill
+            cell.font = font_bold_white
+            cell.border = cell_border
+            if col_idx == 1:
+                cell.alignment = align_left
+            elif col_idx == 6:
+                cell.alignment = align_right
+                cell.number_format = _NUM_FMT
+            elif col_idx == 7:
+                cell.alignment = align_center
+
     # Freeze header + grand total row
     ws.freeze_panes = "A3"
 
@@ -431,3 +516,219 @@ def export_mr_excel(company_id: int, tahun: list) -> bytes:
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+# --- Sponsorship Proposal & Form Exports ---
+
+def terbilang_id(n: int | float) -> str:
+    """Konversi angka nominal ke kalimat terbilang Bahasa Indonesia."""
+    try:
+        n = int(round(float(n or 0)))
+    except (ValueError, TypeError):
+        return "Nol"
+    if n == 0:
+        return "Nol"
+    if n < 0:
+        return "Minus " + terbilang_id(abs(n))
+
+    satuan = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"]
+    if n < 12:
+        return satuan[n]
+    elif n < 20:
+        return terbilang_id(n - 10) + " Belas"
+    elif n < 100:
+        return terbilang_id(n // 10) + " Puluh" + (" " + terbilang_id(n % 10) if n % 10 != 0 else "")
+    elif n < 200:
+        return "Seratus" + (" " + terbilang_id(n - 100) if n - 100 != 0 else "")
+    elif n < 1000:
+        return terbilang_id(n // 100) + " Ratus" + (" " + terbilang_id(n % 100) if n % 100 != 0 else "")
+    elif n < 2000:
+        return "Seribu" + (" " + terbilang_id(n - 1000) if n - 1000 != 0 else "")
+    elif n < 1000000:
+        return terbilang_id(n // 1000) + " Ribu" + (" " + terbilang_id(n % 1000) if n % 1000 != 0 else "")
+    elif n < 1000000000:
+        return terbilang_id(n // 1000000) + " Juta" + (" " + terbilang_id(n % 1000000) if n % 1000000 != 0 else "")
+    elif n < 1000000000000:
+        return terbilang_id(n // 1000000000) + " Miliar" + (" " + terbilang_id(n % 1000000000) if n % 1000000000 != 0 else "")
+    else:
+        return terbilang_id(n // 1000000000000) + " Triliun" + (" " + terbilang_id(n % 1000000000000) if n % 1000000000000 != 0 else "")
+
+
+def format_terbilang(amount: float) -> str:
+    if not amount or amount <= 0:
+        return "-"
+    return f"#  {terbilang_id(amount)} Rupiah #"
+
+
+def format_terbilang_pillar(amount: float) -> str:
+    if not amount or amount <= 0:
+        return ""
+    return f"( {terbilang_id(amount)} Rupiah )"
+
+
+def export_proposal_form_excel(proposal: dict) -> bytes:
+    """Mengisi template Form.xlsx dengan data proposal sponsor dan mengembalikan bytes xlsx."""
+    import io
+    import os
+    import openpyxl
+
+    template_paths = [
+        os.path.join(os.path.dirname(__file__), "..", "..", "storage", "templates", "Form_Sponsorship_Template.xlsx"),
+        "C:/Financehub/app/storage/templates/Form_Sponsorship_Template.xlsx",
+        "C:/Users/25010160/Downloads/Form Sponsor/Form.xlsx",
+    ]
+    template_file = None
+    for p in template_paths:
+        if os.path.exists(p):
+            template_file = p
+            break
+
+    if not template_file:
+        raise FileNotFoundError("Template Form_Sponsorship_Template.xlsx tidak ditemukan di storage.")
+
+    wb = openpyxl.load_workbook(template_file)
+    ws = wb["Form Sponsorship Propose New"] if "Form Sponsorship Propose New" in wb.sheetnames else wb.active
+
+    # Data Utama
+    ws["G3"].value = proposal.get("tanggal") or ""
+    ws["G4"].value = proposal.get("referensi") or ""
+    ws["G5"].value = proposal.get("kegiatan") or ""
+    
+    tot_amt = float(proposal.get("total_amount") or 0)
+    ws["H6"].value = tot_amt
+    ws["G7"].value = format_terbilang(tot_amt)
+    ws["G8"].value = proposal.get("catatan") or "Nilai Sumbangan diatas netto excluded/ diluar pajak PPN/PPh"
+
+    # 1. APP
+    app_amt = float(proposal.get("app_amount") or 0)
+    ws["C11"].value = "√" if app_amt > 0 else "X"
+    ws["I10"].value = "Rp." if app_amt > 0 else "-"
+    ws["J10"].value = app_amt if app_amt > 0 else ""
+    ws["K10"].value = format_terbilang_pillar(app_amt)
+
+    # 2. AGRO / DSS (AGRI)
+    agri_amt = float(proposal.get("agri_amount") or 0)
+    ws["C14"].value = "√" if agri_amt > 0 else "X"
+    ws["I13"].value = "Rp." if agri_amt > 0 else "-"
+    ws["J13"].value = agri_amt if agri_amt > 0 else ""
+    ws["K13"].value = format_terbilang_pillar(agri_amt)
+
+    # 3. ENERGY
+    energy_amt = float(proposal.get("energy_amount") or 0)
+    ws["C17"].value = "√" if energy_amt > 0 else "X"
+    ws["I16"].value = "Rp." if energy_amt > 0 else "-"
+    ws["J16"].value = energy_amt if energy_amt > 0 else ""
+    ws["K16"].value = format_terbilang_pillar(energy_amt)
+
+    # 4. LAND
+    land_amt = float(proposal.get("land_amount") or 0)
+    ws["C20"].value = "√" if land_amt > 0 else "X"
+    ws["I19"].value = "Rp." if land_amt > 0 else "-"
+    ws["J19"].value = land_amt if land_amt > 0 else ""
+    ws["K19"].value = format_terbilang_pillar(land_amt)
+
+    # 5. FINANCE
+    fin_amt = float(proposal.get("finance_amount") or 0)
+    ws["C23"].value = "√" if fin_amt > 0 else "X"
+    ws["I22"].value = "Rp." if fin_amt > 0 else "-"
+    ws["J22"].value = fin_amt if fin_amt > 0 else ""
+    ws["K22"].value = format_terbilang_pillar(fin_amt)
+
+    # Signatures
+    ws["B34"].value = proposal.get("diajukan_oleh") or "AR/JT"
+    ws["I34"].value = "FS"
+    ws["L34"].value = "SC"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def export_proposals_bulk_zip(proposals: list) -> bytes:
+    """Mengekspor daftar proposal ke dalam file ZIP berisi file Excel individual Form Sponsorship."""
+    import io
+    import zipfile
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for p in proposals:
+            no_prop = (p.get("nomor_proposal") or f"PROP_{p.get('id', 0)}").replace("/", "_").replace("\\", "_")
+            xls_bytes = export_proposal_form_excel(p)
+            filename = f"Sponsorship_Form_{no_prop}.xlsx"
+            zf.writestr(filename, xls_bytes)
+
+    return zip_buf.getvalue()
+
+
+def export_proposals_master_excel(company_id: int, filters: dict) -> bytes:
+    """Mengekspor seluruh data proposal sponsor ke dalam format Excel master (sesuai struktur Database.xlsx)."""
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from modules.sponsorship.service import list_proposals
+
+    rows = list_proposals(company_id, filters, limit=10000, offset=0)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+
+    headers = [
+        "ID", "Tanggal", "Referensi", "Kegiatan",
+        "APP", "AGRI", "ENERGY", "LAND", "FINANCE", "TOTAL",
+        "Diajukan Oleh", "Versi", "Status", "Approval Date"
+    ]
+    ws.append(headers)
+
+    header_fill = PatternFill("solid", fgColor="16365C")  # Navy
+    header_font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
+    data_font = Font(name="Arial", size=10)
+    num_fmt = '#,##0;-#,##0;"-"'
+
+    for col in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    for r in rows:
+        row_data = [
+            r.get("nomor_proposal"),
+            r.get("tanggal"),
+            r.get("referensi"),
+            r.get("kegiatan"),
+            float(r.get("app_amount") or 0),
+            float(r.get("agri_amount") or 0),
+            float(r.get("energy_amount") or 0),
+            float(r.get("land_amount") or 0),
+            float(r.get("finance_amount") or 0),
+            float(r.get("total_amount") or 0),
+            r.get("diajukan_oleh") or "AR/JT",
+            r.get("versi") or "",
+            r.get("status") or "Open",
+            r.get("approval_date") or ""
+        ]
+        ws.append(row_data)
+        row_idx = ws.max_row
+        for col_idx in range(1, len(row_data) + 1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.font = data_font
+            if 5 <= col_idx <= 10:
+                cell.number_format = num_fmt
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+            elif col_idx in (1, 2, 11, 12, 13, 14):
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    col_widths = {
+        'A': 18, 'B': 14, 'C': 28, 'D': 45,
+        'E': 16, 'F': 16, 'G': 16, 'H': 16, 'I': 16, 'J': 18,
+        'K': 14, 'L': 12, 'M': 12, 'N': 16
+    }
+    for col_letter, width in col_widths.items():
+        ws.column_dimensions[col_letter].width = width
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
