@@ -1444,7 +1444,7 @@ def remove_student_from_pam(payment_beasiswa_id: int, company_id: int) -> dict:
 
     # 1. Ambil payment_beasiswa row
     pb = conn.execute(
-        "SELECT id, pam, etf_pa_line_id, amount FROM payment_beasiswa WHERE id=? AND company_id=?",
+        "SELECT id, pam, etf_pa_line_id, amount, pillar FROM payment_beasiswa WHERE id=? AND company_id=?",
         (payment_beasiswa_id, company_id)
     ).fetchone()
     if not pb:
@@ -1469,7 +1469,7 @@ def remove_student_from_pam(payment_beasiswa_id: int, company_id: int) -> dict:
     # Atomik (atomic-flows.md Task 16): satu batch diawali kunci R51. Sisa baris/total PAM dan
     # "masih ada payment aktif di PA" yang dulu dihitung di Python setelah DELETE sekarang
     # NOT EXISTS / EXISTS / subquery SUM di batch yang sama. pa_id dibaca sebelum batch.
-    pa_target = _first_pa_for_line(conn, line_id)
+    pa_target = _first_pa_for_line(conn, line_id, pb["pillar"])
 
     # 3. Hapus payment_beasiswa (dan klaim_medical jika ada)
     stmts = [
@@ -1507,25 +1507,21 @@ def remove_student_from_pam(payment_beasiswa_id: int, company_id: int) -> dict:
     return {"ok": True, "pesan": "Siswa berhasil dikeluarkan dari PAM."}
 
 
-def _first_pa_for_line(conn, line_id):
-    """(lines_tbl, pa_tbl, pa_id) untuk tabel lines PERTAMA (urutan lama) yang memuat line_id,
-    atau None -- sama dengan loop lama `... if not pa_row: continue ... break`. Dibaca sebelum
-    batch; tabel lines tidak diubah oleh alur pemanggil."""
+def _first_pa_for_line(conn, line_id, pillar):
+    """(lines_tbl, pa_tbl, pa_id) untuk baris PA `line_id` di tabel milik `pillar` (pillar
+    payment_beasiswa), atau None. id baris PA serial per tabel, jadi tabel dipilih dari pillar,
+    bukan dicoba berurutan (dulu bisa mengembalikan PA AGRI untuk payment LAND ber-id sama).
+    Dibaca sebelum batch; tabel lines tidak diubah oleh alur pemanggil."""
     if not line_id:
         return None
-    for lines_tbl, pa_tbl in [
-        ("etf_pa_lines",    "etf_pa"),
-        ("app_pa_lines",    "app_pa"),
-        ("sml_pa_lines",    "sml_pa"),
-        ("energy_pa_lines", "energy_pa"),
-        ("setf_pa_lines",   "setf_pa"),
-    ]:
-        pa_row = conn.execute(
-            f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (line_id,)
-        ).fetchone()
-        if pa_row:
-            return lines_tbl, pa_tbl, pa_row[0]  # line_id hanya bisa ada di satu PA table
-    return None
+    pair = _PILLAR_PA_TBL.get("ENERGY" if pillar == "EFIN" else pillar)
+    if not pair:
+        return None
+    lines_tbl, pa_tbl = pair
+    pa_row = conn.execute(
+        f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (line_id,)
+    ).fetchone()
+    return (lines_tbl, pa_tbl, pa_row[0]) if pa_row else None
 
 
 def reject_student_from_pam(payment_beasiswa_id: int, company_id: int, reason: str | None = None) -> dict:
@@ -1541,7 +1537,7 @@ def reject_student_from_pam(payment_beasiswa_id: int, company_id: int, reason: s
     now = _ts()
 
     pb = conn.execute(
-        "SELECT id, pam, etf_pa_line_id, amount FROM payment_beasiswa WHERE id=? AND company_id=?",
+        "SELECT id, pam, etf_pa_line_id, amount, pillar FROM payment_beasiswa WHERE id=? AND company_id=?",
         (payment_beasiswa_id, company_id)
     ).fetchone()
     if not pb:
@@ -1564,7 +1560,7 @@ def reject_student_from_pam(payment_beasiswa_id: int, company_id: int, reason: s
 
     # Atomik (atomic-flows.md Task 16): sama dengan remove_student_from_pam -- satu batch diawali
     # kunci R51, cabang header dan revert PA dihitung di SQL setelah UPDATE pb.
-    pa_target = _first_pa_for_line(conn, line_id)
+    pa_target = _first_pa_for_line(conn, line_id, pb["pillar"])
     stmts = [
         _pb_lock_stmt(company_id),
         ("UPDATE payment_beasiswa SET status='rejected', reject_reason=? WHERE id=? AND company_id=?",

@@ -163,8 +163,9 @@ def _pa_with_pam(sid, amount=5000000, pam_status="open"):
     conn = get_conn()
     conn.execute("INSERT INTO pam_records (company_id, pam_no, total_amount, dpp, status) VALUES (?,?,?,?,?)",
                  (COMPANY_ID, "PAM/T11/1", amount + 1000, amount + 1000, pam_status))
-    conn.execute("INSERT INTO payment_beasiswa (company_id, siswa_code, amount, pam, etf_pa_line_id) "
-                 "VALUES (?,?,?,?,?)", (COMPANY_ID, "1230001", amount, "PAM/T11/1", line_id))
+    # pillar wajib: lookup payment dari baris PA difilter pillar tab (id baris PA serial per tabel).
+    conn.execute("INSERT INTO payment_beasiswa (company_id, siswa_code, amount, pam, etf_pa_line_id, pillar) "
+                 "VALUES (?,?,?,?,?,?)", (COMPANY_ID, "1230001", amount, "PAM/T11/1", line_id, "AGRI"))
     # Baris lain di PAM yang sama (tanpa line PA) ikut dijumlah.
     conn.execute("INSERT INTO payment_beasiswa (company_id, siswa_code, amount, pam) VALUES (?,?,?,?)",
                  (COMPANY_ID, "2230001", 1000, "PAM/T11/1"))

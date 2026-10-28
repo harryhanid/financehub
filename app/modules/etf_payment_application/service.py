@@ -15,8 +15,32 @@ _TAB_CFG = {
 }
 
 
+# Tab → nilai payment_beasiswa.pillar milik tab itu. `id` baris PA adalah serial per tabel, jadi
+# payment_beasiswa.etf_pa_line_id yang sama bisa menunjuk ke baris di beberapa tabel — lookup
+# payment_beasiswa dari baris PA wajib difilter pillar ini (regresi: edit PA SETF menimpa amount
+# payment LAND ber-id baris sama).
+_TAB_PB_PILLARS = {
+    "agri":   ("AGRI",),
+    "app":    ("APP",),
+    "sml":    ("LAND",),
+    "setf":   ("SETF",),
+    "energy": ("ENERGY", "EFIN"),
+}
+
+
 def _tbls(tab: str) -> tuple:
     return _TAB_CFG.get(tab, _TAB_CFG["agri"])
+
+
+def _pb_for_line(conn, line_id, company_id: int, tab: str):
+    """payment_beasiswa (id, pam) yang tertaut ke baris PA `line_id` milik `tab`, atau None."""
+    pillars = _TAB_PB_PILLARS.get(tab, _TAB_PB_PILLARS["agri"])
+    ph = ",".join("?" * len(pillars))
+    return conn.execute(
+        f"SELECT id, pam FROM payment_beasiswa WHERE etf_pa_line_id=? AND company_id=? "
+        f"AND pillar IN ({ph})",
+        (line_id, company_id) + pillars
+    ).fetchone()
 
 
 def _ts():
@@ -477,10 +501,7 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
         amount_changed = old_line is not None and \
             float(old_line["jumlah_pembayaran"] or 0) != float(new_amount or 0)
         if amount_changed:
-            pb_row = conn.execute(
-                "SELECT id, pam FROM payment_beasiswa WHERE etf_pa_line_id=? AND company_id=?",
-                (line_id, company_id)
-            ).fetchone()
+            pb_row = _pb_for_line(conn, line_id, company_id, tab)
             if pb_row and pb_row["pam"]:
                 pam_row = conn.execute(
                     "SELECT status FROM pam_records WHERE pam_no=? AND company_id=?",
@@ -555,10 +576,7 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
         # Propagate the amount into an already-drawn (still-open) PAM: update
         # the linked payment_beasiswa row, then re-sum the PAM's total from
         # all its payment_beasiswa lines (a PAM can bundle several PA lines).
-        pb_row = conn.execute(
-            "SELECT id, pam FROM payment_beasiswa WHERE etf_pa_line_id=? AND company_id=?",
-            (line_id, company_id)
-        ).fetchone()
+        pb_row = _pb_for_line(conn, line_id, company_id, tab)
         if pb_row and pb_row["pam"]:
             # Hanya ke PAM yang (masih) open di transaksi ini.
             items.append((
