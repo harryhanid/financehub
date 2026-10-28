@@ -4,7 +4,9 @@ Isi `<dest_root>/YYYY-MM-DD/`:
 - `<tabel>.jsonl.gz`: satu baris JSON (list nilai sesuai `columns` di manifest) per baris tabel, urut
   primary key (lihat fhdb.paging; dibaca per 5.000 baris, lebih kecil untuk tabel lebar);
 - `manifest.json`: `{tabel: {"columns": [...], "rows": n}}`;
-- `0002_schema.sql`: salinan skema (template `{{schema}}`) untuk membangun ulang schema kosong.
+- `0002_schema.sql`: salinan skema (template `{{schema}}`) untuk membangun ulang schema kosong;
+- `0005_prportal_columns.sql`: kolom PR Portal (budget status, budget_id, source/...) yang TIDAK ada di
+  0002; terapkan sesudah 0002 sebelum restore (lihat restore_backup.py).
 Pulihkan dengan `scripts/pg_migrate/restore_backup.py`.
 
 Dibaca lewat fhdb (backend dari config; produksi HTTPS). `refresh_tokens` dan tabel staging `fh_stage_*`
@@ -30,8 +32,10 @@ from modules.general_ledger import staging
 
 PAGE_ROWS = paging.PAGE_ROWS
 SKIP_TABLES = ("refresh_tokens",)
-SCHEMA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                           "db_migrations", "0002_schema.sql")
+_MIGRATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "db_migrations")
+SCHEMA_FILE = os.path.join(_MIGRATIONS_DIR, "0002_schema.sql")
+# Migrasi kolom tambahan yang dibutuhkan isi backup di atas 0002 (urutan = urutan penerapan).
+EXTRA_SCHEMA_FILES = (os.path.join(_MIGRATIONS_DIR, "0005_prportal_columns.sql"),)
 _DATE_DIR = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 logger = logging.getLogger(__name__)
@@ -122,6 +126,8 @@ def _dump(conn, out_dir: str) -> dict:
     with open(os.path.join(out_dir, "manifest.json"), "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=1, sort_keys=True)
     shutil.copyfile(SCHEMA_FILE, os.path.join(out_dir, "0002_schema.sql"))
+    for extra in EXTRA_SCHEMA_FILES:
+        shutil.copyfile(extra, os.path.join(out_dir, os.path.basename(extra)))
     return manifest
 
 

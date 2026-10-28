@@ -184,3 +184,21 @@ def test_api_anon_role_can_only_call_wrappers(keys, pg_dsn):
             cur.execute(f"drop owned by {r}")
             cur.execute(f"drop role {r}")
         conn.close()
+
+
+def test_internal_fn_prp_execute_revoked_from_public():
+    """Review akhir F3: semua financehub_test.fn_prp_* tidak memberi EXECUTE ke PUBLIC (proacl eksplisit,
+    tanpa entri grantee=0); wrapper SECURITY DEFINER tetap jalan (lihat test lain di file ini)."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT p.proname, p.proacl IS NULL AS acl_null, "
+            "EXISTS (SELECT 1 FROM aclexplode(p.proacl) a WHERE a.grantee = 0) AS public_exec "
+            "FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace "
+            "WHERE n.nspname = 'financehub_test' AND p.proname LIKE 'fn\_prp\_%'").fetchall()
+    finally:
+        conn.close()
+    names = sorted(r["proname"] for r in rows)
+    assert "fn_prp_submit_pa" in names and "fn_prp_siswa_json" in names and len(names) >= 8, names
+    bad = [r["proname"] for r in rows if r["acl_null"] or r["public_exec"]]
+    assert bad == [], bad

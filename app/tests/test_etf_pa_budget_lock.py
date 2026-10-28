@@ -178,3 +178,72 @@ def test_delete_pa_keeps_complete_budget_complete():
     conn.commit(); conn.close()
     assert delete_pa(pa_id, COMPANY_ID)["ok"] is True
     assert _bstatus(bid) == "complete"
+
+
+# --- Review akhir F1: baris ber-budget dengan cat1/cat2 di luar daftar konfigurasi -----------------
+OFF_CAT1, OFF_CAT2 = "By Asrama Khusus", "Semester Antara"
+
+
+def _seed_offlist_pa():
+    _siswa("X1", "Kategori Luar")
+    _budget("X1", OFF_CAT1, OFF_CAT2, amount=1000)
+    conn = get_conn()
+    bid = conn.execute("SELECT id FROM budget_beasiswa WHERE siswa_code='X1'").fetchone()["id"]
+    conn.close()
+    res = _submit(_payload("X1", [{"budget_id": bid, "tahun_ajaran": "2026/2027", "jumlah": 800}]))
+    assert res.get("ok") is True, res
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT p.id AS pa_id, l.id AS line_id, l.jenis_pembayaran, l.semester "
+                           "FROM etf_pa p JOIN etf_pa_lines l ON l.pa_id=p.id").fetchone()
+    finally:
+        conn.close()
+    assert (row["jenis_pembayaran"], row["semester"]) == (OFF_CAT1, OFF_CAT2)
+    return row
+
+
+def test_update_offlist_budget_line_with_original_values_ok():
+    """Template mengirim jenis/semester ASLI baris ber-budget (bukan nilai select) -> edit jumlah lolos."""
+    row = _seed_offlist_pa()
+    res = _upd(row["pa_id"], row["line_id"], jenis_pembayaran=row["jenis_pembayaran"],
+               semester=row["semester"], jumlah_pembayaran=950)
+    assert res["ok"] is True, res
+    l = get_pa_lines(row["pa_id"], COMPANY_ID)[0]
+    assert l["jumlah_pembayaran"] == 950
+    assert (l["jenis_pembayaran"], l["semester"]) == (row["jenis_pembayaran"], row["semester"])
+
+
+def test_update_offlist_budget_line_empty_values_still_rejected():
+    """Perilaku lama (select terbaca "") tetap ditolak server -- karena itu template wajib kirim nilai asli."""
+    row = _seed_offlist_pa()
+    res = _upd(row["pa_id"], row["line_id"], jenis_pembayaran="", semester="", jumlah_pembayaran=950)
+    assert res == {"ok": False, "pesan": "Jenis Bayar/Semester baris ini terkunci ke budget."}
+
+
+def test_update_route_offlist_budget_line_as_template_sends(client, monkeypatch):
+    import json as _json
+    import utils.gdrive_service as g
+    monkeypatch.setattr(g, "delete_gdrive_file", lambda *a, **k: None)
+    client.post("/auth/login", json={"username": "admin", "password": "Admin@123"})
+    client.post("/select-company", data={"company_id": str(COMPANY_ID)})
+    row = _seed_offlist_pa()
+    payload = {"tgl_payment_application": "2026-10-27", "status": "open", "klasifikasi": "Normal",
+               "line_id": row["line_id"], "jenis_pembayaran": row["jenis_pembayaran"],
+               "semester": row["semester"], "tahun_ajaran": "2026/2027", "ipk_sem_sebelumnya": 3.4,
+               "jumlah_pembayaran": 900, "attachment_file_id": "file-123"}
+    resp = client.post(f"/etf-payment-application/{row['pa_id']}/update?tab=agri",
+                       data={"data": _json.dumps(payload)}, content_type="multipart/form-data")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True, resp.get_json()
+    assert get_pa_lines(row["pa_id"], COMPANY_ID)[0]["jumlah_pembayaran"] == 900
+
+
+def test_template_keeps_offlist_value_for_budget_line():
+    """Render/static check: template menambah opsi nilai asli & saveEdit memakai nilai asli baris ber-budget."""
+    p = os.path.join(os.path.dirname(__file__), "..", "templates", "etf_payment_application", "index.html")
+    src = open(p, encoding="utf-8").read()
+    assert "function _ensureSelectOption(sel, value)" in src
+    assert "_ensureSelectOption(jb, line.jenis_pembayaran);" in src
+    assert "_ensureSelectOption(sm, line.semester);" in src
+    assert "_editLockedLine ? _editLockedLine.jenis_pembayaran :" in src
+    assert "_editLockedLine ? _editLockedLine.semester :" in src

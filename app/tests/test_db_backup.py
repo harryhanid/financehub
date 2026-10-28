@@ -79,6 +79,8 @@ def test_backup_restore_roundtrip(tmp_path, pg_backend, extra_tables):
     assert not (Path(folder) / "refresh_tokens.jsonl.gz").exists()
     assert (Path(folder) / "0002_schema.sql").read_bytes() == (
         ROOT / "app" / "db_migrations" / "0002_schema.sql").read_bytes()
+    assert (Path(folder) / "0005_prportal_columns.sql").read_bytes() == (
+        ROOT / "app" / "db_migrations" / "0005_prportal_columns.sql").read_bytes()
     for t in manifest:
         assert (Path(folder) / f"{t}.jsonl.gz").exists()
     assert _read_jsonl(Path(folder) / "payment_memo.jsonl.gz") == before_pm

@@ -152,3 +152,30 @@ def test_set_budget_status_fin_role_ok(client):
     r = client.post(f"/beasiswa/budget/{bid}/status", json={"status": "complete"})
     assert r.status_code == 200 and r.get_json()["ok"] is True
     assert _bstatus(bid) == "complete"
+
+
+def test_set_budget_status_locks_budget_row_first_in_same_batch(monkeypatch):
+    """Review akhir F2: SELECT ... FOR UPDATE pada baris budget mendahului UPDATE bersyarat, satu batch."""
+    import modules.beasiswa.service as svc
+    _siswa("L1", "Lock Satu")
+    _budget("L1")
+    bid = _bid("L1")
+    seen = []
+    real_get_conn = svc.get_conn
+
+    def spy_conn():
+        conn = real_get_conn()
+        real_batch = conn.batch
+
+        def batch(items):
+            items = list(items)
+            seen.append([sql for sql, _ in items])
+            return real_batch(items)
+        conn.batch = batch
+        return conn
+    monkeypatch.setattr(svc, "get_conn", spy_conn)
+    assert set_budget_status(COMPANY_ID, bid, "complete")["ok"] is True
+    assert len(seen) == 1 and len(seen[0]) == 2
+    assert seen[0][0].startswith("SELECT id FROM budget_beasiswa") and seen[0][0].endswith("FOR UPDATE")
+    assert seen[0][1].startswith("UPDATE budget_beasiswa SET status=?")
+    assert _bstatus(bid) == "complete"

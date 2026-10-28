@@ -1879,6 +1879,14 @@ async function openEditById(paId, lineId) {
         parseInt(line.budget_amount || 0, 10).toLocaleString("id-ID") + ".";
       bn.style.display = "block";
     }
+    _editLockedLine = null;
+    if (line && line.budget_id) {
+      // Nilai baris ber-budget bisa di luar daftar konfigurasi: tambahkan opsi persis
+      // nilai itu agar select tidak terbaca "" (server menolak perubahan Jenis Bayar/Semester).
+      _ensureSelectOption(jb, line.jenis_pembayaran);
+      _ensureSelectOption(sm, line.semester);
+      _editLockedLine = { jenis_pembayaran: line.jenis_pembayaran || "", semester: line.semester || "" };
+    }
     if (line) {
       document.getElementById("edit-jenis-bayar").value  = line.jenis_pembayaran || "";
       document.getElementById("edit-semester").value     = line.semester || "";
@@ -1888,6 +1896,17 @@ async function openEditById(paId, lineId) {
     }
   }
   openModal("modal-edit-pa");
+}
+let _editLockedLine = null;   // {jenis_pembayaran, semester} asli baris ber-budget
+function _ensureSelectOption(sel, value) {
+  if (!sel || value === null || value === undefined || value === "") return;
+  const v = String(value);
+  if (Array.from(sel.options).some(o => o.value === v)) return;
+  const opt = document.createElement("option");   // textContent/value: tidak perlu escape HTML
+  opt.value = v;
+  opt.textContent = v;
+  opt.setAttribute("data-budget-locked", "1");
+  sel.appendChild(opt);
 }
 async function saveEdit() {
   const _jm = document.getElementById("edit-jumlah"), _mx = parseFloat(_jm.getAttribute("data-max"));
@@ -1913,8 +1932,8 @@ async function saveEdit() {
     status:                  document.getElementById("edit-status").value,
     klasifikasi:             document.getElementById("edit-klasifikasi").value,
     line_id:                 parseInt(document.getElementById("edit-line-id").value) || null,
-    jenis_pembayaran:        document.getElementById("edit-jenis-bayar").value,
-    semester:                document.getElementById("edit-semester").value,
+    jenis_pembayaran:        _editLockedLine ? _editLockedLine.jenis_pembayaran : document.getElementById("edit-jenis-bayar").value,
+    semester:                _editLockedLine ? _editLockedLine.semester : document.getElementById("edit-semester").value,
     tahun_ajaran:            document.getElementById("edit-tahun-ajaran").value,
     ipk_sem_sebelumnya:      parseFloat(document.getElementById("edit-ipk").value) || 0,
     jumlah_pembayaran:       parseFloat(document.getElementById("edit-jumlah").value.replace(/,/g, '')) || 0,

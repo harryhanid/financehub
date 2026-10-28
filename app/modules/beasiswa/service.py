@@ -1930,13 +1930,17 @@ def set_budget_status(company_id: int, row_id: int, status: str) -> dict:
         return {"ok": False, "pesan": "Status tidak valid."}
     conn = get_conn()
     try:
-        row = conn.execute("SELECT id FROM budget_beasiswa WHERE id=? AND company_id=?",
-                           (row_id, company_id)).fetchone()
-        if not row:
-            return {"ok": False, "pesan": "Baris budget tidak ditemukan."}
+        # Lock-first dalam SATU batch: baris budget dikunci (FOR UPDATE) sebelum guard "tidak dipakai PA"
+        # dievaluasi, supaya tidak menyelip dengan submit PA / update_pa (READ COMMITTED).
         extra = f" AND {_budget_unused_sql('budget_beasiswa.id')}" if status == "open" else ""
-        cur = conn.execute(f"UPDATE budget_beasiswa SET status=? WHERE id=? AND company_id=?{extra}",
-                           (status, row_id, company_id))
+        lock_cur, cur = conn.batch([
+            ("SELECT id FROM budget_beasiswa WHERE id=? AND company_id=? FOR UPDATE", (row_id, company_id)),
+            (f"UPDATE budget_beasiswa SET status=? WHERE id=? AND company_id=?{extra}",
+             (status, row_id, company_id)),
+        ])
+        if not lock_cur.fetchone():
+            conn.rollback()
+            return {"ok": False, "pesan": "Baris budget tidak ditemukan."}
         if status == "open" and not cur.rowcount:
             conn.rollback()
             use = _budget_pa_usage(conn, row_id)

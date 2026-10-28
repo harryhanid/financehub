@@ -6,7 +6,11 @@ Usage:
   python scripts/pg_migrate/restore_backup.py --folder ... --backend http --schema financehub --confirm-production
 
 Schema target harus sudah punya skema (app/db_migrations, lewat apply_migrations.py; folder backup
-membawa salinan 0002_schema.sql). Jalur tulis sama dengan load_data.py: semua INSERT dibangun dan
+membawa salinan 0002_schema.sql DAN 0005_prportal_columns.sql). Untuk schema kosong: terapkan 0002 lalu
+0005 (kolom budget_beasiswa.status, budget_id baris PA, source/requested_by/cost_center) SEBELUM restore,
+dengan daftar file eksplisit, mis.
+  python scripts/pg_migrate/apply_migrations.py --schema <s> --backend pg --dsn ...       app/db_migrations/0002_schema.sql app/db_migrations/0005_prportal_columns.sql
+Tanpa 0005 restore ditolak (kolom backup tidak ada di target). Jalur tulis sama dengan load_data.py: semua INSERT dibangun dan
 divalidasi dulu (tabel/kolom ada di target, nilai bisa dikonversi tanpa rugi, jumlah baris = manifest),
 baru TRUNCATE <tabel backup> RESTART IDENTITY CASCADE -> INSERT per chunk (induk dulu) -> setval.
 Tidak satu transaksi: kalau gagal di tengah, jalankan ulang. CASCADE ikut mengosongkan refresh_tokens.

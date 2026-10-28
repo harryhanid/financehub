@@ -448,3 +448,25 @@ begin
     return null;
 end
 ';
+
+-- Review akhir: fungsi fn_prp_* internal tidak boleh dipanggil langsung oleh siapa pun selain owner.
+-- EXECUTE default PUBLIC dicabut; anon/authenticated (Supabase, bersyarat) juga dicabut. Wrapper
+-- public.prp_* (0007) SECURITY DEFINER milik owner, jadi tetap bisa memanggil fungsi ini.
+do '
+declare
+    f record;
+    r text;
+begin
+    for f in select p.proname, pg_get_function_identity_arguments(p.oid) as args
+               from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = ''{{schema}}'' and p.proname like ''fn\_prp\_%''
+    loop
+        execute format(''revoke all on function %I.%I(%s) from public'', ''{{schema}}'', f.proname, f.args);
+        foreach r in array array[''anon'', ''authenticated''] loop
+            if exists (select 1 from pg_roles where rolname = r) then
+                execute format(''revoke all on function %I.%I(%s) from %I'', ''{{schema}}'', f.proname, f.args, r);
+            end if;
+        end loop;
+    end loop;
+end
+';
