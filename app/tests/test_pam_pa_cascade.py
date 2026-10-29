@@ -137,6 +137,11 @@ def test_tanggal_bayar_cascades_to_sml_pa():
 
 # ── cancel_pam_record revert tests ──────────────────────────────────────────
 
+# pillar payment_beasiswa sesuai tabel PA-nya (seperti yang disimpan aplikasi; tab energy = 'EFIN').
+_LINES_PILLAR = {"etf_pa_lines": "AGRI", "app_pa_lines": "APP", "sml_pa_lines": "LAND",
+                 "energy_pa_lines": "EFIN", "setf_pa_lines": "SETF"}
+
+
 def _insert_pam_and_link(conn, pa_tbl, lines_tbl, pa_id, line_id):
     """Insert pam_records + payment_beasiswa with PAM link. Returns (pam_id, pam_no)."""
     pam_no = "PAM-001-ETF-06-2026"
@@ -157,7 +162,7 @@ def _insert_pam_and_link(conn, pa_tbl, lines_tbl, pa_id, line_id):
             pillar, perusahaan, pam, etf_pa_line_id, status)
            VALUES (?,?,?,?,?,?,?,?,?,?,'open')""",
         (COMPANY_ID, "1250001", "By Pendidikan", "Semester 3",
-         "2026-06-01", 5000000, "AGRI", "PT. SMART Tbk", pam_no, line_id)
+         "2026-06-01", 5000000, _LINES_PILLAR[lines_tbl], "PT. SMART Tbk", pam_no, line_id)
     )
     conn.commit()
     return pam_id, pam_no

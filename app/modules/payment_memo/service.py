@@ -355,8 +355,40 @@ _PILLAR_PA_TBL = {
     "APP":    ("app_pa_lines",    "app_pa"),
     "LAND":   ("sml_pa_lines",    "sml_pa"),
     "ENERGY": ("energy_pa_lines", "energy_pa"),
+    "EFIN":   ("energy_pa_lines", "energy_pa"),   # tab energy menyimpan pillar 'EFIN' (label UI)
     "SETF":   ("setf_pa_lines",   "setf_pa"),
 }
+# lines table -> semua nilai payment_beasiswa.pillar yang menunjuk ke tabel itu.
+_LINES_TBL_PILLARS: dict = {}
+for _p, (_lt, _) in _PILLAR_PA_TBL.items():
+    _LINES_TBL_PILLARS.setdefault(_lt, []).append(_p)
+
+
+def _pb_pillar_sql(lines_tbl: str, col: str = "pillar") -> tuple:
+    """(" AND <col> IN (?,..)", params): batasi payment_beasiswa ke pillar milik `lines_tbl`, supaya
+    etf_pa_line_id hanya dicocokkan ke baris PA di tabel entitasnya sendiri."""
+    pillars = tuple(_LINES_TBL_PILLARS[lines_tbl])
+    return f" AND {col} IN ({','.join('?' * len(pillars))})", pillars
+
+
+def _pa_targets_by_pillar(conn, line_rows) -> list:
+    """[(lines_tbl, pa_tbl, pa_id)] unik untuk baris (etf_pa_line_id, pillar) payment_beasiswa;
+    tiap line id dicari HANYA di tabel milik pillar barisnya."""
+    ids_by_tbl: dict = {}
+    for r in line_rows:
+        pair = _PILLAR_PA_TBL.get(r["pillar"])
+        if pair:
+            ids_by_tbl.setdefault(pair, set()).add(r["etf_pa_line_id"])
+    targets = []
+    for (lines_tbl, pa_tbl), ids in ids_by_tbl.items():
+        ids = sorted(ids)
+        ph = ",".join("?" * len(ids))
+        for row in conn.execute(f"SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})",
+                                ids).fetchall():
+            targets.append((lines_tbl, pa_tbl, row[0]))
+    return targets
+
+
 _JENJANG_SORT = {"S3": 0, "S2": 1, "S1": 2}
 
 
@@ -1280,11 +1312,11 @@ def cancel_pam_record(pam_id: int, company_id: int) -> dict:
     else:
         # Beasiswa flow
         lines = conn.execute(
-            f"SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa WHERE pam={_PAM_NO_OF} "
+            f"SELECT DISTINCT etf_pa_line_id, pillar FROM payment_beasiswa WHERE pam={_PAM_NO_OF} "
             "AND company_id=? AND etf_pa_line_id IS NOT NULL",
             (pam_id, company_id, company_id)
         ).fetchall()
-        line_ids = [r[0] for r in lines]
+        pa_targets = _pa_targets_by_pillar(conn, lines)
 
         stmts.append((f"DELETE FROM klaim_medical WHERE pam={_PAM_NO_OF} AND company_id=?",
                       (pam_id, company_id, company_id)))
@@ -1293,23 +1325,10 @@ def cancel_pam_record(pam_id: int, company_id: int) -> dict:
         stmts.append(("DELETE FROM pam_records WHERE id=? AND company_id=?", (pam_id, company_id)))
 
         # Revert semua PA tables ke open jika tidak ada payment aktif lagi
-        if line_ids:
-            ph = ",".join("?" * len(line_ids))
-            for lines_tbl, pa_tbl in [
-                ("etf_pa_lines",    "etf_pa"),
-                ("app_pa_lines",    "app_pa"),
-                ("sml_pa_lines",    "sml_pa"),
-                ("energy_pa_lines", "energy_pa"),
-                ("setf_pa_lines",   "setf_pa"),
-            ]:
-                pa_rows = conn.execute(
-                    f"SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})",
-                    line_ids
-                ).fetchall()
-                for row in pa_rows:
-                    stmts.append(_pa_revert_if_no_active_stmt(
-                        pa_tbl, lines_tbl, row[0], company_id,
-                        "status='open', nomor_pam=NULL, updated_at=?", (now,)))
+        for lines_tbl, pa_tbl, pa_id in pa_targets:
+            stmts.append(_pa_revert_if_no_active_stmt(
+                pa_tbl, lines_tbl, pa_id, company_id,
+                "status='open', nomor_pam=NULL, updated_at=?", (now,)))
 
     conn.batch(stmts)
     conn.commit()
@@ -1322,14 +1341,16 @@ def _pa_revert_if_no_active_stmt(pa_tbl: str, lines_tbl: str, pa_id: int, compan
     """UPDATE {pa_tbl} SET <set_sql> untuk satu PA header, hanya kalau tidak ada lagi
     payment_beasiswa non-rejected yang menunjuk ke salah satu line PA itu. Kondisi ini dulu
     `SELECT COUNT(*) ... == 0` di Python setelah tulisan sebelumnya; sekarang NOT EXISTS yang
-    dievaluasi di batch yang sama (melihat DELETE/UPDATE sebelumnya)."""
+    dievaluasi di batch yang sama (melihat DELETE/UPDATE sebelumnya). Payment dibatasi ke pillar
+    milik `lines_tbl` (id baris PA serial per tabel)."""
+    p_sql, p_params = _pb_pillar_sql(lines_tbl, "pb.pillar")
     return (
         f"""UPDATE {pa_tbl} SET {set_sql}
             WHERE id=? AND company_id=? AND NOT EXISTS (
                 SELECT 1 FROM payment_beasiswa pb
                 JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
-                WHERE el.pa_id=? AND pb.company_id=? AND pb.status != 'rejected')""",
-        tuple(set_params) + (pa_id, company_id, pa_id, company_id)
+                WHERE el.pa_id=? AND pb.company_id=? AND pb.status != 'rejected'{p_sql})""",
+        tuple(set_params) + (pa_id, company_id, pa_id, company_id) + p_params
     )
 
 
@@ -1368,12 +1389,12 @@ def reject_pam_record(pam_id: int, company_id: int, reason: str | None = None) -
         # group must never touch an already-paid row, so both the line lookup
         # and the bulk UPDATE are scoped to rows that aren't already terminal.
         lines = conn.execute(
-            "SELECT DISTINCT etf_pa_line_id FROM payment_beasiswa "
+            "SELECT DISTINCT etf_pa_line_id, pillar FROM payment_beasiswa "
             f"WHERE pam={_PAM_NO_OF} AND company_id=? AND etf_pa_line_id IS NOT NULL "
             "AND status NOT IN ('complete', 'rejected')",
             (pam_id, company_id, company_id)
         ).fetchall()
-        line_ids = [r[0] for r in lines]
+        pa_targets = _pa_targets_by_pillar(conn, lines)
 
         stmts.append((
             "UPDATE payment_beasiswa SET status='rejected', reject_reason=? "
@@ -1387,23 +1408,10 @@ def reject_pam_record(pam_id: int, company_id: int, reason: str | None = None) -
         stmts += _pam_header_after_reject_stmts("id=?", pam_id, pam_no, company_id, reason, now,
                                                 pam_sql=_PAM_NO_OF, pam_params=(pam_id, company_id))
 
-        if line_ids:
-            ph = ",".join("?" * len(line_ids))
-            for lines_tbl, pa_tbl in [
-                ("etf_pa_lines",    "etf_pa"),
-                ("app_pa_lines",    "app_pa"),
-                ("sml_pa_lines",    "sml_pa"),
-                ("energy_pa_lines", "energy_pa"),
-                ("setf_pa_lines",   "setf_pa"),
-            ]:
-                pa_rows = conn.execute(
-                    f"SELECT DISTINCT pa_id FROM {lines_tbl} WHERE id IN ({ph})",
-                    line_ids
-                ).fetchall()
-                for row in pa_rows:
-                    stmts.append(_pa_revert_if_no_active_stmt(
-                        pa_tbl, lines_tbl, row[0], company_id,
-                        "status='rejected', reject_reason=?, updated_at=?", (reason, now)))
+        for lines_tbl, pa_tbl, pa_id in pa_targets:
+            stmts.append(_pa_revert_if_no_active_stmt(
+                pa_tbl, lines_tbl, pa_id, company_id,
+                "status='rejected', reject_reason=?, updated_at=?", (reason, now)))
 
     conn.batch(stmts)
     conn.commit()
@@ -1514,7 +1522,7 @@ def _first_pa_for_line(conn, line_id, pillar):
     Dibaca sebelum batch; tabel lines tidak diubah oleh alur pemanggil."""
     if not line_id:
         return None
-    pair = _PILLAR_PA_TBL.get("ENERGY" if pillar == "EFIN" else pillar)
+    pair = _PILLAR_PA_TBL.get(pillar)
     if not pair:
         return None
     lines_tbl, pa_tbl = pair
@@ -2826,13 +2834,15 @@ def mark_beasiswa_lines_complete(payment_ids: list, tanggal_bayar: str, company_
                     f"SELECT id FROM {lines_tbl} WHERE pa_id=?", (pa_id,)
                 ).fetchall()]
                 ph3 = ",".join("?" * len(sibling_ids))
+                p_sql, p_params = _pb_pillar_sql(lines_tbl)
                 still_open = (f"(SELECT COUNT(*) FROM payment_beasiswa "
-                              f"WHERE etf_pa_line_id IN ({ph3}) AND status != 'complete')")
+                              f"WHERE etf_pa_line_id IN ({ph3}) AND status != 'complete'{p_sql})")
+                open_params = sibling_ids + list(p_params)   # parameter subquery still_open
                 # still_open == 0 -> complete
                 stmts.append((
                     f"UPDATE {pa_tbl} SET tanggal_bayar=?, status='complete', updated_at=? "
                     f"WHERE id=? AND {still_open} = 0",
-                    [tanggal_bayar, ts, pa_id] + sibling_ids
+                    [tanggal_bayar, ts, pa_id] + open_params
                 ))
                 # 0 < still_open < len(sibling_ids) -> partial
                 # Some but not all of this PA's own lines are complete —
@@ -2843,7 +2853,7 @@ def mark_beasiswa_lines_complete(payment_ids: list, tanggal_bayar: str, company_
                 stmts.append((
                     f"UPDATE {pa_tbl} SET status='partial', updated_at=? "
                     f"WHERE id=? AND {still_open} > 0 AND {still_open} < ?",
-                    [ts, pa_id] + sibling_ids + sibling_ids + [len(sibling_ids)]
+                    [ts, pa_id] + open_params + open_params + [len(sibling_ids)]
                 ))
 
         remaining = ("SELECT 1 FROM payment_beasiswa WHERE pam=? AND company_id=? "
@@ -2952,11 +2962,12 @@ def realize_advance_payment(payment_id: int, realized_amount, tgl_realisasi: str
                 ).fetchall()
             ]
             ph2 = ",".join("?" * len(sibling_line_ids))
+            p_sql, p_params = _pb_pillar_sql(lines_tbl)
             stmts.append((
                 f"""UPDATE {pa_tbl} SET status='complete', updated_at=? WHERE id=?
                     AND NOT EXISTS (SELECT 1 FROM payment_beasiswa
-                    WHERE etf_pa_line_id IN ({ph2}) AND status != 'complete')""",
-                [ts, pa_id] + sibling_line_ids
+                    WHERE etf_pa_line_id IN ({ph2}) AND status != 'complete'{p_sql})""",
+                [ts, pa_id] + sibling_line_ids + list(p_params)
             ))
 
     conn.batch(stmts)

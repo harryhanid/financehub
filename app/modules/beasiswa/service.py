@@ -758,7 +758,8 @@ def get_financial_summary(company_id: int) -> dict:
     return {"categories": categories, "total": {"budget": tb, "payment": tp, "selisih": tb - tp}}
 
 
-def _delete_payment_cascade(conn, company_id: int, payment_id: int, pam_no, line_id) -> None:
+def _delete_payment_cascade(conn, company_id: int, payment_id: int, pam_no, line_id,
+                            pillar=None) -> None:
     """Hapus satu payment_beasiswa beserta rekam_medis, pam_records yang tidak terpakai lagi, dan
     kembalikan PA ke open kalau tidak ada payment aktif lagi -- semuanya dalam SATU batch
     (atomic-flows.md Task 15). Hitungan sisa yang dulu dibaca di Python setelah DELETE sekarang
@@ -767,17 +768,15 @@ def _delete_payment_cascade(conn, company_id: int, payment_id: int, pam_no, line
     Batch diawali advisory lock per company supaya dua penghapusan bersamaan pada PAM/PA yang sama
     tidak sama-sama melihat baris saudaranya masih ada (lalu tidak ada yang menghapus PAM/revert PA)."""
     pa_targets = []
-    if line_id:
-        for lines_tbl, pa_tbl in [
-            ("etf_pa_lines", "etf_pa"),
-            ("app_pa_lines", "app_pa"),
-            ("sml_pa_lines", "sml_pa"),
-        ]:
-            pa_row = conn.execute(
-                f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (line_id,)
-            ).fetchone()
-            if pa_row:
-                pa_targets.append((lines_tbl, pa_tbl, pa_row[0]))
+    pair = _PILLAR_PA_TBL.get((pillar or "").upper())
+    if line_id and pair:
+        # Hanya tabel milik pillar payment ini: id baris PA serial per tabel.
+        lines_tbl, pa_tbl = pair
+        pa_row = conn.execute(
+            f"SELECT pa_id FROM {lines_tbl} WHERE id=?", (line_id,)
+        ).fetchone()
+        if pa_row:
+            pa_targets.append((lines_tbl, pa_tbl, pa_row[0]))
 
     stmts = [
         _pb_lock_stmt(company_id),
@@ -795,13 +794,15 @@ def _delete_payment_cascade(conn, company_id: int, payment_id: int, pam_no, line
     if pa_targets:
         _now = _ts()
         for lines_tbl, pa_tbl, pa_id in pa_targets:
+            pillars = tuple(p for p, (lt, _) in _PILLAR_PA_TBL.items() if lt == lines_tbl)
             stmts.append((
                 f"""UPDATE {pa_tbl} SET status='open', nomor_pam=NULL, updated_at=?
                     WHERE id=? AND company_id=? AND NOT EXISTS (
                         SELECT 1 FROM payment_beasiswa pb
                         JOIN {lines_tbl} el ON el.id = pb.etf_pa_line_id
-                        WHERE el.pa_id=? AND pb.company_id=? AND pb.status != 'rejected')""",
-                (_now, pa_id, company_id, pa_id, company_id)
+                        WHERE el.pa_id=? AND pb.company_id=? AND pb.status != 'rejected'
+                          AND pb.pillar IN ({",".join("?" * len(pillars))}))""",
+                (_now, pa_id, company_id, pa_id, company_id) + pillars
             ))
     conn.batch(stmts)
 
@@ -809,7 +810,7 @@ def _delete_payment_cascade(conn, company_id: int, payment_id: int, pam_no, line
 def delete_payment_row(company_id: int, row_id: int) -> dict:
     conn = get_conn()
     row = conn.execute(
-        "SELECT id, status, pam, etf_pa_line_id FROM payment_beasiswa WHERE id=? AND company_id=?",
+        "SELECT id, status, pam, etf_pa_line_id, pillar FROM payment_beasiswa WHERE id=? AND company_id=?",
         (row_id, company_id)
     ).fetchone()
     if not row:
@@ -819,7 +820,8 @@ def delete_payment_row(company_id: int, row_id: int) -> dict:
         conn.close()
         return {"ok": False, "pesan": "Payment yang sudah selesai tidak bisa dihapus."}
 
-    _delete_payment_cascade(conn, company_id, row_id, row["pam"], row["etf_pa_line_id"])
+    _delete_payment_cascade(conn, company_id, row_id, row["pam"], row["etf_pa_line_id"],
+                            row["pillar"])
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": "Baris payment dihapus."}
@@ -829,7 +831,7 @@ def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
     """Hapus payment_beasiswa beserta rekam_medis terkait (cascade)."""
     conn = get_conn()
     row = conn.execute(
-        "SELECT id, status, pam, etf_pa_line_id FROM payment_beasiswa WHERE id=? AND company_id=?",
+        "SELECT id, status, pam, etf_pa_line_id, pillar FROM payment_beasiswa WHERE id=? AND company_id=?",
         (payment_id, company_id)
     ).fetchone()
     if not row:
@@ -839,7 +841,8 @@ def delete_payment_beasiswa(payment_id: int, company_id: int) -> dict:
         conn.close()
         return {"ok": False, "pesan": "Payment yang sudah selesai atau di-reject tidak bisa dihapus."}
 
-    _delete_payment_cascade(conn, company_id, payment_id, row["pam"], row["etf_pa_line_id"])
+    _delete_payment_cascade(conn, company_id, payment_id, row["pam"], row["etf_pa_line_id"],
+                            row["pillar"])
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": "Baris payment dihapus."}

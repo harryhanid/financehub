@@ -619,11 +619,12 @@ def delete_pa(pa_id: int, company_id: int, tab: str = "agri") -> dict:
         conn.close()
         return {"ok": False, "pesan": "PA tidak ditemukan."}
 
+    pillars = _TAB_PB_PILLARS.get(tab, _TAB_PB_PILLARS["agri"])
     linked = conn.execute(
         f"""SELECT COUNT(*) FROM payment_beasiswa pb
             JOIN {lines_tbl} l ON l.id = pb.etf_pa_line_id
-            WHERE l.pa_id=?""",
-        (pa_id,)
+            WHERE l.pa_id=? AND pb.pillar IN ({",".join("?" * len(pillars))})""",
+        (pa_id,) + pillars
     ).fetchone()[0]
     if linked:
         conn.close()
