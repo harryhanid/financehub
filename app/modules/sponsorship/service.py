@@ -1195,6 +1195,114 @@ def get_available_proposal_years(company_id: int) -> list:
         conn.close()
 
 
+DEFAULT_ALLOCATION_VENDORS = [
+    {"cat1": "In Progress Allocation (APP)", "cat2": "APP", "cat3": "APP"},
+    {"cat1": "In Progress Allocation (AGRI)", "cat2": "AGRI", "cat3": "AGRI"},
+    {"cat1": "In Progress Allocation (Mining)", "cat2": "Mining", "cat3": "ENERGY & FINANCE"},
+    {"cat1": "In Progress Allocation (PROPERTY)", "cat2": "Property", "cat3": "PROPERTY"},
+    {"cat1": "In Progress Allocation (Finance)", "cat2": "Finance", "cat3": "ENERGY & FINANCE"},
+]
+
+PROPOSAL_PILLAR_MAPPING = [
+    {"field": "app_amount", "cat1": "In Progress Allocation (APP)", "cat2": "APP", "cat3": "APP"},
+    {"field": "agri_amount", "cat1": "In Progress Allocation (AGRI)", "cat2": "AGRI", "cat3": "AGRI"},
+    {"field": "energy_amount", "cat1": "In Progress Allocation (Mining)", "cat2": "Mining", "cat3": "ENERGY & FINANCE"},
+    {"field": "land_amount", "cat1": "In Progress Allocation (PROPERTY)", "cat2": "Property", "cat3": "PROPERTY"},
+    {"field": "finance_amount", "cat1": "In Progress Allocation (Finance)", "cat2": "Finance", "cat3": "ENERGY & FINANCE"},
+]
+
+
+def ensure_allocation_vendors(conn):
+    for v in DEFAULT_ALLOCATION_VENDORS:
+        row = conn.execute("SELECT cat1 FROM sponsorship_perusahaan WHERE cat1 = ?", (v["cat1"],)).fetchone()
+        if not row:
+            conn.execute(
+                "INSERT INTO sponsorship_perusahaan (cat1, cat2, cat3) VALUES (?, ?, ?)",
+                (v["cat1"], v["cat2"], v["cat3"])
+            )
+
+
+def sync_approved_proposal_to_transaksi(company_id: int, proposal_id: int, conn=None) -> dict:
+    """Sinkronisasi data Proposal yang statusnya Approved ke Sponsor (sponsorship_transaksi).
+    Jika status != 'Approved', transaksi terkait proposal ini dihapus (reversal).
+    Jika status == 'Approved', baris di-breakdown per pilar yang nominalnya > 0."""
+    should_close = False
+    if conn is None:
+        conn = get_conn()
+        should_close = True
+    try:
+        row = conn.execute(
+            "SELECT * FROM sponsorship_proposal WHERE company_id = ? AND id = ?",
+            (company_id, proposal_id)
+        ).fetchone()
+        if not row:
+            conn.execute("DELETE FROM sponsorship_transaksi WHERE company_id = ? AND proposal_id = ?", (company_id, proposal_id))
+            return {"ok": True, "action": "deleted", "synced_rows": 0}
+
+        proposal = dict(row)
+        status = str(proposal.get("status") or "").strip().lower()
+
+        if status != "approved":
+            conn.execute("DELETE FROM sponsorship_transaksi WHERE company_id = ? AND proposal_id = ?", (company_id, proposal_id))
+            return {"ok": True, "action": "deleted", "synced_rows": 0}
+
+        ensure_allocation_vendors(conn)
+
+        # Hapus transaksi lama terkait proposal ini agar tidak duplikat / update bersih
+        conn.execute("DELETE FROM sponsorship_transaksi WHERE company_id = ? AND proposal_id = ?", (company_id, proposal_id))
+
+        tgl_form = proposal.get("approval_date") or proposal.get("tanggal") or datetime.now().strftime("%Y-%m-%d")
+        if len(str(tgl_form)) > 10:
+            tgl_form = str(tgl_form)[:10]
+
+        reff = proposal.get("referensi") or ""
+        perihal = proposal.get("kegiatan") or ""
+        lembaga = reff or perihal or "Proposal"
+
+        # Tipe: Memo -> CAT4 'Exclude', Form -> CAT4 'Include'
+        prop_tipe = str(proposal.get("tipe") or "Form").strip().lower()
+        cat4_val = "Exclude" if prop_tipe == "memo" else "Include"
+
+        synced_count = 0
+        for p in PROPOSAL_PILLAR_MAPPING:
+            amt = float(proposal.get(p["field"]) or 0)
+            if amt > 0:
+                conn.execute("""
+                    INSERT INTO sponsorship_transaksi (
+                        company_id, proposal_id, cat, description,
+                        tanggal_form_sponsor, tanggal_payment, cat1, cat2, cat3,
+                        lembaga_perorangan, perihal, amount_request, reff,
+                        status, cat4, coa, cc_total, cc, source
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    company_id,
+                    proposal_id,
+                    "Sponsorship",
+                    "Lainnya",
+                    tgl_form,
+                    None,
+                    p["cat1"],
+                    p["cat2"],
+                    p["cat3"],
+                    lembaga,
+                    perihal,
+                    amt,
+                    reff,
+                    "On Progress Alokasi",
+                    cat4_val,
+                    "701078002",
+                    "SMT - Corporate Communication",
+                    "POSPON",
+                    "Sponsor"
+                ))
+                synced_count += 1
+
+        return {"ok": True, "action": "inserted", "synced_rows": synced_count}
+    finally:
+        if should_close:
+            conn.close()
+
+
 def create_proposal(company_id: int, payload: dict) -> dict:
     conn = get_conn()
     try:
@@ -1216,12 +1324,18 @@ def create_proposal(company_id: int, payload: dict) -> dict:
         if status.lower() == "approved" and not approval_date:
             approval_date = datetime.now().strftime("%Y-%m-%d")
 
+        tipe_input = str(payload.get("tipe") or "Form").strip()
+        tipe_clean = "Memo" if tipe_input.lower() == "memo" else "Form"
+        attachment_file_id = payload.get("attachment_file_id") or ""
+        attachment_filename = payload.get("attachment_filename") or ""
+
         row = conn.execute("""
             INSERT INTO sponsorship_proposal
             (company_id, nomor_proposal, tanggal, referensi, kegiatan,
              app_amount, agri_amount, energy_amount, land_amount, finance_amount,
-             total_amount, diajukan_oleh, versi, status, approval_date, catatan)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             total_amount, diajukan_oleh, versi, status, approval_date, catatan,
+             tipe, attachment_file_id, attachment_filename)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING id
         """, (
             company_id, nomor_prop, tgl,
@@ -1231,9 +1345,12 @@ def create_proposal(company_id: int, payload: dict) -> dict:
             payload.get("diajukan_oleh") or "AR/JT",
             payload.get("versi") or "",
             status, approval_date,
-            payload.get("catatan") or "Nilai Sumbangan diatas netto excluded/ diluar pajak PPN/PPh"
+            payload.get("catatan") or "Nilai Sumbangan diatas netto excluded/ diluar pajak PPN/PPh",
+            tipe_clean, attachment_file_id, attachment_filename
         )).fetchone()
         new_id = row[0] if row else None
+        if new_id and status.lower() == "approved":
+            sync_approved_proposal_to_transaksi(company_id, new_id, conn=conn)
         return {"ok": True, "pesan": "Proposal berhasil ditambahkan.", "id": new_id, "nomor_proposal": nomor_prop}
     except Exception as e:
         return {"ok": False, "pesan": f"Gagal menambahkan proposal: {str(e)}"}
@@ -1256,11 +1373,15 @@ def update_proposal(company_id: int, proposal_id: int, payload: dict) -> dict:
         if status.lower() == "approved" and not approval_date:
             approval_date = datetime.now().strftime("%Y-%m-%d")
 
+        tipe_input = str(payload.get("tipe") or "Form").strip()
+        tipe_clean = "Memo" if tipe_input.lower() == "memo" else "Form"
+
         conn.execute("""
             UPDATE sponsorship_proposal
             SET tanggal = ?, referensi = ?, kegiatan = ?,
                 app_amount = ?, agri_amount = ?, energy_amount = ?, land_amount = ?, finance_amount = ?,
                 total_amount = ?, diajukan_oleh = ?, versi = ?, status = ?, approval_date = ?, catatan = ?,
+                tipe = ?,
                 updated_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')
             WHERE company_id = ? AND id = ?
         """, (
@@ -1272,8 +1393,10 @@ def update_proposal(company_id: int, proposal_id: int, payload: dict) -> dict:
             payload.get("versi") or "",
             status, approval_date,
             payload.get("catatan") or "Nilai Sumbangan diatas netto excluded/ diluar pajak PPN/PPh",
+            tipe_clean,
             company_id, proposal_id
         ))
+        sync_approved_proposal_to_transaksi(company_id, proposal_id, conn=conn)
         return {"ok": True, "pesan": "Proposal berhasil diperbarui."}
     except Exception as e:
         return {"ok": False, "pesan": f"Gagal update proposal: {str(e)}"}
@@ -1295,6 +1418,7 @@ def update_proposal_status(company_id: int, proposal_id: int, status: str, appro
                 updated_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')
             WHERE company_id = ? AND id = ?
         """, (status, approval_date, company_id, proposal_id))
+        sync_approved_proposal_to_transaksi(company_id, proposal_id, conn=conn)
         return {"ok": True, "pesan": f"Status berhasil diubah menjadi {status}."}
     except Exception as e:
         return {"ok": False, "pesan": f"Gagal update status: {str(e)}"}
@@ -1302,9 +1426,68 @@ def update_proposal_status(company_id: int, proposal_id: int, status: str, appro
         conn.close()
 
 
+def update_proposal_attachment(company_id: int, proposal_id: int, file_id: str, filename: str) -> dict:
+    conn = get_conn()
+    try:
+        conn.execute("""
+            UPDATE sponsorship_proposal
+            SET attachment_file_id = ?, attachment_filename = ?,
+                updated_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')
+            WHERE company_id = ? AND id = ?
+        """, (file_id, filename, company_id, proposal_id))
+        return {"ok": True, "pesan": "Attachment berhasil disimpan."}
+    except Exception as e:
+        return {"ok": False, "pesan": f"Gagal update attachment: {str(e)}"}
+    finally:
+        conn.close()
+
+
+def delete_proposal_attachment(company_id: int, proposal_id: int) -> dict:
+    conn = get_conn()
+    try:
+        row = conn.execute(
+            "SELECT attachment_file_id FROM sponsorship_proposal WHERE company_id = ? AND id = ?",
+            (company_id, proposal_id)
+        ).fetchone()
+        if not row:
+            return {"ok": False, "pesan": "Proposal tidak ditemukan."}
+
+        file_id = row["attachment_file_id"]
+        if file_id:
+            try:
+                from utils.gdrive_service import delete_gdrive_file
+                delete_gdrive_file(file_id)
+            except Exception as e:
+                print(f"Warning: gagal hapus file dari GDrive ({file_id}): {e}")
+
+        conn.execute("""
+            UPDATE sponsorship_proposal
+            SET attachment_file_id = '', attachment_filename = '',
+                updated_at = to_char(now() at time zone 'utc', 'YYYY-MM-DD HH24:MI:SS')
+            WHERE company_id = ? AND id = ?
+        """, (company_id, proposal_id))
+        return {"ok": True, "pesan": "Attachment berhasil dihapus."}
+    except Exception as e:
+        return {"ok": False, "pesan": f"Gagal hapus attachment: {str(e)}"}
+    finally:
+        conn.close()
+
+
 def delete_proposal(company_id: int, proposal_id: int) -> dict:
     conn = get_conn()
     try:
+        row = conn.execute(
+            "SELECT attachment_file_id FROM sponsorship_proposal WHERE company_id = ? AND id = ?",
+            (company_id, proposal_id)
+        ).fetchone()
+        if row and row["attachment_file_id"]:
+            try:
+                from utils.gdrive_service import delete_gdrive_file
+                delete_gdrive_file(row["attachment_file_id"])
+            except Exception as e:
+                print(f"Warning: gagal hapus file dari GDrive: {e}")
+
+        conn.execute("DELETE FROM sponsorship_transaksi WHERE company_id = ? AND proposal_id = ?", (company_id, proposal_id))
         conn.execute("DELETE FROM sponsorship_proposal WHERE company_id = ? AND id = ?", (company_id, proposal_id))
         return {"ok": True, "pesan": "Proposal berhasil dihapus."}
     except Exception as e:
@@ -1534,6 +1717,17 @@ def sync_proposals_excel(company_id: int, file_bytes: bytes) -> dict:
 
         if items:
             conn.batch(items)
+
+        # Sync proposals to sponsor transactions
+        if existing_map:
+            for p_nomor in existing_map.keys():
+                p_row = conn.execute(
+                    "SELECT id, status FROM sponsorship_proposal WHERE company_id = ? AND UPPER(nomor_proposal) = ?",
+                    (company_id, p_nomor.upper())
+                ).fetchone()
+                if p_row:
+                    sync_approved_proposal_to_transaksi(company_id, p_row["id"], conn=conn)
+
         return {"ok": True, "pesan": f"Sync sukses: {updated_count} proposal di-update, {inserted_count} proposal baru ditambahkan."}
     except Exception as e:
         return {"ok": False, "pesan": f"Gagal sync data proposal: {str(e)}"}

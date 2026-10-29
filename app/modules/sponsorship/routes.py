@@ -12,7 +12,7 @@ from modules.sponsorship.service import (
     create_perusahaan, update_perusahaan, delete_perusahaan, sync_transaksi_excel,
     normalise_bulan, MONTH_CHOICES,
 )
-from modules.sponsorship.exports import export_report_excel, export_mr_excel
+from modules.sponsorship.exports import export_report_excel, export_mr_excel, format_tanggal_indo, format_terbilang, format_terbilang_pillar
 import config
 
 bp = Blueprint("sponsorship", __name__, url_prefix="/sponsorship")
@@ -495,6 +495,7 @@ def proposal_page():
     for r in rows:
         tot = float(r.get("total_amount") or 0)
         r["terbilang_total"] = format_terbilang(tot)
+        r["tanggal_indo"] = format_tanggal_indo(r.get("tanggal") or "")
         for pillar in ("app", "agri", "energy", "land", "finance"):
             amt = float(r.get(f"{pillar}_amount") or 0)
             r[f"terbilang_{pillar}"] = format_terbilang_pillar(amt)
@@ -536,6 +537,68 @@ def proposal_status_route(proposal_id):
     approval_date = payload.get("approval_date", "")
     result = update_proposal_status(_cid(), proposal_id, status, approval_date)
     return jsonify(result)
+
+
+@bp.route("/proposal/<int:proposal_id>/attachment", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def proposal_upload_attachment_route(proposal_id):
+    if "file" not in request.files:
+        return jsonify({"ok": False, "pesan": "File tidak ditemukan."}), 400
+    file = request.files["file"]
+    if not file or not file.filename:
+        return jsonify({"ok": False, "pesan": "Nama file tidak valid."}), 400
+
+    from utils.gdrive_service import create_gdrive_folder, upload_file_to_gdrive, delete_gdrive_file
+    from modules.sponsorship.service import get_proposal, update_proposal_attachment
+
+    p = get_proposal(_cid(), proposal_id)
+    if not p:
+        return jsonify({"ok": False, "pesan": "Proposal tidak ditemukan."}), 404
+
+    try:
+        old_fid = p.get("attachment_file_id")
+        if old_fid:
+            try:
+                delete_gdrive_file(old_fid)
+            except Exception:
+                pass
+
+        folder_id = create_gdrive_folder("Sponsorship Proposals")
+        fid = upload_file_to_gdrive(file, file.filename, file.mimetype, parent_folder_id=folder_id)
+        res = update_proposal_attachment(_cid(), proposal_id, fid, file.filename)
+        res["file_id"] = fid
+        res["filename"] = file.filename
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"ok": False, "pesan": f"Gagal upload ke Google Drive: {str(e)}"}), 500
+
+
+@bp.route("/proposal/<int:proposal_id>/attachment/delete", methods=["POST"])
+@jwt_html_required
+@smt_company_required
+def proposal_delete_attachment_route(proposal_id):
+    from modules.sponsorship.service import delete_proposal_attachment
+    res = delete_proposal_attachment(_cid(), proposal_id)
+    return jsonify(res)
+
+
+@bp.route("/proposal/attachment/<file_id>")
+@jwt_html_required
+@smt_company_required
+def proposal_view_attachment_route(file_id):
+    from utils.gdrive_service import get_file_stream_from_gdrive, get_file_metadata_from_gdrive
+    try:
+        meta = get_file_metadata_from_gdrive(file_id)
+        file_stream = get_file_stream_from_gdrive(file_id)
+        return send_file(
+            file_stream,
+            as_attachment=False,
+            mimetype=meta.get("mimeType", "application/octet-stream"),
+            download_name=meta.get("name", "attachment")
+        )
+    except Exception as e:
+        return f"Gagal memuat attachment dari Google Drive: {str(e)}", 500
 
 
 @bp.route("/proposal/<int:proposal_id>/delete", methods=["POST"])
@@ -617,6 +680,7 @@ def proposal_form_data(proposal_id):
         return jsonify({"ok": False, "pesan": "Proposal tidak ditemukan"}), 404
     tot = float(p.get("total_amount") or 0)
     p["terbilang_total"] = format_terbilang(tot)
+    p["tanggal_indo"] = format_tanggal_indo(p.get("tanggal") or "")
     for pillar in ("app", "agri", "energy", "land", "finance"):
         amt = float(p.get(f"{pillar}_amount") or 0)
         p[f"terbilang_{pillar}"] = format_terbilang_pillar(amt)

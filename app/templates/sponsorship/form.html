@@ -308,7 +308,7 @@
         <tr>
           <td class="meta-label">Tanggal</td>
           <td class="meta-colon">:</td>
-          <td class="meta-val" style="font-weight: 600;">{{ proposal.tanggal }}</td>
+          <td class="meta-val" style="font-weight: 600;">{{ proposal.tanggal_indo or proposal.tanggal }}</td>
         </tr>
         <tr>
           <td class="meta-label">Referensi</td>
@@ -386,7 +386,7 @@
               <span class="check-box-symbol">X</span>
               {% endif %}
             </td>
-            <td style="font-weight: 700;">AGRO / DSS</td>
+            <td style="font-weight: 700;">AGRO</td>
             <td style="text-align: right; font-weight: 600;">
               {% if proposal.agri_amount and proposal.agri_amount > 0 %}
               Rp. {{ "{:,.0f}".format(proposal.agri_amount).replace(",", ".") }}
@@ -535,7 +535,7 @@ function renderDropdown(items) {
       <div class="sp-dd-keg">${escapeHtml(p.kegiatan || '-')}</div>
       <div class="sp-dd-meta">
         <span>Total: <strong>${formatRupiah(p.total_amount)}</strong></span>
-        <span>Tanggal: ${escapeHtml(p.tanggal || '-')}</span>
+        <span>Tanggal: ${escapeHtml(p.tanggal_indo || p.tanggal || '-')}</span>
       </div>
     </div>
   `).join('');

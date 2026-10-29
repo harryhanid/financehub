@@ -50,6 +50,72 @@
 .sp-prop-table-row:hover {
   background: var(--bg-hover, rgba(255,255,255,0.04));
 }
+.badge-type {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.badge-form {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.badge-memo {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+.attachment-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.attachment-btn:hover {
+  background: #10b981;
+  color: #fff;
+}
+.btn-upload-trigger {
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-upload-trigger:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border-color: #60a5fa;
+}
+.btn-del-attach {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 0.2rem 0.35rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.btn-del-attach:hover {
+  background: #ef4444;
+  color: #fff;
+}
 .badge-status {
   display: inline-flex;
   align-items: center;
@@ -286,6 +352,7 @@
         <tr>
           <th>No Proposal</th>
           <th>Tanggal</th>
+          <th style="text-align: center;">Tipe</th>
           <th>Referensi</th>
           <th>Kegiatan</th>
           <th class="num-right">Total Nilai</th>
@@ -294,6 +361,7 @@
           <th>Versi</th>
           <th>Status</th>
           <th>Approval Date</th>
+          <th style="text-align: center;">Attachment</th>
           <th style="text-align: center;">Aksi</th>
         </tr>
       </thead>
@@ -305,6 +373,10 @@
               <span style="font-family: monospace; font-weight: 600; color: #60a5fa;">{{ r.nomor_proposal }}</span>
             </td>
             <td class="nowrap-cell">{{ r.tanggal }}</td>
+            <td class="nowrap-cell" style="text-align: center;">
+              {% set tp_low = (r.tipe or 'form') | lower %}
+              <span class="badge-type badge-{{ tp_low }}">{{ r.tipe or 'Form' }}</span>
+            </td>
             <td style="font-weight: 500; min-width: 120px; max-width: 220px;">{{ r.referensi }}</td>
             <td style="min-width: 240px; max-width: 440px; white-space: normal; line-height: 1.35;">{{ r.kegiatan }}</td>
             <td class="num-right nowrap-cell" style="font-weight: 600;">
@@ -341,6 +413,22 @@
             </td>
             <td class="nowrap-cell" style="text-align: center;">{{ r.approval_date or '-' }}</td>
             <td class="nowrap-cell" style="text-align: center;">
+              {% if r.attachment_file_id %}
+              <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                <a href="/sponsorship/proposal/attachment/{{ r.attachment_file_id }}" target="_blank" class="attachment-btn" title="{{ r.attachment_filename or 'Lihat Attachment' }}">
+                  📎 <span style="max-width: 85px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle;">{{ r.attachment_filename or 'File' }}</span>
+                </a>
+                <button type="button" class="btn-del-attach" onclick="confirmDeleteAttachment({{ r.id }})" title="Hapus Attachment">
+                  ✕
+                </button>
+              </div>
+              {% else %}
+              <button type="button" class="btn-upload-trigger" onclick="triggerUploadAttachment({{ r.id }})" title="Upload Attachment ke Google Drive">
+                + Upload
+              </button>
+              {% endif %}
+            </td>
+            <td class="nowrap-cell" style="text-align: center;">
               <div class="action-btn-group">
                 <button type="button" class="btn-sm-action btn-form" onclick="openFormModal({{ r.id }})" title="Lihat & Cetak Sponsorship Form">
                   📄 Form
@@ -360,7 +448,7 @@
           {% endfor %}
         {% else %}
           <tr>
-            <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-muted, #94a3b8);">
+            <td colspan="13" style="text-align: center; padding: 3rem; color: var(--text-muted, #94a3b8);">
               Tidak ada data proposal sponsor yang sesuai filter.
             </td>
           </tr>
@@ -388,6 +476,8 @@
   {% endif %}
 </div>
 
+<input type="file" id="sp-attach-upload-input" style="display:none;" onchange="handleAttachmentUpload(this)">
+
 <!-- Modal: Input Proposal Baru -->
 <div id="sp-create-modal" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;">
   <div class="modal" style="max-width: 680px; width: 95%;">
@@ -397,10 +487,17 @@
     </div>
     <div class="modal-body" style="padding: 1.25rem 1.5rem;">
       <form id="sp-create-form" onsubmit="submitCreateProposal(event)">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; gap: 1rem; margin-bottom: 1rem;">
           <div>
             <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Tanggal Pengajuan *</label>
             <input type="date" id="cr-tanggal" required class="budget-input" style="width: 100%;">
+          </div>
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Tipe Proposal *</label>
+            <select id="cr-tipe" required class="budget-input" style="width: 100%;">
+              <option value="Form" selected>Form</option>
+              <option value="Memo">Memo</option>
+            </select>
           </div>
           <div>
             <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Diajukan Oleh</label>
@@ -466,7 +563,7 @@
                 </td>
               </tr>
               <tr>
-                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">AGRO / DSS</td>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">AGRO</td>
                 <td style="padding: 0.35rem 0.5rem;">
                   <div style="position: relative; display: flex; align-items: center;">
                     <input type="number" id="cr-agri-pct" min="0" max="100" step="any" placeholder="0"
@@ -575,10 +672,17 @@
     <div class="modal-body" style="padding: 1.25rem 1.5rem;">
       <form id="sp-edit-form" onsubmit="submitEditProposal(event)">
         <input type="hidden" id="ed-id">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div style="display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; gap: 1rem; margin-bottom: 1rem;">
           <div>
             <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Tanggal Pengajuan *</label>
             <input type="date" id="ed-tanggal" required class="budget-input" style="width: 100%;">
+          </div>
+          <div>
+            <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Tipe Proposal *</label>
+            <select id="ed-tipe" required class="budget-input" style="width: 100%;">
+              <option value="Form">Form</option>
+              <option value="Memo">Memo</option>
+            </select>
           </div>
           <div>
             <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Diajukan Oleh</label>
@@ -644,7 +748,7 @@
                 </td>
               </tr>
               <tr>
-                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">AGRO / DSS</td>
+                <td style="padding: 0.35rem 0.5rem; font-weight: 700;">AGRO</td>
                 <td style="padding: 0.35rem 0.5rem;">
                   <div style="position: relative; display: flex; align-items: center;">
                     <input type="number" id="ed-agri-pct" min="0" max="100" step="any" placeholder="0"
@@ -732,6 +836,11 @@
             <label style="display:block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Approval Date</label>
             <input type="date" id="ed-approval-date" class="budget-input" style="width: 100%;">
           </div>
+        </div>
+
+        <div style="margin-bottom: 1.25rem; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle, rgba(255,255,255,0.1)); border-radius: 6px; padding: 0.6rem 0.8rem;">
+          <div style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: #94a3b8;">Lampiran (Google Drive)</div>
+          <div id="ed-attachment-area" style="display: flex; align-items: center; gap: 8px;"></div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
@@ -858,7 +967,7 @@
             <!-- AGRI -->
             <tr>
               <td style="text-align: center;"><span id="fm-check-agri" class="check-box-symbol">X</span></td>
-              <td style="font-weight: 700;">AGRO / DSS</td>
+              <td style="font-weight: 700;">AGRO</td>
               <td style="text-align: right; font-weight: 600;" id="fm-amt-agri">-</td>
               <td style="font-style: italic; font-size: 9.5pt;" id="fm-terb-agri"></td>
             </tr>
@@ -1061,6 +1170,7 @@ function toggleApprovalDate(prefix) {
 function openCreateModal() {
   document.getElementById('sp-create-form').reset();
   document.getElementById('cr-tanggal').value = todayDateStr();
+  document.getElementById('cr-tipe').value = 'Form';
   document.getElementById('cr-diajukan').value = 'AR/JT';
   document.getElementById('cr-total').value = '';
   document.getElementById('cr-total-preview').textContent = 'Rp 0';
@@ -1080,6 +1190,7 @@ async function submitCreateProposal(e) {
   e.preventDefault();
   const payload = {
     tanggal: document.getElementById('cr-tanggal').value,
+    tipe: document.getElementById('cr-tipe').value,
     diajukan_oleh: document.getElementById('cr-diajukan').value,
     referensi: document.getElementById('cr-referensi').value,
     kegiatan: document.getElementById('cr-kegiatan').value,
@@ -1128,7 +1239,27 @@ function openEditModal(id) {
   document.getElementById('ed-id').value = prop.id;
   document.getElementById('ed-nomor-label').innerText = prop.nomor_proposal;
   document.getElementById('ed-tanggal').value = prop.tanggal || '';
+  document.getElementById('ed-tipe').value = prop.tipe || 'Form';
   document.getElementById('ed-diajukan').value = prop.diajukan_oleh || 'AR/JT';
+
+  const attachArea = document.getElementById('ed-attachment-area');
+  if (prop.attachment_file_id) {
+    attachArea.innerHTML = `
+      <a href="/sponsorship/proposal/attachment/${prop.attachment_file_id}" target="_blank" class="attachment-btn" style="padding: 0.35rem 0.75rem;">
+        📎 ${escapeHtml(prop.attachment_filename || 'Lihat File')}
+      </a>
+      <button type="button" class="btn-del-attach" onclick="confirmDeleteAttachment(${prop.id})" style="padding: 0.35rem 0.65rem;">
+        Hapus Lampiran
+      </button>
+    `;
+  } else {
+    attachArea.innerHTML = `
+      <button type="button" class="btn-upload-trigger" onclick="triggerUploadAttachment(${prop.id})" style="padding: 0.35rem 0.75rem;">
+        + Upload Lampiran
+      </button>
+      <span style="font-size: 0.75rem; color: #94a3b8;">Belum ada lampiran Google Drive</span>
+    `;
+  }
   document.getElementById('ed-referensi').value = prop.referensi || '';
   document.getElementById('ed-kegiatan').value = prop.kegiatan || '';
 
@@ -1165,6 +1296,7 @@ async function submitEditProposal(e) {
   const id = document.getElementById('ed-id').value;
   const payload = {
     tanggal: document.getElementById('ed-tanggal').value,
+    tipe: document.getElementById('ed-tipe').value,
     diajukan_oleh: document.getElementById('ed-diajukan').value,
     referensi: document.getElementById('ed-referensi').value,
     kegiatan: document.getElementById('ed-kegiatan').value,
@@ -1366,6 +1498,91 @@ async function proposalDataSync() {
 }
 
 // Modal Form Popup
+
+
+let currentUploadProposalId = null;
+
+function triggerUploadAttachment(id) {
+  currentUploadProposalId = id;
+  const input = document.getElementById('sp-attach-upload-input');
+  input.value = '';
+  input.click();
+}
+
+async function handleAttachmentUpload(input) {
+  if (!input.files || !input.files[0] || !currentUploadProposalId) return;
+  const file = input.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const toast = document.createElement('div');
+  toast.id = 'sp-upload-toast';
+  toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#2563eb;color:#fff;padding:12px 20px;border-radius:8px;font-size:0.88rem;box-shadow:0 6px 16px rgba(0,0,0,0.35);z-index:99999;font-weight:600;display:flex;align-items:center;gap:8px;';
+  toast.innerHTML = '<span>⏳</span><span>Mengunggah file ke Google Drive...</span>';
+  document.body.appendChild(toast);
+
+  try {
+    const res = await fetch(`/sponsorship/proposal/${currentUploadProposalId}/attachment`, {
+      method: 'POST',
+      body: formData
+    });
+    const result = await res.json();
+    if (result.ok) {
+      toast.style.background = '#10b981';
+      toast.innerHTML = '<span>✓</span><span>Lampiran berhasil disimpan ke Google Drive!</span>';
+      setTimeout(() => {
+        location.reload();
+      }, 700);
+    } else {
+      toast.style.background = '#ef4444';
+      toast.innerHTML = `<span>✕</span><span>Gagal upload: ${result.pesan || 'Terjadi kesalahan'}</span>`;
+      setTimeout(() => toast.remove(), 4000);
+    }
+  } catch (err) {
+    toast.style.background = '#ef4444';
+    toast.innerHTML = `<span>✕</span><span>Gagal upload: ${err.message}</span>`;
+    setTimeout(() => toast.remove(), 4000);
+  }
+}
+
+async function confirmDeleteAttachment(id) {
+  if (!confirm('Yakin ingin menghapus lampiran ini dari Google Drive?')) return;
+  try {
+    const res = await fetch(`/sponsorship/proposal/${id}/attachment/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const result = await res.json();
+    if (result.ok) {
+      alert('Lampiran berhasil dihapus.');
+      location.reload();
+    } else {
+      alert('Gagal menghapus lampiran: ' + (result.pesan || 'Terjadi kesalahan'));
+    }
+  } catch (err) {
+    alert('Terjadi kesalahan: ' + err.message);
+  }
+}
+
+function formatTanggalIndo(dateStr) {
+  if (!dateStr) return "-";
+  const clean = String(dateStr).split("T")[0].split(" ")[0].trim();
+  const parts = clean.split("-");
+  if (parts.length === 3 && parts[0].length === 4) {
+    const months = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    const day = parseInt(parts[2], 10);
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    const year = parts[0];
+    if (monthIdx >= 0 && monthIdx < 12 && !isNaN(day)) {
+      return `${day} ${months[monthIdx]} ${year}`;
+    }
+  }
+  return dateStr;
+}
+
 async function openFormModal(id) {
   let prop = proposalsMap[id];
   if (!prop) {
@@ -1389,7 +1606,7 @@ async function openFormModal(id) {
   document.getElementById('form-modal-export-btn').href = "/sponsorship/form/" + id + "/export-excel";
   document.getElementById('form-modal-nomor').textContent = prop.nomor_proposal || "";
 
-  document.getElementById('fm-tanggal').textContent = prop.tanggal || "-";
+  document.getElementById('fm-tanggal').textContent = prop.tanggal_indo || formatTanggalIndo(prop.tanggal);
   document.getElementById('fm-referensi').textContent = prop.referensi || "-";
   document.getElementById('fm-kegiatan').textContent = prop.kegiatan || "-";
   document.getElementById('fm-nilai').textContent = "Rp. " + Math.round(prop.total_amount || 0).toLocaleString('id-ID');

@@ -566,6 +566,29 @@ def format_terbilang_pillar(amount: float) -> str:
     return f"( {terbilang_id(amount)} Rupiah )"
 
 
+def format_tanggal_indo(tgl_raw: str) -> str:
+    """Mengubah format YYYY-MM-DD atau ISO string menjadi 'DD MMMM YYYY' bahasa Indonesia.
+    Contoh: '2026-09-28' -> '28 September 2026'."""
+    if not tgl_raw:
+        return ""
+    tgl_clean = str(tgl_raw).split("T")[0].split(" ")[0].strip()
+    parts = tgl_clean.split("-")
+    if len(parts) == 3 and len(parts[0]) == 4:
+        months_indo = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ]
+        try:
+            year = parts[0]
+            month_idx = int(parts[1]) - 1
+            day = int(parts[2])
+            if 0 <= month_idx < 12:
+                return f"{day} {months_indo[month_idx]} {year}"
+        except Exception:
+            pass
+    return tgl_clean
+
+
 def export_proposal_form_excel(proposal: dict) -> bytes:
     """Mengisi template Form.xlsx dengan data proposal sponsor dan mengembalikan bytes xlsx."""
     import io
@@ -590,7 +613,7 @@ def export_proposal_form_excel(proposal: dict) -> bytes:
     ws = wb["Form Sponsorship Propose New"] if "Form Sponsorship Propose New" in wb.sheetnames else wb.active
 
     # Data Utama
-    ws["G3"].value = proposal.get("tanggal") or ""
+    ws["G3"].value = format_tanggal_indo(proposal.get("tanggal") or "")
     ws["G4"].value = proposal.get("referensi") or ""
     ws["G5"].value = proposal.get("kegiatan") or ""
     
@@ -599,6 +622,10 @@ def export_proposal_form_excel(proposal: dict) -> bytes:
     ws["G7"].value = format_terbilang(tot_amt)
     ws["G8"].value = proposal.get("catatan") or "Nilai Sumbangan diatas netto excluded/ diluar pajak PPN/PPh"
 
+    # Enforce pillar labels
+    ws["E11"].value = "APP"
+    ws["E14"].value = "AGRO"
+
     # 1. APP
     app_amt = float(proposal.get("app_amount") or 0)
     ws["C11"].value = "√" if app_amt > 0 else "X"
@@ -606,7 +633,7 @@ def export_proposal_form_excel(proposal: dict) -> bytes:
     ws["J10"].value = app_amt if app_amt > 0 else ""
     ws["K10"].value = format_terbilang_pillar(app_amt)
 
-    # 2. AGRO / DSS (AGRI)
+    # 2. AGRO (AGRI)
     agri_amt = float(proposal.get("agri_amount") or 0)
     ws["C14"].value = "√" if agri_amt > 0 else "X"
     ws["I13"].value = "Rp." if agri_amt > 0 else "-"
