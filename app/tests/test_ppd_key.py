@@ -88,7 +88,7 @@ def test_cli_prints_key_once_and_requires_action(capsys):
     fb = FB()
     mod.main(["--schema", "prportal_staging", "--label", "PR Portal staging"], backend=fb)
     out = capsys.readouterr().out
-    key = re.search(r"^FLOW_PPD_KEY=(\S+)$", out, re.M).group(1)
+    key = re.search(r"^PRDB_KEY=(\S+)$", out, re.M).group(1)
     assert out.count(key) == 1 and key not in repr(fb.calls)
     with pytest.raises(SystemExit):
         mod.main(["--schema", "prportal"], backend=fb)

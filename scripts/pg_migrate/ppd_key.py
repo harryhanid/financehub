@@ -7,7 +7,7 @@ Usage:
 
 Kunci baru = secrets.token_urlsafe(32). Yang dikirim ke database HANYA sha256 hex-nya (sama dengan
 encode(sha256(convert_to(p_key,'UTF8')),'hex') di fungsi public.ppd_*). Kunci asli dicetak SEKALI ke
-stdout untuk ditempel ke Script Property FLOW_PPD_KEY di PR Portal; tidak disimpan di mana pun.
+stdout untuk ditempel ke Script Property PRDB_KEY di PR Portal; tidak disimpan di mana pun.
 
 Backend default http: SUPABASE_URL / SUPABASE_SERVICE_KEY dari environment Flow (app/.env lewat
 python-dotenv, sama dengan apply_migrations.py). Nilainya tidak pernah dicetak.
@@ -100,12 +100,12 @@ def main(argv=None, backend=None):
     finally:
         backend.close()
     print(f"Kunci PR Portal untuk schema {args.schema} (label {args.label.strip()!r}) dibuat.")
-    print("Tempel baris berikut ke Script Property FLOW_PPD_KEY di proyek Apps Script PR Portal")
+    print("Tempel baris berikut ke Script Property PRDB_KEY di proyek Apps Script PR Portal")
     print("(Project Settings > Script Properties). Kunci TIDAK ditampilkan lagi dan tidak disimpan:")
     print()
-    print(f"FLOW_PPD_KEY={key}")
+    print(f"PRDB_KEY={key}")
     print()
-    print("Isi Script Property cukup nilainya (bagian sesudah 'FLOW_PPD_KEY=').")
+    print("Isi Script Property cukup nilainya (bagian sesudah 'PRDB_KEY=').")
 
 
 if __name__ == "__main__":
