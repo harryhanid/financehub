@@ -1154,6 +1154,9 @@ function updateFilterChipSummary(chip) {
   const total = boxes.length;
   const checked = chip.querySelectorAll(".panel-opts input[type=checkbox]:checked").length;
   const valEl = chip.querySelector(".val");
+  const isFiltered = (total > 0 && checked < total);
+  chip.classList.toggle("is-filtered", isFiltered);
+
   if (checked === total) {
     valEl.textContent = "Semua";
   } else if (checked === 0) {

@@ -11,9 +11,37 @@
 .spt-card b { display:block; font-size:1.05rem; font-variant-numeric:tabular-nums; }
 .spt-banner { margin-bottom:.75rem; padding:.6rem .9rem; font-size:.8125rem; border:1px solid var(--sl-200); border-radius:8px; }
 .spt-banner.warn { border-color:var(--danger); }
-.spt-badge { display:inline-block; padding:.05rem .5rem; border-radius:999px; font-size:.75rem; border:1px solid var(--sl-200); }
-.spt-badge.lulus { border-color:var(--success, #2e7d32); }
-.spt-badge.gagal, .spt-badge.blocker { border-color:var(--danger); font-weight:700; }
+.spt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border: 1px solid var(--border, #e2e8f0);
+  text-transform: uppercase;
+  transition: all 0.15s ease;
+}
+.spt-badge.lulus {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.28);
+}
+[data-theme="dark"] .spt-badge.lulus {
+  color: #6ee7b7;
+  border-color: rgba(52, 211, 153, 0.3);
+}
+.spt-badge.gagal, .spt-badge.blocker {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.28);
+}
+[data-theme="dark"] .spt-badge.gagal, [data-theme="dark"] .spt-badge.blocker {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.3);
+}
 .spt-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:.75rem; }
 .spt-filter label { display:flex; flex-direction:column; font-size:.75rem; }
 .spt-pager { display:flex; align-items:center; gap:.75rem; margin:.6rem 0; }

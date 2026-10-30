@@ -673,7 +673,7 @@ function _sponsorshipRenderReportTable(container, data) {
             _sponsorshipEsc(r.reff || "") + '</td><td>' + _sponsorshipEsc(r.lembaga_perorangan || "") + '</td><td>' +
             _sponsorshipEsc(r.perihal || "") + '</td><td class="num-right">' +
             (typeof fmtRupiah === 'function' ? fmtRupiah(r.amount) : r.amount) + '</td><td>' +
-            _sponsorshipEsc(r.status || "") + '</td></tr>';
+            _renderSpStatusPill(r.status || "") + '</td></tr>';
         });
       });
     }

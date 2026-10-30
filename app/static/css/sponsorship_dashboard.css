@@ -60,11 +60,30 @@
   position: relative;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 0.45rem 0.7rem;
+  border-radius: 10px;
+  padding: 0.45rem 0.8rem;
   font-size: 0.78rem;
   min-width: 150px;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sp-dash-filter-chip:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.06);
+}
+.sp-dash-filter-chip.is-filtered {
+  background: var(--accent-surface, rgba(37, 99, 235, 0.07));
+  border-color: var(--accent, #2563eb);
+}
+.sp-dash-filter-chip.is-filtered .lbl {
+  color: var(--accent, #2563eb);
+}
+.sp-dash-filter-chip.is-filtered .val {
+  color: var(--accent-text, #1d4ed8);
+}
+[data-theme="dark"] .sp-dash-filter-chip.is-filtered .val {
+  color: #93c5fd;
 }
 .sp-dash-filter-chip .lbl {
   display: block;
@@ -184,36 +203,63 @@
 .sp-dash-stat-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 }
+.sp-dash-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.08), 0 3px 8px -2px rgba(15, 23, 42, 0.04);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+.sp-dash-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3.5px;
+  border-radius: 12px 12px 0 0;
+}
+.sp-dash-stat-card.tint-app::before      { background: linear-gradient(90deg, #ef4444, #f87171); }
+.sp-dash-stat-card.tint-energy::before   { background: linear-gradient(90deg, #10b981, #34d399); }
+.sp-dash-stat-card.tint-property::before { background: linear-gradient(90deg, #8b5cf6, #c4b5fd); }
+.sp-dash-stat-card.tint-agri::before     { background: linear-gradient(90deg, #f97316, #fdba74); }
+
 .sp-dash-stat-card .label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .sp-dash-stat-card .value {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.6rem;
+  font-weight: 800;
   color: var(--text);
-  margin-top: 0.25rem;
+  letter-spacing: -0.025em;
+  font-feature-settings: "tnum" on, "lnum" on;
+  margin-top: 0.35rem;
 }
 .sp-dash-stat-card .sub {
   font-size: 0.78rem;
-  font-weight: 600;
-  margin-top: 0.2rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
 }
 
-/* Pillar tint modifiers — derived from the existing per-pillar accent hues
-   already used for chart colors in sponsorship.js (fca5a5/86efac/c4b5fd/fdba74). */
-.sp-dash-stat-card.tint-app      { background: #fef2f2; border-color: #fca5a5; }
+.sp-dash-stat-card.tint-app      { background: #fff8f8; border-color: #fee2e2; }
 .sp-dash-stat-card.tint-app      .value, .sp-dash-stat-card.tint-app .sub      { color: #b91c1c; }
-.sp-dash-stat-card.tint-energy   { background: #f0fdf4; border-color: #86efac; }
+.sp-dash-stat-card.tint-energy   { background: #f6fef9; border-color: #dcfce7; }
 .sp-dash-stat-card.tint-energy   .value, .sp-dash-stat-card.tint-energy .sub   { color: #15803d; }
-.sp-dash-stat-card.tint-property { background: #f5f3ff; border-color: #c4b5fd; }
+.sp-dash-stat-card.tint-property { background: #faf5ff; border-color: #ede9fe; }
 .sp-dash-stat-card.tint-property .value, .sp-dash-stat-card.tint-property .sub { color: #7c3aed; }
-.sp-dash-stat-card.tint-agri     { background: #fff7ed; border-color: #fdba74; }
+.sp-dash-stat-card.tint-agri     { background: #fffaf0; border-color: #ffedd5; }
 .sp-dash-stat-card.tint-agri     .value, .sp-dash-stat-card.tint-agri .sub     { color: #c2410c; }
 /* Dark: the pastel fills stayed light while labels turned light (2.4:1) */
 [data-theme="dark"] .sp-dash-stat-card.tint-app      { background: var(--negative-surface); border-color: var(--negative-border); }
