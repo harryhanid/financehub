@@ -2506,3 +2506,64 @@ td:has(.empty-state) { padding: 0 !important; }
   border-radius: 999px;
   padding: .35rem .5rem;
 }
+
+/* Universal Table Alignment for Modular Tables */
+.gl-table, .mc-table, .mr-table, .backup-table, .inner-table, .sop-table-index, .sop-table, .outstanding-table, .sp-report-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.gl-table th, .mc-table th, .mr-table th, .backup-table th, .inner-table th, .sop-table-index th, .sop-table th, .outstanding-table th, .sp-report-table th {
+  font-size: .72rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  color: var(--text-muted, #64748B) !important;
+  background: var(--bg-muted, #F8FAFC) !important;
+  padding: .58rem .875rem !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-top: none !important;
+  border-right: none !important;
+  white-space: nowrap !important;
+}
+[data-theme="dark"] .gl-table th,
+[data-theme="dark"] .mc-table th,
+[data-theme="dark"] .mr-table th,
+[data-theme="dark"] .backup-table th,
+[data-theme="dark"] .inner-table th,
+[data-theme="dark"] .sop-table-index th,
+[data-theme="dark"] .sop-table th,
+[data-theme="dark"] .outstanding-table th,
+[data-theme="dark"] .sp-report-table th {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: #94A3B8 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.gl-table td, .mc-table td, .mr-table td, .backup-table td, .inner-table td, .sop-table-index td, .sop-table td, .outstanding-table td, .sp-report-table td {
+  padding: .58rem .875rem !important;
+  border-bottom: 1px solid var(--border) !important;
+  font-size: .8125rem !important;
+  color: var(--text) !important;
+  line-height: 1.4 !important;
+}
+
+.gl-table tbody tr:hover td,
+.mc-table tbody tr:hover td,
+.mr-table tbody tr:hover td,
+.backup-table tbody tr:hover td,
+.inner-table tbody tr:hover td,
+.sop-table-index tbody tr:hover td,
+.outstanding-table tbody tr:hover td,
+.sp-report-table tbody tr:hover td {
+  background: var(--accent-surface, rgba(37, 99, 235, 0.04)) !important;
+}
+[data-theme="dark"] .gl-table tbody tr:hover td,
+[data-theme="dark"] .mc-table tbody tr:hover td,
+[data-theme="dark"] .mr-table tbody tr:hover td,
+[data-theme="dark"] .backup-table tbody tr:hover td,
+[data-theme="dark"] .inner-table tbody tr:hover td,
+[data-theme="dark"] .sop-table-index tbody tr:hover td,
+[data-theme="dark"] .outstanding-table tbody tr:hover td,
+[data-theme="dark"] .sp-report-table tbody tr:hover td {
+  background: rgba(59, 130, 246, 0.08) !important;
+}

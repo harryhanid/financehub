@@ -147,48 +147,46 @@
   border-radius: var(--radius-md);
 }
 .budget-table th, .budget-table td {
-  padding: 0.6rem 0.9rem;
+  padding: 0.58rem 0.875rem;
   border-bottom: 1px solid var(--border-color);
   text-align: left;
   color: var(--text-primary);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 .budget-table th {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: linear-gradient(135deg, #1e3a8a, #2563eb);
-  color: #ffffff;
-  font-weight: 600;
+  background: var(--bg-muted, #F8FAFC);
+  color: var(--text-muted, #64748B);
+  font-weight: 700;
   text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border-bottom: none;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  white-space: nowrap;
 }
 .budget-table th:not(:last-child) {
-  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  border-right: none;
 }
 
 [data-theme="dark"] .budget-table th {
-  background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
-  color: #ffffff;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #94A3B8;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 [data-theme="dark"] .budget-table th:not(:last-child) {
-  border-right: 1px solid rgba(255, 255, 255, 0.15);
-}
-/* UI/UX Promax: Subtle Zebra Striping for readability */
-.budget-table tbody tr:nth-child(even) td {
-  background: var(--bg-muted);
-}
-[data-theme="dark"] .budget-table tbody tr:nth-child(even) td {
-  background: rgba(255, 255, 255, 0.025);
+  border-right: none;
 }
 
 .budget-table tbody tr:hover td {
-  background: var(--bg-card-hover) !important;
+  background: var(--accent-surface, rgba(37, 99, 235, 0.04)) !important;
+}
+[data-theme="dark"] .budget-table tbody tr:hover td {
+  background: rgba(59, 130, 246, 0.08) !important;
 }
 
 .budget-badge {

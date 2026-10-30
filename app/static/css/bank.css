@@ -109,3 +109,39 @@
   gap: 6px;
   white-space: nowrap;
 }
+
+/* Bank module table (.fh-table) standard */
+.fh-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.fh-table th, .fh-table td {
+  padding: .58rem .875rem;
+  border-bottom: 1px solid var(--border);
+  font-size: .8125rem;
+  text-align: left;
+  line-height: 1.4;
+}
+.fh-table th {
+  background: var(--bg-muted, #F8FAFC);
+  color: var(--text-muted, #64748B);
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+}
+[data-theme="dark"] .fh-table th {
+  background: rgba(255, 255, 255, 0.04);
+  color: #94A3B8;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+.fh-table tbody tr:hover td {
+  background: var(--accent-surface, rgba(37, 99, 235, 0.04)) !important;
+}
+[data-theme="dark"] .fh-table tbody tr:hover td {
+  background: rgba(59, 130, 246, 0.08) !important;
+}

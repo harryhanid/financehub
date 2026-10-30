@@ -51,10 +51,26 @@
 .mr-table tbody tr:hover td {
   background: var(--bg-card-hover) !important;
 }
-.mr-table th.mr-navy { background: linear-gradient(135deg, #1e3a8a, #2563eb) !important; }
-[data-theme="dark"] .mr-table th.mr-navy { background: linear-gradient(135deg, #1e3a8a, #1d4ed8) !important; }
-.mr-table th.mr-red { background: linear-gradient(135deg, #b91c1c, #ef4444) !important; }
-[data-theme="dark"] .mr-table th.mr-red { background: linear-gradient(135deg, #7f1d1d, #b91c1c) !important; }
+.mr-table th.mr-navy {
+  background: var(--accent-surface, rgba(37, 99, 235, 0.08)) !important;
+  color: var(--accent-text, #1d4ed8) !important;
+  border-bottom: 2px solid var(--accent, #2563eb) !important;
+}
+[data-theme="dark"] .mr-table th.mr-navy {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #93C5FD !important;
+  border-bottom: 2px solid #3b82f6 !important;
+}
+.mr-table th.mr-red {
+  background: var(--negative-surface, rgba(239, 68, 68, 0.08)) !important;
+  color: var(--negative-text, #b91c1c) !important;
+  border-bottom: 2px solid var(--negative, #ef4444) !important;
+}
+[data-theme="dark"] .mr-table th.mr-red {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #FCA5A5 !important;
+  border-bottom: 2px solid #ef4444 !important;
+}
 .mr-table td.num-right { text-align: right; }
 .mr-table td.mr-memo { white-space: normal; min-width: 320px; }
 </style>
