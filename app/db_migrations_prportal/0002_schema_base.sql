@@ -6,12 +6,13 @@
 create schema if not exists {{schema}};
 
 -- Tabel pilot: header sheet Announcements (Code.js) ternormalisasi: Timestamp, Title, Message, Author, Active.
+-- active = teks 'Y'/'N' persis seperti yang ditulis PR Portal (postAnnouncement/deleteAnnouncement), bukan boolean.
 create table if not exists {{schema}}.announcements (
     "timestamp" timestamptz primary key,
     title       text,
     message     text,
     author      text,
-    active      boolean
+    active      text
 );
 
 -- Antrean tulis-sheet yang gagal (dipakai plan modul); bisa diakses lewat API ppd_* (tanpa prefiks ppd_).

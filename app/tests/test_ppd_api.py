@@ -101,7 +101,7 @@ def _rpc(db, fn, *args):
     return None if v is None else json.loads(v)
 
 
-def _rows(n_from=1, n=2, active=(True, False)):
+def _rows(n_from=1, n=2, active=("Y", "N")):  # PR Portal menulis Active sebagai 'Y'/'N' (teks)
     return [{"timestamp": f"2026-10-0{i}T08:00:00+00:00", "title": f"T{i}", "message": f"M{i}",
              "author": "harry", "active": active[(i - n_from) % len(active)]}
             for i in range(n_from, n_from + n)]
@@ -118,7 +118,7 @@ def test_select_upsert_roundtrip(db):
     assert _rpc(db, "ppd_upsert", KEY, "announcements", list(reversed(rows))) == {"upserted": 2}
     got = _rpc(db, "ppd_select", KEY, "announcements")
     assert [r["title"] for r in got] == ["T1", "T2"]
-    assert got[0]["active"] is True and got[0]["author"] == "harry"
+    assert got[0]["active"] == "Y" and got[0]["author"] == "harry"
     changed = dict(rows[0], title="T1 baru")
     assert _rpc(db, "ppd_upsert", KEY, "announcements", [changed]) == {"upserted": 1}
     assert _rpc(db, "ppd_stats", KEY, "announcements") == {
@@ -129,19 +129,19 @@ def test_select_upsert_roundtrip(db):
 
 def test_upsert_partial_columns_keeps_others(db):
     _rpc(db, "ppd_upsert", KEY, "announcements", _rows(n=1))
-    _rpc(db, "ppd_upsert", KEY, "announcements", [{"timestamp": "2026-10-01T08:00:00+00:00", "active": False}])
+    _rpc(db, "ppd_upsert", KEY, "announcements", [{"timestamp": "2026-10-01T08:00:00+00:00", "active": "N"}])
     got = _rpc(db, "ppd_select", KEY, "announcements")
-    assert got[0]["title"] == "T1" and got[0]["active"] is False
+    assert got[0]["title"] == "T1" and got[0]["active"] == "N"
 
 
 def test_filter_and_paging(db):
-    _rpc(db, "ppd_upsert", KEY, "announcements", _rows(n=4, active=(True, False)))  # T1,T3 aktif
-    active = _rpc(db, "ppd_select", KEY, "announcements", {"active": True}, 1000, 0)
+    _rpc(db, "ppd_upsert", KEY, "announcements", _rows(n=4, active=("Y", "N")))  # T1,T3 aktif
+    active = _rpc(db, "ppd_select", KEY, "announcements", {"active": "Y"}, 1000, 0)
     assert [r["title"] for r in active] == ["T1", "T3"]
-    page = _rpc(db, "ppd_select", KEY, "announcements", {"active": True}, 1, 1)
+    page = _rpc(db, "ppd_select", KEY, "announcements", {"active": "Y"}, 1, 1)
     assert [r["title"] for r in page] == ["T3"]
-    assert _rpc(db, "ppd_select", KEY, "announcements", {"active": True}, 1, 5) == []
-    both = _rpc(db, "ppd_select", KEY, "announcements", {"active": False, "author": "harry"}, 1000, 0)
+    assert _rpc(db, "ppd_select", KEY, "announcements", {"active": "Y"}, 1, 5) == []
+    both = _rpc(db, "ppd_select", KEY, "announcements", {"active": "N", "author": "harry"}, 1000, 0)
     assert [r["title"] for r in both] == ["T2", "T4"]
 
 
@@ -194,7 +194,7 @@ def test_upsert_unknown_column_named_in_error(db):
 
 def test_upsert_is_one_transaction(db):
     rows = _rows(n=2)
-    rows[1]["active"] = "bukan-boolean"
+    rows[1]["timestamp"] = "bukan-tanggal"
     with pytest.raises(Exception):
         _rpc(db, "ppd_upsert", KEY, "announcements", rows)
     assert _rpc(db, "ppd_stats", KEY, "announcements")["rows"] == 0
