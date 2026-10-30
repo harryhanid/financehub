@@ -1955,8 +1955,9 @@ td:has(.empty-state) { padding: 0 !important; }
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  width: 780px;
+  width: 760px;
   max-width: calc(100vw - 32px);
+  box-sizing: border-box;
   background: var(--card, #ffffff);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -2019,12 +2020,13 @@ td:has(.empty-state) { padding: 0 !important; }
 
 .fh-mega-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 1.25rem;
 }
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .fh-mega-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.35rem;
   }
 }
 
@@ -2047,16 +2049,19 @@ td:has(.empty-state) { padding: 0 !important; }
   gap: .25rem;
 }
 .fh-mega-item {
-  display: flex;
-  align-items: center;
-  gap: .65rem;
-  padding: .45rem .55rem;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: .65rem !important;
+  padding: .45rem .6rem !important;
   border-radius: 8px;
   cursor: pointer;
   transition: all .12s ease;
   position: relative;
   text-decoration: none;
   color: var(--ink, #0f172a);
+  width: 100%;
+  box-sizing: border-box;
 }
 .fh-mega-item:hover {
   background: var(--bg-muted, #f1f5f9);
@@ -2067,13 +2072,14 @@ td:has(.empty-state) { padding: 0 !important; }
   color: var(--accent, #2563eb);
 }
 .fh-mega-icon {
-  width: 28px;
-  height: 28px;
+  width: 28px !important;
+  height: 28px !important;
   border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
   background: rgba(37, 99, 235, 0.08);
   color: var(--accent, #2563eb);
   transition: transform .12s ease;
@@ -2086,9 +2092,11 @@ td:has(.empty-state) { padding: 0 !important; }
   color: #ffffff;
 }
 .fh-mega-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  text-align: left !important;
 }
 .fh-mega-name {
   font-size: .78rem;

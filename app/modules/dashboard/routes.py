@@ -31,17 +31,12 @@ NAV_CATEGORIES = [
         "keys": ["dashboard", "management_report"],
     },
     {
-        "id": "operations",
-        "name": "Operasional Kas & Pembayaran",
-        "keys": ["payment_memo", "etf_payment_app", "bank"],
+        "id": "transactions_programs",
+        "name": "Transaksi & Program",
+        "keys": ["payment_memo", "etf_payment_app", "bank", "sponsorship", "beasiswa"],
     },
     {
-        "id": "programs",
-        "name": "Program & CSR",
-        "keys": ["sponsorship", "beasiswa"],
-    },
-    {
-        "id": "accounting",
+        "id": "accounting_master",
         "name": "Keuangan, Pajak & Master",
         "keys": ["budget", "general_ledger", "spt_badan", "sop", "users"],
     },

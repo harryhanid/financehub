@@ -55,7 +55,7 @@
             <div class="fh-mega-col-title">{{ group.name }}</div>
             <div class="fh-mega-items">
               {% for m in group.modules %}
-              <div class="fh-mega-item fh-mod-dd-item{{ ' current' if m.key == active_page else '' }}" data-url="{{ m.url }}" role="button" tabindex="0">
+              <div class="fh-mega-item{{ ' current' if m.key == active_page else '' }}" data-url="{{ m.url }}" role="button" tabindex="0">
                 <div class="fh-mega-icon fh-icon-{{ m.icon }}">
                   {% if m.icon == 'dashboard' %}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
@@ -101,13 +101,7 @@
       </div>
     </div>
     <div class="navbar-menu">
-      {% block module_tabs %}
-        {% if active_page == 'dashboard' or not current_mod %}
-        <div class="tabs" style="margin-bottom:0">
-          <a class="tab-btn active navbar-menu-item" href="/dashboard">Ringkasan</a>
-        </div>
-        {% endif %}
-      {% endblock %}
+      {% block module_tabs %}{% endblock %}
       {% if active_page == 'dashboard' %}
       <div class="fh-nav-compat" style="display:none" aria-hidden="true">
         {% for m in nav_modules %}
