@@ -14,8 +14,8 @@ create table if not exists {{schema}}.announcements (
     active      boolean
 );
 
--- Antrean tulis-sheet yang gagal (dipakai plan modul). Nama ppd_* -> tidak bisa disentuh lewat API ppd_*.
-create table if not exists {{schema}}.ppd_sheet_retry (
+-- Antrean tulis-sheet yang gagal (dipakai plan modul); bisa diakses lewat API ppd_* (tanpa prefiks ppd_).
+create table if not exists {{schema}}.sheet_retry (
     id         bigserial primary key,
     module     text,
     sheet_name text,

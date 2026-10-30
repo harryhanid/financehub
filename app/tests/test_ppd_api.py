@@ -170,7 +170,7 @@ def test_delete_by_keys(db):
 
 
 @pytest.mark.parametrize("table", ["siswa", "financehub.siswa", "announcements; drop table x", "ppd_keys",
-                                   "_x", "ppd_sheet_retry", "Announcements", "", None,
+                                   "_x", "ppd_x", "Announcements", "", None,
                                    "prportal_staging.announcements", "pg_class", "t"])
 @pytest.mark.parametrize("fn", ["ppd_select", "ppd_upsert", "ppd_delete", "ppd_stats"])
 def test_table_outside_schema_rejected(db, fn, table):
@@ -312,3 +312,8 @@ def test_apply_migrations_cli_dir_default_files():
     am = _load_apply_migrations()
     assert [p.name for p in am.default_files("pg", PRPORTAL_DIR)] == ["0001_ppd_api.sql", "0002_schema_base.sql"]
     assert "0001_fh_exec.sql" in [p.name for p in am.default_files("pg")]
+
+
+def test_sheet_retry_reachable_via_api(db):
+    assert _rpc(db, "ppd_stats", KEY, "sheet_retry") == {
+        "rows": 0, "columns": ["id", "module", "sheet_name", "row_key", "payload", "error", "created_at", "done_at"]}
