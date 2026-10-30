@@ -75,3 +75,5 @@ app/test2.js
 app/test_js*.js
 *.log
 *.db.PRE-SUPABASE*
+
+.omc/
