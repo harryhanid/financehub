@@ -981,9 +981,14 @@ tfoot td {
 
 /* Dark header variant */
 .thead-primary th {
-  background: var(--sl-800); color: #FFF;
-  border-bottom-color: var(--sl-700);
-  letter-spacing: .04em;
+  background: var(--bg-muted, #F8FAFC);
+  color: var(--text-muted, #64748B);
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 .thead-subfilter td { background: var(--accent-surface); padding: 3px 4px; }
 .thead-subfilter td input { border-color: var(--accent-border) !important; }
