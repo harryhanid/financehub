@@ -13,6 +13,16 @@ directly through psycopg2. The pg backend also creates the schema if missing; wi
 must already exist.
 
 Migrations are not tracked: 0002_schema.sql is meant for an empty schema.
+
+``--dir`` (default app/db_migrations) picks the migration set; the allowed schemas depend on it:
+  app/db_migrations          -> financehub, financehub_staging, financehub_test
+  app/db_migrations_prportal -> prportal, prportal_staging, prportal_test   (PR Portal data, API ppd_*)
+Files must come from the chosen dir (a file from the other known dir is rejected). The prportal set is
+only applied with the pg backend, each file directly through psycopg2 (one implicit transaction per
+file): fh_exec only accepts financehub* schemas and 0001_ppd_api.sql creates objects in public. On
+Supabase apply it as postgres (SQL Editor / Supabase plugin) with {{schema}} substituted.
+
+  python scripts/pg_migrate/apply_migrations.py --dir app/db_migrations_prportal --schema prportal_test --backend pg --dsn ...
 """
 import argparse
 import os
@@ -26,13 +36,45 @@ sys.path.insert(0, str(APP_DIR))
 from fhdb.backends import HttpBackend, PgBackend  # noqa: E402
 from fhdb.sqlbind import split_script  # noqa: E402
 
-ALLOWED_SCHEMAS = ("financehub", "financehub_staging", "financehub_test")
+PRPORTAL_MIGRATIONS_DIR = APP_DIR / "db_migrations_prportal"
+DIR_SCHEMAS = {
+    MIGRATIONS_DIR: ("financehub", "financehub_staging", "financehub_test"),
+    PRPORTAL_MIGRATIONS_DIR: ("prportal", "prportal_staging", "prportal_test"),
+}
+ALLOWED_SCHEMAS = DIR_SCHEMAS[MIGRATIONS_DIR]
+ALL_SCHEMAS = tuple(s for schemas in DIR_SCHEMAS.values() for s in schemas)
 FH_EXEC_FILE = "0001_fh_exec.sql"
 
 
-def _check_schema(schema):
-    if schema not in ALLOWED_SCHEMAS:
-        raise ValueError(f"schema {schema!r} tidak diizinkan (hanya {', '.join(ALLOWED_SCHEMAS)})")
+def _resolve_dir(dir):
+    """None -> app/db_migrations; selain itu harus salah satu dir migrasi yang dikenal."""
+    if dir is None:
+        return MIGRATIONS_DIR
+    d = Path(dir).resolve()
+    for known in DIR_SCHEMAS:
+        if d == known.resolve():
+            return known
+    raise ValueError(f"dir migrasi {str(dir)!r} tidak dikenal (hanya {', '.join(str(k) for k in DIR_SCHEMAS)})")
+
+
+def _check_schema(schema, dir=None):
+    """Schema harus termasuk daftar milik dir migrasinya. Mengembalikan dir (Path kanonik)."""
+    d = _resolve_dir(dir)
+    allowed = DIR_SCHEMAS[d]
+    if schema not in allowed:
+        raise ValueError(f"schema {schema!r} tidak diizinkan untuk {d.name} (hanya {', '.join(allowed)})")
+    return d
+
+
+def _check_files(files, d):
+    """File dari dir migrasi lain yang dikenal ditolak; set prportal hanya menerima file dari dir-nya."""
+    for path in files:
+        parent = Path(path).resolve().parent
+        for known in DIR_SCHEMAS:
+            if known != d and parent == known.resolve():
+                raise ValueError(f"{Path(path).name} milik {known.name}, bukan {d.name}")
+        if d != MIGRATIONS_DIR and parent != d.resolve():
+            raise ValueError(f"{Path(path).name} bukan file di {d.name}")
 
 
 def _run_direct(backend, sql):
@@ -47,8 +89,18 @@ def _run_direct(backend, sql):
         conn.close()
 
 
-def apply(backend, schema: str, files: list) -> None:
-    _check_schema(schema)
+def apply(backend, schema: str, files: list, dir=None) -> None:
+    d = _check_schema(schema, dir)
+    _check_files(files, d)
+    if d == PRPORTAL_MIGRATIONS_DIR:
+        if not isinstance(backend, PgBackend):
+            raise ValueError(f"{d.name} hanya lewat backend pg (fh_exec menolak schema prportal*): "
+                             "terapkan lewat SQL Editor/plugin Supabase sebagai postgres")
+        for path in files:
+            path = Path(path)
+            _run_direct(backend, path.read_text(encoding="utf-8").replace("{{schema}}", schema))
+            print(f"  {path.name}: diterapkan langsung (psycopg2)")
+        return
     for path in files:
         path = Path(path)
         text = path.read_text(encoding="utf-8")
@@ -64,22 +116,31 @@ def apply(backend, schema: str, files: list) -> None:
         print(f"  {path.name}: {len(stmts)} statement")
 
 
-def default_files(backend_kind):
-    files = sorted(MIGRATIONS_DIR.glob("*.sql"))
-    if backend_kind == "http":
+def default_files(backend_kind, dir=None):
+    d = _resolve_dir(dir)
+    files = sorted(d.glob("*.sql"))
+    if d == MIGRATIONS_DIR and backend_kind == "http":
         files = [f for f in files if f.name != FH_EXEC_FILE]
     return files
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--schema", required=True, choices=ALLOWED_SCHEMAS)
+    ap.add_argument("--schema", required=True, choices=ALL_SCHEMAS)
     ap.add_argument("--backend", required=True, choices=("pg", "http"))
     ap.add_argument("--dsn", default=os.environ.get("FH_PG_DSN", ""), help="pg backend (default: env FH_PG_DSN)")
-    ap.add_argument("files", nargs="*", help="file migrasi (default: semua di app/db_migrations, urut nama)")
+    ap.add_argument("--dir", default=str(MIGRATIONS_DIR),
+                    help="dir migrasi: app/db_migrations (default, financehub*) atau app/db_migrations_prportal (prportal*)")
+    ap.add_argument("files", nargs="*", help="file migrasi (default: semua di --dir, urut nama)")
     args = ap.parse_args(argv)
 
-    files = [Path(f) for f in args.files] or default_files(args.backend)
+    try:
+        mig_dir = _check_schema(args.schema, args.dir)  # sebelum create schema / koneksi apa pun
+    except ValueError as e:
+        ap.error(str(e))
+    if mig_dir == PRPORTAL_MIGRATIONS_DIR and args.backend != "pg":
+        ap.error(f"{mig_dir.name} hanya lewat --backend pg; di Supabase terapkan lewat SQL Editor sebagai postgres")
+    files = [Path(f) for f in args.files] or default_files(args.backend, mig_dir)
     if args.backend == "pg":
         if not args.dsn:
             ap.error("--dsn (atau env FH_PG_DSN) wajib untuk backend pg")
@@ -95,7 +156,7 @@ def main(argv=None):
         backend = HttpBackend(url, key)
     try:
         print(f"Schema {args.schema}, backend {args.backend}, {len(files)} file")
-        apply(backend, args.schema, files)
+        apply(backend, args.schema, files, dir=mig_dir)
     finally:
         backend.close()
     print("Selesai.")
