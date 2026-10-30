@@ -13,3 +13,4 @@ dist/
 build/
 storage/
 tests/_pg/
+.omc/

@@ -87,6 +87,8 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str, bulan=None)
     # (Removed to respect config.SPONSORSHIP_DESCRIPTION order)
     # data["sections"].sort(key=lambda s: s["subtotal"]["total"], reverse=True)
 
+    subtotal_rows = []
+
     for section in data["sections"]:
         _write_section_headers()
         
@@ -106,19 +108,20 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str, bulan=None)
             cell.font = ARIAL_11_BOLD
             cell.border = get_border(col)
             cell.alignment = Alignment(vertical="center")
-        # ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=11) # Not merged, matching earlier
+
+        data_start_row = ws.max_row + 1
 
         # Data Rows
         for r in section["rows"]:
+            target_row = ws.max_row + 1
             ws.append(["", 
                 r["no"], r.get("tanggal_payment", ""), str(r.get("reff", "")), r["lembaga_perorangan"], r["perihal"] or "",
-                r["app_amount"], r["energy_finance_amount"], r["property_amount"], r["agri_amount"], r["total"]
+                r["app_amount"], r["energy_finance_amount"], r["property_amount"], r["agri_amount"], f"=SUM(G{target_row}:J{target_row})"
             ])
             row = ws.max_row
             
             # Auto-fit row height approximation
             text_len = len(r["perihal"] or "")
-            # Base height is 34.5 points (46px). Add 15 points (20px) per extra 50 chars.
             extra_lines = max(0, (text_len - 45) // 45)
             row_height = 34.5 + (extra_lines * 15.0)
             ws.row_dimensions[row].height = row_height
@@ -138,11 +141,23 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str, bulan=None)
             ws.cell(row=row, column=5).alignment = ALIGN_WRAP
             ws.cell(row=row, column=6).alignment = ALIGN_WRAP
 
+        data_end_row = ws.max_row
+
         # Subtotal Row
-        sub = section["subtotal"]
+        sub_row = ws.max_row + 1
+        subtotal_rows.append(sub_row)
+        if section["rows"]:
+            f_app = f"=SUM(G{data_start_row}:G{data_end_row})"
+            f_ef = f"=SUM(H{data_start_row}:H{data_end_row})"
+            f_prop = f"=SUM(I{data_start_row}:I{data_end_row})"
+            f_agri = f"=SUM(J{data_start_row}:J{data_end_row})"
+            f_tot = f"=SUM(K{data_start_row}:K{data_end_row})"
+        else:
+            f_app, f_ef, f_prop, f_agri, f_tot = 0, 0, 0, 0, 0
+
         ws.append(["", 
             f"TOTAL {section['description'].upper()}", "", "", "", "",
-            sub["app_amount"], sub["energy_finance_amount"], sub["property_amount"], sub["agri_amount"], sub["total"]
+            f_app, f_ef, f_prop, f_agri, f_tot
         ])
         row = ws.max_row
         ws.row_dimensions[row].height = 19.8
@@ -157,10 +172,19 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str, bulan=None)
                 cell.alignment = ALIGN_RIGHT
 
     # Grand Total
-    gt = data["grand_total"]
+    gt_row = ws.max_row + 1
+    if subtotal_rows:
+        gt_app = f"=SUM({','.join([f'G{sr}' for sr in subtotal_rows])})"
+        gt_ef = f"=SUM({','.join([f'H{sr}' for sr in subtotal_rows])})"
+        gt_prop = f"=SUM({','.join([f'I{sr}' for sr in subtotal_rows])})"
+        gt_agri = f"=SUM({','.join([f'J{sr}' for sr in subtotal_rows])})"
+        gt_tot = f"=SUM(G{gt_row}:J{gt_row})"
+    else:
+        gt_app, gt_ef, gt_prop, gt_agri, gt_tot = 0, 0, 0, 0, 0
+
     ws.append(["", 
         "TOTAL SPONSORSHIP (ACTUAL)", "", "", "", "",
-        gt["app_amount"], gt["energy_finance_amount"], gt["property_amount"], gt["agri_amount"], gt["total"]
+        gt_app, gt_ef, gt_prop, gt_agri, gt_tot
     ])
     row = ws.max_row
     ws.row_dimensions[row].height = 19.8
@@ -175,10 +199,16 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str, bulan=None)
             cell.alignment = ALIGN_RIGHT
 
     # PCT Allocation
-    pct = data["pct_allocation"]
+    pct_row = ws.max_row + 1
+    pct_app = f"=IF(K{gt_row}=0, 0, G{gt_row}/K{gt_row})"
+    pct_ef = f"=IF(K{gt_row}=0, 0, H{gt_row}/K{gt_row})"
+    pct_prop = f"=IF(K{gt_row}=0, 0, I{gt_row}/K{gt_row})"
+    pct_agri = f"=IF(K{gt_row}=0, 0, J{gt_row}/K{gt_row})"
+    pct_tot = f"=IF(K{gt_row}=0, 0, SUM(G{pct_row}:J{pct_row}))"
+
     ws.append(["", 
         "", "", "", "", "% Allocation",
-        f"{pct['app_amount']}%", f"{pct['energy_finance_amount']}%", f"{pct['property_amount']}%", f"{pct['agri_amount']}%", ""
+        pct_app, pct_ef, pct_prop, pct_agri, pct_tot
     ])
     row = ws.max_row
     ws.row_dimensions[row].height = 19.8
@@ -188,6 +218,8 @@ def export_report_excel(company_id: int, tahun: str, cat4_mode: str, bulan=None)
         cell.fill = PCT_FILL
         cell.border = get_border(col)
         cell.alignment = ALIGN_RIGHT
+        if col >= 7:
+            cell.number_format = '0%'
 
     ws.column_dimensions["A"].width = 2
     ws.column_dimensions["B"].width = 5

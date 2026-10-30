@@ -121,14 +121,15 @@ def create_app(testing=False):
         from modules.dashboard.routes import (
             DASHBOARD_TABS, MODULE_SUBTABS,
             PAYMENT_MEMO_SUBTABS_SMT, PAYMENT_MEMO_SUBTABS_DEFAULT,
+            NAV_CATEGORIES, MODULE_METADATA,
         )
         from flask_jwt_extended import get_jwt
         from flask import session
         try:
             get_jwt()
         except Exception:
-            return {"nav_modules": []}
-        # Beasiswa is ETF-only, Sponsorship is SMT-only — hide the module that
+            return {"nav_modules": [], "nav_grouped": []}
+        # Beasiswa is ETF-only, Sponsorship is SMT-only - hide the module that
         # doesn't apply to the active company instead of showing a dead link.
         company_code = session.get("company_code")
         hidden_keys = set()
@@ -143,11 +144,30 @@ def create_app(testing=False):
             return MODULE_SUBTABS.get(key, [])
 
         nav_modules = [
-            {"name": name, "url": url_for(endpoint), "key": key, "subtabs": _subtabs_for(key)}
+            {
+                "name": name,
+                "url": url_for(endpoint),
+                "key": key,
+                "desc": MODULE_METADATA.get(key, {}).get("desc", ""),
+                "icon": MODULE_METADATA.get(key, {}).get("icon", "dashboard"),
+                "subtabs": _subtabs_for(key),
+            }
             for name, endpoint, key in DASHBOARD_TABS
             if key not in hidden_keys
         ]
-        return {"nav_modules": nav_modules}
+
+        mod_by_key = {m["key"]: m for m in nav_modules}
+        grouped_nav = []
+        for cat in NAV_CATEGORIES:
+            cat_mods = [mod_by_key[k] for k in cat["keys"] if k in mod_by_key]
+            if cat_mods:
+                grouped_nav.append({
+                    "id": cat["id"],
+                    "name": cat["name"],
+                    "modules": cat_mods,
+                })
+
+        return {"nav_modules": nav_modules, "nav_grouped": grouped_nav}
 
     from fhdb.errors import OperationalError as DbUnreachable
 

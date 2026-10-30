@@ -350,7 +350,7 @@ function initModuleSwitchDropdown() {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); }
     else if (e.key === 'Escape') { close(); }
   });
-  panel.querySelectorAll('.fh-mod-dd-item[data-url]').forEach(function(item) {
+  panel.querySelectorAll('.fh-mod-dd-item[data-url], .fh-mega-item[data-url]').forEach(function(item) {
     item.addEventListener('click', function() {
       window.location.href = item.dataset.url;
     });

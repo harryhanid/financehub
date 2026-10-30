@@ -128,7 +128,7 @@ def test_nav_modules_subtabs_for_smt(client):
         "draft-pay", "input-payment", "smt", "advance", "draft-memo"
     ]
     assert [t["url"] for t in by_key["sponsorship"]["subtabs"]] == [
-        "/sponsorship/", "/sponsorship/input", "/sponsorship/data", "/sponsorship/report"
+        "/sponsorship/", "/sponsorship/proposal", "/sponsorship/data", "/sponsorship/report", "/sponsorship/mr", "/sponsorship/vendor"
     ]
     assert [t["url"] for t in by_key["budget"]["subtabs"]] == [
         "/budget/master", "/budget/realisasi", "/budget/carryover"

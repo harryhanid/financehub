@@ -23,6 +23,82 @@ DASHBOARD_TABS = [
     ("Users",                 "users.index",                   "users"),
 ]
 
+# Categorized grouping for Option 3 Mega-Menu popover
+NAV_CATEGORIES = [
+    {
+        "id": "overview",
+        "name": "Ringkasan & Laporan",
+        "keys": ["dashboard", "management_report"],
+    },
+    {
+        "id": "operations",
+        "name": "Operasional Kas & Pembayaran",
+        "keys": ["payment_memo", "etf_payment_app", "bank"],
+    },
+    {
+        "id": "programs",
+        "name": "Program & CSR",
+        "keys": ["sponsorship", "beasiswa"],
+    },
+    {
+        "id": "accounting",
+        "name": "Keuangan, Pajak & Master",
+        "keys": ["budget", "general_ledger", "spt_badan", "sop", "users"],
+    },
+]
+
+MODULE_METADATA = {
+    "dashboard": {
+        "desc": "Ringkasan eksekutif & KPI",
+        "icon": "dashboard",
+    },
+    "management_report": {
+        "desc": "Laporan bulanan & performa unit",
+        "icon": "chart",
+    },
+    "payment_memo": {
+        "desc": "Approval memo pembayaran (PAM)",
+        "icon": "memo",
+    },
+    "etf_payment_app": {
+        "desc": "Voucher aplikasi pembayaran (PA)",
+        "icon": "payment",
+    },
+    "bank": {
+        "desc": "Monitoring saldo & mutasi bank",
+        "icon": "bank",
+    },
+    "sponsorship": {
+        "desc": "Proposal pilar & laporan sponsor",
+        "icon": "sponsorship",
+    },
+    "beasiswa": {
+        "desc": "Data siswa, budget & rekam medis",
+        "icon": "beasiswa",
+    },
+    "budget": {
+        "desc": "Master anggaran & realisasi belanja",
+        "icon": "budget",
+    },
+    "general_ledger": {
+        "desc": "Jurnal umum & bagan akun (COA)",
+        "icon": "ledger",
+    },
+    "spt_badan": {
+        "desc": "Pajak penghasilan & kepatuhan fiskal",
+        "icon": "tax",
+    },
+    "sop": {
+        "desc": "Standar operasional prosedur internal",
+        "icon": "sop",
+    },
+    "users": {
+        "desc": "Manajemen hak akses & akun user",
+        "icon": "users",
+    },
+}
+
+
 # Sub-tab previews for the Alt+Down module-switcher carousel. Mirrors each
 # module's own {% block module_tabs %} header markup exactly — entries use
 # "tab" for the existing ?tab= deep-link (initTabs() in app.js), or "url"
