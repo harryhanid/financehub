@@ -298,7 +298,12 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   margin-bottom: 1rem;
+}
+.setf-accordion:not([open]) {
   overflow: hidden;
+}
+.setf-accordion[open] {
+  overflow: visible;
 }
 .setf-accordion > summary {
   cursor: pointer;
