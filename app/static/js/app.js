@@ -57,198 +57,251 @@ function getCurrentModule() {
 }
 
 function initCommandPalette() {
-  /* Record current page in recently-visited (kept for possible future use —
-     the carousel itself has no "recently visited" section, see spec). */
   var currentMod = getCurrentModule();
   if (currentMod) _fhRecordVisit(currentMod.url);
 
-  var ov       = document.getElementById('fh-cmd-ov');
-  var input    = document.getElementById('fh-cmd-input');
-  var track    = document.getElementById('fh-cmd-track');
-  var dotsEl   = document.getElementById('fh-cmd-dots');
-  var prevBtn  = document.getElementById('fh-cmd-prev');
-  var nextBtn  = document.getElementById('fh-cmd-next');
-  var btn      = document.getElementById('fh-cmd-btn');
-  if (!ov || !input || !track || !dotsEl) return;
+  var ov = document.getElementById('fh-cmd-ov');
+  var input = document.getElementById('fh-cmd-input');
+  var resultsEl = document.getElementById('fh-cmd-results');
+  var btn = document.getElementById('fh-cmd-btn');
+  if (!ov || !input || !resultsEl) return;
 
-  var allModules       = _carouselModules();
-  var filtered         = allModules;
-  var activeIdx        = 0;
-  var openCurrentMod   = null;   // the module the user was in when they opened the overlay
-  var openCurrentTab   = null;   // its ?tab= value at open time, if any
-  var dragStartX       = null;
+  var activeIndex = 0;
+  var visibleItems = [];
 
-  function _carouselModules() {
-    var real = FH_NAV_MODULES.map(function(m) {
-      return { name: m.name, url: m.url, key: m.key, subtabs: m.subtabs || [], active: true };
+  // Build searchable items list (modules + subtabs)
+  function _buildItems() {
+    var items = [];
+    var modules = FH_NAV_MODULES || [];
+
+    modules.forEach(function(m) {
+      // Add module itself
+      items.push({
+        type: 'module',
+        key: m.key,
+        name: m.name,
+        desc: m.desc || '',
+        url: m.url,
+        category: m.category || 'Modul',
+        subtabs: m.subtabs || []
+      });
+
+      // Add direct subtabs for deep-linking
+      if (m.subtabs && m.subtabs.length) {
+        m.subtabs.forEach(function(t) {
+          var dest = t.url || (m.url + (m.url.indexOf('?') === -1 ? '?' : '&') + 'tab=' + t.tab);
+          items.push({
+            type: 'subtab',
+            key: m.key,
+            name: t.label,
+            parentName: m.name,
+            desc: m.name + ' → ' + t.label,
+            url: dest,
+            category: m.category || 'Sub-Halaman',
+            subtabs: []
+          });
+        });
+      }
     });
-    return real;
+    return items;
   }
 
-  function _currentNavModule() {
-    return FH_NAV_MODULES.find(function(m) {
-      return window.location.pathname.replace(/\/$/, '') === m.url.replace(/\/$/, '');
-    });
-  }
+  var allItems = _buildItems();
 
   function open() {
-    filtered = allModules;
-    openCurrentMod = _currentNavModule();
-    openCurrentTab = new URLSearchParams(window.location.search).get('tab');
-    activeIdx = 0;
-    if (openCurrentMod) {
-      var found = filtered.findIndex(function(m) { return m.key === openCurrentMod.key; });
-      if (found !== -1) activeIdx = found;
-    }
-    input.value = '';
     ov.classList.add('open');
-    render();
-    input.focus();
+    input.value = '';
+    filter('');
+    setTimeout(function() { input.focus(); }, 10);
   }
+
   function close() {
     ov.classList.remove('open');
   }
 
-  function step(delta) {
-    if (!filtered.length) return;
-    activeIdx = (activeIdx + delta + filtered.length) % filtered.length;
-    render();
-  }
-
-  function _openModule(mod) {
-    if (!mod || !mod.active || !mod.url) return;
-    _fhRecordVisit(mod.url);
+  function selectItem(idx) {
+    if (!visibleItems.length) return;
+    var item = visibleItems[idx];
+    if (!item || !item.url) return;
+    _fhRecordVisit(item.url);
     close();
-    window.location.href = mod.url;
+    window.location.href = item.url;
   }
 
-  function _openSubtab(mod, t) {
-    var dest = t.url || (mod.url + (mod.url.indexOf('?') === -1 ? '?' : '&') + 'tab=' + t.tab);
-    _fhRecordVisit(mod.url);
-    close();
-    window.location.href = dest;
-  }
-
-  function _isActiveTab(mod, t) {
-    if (!openCurrentMod || mod.key !== openCurrentMod.key) return false;
-    if (t.url) return window.location.pathname.replace(/\/$/, '') === t.url.replace(/\/$/, '');
-    var defaultTab = mod.subtabs.length ? mod.subtabs[0].tab : null;
-    return t.tab === (openCurrentTab || defaultTab);
-  }
-
-  function _card(mod, isMain) {
-    var outer = document.createElement('div');
-    outer.className = isMain ? 'fh-cmd-card-main' : 'fh-cmd-card-side';
-
-    var bezel = document.createElement('div');
-    bezel.className = 'fh-cmd-card-outer';
-    var inner = document.createElement('div');
-    inner.className = 'fh-cmd-card-inner';
-
-    if (mod.key) {
-      var icon = document.createElement('div');
-      icon.className = 'fh-cmd-icon';
-      icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (FH_MODULE_ICONS[mod.key] || '') + '</svg>';
-      inner.appendChild(icon);
-    }
-
-    var name = document.createElement('div');
-    name.className = 'fh-cmd-card-name';
-    name.textContent = mod.name;
-    inner.appendChild(name);
-
-    if (!mod.active) {
-      var badge = document.createElement('div');
-      badge.className = 'fh-cmd-badge';
-      badge.textContent = 'Coming Soon';
-      inner.appendChild(badge);
-    } else if (isMain && mod.subtabs.length) {
-      var line = document.createElement('div');
-      line.className = 'fh-cmd-tabline';
-      inner.appendChild(line);
-      mod.subtabs.forEach(function(t) {
-        var row = document.createElement('div');
-        row.className = 'fh-cmd-tab' + (_isActiveTab(mod, t) ? ' active' : '');
-        row.textContent = t.label;
-        row.addEventListener('click', function(e) {
-          e.stopPropagation();
-          _openSubtab(mod, t);
-        });
-        inner.appendChild(row);
+  function filter(query) {
+    var q = query.toLowerCase().trim();
+    if (!q) {
+      // When empty: show modules only, grouped nicely
+      visibleItems = allItems.filter(function(it) { return it.type === 'module'; });
+    } else {
+      // When searching: search across both modules and direct subtabs!
+      visibleItems = allItems.filter(function(it) {
+        var str = (it.name + ' ' + (it.parentName || '') + ' ' + (it.desc || '')).toLowerCase();
+        return str.indexOf(q) !== -1;
       });
     }
 
-    if (mod.active && mod.url) {
-      outer.style.cursor = 'pointer';
-      outer.addEventListener('click', function() {
-        if (isMain) { _openModule(mod); }
-        else { activeIdx = filtered.indexOf(mod); render(); }
-      });
-    }
-
-    bezel.appendChild(inner);
-    outer.appendChild(bezel);
-    return outer;
+    activeIndex = 0;
+    renderResults();
   }
 
-  function render() {
-    track.innerHTML = '';
-    dotsEl.innerHTML = '';
-    if (!filtered.length) {
-      var empty = document.createElement('div');
-      empty.className = 'fh-cmd-empty';
-      empty.textContent = 'Tidak ada modul ditemukan.';
-      track.appendChild(empty);
+  function renderResults() {
+    resultsEl.innerHTML = '';
+    if (!visibleItems.length) {
+      resultsEl.innerHTML = '<div class="fh-cmd-empty">Tidak ada modul atau sub-halaman yang cocok.</div>';
       return;
     }
-    activeIdx = Math.max(0, Math.min(activeIdx, filtered.length - 1));
-    for (var i = -1; i <= 1; i++) {
-      var idx = activeIdx + i;
-      if (idx < 0 || idx >= filtered.length) continue;
-      track.appendChild(_card(filtered[idx], i === 0));
-    }
-    filtered.forEach(function(m, i) {
-      var dot = document.createElement('span');
-      if (i === activeIdx) dot.className = 'on';
-      dotsEl.appendChild(dot);
+
+    // Group items by category
+    var groups = {};
+    visibleItems.forEach(function(it, idx) {
+      var cat = it.category || 'Lainnya';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push({ item: it, globalIndex: idx });
     });
+
+    Object.keys(groups).forEach(function(cat) {
+      var grpEl = document.createElement('div');
+      grpEl.className = 'fh-cmd-group';
+
+      var titleEl = document.createElement('div');
+      titleEl.className = 'fh-cmd-group-title';
+      titleEl.textContent = cat;
+      grpEl.appendChild(titleEl);
+
+      groups[cat].forEach(function(entry) {
+        var it = entry.item;
+        var idx = entry.globalIndex;
+
+        var el = document.createElement('div');
+        el.className = 'fh-cmd-item' + (idx === activeIndex ? ' active' : '');
+        el.setAttribute('role', 'option');
+        el.setAttribute('tabindex', '0');
+
+        // Icon
+        var iconWrap = document.createElement('div');
+        iconWrap.className = 'fh-cmd-icon-wrap';
+        var iconSvg = FH_MODULE_ICONS[it.key] || '<circle cx="12" cy="12" r="8"/>';
+        iconWrap.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + iconSvg + '</svg>';
+        el.appendChild(iconWrap);
+
+        // Text
+        var textWrap = document.createElement('div');
+        textWrap.className = 'fh-cmd-text';
+
+        var nameEl = document.createElement('span');
+        nameEl.className = 'fh-cmd-item-name';
+        nameEl.textContent = it.parentName ? (it.parentName + ' → ' + it.name) : it.name;
+        textWrap.appendChild(nameEl);
+
+        if (it.desc) {
+          var descEl = document.createElement('span');
+          descEl.className = 'fh-cmd-item-desc';
+          descEl.textContent = it.desc;
+          textWrap.appendChild(descEl);
+        }
+        el.appendChild(textWrap);
+
+        // Meta (Subtabs tags or Enter pill)
+        var metaWrap = document.createElement('div');
+        metaWrap.className = 'fh-cmd-item-meta';
+
+        if (it.subtabs && it.subtabs.length) {
+          it.subtabs.slice(0, 3).forEach(function(sub) {
+            var tag = document.createElement('span');
+            tag.className = 'fh-cmd-subtab-tag';
+            tag.textContent = sub.label;
+            metaWrap.appendChild(tag);
+          });
+        }
+
+        var enterPill = document.createElement('span');
+        enterPill.className = 'fh-cmd-enter-pill';
+        enterPill.textContent = '↵ Buka';
+        metaWrap.appendChild(enterPill);
+
+        el.appendChild(metaWrap);
+
+        // Click handler
+        el.addEventListener('click', function() {
+          selectItem(idx);
+        });
+
+        el.addEventListener('mouseenter', function() {
+          activeIndex = idx;
+          updateActiveHighlight();
+        });
+
+        grpEl.appendChild(el);
+      });
+
+      resultsEl.appendChild(grpEl);
+    });
+
+    scrollActiveIntoView();
   }
 
+  function updateActiveHighlight() {
+    var allDoms = resultsEl.querySelectorAll('.fh-cmd-item');
+    allDoms.forEach(function(dom, idx) {
+      dom.classList.toggle('active', idx === activeIndex);
+    });
+    scrollActiveIntoView();
+  }
+
+  function scrollActiveIntoView() {
+    var activeDom = resultsEl.querySelector('.fh-cmd-item.active');
+    if (activeDom) {
+      activeDom.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // Keyboard navigation & Shortcuts
   input.addEventListener('input', function() {
-    var q = input.value.trim().toLowerCase();
-    filtered = q ? allModules.filter(function(m) { return m.name.toLowerCase().indexOf(q) !== -1; }) : allModules;
-    activeIdx = 0;
-    render();
+    filter(input.value);
   });
 
-  if (prevBtn) prevBtn.addEventListener('click', function() { step(-1); });
-  if (nextBtn) nextBtn.addEventListener('click', function() { step(1); });
-
-  track.addEventListener('pointerdown', function(e) { dragStartX = e.clientX; });
-  track.addEventListener('pointerup', function(e) {
-    if (dragStartX === null) return;
-    var dx = e.clientX - dragStartX;
-    dragStartX = null;
-    if (dx > 40) step(-1); else if (dx < -40) step(1);
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!visibleItems.length) return;
+      activeIndex = (activeIndex + 1) % visibleItems.length;
+      updateActiveHighlight();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!visibleItems.length) return;
+      activeIndex = (activeIndex - 1 + visibleItems.length) % visibleItems.length;
+      updateActiveHighlight();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      selectItem(activeIndex);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+    }
   });
 
   document.addEventListener('keydown', function(e) {
-    if (e.altKey && !e.ctrlKey && !e.metaKey && e.key === 'ArrowDown') {
+    // Alt + Down OR Ctrl+K / Cmd+K
+    var isAltDown = e.altKey && !e.ctrlKey && !e.metaKey && e.key === 'ArrowDown';
+    var isCmdK = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k';
+
+    if (isAltDown || isCmdK) {
       e.preventDefault();
       ov.classList.contains('open') ? close() : open();
       return;
     }
-    if (!ov.classList.contains('open')) return;
-    if (e.key === 'Escape')     { e.preventDefault(); close(); }
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); step(-1); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
-    if (e.key === 'Enter') {
+
+    if (ov.classList.contains('open') && e.key === 'Escape') {
       e.preventDefault();
-      _openModule(filtered[activeIdx]);
+      close();
     }
   });
 
-  ov.addEventListener('click', function(e) { if (e.target === ov) close(); });
+  ov.addEventListener('click', function(e) {
+    if (e.target === ov) close();
+  });
+
   if (btn) btn.addEventListener('click', open);
 }
 

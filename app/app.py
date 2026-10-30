@@ -150,6 +150,7 @@ def create_app(testing=False):
                 "key": key,
                 "desc": MODULE_METADATA.get(key, {}).get("desc", ""),
                 "icon": MODULE_METADATA.get(key, {}).get("icon", "dashboard"),
+                "category": {k: c["name"] for c in NAV_CATEGORIES for k in c.get("keys", [])}.get(key, "Lainnya"),
                 "subtabs": _subtabs_for(key),
             }
             for name, endpoint, key in DASHBOARD_TABS

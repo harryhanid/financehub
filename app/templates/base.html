@@ -113,7 +113,7 @@
   {% endif %}
   <div class="navbar-right">
     {% if company_name %}
-    <button id="fh-cmd-btn" class="fh-cmd-btn" title="Cari modul (Alt+↓)" aria-label="Cari modul (Alt+Panah Bawah)">
+    <button id="fh-cmd-btn" class="fh-cmd-btn" title="Cari modul (Alt+↓ atau Ctrl+K)" aria-label="Cari modul (Alt+Panah Bawah atau Ctrl+K)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </button>
     <span class="navbar-sep">/</span>
@@ -340,19 +340,28 @@ function promptModal(message, opts) {
   </form>
 </div>
 <script src="{{ url_for('static', filename='js/fh-feedback.js') }}"></script>
-<!-- ── Module-Switcher Carousel Overlay (Alt+↓) ──────────── -->
-<div id="fh-cmd-ov">
-  <div class="fh-cmd-search">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input id="fh-cmd-input" type="text" placeholder="Cari modul..." autocomplete="off" spellcheck="false">
+<!-- ── Option A: Raycast / Linear Command Palette (Alt+↓ / Ctrl+K) ──────────── -->
+<div id="fh-cmd-ov" role="dialog" aria-modal="true" aria-label="Command Palette">
+  <div class="fh-cmd-dialog">
+    <div class="fh-cmd-search-box">
+      <div class="fh-cmd-search-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <input id="fh-cmd-input" type="text" placeholder="Cari modul atau sub-halaman (mis: Proposal, PAM, Bank)..." autocomplete="off" spellcheck="false">
+      <span class="fh-cmd-kbd-badge">ESC</span>
+    </div>
+    <div id="fh-cmd-results" class="fh-cmd-results" role="listbox">
+      <!-- Generated dynamically by JS -->
+    </div>
+    <div class="fh-cmd-footer">
+      <div class="fh-cmd-tips">
+        <span><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigasi</span>
+        <span><kbd>&crarr;</kbd> buka</span>
+        <span><kbd>Esc</kbd> tutup</span>
+      </div>
+      <div class="fh-cmd-brand-tag">FLOW Command Palette</div>
+    </div>
   </div>
-  <div class="fh-cmd-carousel">
-    <button type="button" id="fh-cmd-prev" class="fh-cmd-arrow" aria-label="Modul sebelumnya">&#8249;</button>
-    <div id="fh-cmd-track" class="fh-cmd-track"></div>
-    <button type="button" id="fh-cmd-next" class="fh-cmd-arrow" aria-label="Modul berikutnya">&#8250;</button>
-  </div>
-  <div id="fh-cmd-dots" class="fh-cmd-dots"></div>
-  <div class="fh-cmd-hint"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> pindah &middot; geser &middot; <kbd>Enter</kbd> buka &middot; <kbd>Esc</kbd> tutup</div>
 </div>
 {% block scripts %}{% endblock %}
 </body>
