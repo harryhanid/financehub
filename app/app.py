@@ -168,7 +168,13 @@ def create_app(testing=False):
                     "modules": cat_mods,
                 })
 
-        return {"nav_modules": nav_modules, "nav_grouped": grouped_nav}
+        return {
+            "nav_modules": nav_modules,
+            "nav_grouped": grouped_nav,
+            "company_name": session.get("company_name"),
+            "company_code": company_code,
+            "company_id": session.get("company_id"),
+        }
 
     from fhdb.errors import OperationalError as DbUnreachable
 

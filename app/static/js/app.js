@@ -37,6 +37,7 @@ const FH_MODULE_ICONS = {
   bank: '<path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9"/><path d="M3 21h18"/>',
   spt_badan: '<path d="M6 2h9l4 4v16H6Z"/><path d="M15 2v4h4"/><path d="M9 12h6M9 16h6"/>',
   sponsorship: '<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M3 12h18"/><path d="M12 8v13"/><path d="M12 8c-1.5-4-6-4-6-1s3 1 6 1Zm0 0c1.5-4 6-4 6-1s-3 1-6 1Z"/>',
+  sop: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
   users: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
 };
 
@@ -51,31 +52,48 @@ function _fhRecordVisit(url) {
 }
 
 function getCurrentModule() {
-  return FH_MODULES.find(function(m) {
-    return m.active && m.url && window.location.pathname.replace(/\/$/, '') === m.url.replace(/\/$/, '');
+  var modules = (typeof FH_NAV_MODULES !== 'undefined' && FH_NAV_MODULES.length)
+    ? FH_NAV_MODULES
+    : FH_MODULES;
+  var currentPath = window.location.pathname.replace(/\/$/, '');
+  return modules.find(function(m) {
+    return m.url && currentPath === m.url.replace(/\/$/, '');
   });
 }
 
 function initCommandPalette() {
-  var currentMod = getCurrentModule();
-  if (currentMod) _fhRecordVisit(currentMod.url);
-
   var ov = document.getElementById('fh-cmd-ov');
   var input = document.getElementById('fh-cmd-input');
   var resultsEl = document.getElementById('fh-cmd-results');
   var btn = document.getElementById('fh-cmd-btn');
   if (!ov || !input || !resultsEl) return;
 
+  var currentMod = getCurrentModule();
+  if (currentMod && currentMod.url) _fhRecordVisit(currentMod.url);
+
   var activeIndex = 0;
   var visibleItems = [];
 
-  // Build searchable items list (modules + subtabs)
+  var CATEGORY_ORDER = [
+    "Ringkasan & Laporan",
+    "Transaksi & Program",
+    "Keuangan, Pajak & Master",
+    "Sub-Halaman",
+    "Lainnya"
+  ];
+
   function _buildItems() {
     var items = [];
-    var modules = FH_NAV_MODULES || [];
+    var modules = (typeof FH_NAV_MODULES !== 'undefined' && FH_NAV_MODULES.length)
+      ? FH_NAV_MODULES
+      : (function() {
+          var el = document.getElementById('fh-nav-modules-data');
+          if (!el) return [];
+          try { return JSON.parse(el.textContent) || []; } catch (e) { return []; }
+        })();
 
     modules.forEach(function(m) {
-      // Add module itself
+      if (!m.url) return;
       items.push({
         type: 'module',
         key: m.key,
@@ -86,7 +104,6 @@ function initCommandPalette() {
         subtabs: m.subtabs || []
       });
 
-      // Add direct subtabs for deep-linking
       if (m.subtabs && m.subtabs.length) {
         m.subtabs.forEach(function(t) {
           var dest = t.url || (m.url + (m.url.indexOf('?') === -1 ? '?' : '&') + 'tab=' + t.tab);
@@ -95,7 +112,7 @@ function initCommandPalette() {
             key: m.key,
             name: t.label,
             parentName: m.name,
-            desc: m.name + ' → ' + t.label,
+            desc: m.name + ' \u2192 ' + t.label,
             url: dest,
             category: m.category || 'Sub-Halaman',
             subtabs: []
@@ -106,13 +123,25 @@ function initCommandPalette() {
     return items;
   }
 
-  var allItems = _buildItems();
+  function _sortItems(items) {
+    return items.slice().sort(function(a, b) {
+      var catA = a.category || "Lainnya";
+      var catB = b.category || "Lainnya";
+      var idxA = CATEGORY_ORDER.indexOf(catA);
+      var idxB = CATEGORY_ORDER.indexOf(catB);
+      if (idxA === -1) idxA = 99;
+      if (idxB === -1) idxB = 99;
+      if (idxA !== idxB) return idxA - idxB;
+      if (a.type !== b.type) return a.type === 'module' ? -1 : 1;
+      return 0;
+    });
+  }
 
   function open() {
     ov.classList.add('open');
     input.value = '';
     filter('');
-    setTimeout(function() { input.focus(); }, 10);
+    setTimeout(function() { input.focus(); }, 15);
   }
 
   function close() {
@@ -121,6 +150,7 @@ function initCommandPalette() {
 
   function selectItem(idx) {
     if (!visibleItems.length) return;
+    if (idx < 0 || idx >= visibleItems.length) idx = 0;
     var item = visibleItems[idx];
     if (!item || !item.url) return;
     _fhRecordVisit(item.url);
@@ -129,16 +159,17 @@ function initCommandPalette() {
   }
 
   function filter(query) {
+    var allItems = _buildItems();
     var q = query.toLowerCase().trim();
     if (!q) {
-      // When empty: show modules only, grouped nicely
-      visibleItems = allItems.filter(function(it) { return it.type === 'module'; });
+      var rawModules = allItems.filter(function(it) { return it.type === 'module'; });
+      visibleItems = _sortItems(rawModules);
     } else {
-      // When searching: search across both modules and direct subtabs!
-      visibleItems = allItems.filter(function(it) {
-        var str = (it.name + ' ' + (it.parentName || '') + ' ' + (it.desc || '')).toLowerCase();
+      var matches = allItems.filter(function(it) {
+        var str = (it.name + ' ' + (it.parentName || '') + ' ' + (it.desc || '') + ' ' + (it.category || '')).toLowerCase();
         return str.indexOf(q) !== -1;
       });
+      visibleItems = _sortItems(matches);
     }
 
     activeIndex = 0;
@@ -152,90 +183,85 @@ function initCommandPalette() {
       return;
     }
 
-    // Group items by category
-    var groups = {};
+    var currentCat = null;
+    var currentGrpEl = null;
+
     visibleItems.forEach(function(it, idx) {
       var cat = it.category || 'Lainnya';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push({ item: it, globalIndex: idx });
-    });
+      if (cat !== currentCat) {
+        currentCat = cat;
+        currentGrpEl = document.createElement('div');
+        currentGrpEl.className = 'fh-cmd-group';
 
-    Object.keys(groups).forEach(function(cat) {
-      var grpEl = document.createElement('div');
-      grpEl.className = 'fh-cmd-group';
+        var titleEl = document.createElement('div');
+        titleEl.className = 'fh-cmd-group-title';
+        titleEl.textContent = cat;
+        currentGrpEl.appendChild(titleEl);
+        resultsEl.appendChild(currentGrpEl);
+      }
 
-      var titleEl = document.createElement('div');
-      titleEl.className = 'fh-cmd-group-title';
-      titleEl.textContent = cat;
-      grpEl.appendChild(titleEl);
+      var el = document.createElement('div');
+      el.className = 'fh-cmd-item' + (idx === activeIndex ? ' active' : '');
+      el.setAttribute('role', 'option');
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('data-index', idx);
 
-      groups[cat].forEach(function(entry) {
-        var it = entry.item;
-        var idx = entry.globalIndex;
+      // Icon
+      var iconWrap = document.createElement('div');
+      iconWrap.className = 'fh-cmd-icon-wrap';
+      var iconSvg = FH_MODULE_ICONS[it.key] || '<circle cx="12" cy="12" r="8"/>';
+      iconWrap.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + iconSvg + '</svg>';
+      el.appendChild(iconWrap);
 
-        var el = document.createElement('div');
-        el.className = 'fh-cmd-item' + (idx === activeIndex ? ' active' : '');
-        el.setAttribute('role', 'option');
-        el.setAttribute('tabindex', '0');
+      // Text
+      var textWrap = document.createElement('div');
+      textWrap.className = 'fh-cmd-text';
 
-        // Icon
-        var iconWrap = document.createElement('div');
-        iconWrap.className = 'fh-cmd-icon-wrap';
-        var iconSvg = FH_MODULE_ICONS[it.key] || '<circle cx="12" cy="12" r="8"/>';
-        iconWrap.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + iconSvg + '</svg>';
-        el.appendChild(iconWrap);
+      var nameEl = document.createElement('span');
+      nameEl.className = 'fh-cmd-item-name';
+      nameEl.textContent = it.parentName ? (it.parentName + ' \u2192 ' + it.name) : it.name;
+      textWrap.appendChild(nameEl);
 
-        // Text
-        var textWrap = document.createElement('div');
-        textWrap.className = 'fh-cmd-text';
+      if (it.desc) {
+        var descEl = document.createElement('span');
+        descEl.className = 'fh-cmd-item-desc';
+        descEl.textContent = it.desc;
+        textWrap.appendChild(descEl);
+      }
+      el.appendChild(textWrap);
 
-        var nameEl = document.createElement('span');
-        nameEl.className = 'fh-cmd-item-name';
-        nameEl.textContent = it.parentName ? (it.parentName + ' → ' + it.name) : it.name;
-        textWrap.appendChild(nameEl);
+      // Meta (Subtabs tags or Enter pill)
+      var metaWrap = document.createElement('div');
+      metaWrap.className = 'fh-cmd-item-meta';
 
-        if (it.desc) {
-          var descEl = document.createElement('span');
-          descEl.className = 'fh-cmd-item-desc';
-          descEl.textContent = it.desc;
-          textWrap.appendChild(descEl);
-        }
-        el.appendChild(textWrap);
-
-        // Meta (Subtabs tags or Enter pill)
-        var metaWrap = document.createElement('div');
-        metaWrap.className = 'fh-cmd-item-meta';
-
-        if (it.subtabs && it.subtabs.length) {
-          it.subtabs.slice(0, 3).forEach(function(sub) {
-            var tag = document.createElement('span');
-            tag.className = 'fh-cmd-subtab-tag';
-            tag.textContent = sub.label;
-            metaWrap.appendChild(tag);
-          });
-        }
-
-        var enterPill = document.createElement('span');
-        enterPill.className = 'fh-cmd-enter-pill';
-        enterPill.textContent = '↵ Buka';
-        metaWrap.appendChild(enterPill);
-
-        el.appendChild(metaWrap);
-
-        // Click handler
-        el.addEventListener('click', function() {
-          selectItem(idx);
+      if (it.subtabs && it.subtabs.length) {
+        it.subtabs.slice(0, 3).forEach(function(sub) {
+          var tag = document.createElement('span');
+          tag.className = 'fh-cmd-subtab-tag';
+          tag.textContent = sub.label;
+          metaWrap.appendChild(tag);
         });
+      }
 
-        el.addEventListener('mouseenter', function() {
-          activeIndex = idx;
-          updateActiveHighlight();
-        });
+      var enterPill = document.createElement('span');
+      enterPill.className = 'fh-cmd-enter-pill';
+      enterPill.textContent = '\u21B5 Buka';
+      metaWrap.appendChild(enterPill);
 
-        grpEl.appendChild(el);
+      el.appendChild(metaWrap);
+
+      // Click & Hover handlers
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        selectItem(idx);
       });
 
-      resultsEl.appendChild(grpEl);
+      el.addEventListener('mouseenter', function() {
+        activeIndex = idx;
+        updateActiveHighlight();
+      });
+
+      currentGrpEl.appendChild(el);
     });
 
     scrollActiveIntoView();
@@ -256,18 +282,18 @@ function initCommandPalette() {
     }
   }
 
-  // Keyboard navigation & Shortcuts
+  // Keyboard navigation inside input
   input.addEventListener('input', function() {
     filter(input.value);
   });
 
   input.addEventListener('keydown', function(e) {
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown' || e.key === 'Down') {
       e.preventDefault();
       if (!visibleItems.length) return;
       activeIndex = (activeIndex + 1) % visibleItems.length;
       updateActiveHighlight();
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp' || e.key === 'Up') {
       e.preventDefault();
       if (!visibleItems.length) return;
       activeIndex = (activeIndex - 1 + visibleItems.length) % visibleItems.length;
@@ -281,28 +307,35 @@ function initCommandPalette() {
     }
   });
 
-  document.addEventListener('keydown', function(e) {
-    // Alt + Down OR Ctrl+K / Cmd+K
-    var isAltDown = e.altKey && !e.ctrlKey && !e.metaKey && e.key === 'ArrowDown';
-    var isCmdK = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k';
+  // Global toggle listener with capture phase
+  function _onGlobalKey(e) {
+    var isAltDown = e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowDown' || e.key === 'Down' || e.code === 'ArrowDown' || e.keyCode === 40);
+    var isCmdK = (e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K' || e.code === 'KeyK' || e.keyCode === 75);
 
     if (isAltDown || isCmdK) {
       e.preventDefault();
+      e.stopPropagation();
       ov.classList.contains('open') ? close() : open();
       return;
     }
 
-    if (ov.classList.contains('open') && e.key === 'Escape') {
+    if (ov.classList.contains('open') && (e.key === 'Escape' || e.keyCode === 27)) {
       e.preventDefault();
       close();
     }
-  });
+  }
+
+  document.removeEventListener('keydown', _onGlobalKey, true);
+  document.addEventListener('keydown', _onGlobalKey, true);
 
   ov.addEventListener('click', function(e) {
     if (e.target === ov) close();
   });
 
-  if (btn) btn.addEventListener('click', open);
+  if (btn) {
+    btn.removeEventListener('click', open);
+    btn.addEventListener('click', open);
+  }
 }
 
 function initTitleDropdown() {
@@ -1175,7 +1208,7 @@ document.addEventListener("click", function (e) {
   }
 });
 
-document.addEventListener("DOMContentLoaded", () => {
+function _fhBootAll() {
   initCommandPalette();
   initTitleDropdown();
   initModuleSwitchDropdown();
@@ -1189,4 +1222,10 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".modal-overlay").forEach(initModalBackdrop);
   document.querySelectorAll("tbody").forEach(staggerRows);
   document.querySelectorAll(".stat-value[data-count]").forEach(el => animateCounter(el));
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", _fhBootAll);
+} else {
+  _fhBootAll();
+}
