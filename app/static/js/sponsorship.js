@@ -602,6 +602,17 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // ── Report tab ──────────────────────────────────────────────────────────
+function _renderSpStatusPill(status) {
+  const s = String(status || "").trim();
+  if (!s) return "";
+  const k = s.toLowerCase();
+  let cls = "pill-draft";
+  if (/complete|paid|selesai|done/.test(k)) cls = "pill-success";
+  else if (/reject|cancel|batal|tolak/.test(k)) cls = "pill-danger";
+  else if (/progress|pending|open|proses/.test(k)) cls = "pill-warning";
+  return '<span class="pill-status ' + cls + '">' + _sponsorshipEsc(s) + '</span>';
+}
+
 function _sponsorshipEsc(s) {
   const d = document.createElement("div");
   d.textContent = String(s ?? "");
