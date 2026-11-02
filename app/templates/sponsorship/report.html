@@ -124,4 +124,24 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/sponsorship.js') }}"></script>
+<script>
+// Tabel Outstanding mengisi sisa tinggi layar (teknik sama dengan #sp-table-wrap di data.html).
+(function() {
+  function sizeWrap() {
+    const wrap = document.querySelector('#sp-report-table-container .budget-table-container');
+    if (!wrap) return;
+    requestAnimationFrame(() => {
+      wrap.style.maxHeight = 'none';
+      wrap.style.height = Math.max(240, window.innerHeight - wrap.getBoundingClientRect().top - 16) + 'px';
+    });
+  }
+  window.addEventListener('resize', sizeWrap);
+  document.addEventListener('DOMContentLoaded', () => {
+    const box = document.getElementById('sp-report-table-container');
+    if (box && window.MutationObserver) new MutationObserver(sizeWrap).observe(box, { childList: true });
+    const filter = document.getElementById('sp-report-filter');
+    if (filter && window.ResizeObserver) new ResizeObserver(sizeWrap).observe(filter);
+  });
+})();
+</script>
 {% endblock %}
