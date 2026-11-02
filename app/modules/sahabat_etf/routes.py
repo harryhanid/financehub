@@ -44,6 +44,9 @@ def _parse_filters():
         pillars_param = request.args.get("pillars", "")
         pillars = [p for p in pillars_param.split(",") if p.strip()] if pillars_param else None
     
+    if pillars:
+        pillars = [p for p in pillars if p.strip().lower() not in ("semua", "all")] or None
+
     return years, pillars
 
 def _parse_report_filters():
@@ -55,6 +58,9 @@ def _parse_report_filters():
         pillars_param = request.args.get("pillars", "")
         pillars = [p for p in pillars_param.split(",") if p.strip()] if pillars_param else None
     
+    if pillars:
+        pillars = [p for p in pillars if p.strip().lower() not in ("semua", "all")] or None
+
     month_param = request.args.get("month", "12")
     month = int(month_param) if month_param.isdigit() else 12
     return month, pillars
@@ -326,7 +332,6 @@ def export_report():
 def export_ppt_report():
     import io
     from flask import send_file
-    from modules.sahabat_etf.report_pptx import build_report_pptx
     
     year_param = request.args.get("year", "")
     mode = request.args.get("mode", "ytd")
@@ -335,17 +340,30 @@ def export_ppt_report():
     except ValueError:
         return jsonify({"ok": False, "pesan": "Parameter year wajib berupa angka."}), 400
         
-    month, pillars = _parse_report_filters()
-    data = build_report_data(_cid(), report_year, month, pillars)
-    pptx_bytes = build_report_pptx(data, mode)
-    filename = f"sahabat_etf_report_{mode}_{report_year}.pptx"
-    
-    return send_file(
-        io.BytesIO(pptx_bytes),
-        mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        as_attachment=True,
-        download_name=filename
-    )
+    try:
+        from modules.sahabat_etf.report_pptx import build_report_pptx
+    except ImportError as e:
+        return jsonify({
+            "ok": False,
+            "pesan": f"Modul python-pptx belum terpasang di server ({e}). Pastikan 'pip install python-pptx' sudah dijalankan di server."
+        }), 500
+
+    try:
+        month, pillars = _parse_report_filters()
+        data = build_report_data(_cid(), report_year, month, pillars)
+        pptx_bytes = build_report_pptx(data, mode)
+        filename = f"sahabat_etf_report_{mode}_{report_year}.pptx"
+        
+        return send_file(
+            io.BytesIO(pptx_bytes),
+            mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "pesan": f"Gagal membuat dokumen PPT: {str(e)}"}), 500
 
 @bp.route('/tree-data')
 @sahabat_public_or_jwt
