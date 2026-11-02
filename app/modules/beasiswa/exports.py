@@ -943,6 +943,7 @@ def export_budget_excel(
     bulan: str = "",
     tahun: str = "",
     program: str = "",
+    status: str = "",
 ) -> bytes:
     from modules.beasiswa.service import get_budget_list
 
@@ -954,6 +955,7 @@ def export_budget_excel(
         bulan=bulan,
         tahun=tahun,
         program=program,
+        status=status,
         limit=100000,
     )
     rows = data.get("rows", [])
@@ -982,6 +984,8 @@ def export_budget_excel(
         filters_applied.append(f"Tahun: {tahun}")
     if program:
         filters_applied.append(f"Program: {program}")
+    if status:
+        filters_applied.append(f"Status: {status}")
 
     ws["A3"] = f"Filter: {'; '.join(filters_applied) if filters_applied else 'Semua Data'}"
     ws["A3"].font = FONT_META
@@ -999,6 +1003,7 @@ def export_budget_excel(
         "Tgl Expired",
         "Pillar",
         "Amount (Rp)",
+        "Status",
     ]
 
     start_row = 6
@@ -1028,6 +1033,7 @@ def export_budget_excel(
             (r.get("tgl_expired") or "", ALIGN_CENTER, FONT_ROW, None),
             (r.get("pillar") or "", ALIGN_CENTER, FONT_ROW, None),
             (float(r.get("amount") or 0), ALIGN_RIGHT, FONT_ROW_BOLD, NUM_FMT_CURRENCY),
+            (r.get("status_label") or "", ALIGN_CENTER, FONT_ROW, None),
         ]
 
         for col_idx, (val, align, font, num_fmt) in enumerate(row_vals, 1):
@@ -1080,6 +1086,7 @@ def export_budget_excel(
         "H": 14,  # Tgl Expired
         "I": 12,  # Pillar
         "J": 18,  # Amount
+        "K": 14,  # Status
     }
     for col_letter, width in col_min_widths.items():
         ws.column_dimensions[col_letter].width = width

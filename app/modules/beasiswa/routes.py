@@ -10,7 +10,7 @@ from modules.beasiswa.service import (get_budget_requests, approve_budget_reques
     add_budget_batch, get_budget, delete_budget_row, update_budget_row,
     add_payment_batch, add_payment_multi, get_payment, get_payment_list, delete_payment_row,
     update_payment_row,
-    get_sisa_budget, get_rekap, get_budget_list, get_laporan_siswa,
+    get_sisa_budget, get_rekap, get_budget_list, set_budget_status, get_laporan_siswa,
     get_financial_summary,
     add_klaim_multi, get_klaim_list, delete_klaim_row,
     get_vendors, get_distinct_universitas, get_distinct_angkatan,
@@ -273,6 +273,14 @@ def budget_update_row(row_id):
     return jsonify(update_budget_row(_cid(), row_id, request.get_json(force=True) or {}, _ctx()["current_user"]))
 
 
+@bp.route("/budget/<int:row_id>/status", methods=["POST"])
+@role_required("Fin", "Admin")
+@etf_company_required
+def budget_set_status(row_id):
+    data = request.get_json(force=True, silent=True) or {}
+    return jsonify(set_budget_status(_cid(), row_id, (data.get("status") or "").strip()))
+
+
 @bp.route("/budget/tambah", methods=["POST"])
 @role_required("FC", "Admin")
 @etf_company_required
@@ -310,6 +318,7 @@ def budget_list():
         bulan=request.args.get("bulan", ""),
         tahun=request.args.get("tahun", ""),
         program=request.args.get("program", ""),
+        status=request.args.get("status", ""),
     )
     return jsonify({"ok": True, **data})
 
@@ -330,6 +339,7 @@ def budget_export_xlsx():
     bulan = request.args.get("bulan", "")
     tahun = request.args.get("tahun", "")
     program = request.args.get("program", "")
+    status = request.args.get("status", "")
 
     xls_bytes = export_budget_excel(
         _cid(),
@@ -339,6 +349,7 @@ def budget_export_xlsx():
         bulan=bulan,
         tahun=tahun,
         program=program,
+        status=status,
     )
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"Budget_Beasiswa_ETF_{timestamp}.xlsx"
@@ -460,14 +471,14 @@ def budget_export_csv():
         search=request.args.get("search",""), cat1=request.args.get("cat1",""),
         pillar=request.args.get("pillar",""), bulan=request.args.get("bulan",""),
         tahun=request.args.get("tahun",""), program=request.args.get("program",""),
-        limit=100000)["rows"]
+        status=request.args.get("status",""), limit=100000)["rows"]
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["Kode","Nama","Program","Kategori 1","Kategori 2","Tanggal","Pillar","Amount"])
+    w.writerow(["Kode","Nama","Program","Kategori 1","Kategori 2","Tanggal","Pillar","Amount","Status"])
     for r in rows:
         w.writerow([r.get("siswa_code",""), r.get("nama",""), r.get("program",""),
                     r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                    r.get("pillar",""), r.get("amount",0)])
+                    r.get("pillar",""), r.get("amount",0), r.get("status_label","")])
     out.seek(0)
     return Response(out.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=budget_beasiswa.csv"})
@@ -488,7 +499,7 @@ def budget_export_pdf():
         search=request.args.get("search",""), cat1=request.args.get("cat1",""),
         pillar=request.args.get("pillar",""), bulan=request.args.get("bulan",""),
         tahun=request.args.get("tahun",""), program=request.args.get("program",""),
-        limit=100000)["rows"]
+        status=request.args.get("status",""), limit=100000)["rows"]
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
                             leftMargin=1.5*cm, rightMargin=1.5*cm,
@@ -496,22 +507,22 @@ def budget_export_pdf():
     styles = getSampleStyleSheet()
     elems  = [Paragraph(f"Data Budget Beasiswa — {session.get('company_name','')}", styles["Title"]),
               Spacer(1, 0.4*cm)]
-    data = [["No","Kode","Nama","Program","Kategori 1","Kategori 2","Tanggal","Pillar","Amount"]]
+    data = [["No","Kode","Nama","Program","Kategori 1","Kategori 2","Tanggal","Pillar","Amount","Status"]]
     total = 0
     for i, r in enumerate(rows, 1):
         a = r.get("amount",0); total += a
         data.append([i, r.get("siswa_code",""), r.get("nama",""), r.get("program",""),
                      r.get("cat1",""), r.get("cat2",""), r.get("tanggal",""),
-                     r.get("pillar",""), format_rupiah(a, prefix="")])
+                     r.get("pillar",""), format_rupiah(a, prefix=""), r.get("status_label","")])
     if rows:
-        data.append(["","","TOTAL","","","","","",format_rupiah(total, prefix="")])
+        data.append(["","","TOTAL","","","","","",format_rupiah(total, prefix=""),""])
     tbl = Table(data, repeatRows=1)
     tbl.setStyle(TableStyle([
         ("BACKGROUND",(0,0),(-1,0), colors.HexColor("#1a56db")),
         ("TEXTCOLOR",(0,0),(-1,0), colors.white),
         ("FONTNAME",(0,0),(-1,0), "Helvetica-Bold"),
         ("FONTSIZE",(0,0),(-1,-1), 7),
-        ("ALIGN",(8,0),(-1,-1), "RIGHT"),
+        ("ALIGN",(8,0),(8,-1), "RIGHT"),
         ("GRID",(0,0),(-1,-1), 0.5, colors.HexColor("#e5e7eb")),
         ("BACKGROUND",(0,-1),(-1,-1), colors.HexColor("#f3f4f6")),
         ("FONTNAME",(0,-1),(-1,-1), "Helvetica-Bold"),

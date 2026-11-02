@@ -574,11 +574,21 @@ def add_payment_multi(company_id: int, company_code: str, tanggal: str,
         conn.close()
 
 
+BUDGET_STATUS_LABELS = {"open": "Open", "on_progress": "On Progress",
+                        "complete": "Complete", "non_aktif": "Non Aktif"}
+# Sama dengan fn_prp_budget_status di SQL: siswa non-Aktif => non_aktif.
+_BUDGET_EFF_STATUS_SQL = "(CASE WHEN COALESCE(s.status,'') <> 'Aktif' THEN 'non_aktif' ELSE bb.status END)"
+
+
+def budget_effective_status(stored, siswa_status) -> str:
+    return "non_aktif" if (siswa_status or "") != "Aktif" else (stored or "open")
+
+
 def get_budget_list(company_id: int, search: str = "", cat1: str = "",
                     pillar: str = "", bulan: str = "", tahun: str = "",
-                    program: str = "", limit: int = 500) -> dict:
+                    program: str = "", limit: int = 500, status: str = "") -> dict:
     sql = (
-        "SELECT bb.*, s.nama, s.program FROM budget_beasiswa bb "
+        "SELECT bb.*, s.nama, s.program, s.status AS siswa_status FROM budget_beasiswa bb "
         "LEFT JOIN siswa s ON s.company_id=bb.company_id AND s.code=bb.siswa_code "
         "WHERE bb.company_id=?"
     )
@@ -597,6 +607,9 @@ def get_budget_list(company_id: int, search: str = "", cat1: str = "",
     if program:
         sql += " AND s.program=?"
         params += [program]
+    if status:
+        sql += f" AND {_BUDGET_EFF_STATUS_SQL} = ?"
+        params += [status]
     if bulan:
         sql += " AND fh_strftime('%m', bb.tanggal) = ?"
         params += [bulan.zfill(2)]
@@ -605,7 +618,7 @@ def get_budget_list(company_id: int, search: str = "", cat1: str = "",
         params += [tahun]
     conn  = get_conn()
     agg_sql = sql.replace(
-        "SELECT bb.*, s.nama, s.program FROM",
+        "SELECT bb.*, s.nama, s.program, s.status AS siswa_status FROM",
         "SELECT bb.cat1, SUM(bb.amount) AS total FROM"
     ) + " GROUP BY bb.cat1"
     totals = {r[0]: r[1] for r in conn.execute(agg_sql, params).fetchall()}
@@ -644,6 +657,9 @@ def get_budget_list(company_id: int, search: str = "", cat1: str = "",
     total  = conn.execute(f"SELECT COUNT(*) FROM ({sql}) AS _q", params).fetchone()[0]
     rows   = [dict(r) for r in conn.execute(sql + " LIMIT ?", params + [limit]).fetchall()]
     conn.close()
+    for r in rows:
+        r["status"] = budget_effective_status(r.get("status"), r.get("siswa_status"))
+        r["status_label"] = BUDGET_STATUS_LABELS.get(r["status"], r["status"] or "")
     return {
         "rows": rows, "total": total,
         "totals": totals, "grand": grand,
@@ -1657,12 +1673,48 @@ def check_budget_sufficient(company_id: int, rows: list, default_cat1: str = Non
 
 # ================= BUDGET APPROVAL =================
 
+_PA_LINE_TABLES = (("etf_pa", "etf_pa_lines"), ("app_pa", "app_pa_lines"), ("sml_pa", "sml_pa_lines"),
+                   ("setf_pa", "setf_pa_lines"), ("energy_pa", "energy_pa_lines"))
+
+
+def _budget_pa_usage(conn, budget_id: int):
+    """(pa_number, jumlah_baris) PA terbaru yang memakai baris budget ini, atau None."""
+    sql = " UNION ALL ".join(
+        f"SELECT p.id AS pid, p.pa_number, l.jumlah_pembayaran AS jumlah FROM {pa} p "
+        f"JOIN {ln} l ON l.pa_id = p.id WHERE l.budget_id=?" for pa, ln in _PA_LINE_TABLES)
+    row = conn.execute(f"SELECT pa_number, jumlah FROM ({sql}) u ORDER BY pid DESC, pa_number DESC LIMIT 1",
+                       (budget_id,) * len(_PA_LINE_TABLES)).fetchone()
+    return (row["pa_number"], row["jumlah"]) if row else None
+
+
+# Syarat SQL atomik saat approve: baris budget hanya boleh diubah/dihapus bila tidak dipakai PA.
+def _budget_unused_sql(col: str = "budget_beasiswa.id") -> str:
+    return " AND ".join(
+        f"NOT EXISTS (SELECT 1 FROM {ln} ul WHERE ul.budget_id = {col})" for _, ln in _PA_LINE_TABLES)
+
+
+def _budget_delete_violation(conn, row):
+    if row["status"] == "complete":
+        return "Budget sudah Complete; tidak bisa dihapus."
+    if row["status"] == "on_progress":
+        use = _budget_pa_usage(conn, row["id"])
+        return f"Budget sedang dipakai PA {use[0] if use else 'lain'}; tidak bisa dihapus."
+    return None
+
+
+_MSG_BUDGET_DIPAKAI_BATAL = "Budget sudah dipakai PA; pengajuan dibatalkan."
+
+
 def delete_budget_row(company_id: int, row_id: int, created_by: str) -> dict:
     conn = get_conn()
     row  = conn.execute("SELECT * FROM budget_beasiswa WHERE id=? AND company_id=?", (row_id, company_id)).fetchone()
     if not row:
         conn.close()
         return {"ok": False, "pesan": "Baris budget tidak ditemukan."}
+    viol = _budget_delete_violation(conn, row)
+    if viol:
+        conn.close()
+        return {"ok": False, "pesan": viol}
     conn.execute(
         "INSERT INTO budget_beasiswa_requests (company_id, siswa_code, action_type, budget_id, cat1, cat2, tanggal, amount, pillar, tgl_expired, created_by, batch_id) VALUES (?, ?, 'DELETE', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (company_id, row["siswa_code"], row["id"], row["cat1"], row["cat2"], row["tanggal"], row["amount"], row["pillar"], row["tgl_expired"], created_by, str(uuid.uuid4())[:8])
@@ -1684,6 +1736,11 @@ def update_budget_row(company_id: int, row_id: int, data: dict, created_by: str)
     if amount <= 0:
         conn.close()
         return {"ok": False, "pesan": "Amount harus lebih dari 0."}
+    if row["status"] == "on_progress":
+        use = _budget_pa_usage(conn, row["id"])
+        if use and amount < float(use[1] or 0):
+            conn.close()
+            return {"ok": False, "pesan": f"Amount tidak boleh di bawah jumlah PA {use[0]} ({int(use[1])})."}
     conn.execute(
         "INSERT INTO budget_beasiswa_requests (company_id, siswa_code, action_type, budget_id, cat1, cat2, tanggal, amount, pillar, tgl_expired, created_by, batch_id) VALUES (?, ?, 'EDIT', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (company_id, row["siswa_code"], row["id"], data.get("cat1",""), data.get("cat2",""), data.get("tanggal",""), amount, data.get("pillar",""), data.get("tgl_expired") or None, created_by, str(uuid.uuid4())[:8])
@@ -1786,8 +1843,23 @@ def approve_budget_request_batch(company_id: int, request_ids: list, processed_b
         "ORDER BY id FOR UPDATE",
         list(ids) + [company_id]
     )]
+    # Lock-first: baris budget yang disentuh request dikunci sebelum guard dievaluasi (R51), supaya
+    # tidak menyelip dengan update_pa / submit PA di antara statement (READ COMMITTED).
+    stmts.append((
+        "SELECT id FROM budget_beasiswa WHERE id IN (SELECT budget_id FROM budget_beasiswa_requests "
+        f"WHERE id IN ({ph}) AND company_id=? AND budget_id IS NOT NULL) ORDER BY id FOR UPDATE",
+        list(ids) + [company_id]
+    ))
     mark_idx = []
+    rej_idx = []
     pending = "r.id=? AND r.company_id=? AND r.status='PENDING'"
+    used = " OR ".join(f"EXISTS (SELECT 1 FROM {ln} ul WHERE ul.budget_id=bb.id)" for _, ln in _PA_LINE_TABLES)
+    over = " OR ".join(f"EXISTS (SELECT 1 FROM {ln} ul WHERE ul.budget_id=bb.id "
+                       "AND ul.jumlah_pembayaran > rq.amount)" for _, ln in _PA_LINE_TABLES)
+    # request EDIT/DELETE yang diblokir oleh kunci budget (budget dipakai PA); alias request = rq.
+    blocked = ("(rq.action_type IN ('EDIT','DELETE') AND EXISTS (SELECT 1 FROM budget_beasiswa bb "
+               "WHERE bb.id=rq.budget_id AND ((rq.action_type='DELETE' AND (bb.status<>'open' OR "
+               f"{used})) OR (rq.action_type='EDIT' AND bb.status<>'open' AND ({over})))))")
     for req_id in ids:
         stmts.append((
             "INSERT INTO budget_beasiswa (company_id, siswa_code, cat1, cat2, tanggal, amount, pillar, tgl_expired) "
@@ -1799,26 +1871,42 @@ def approve_budget_request_batch(company_id: int, request_ids: list, processed_b
             "UPDATE budget_beasiswa SET cat1=r.cat1, cat2=r.cat2, tanggal=r.tanggal, amount=r.amount, "
             "pillar=r.pillar, tgl_expired=r.tgl_expired "
             f"FROM budget_beasiswa_requests r WHERE {pending} AND r.action_type='EDIT' "
-            "AND budget_beasiswa.id=r.budget_id AND budget_beasiswa.company_id=?",
+            "AND budget_beasiswa.id=r.budget_id AND budget_beasiswa.company_id=? "
+            "AND (budget_beasiswa.status='open' OR NOT EXISTS ("
+            + " UNION ALL ".join(f"SELECT 1 FROM {ln} ul WHERE ul.budget_id=r.budget_id "
+                                 "AND ul.jumlah_pembayaran > r.amount" for _, ln in _PA_LINE_TABLES)
+            + "))",
             (req_id, company_id, company_id)
         ))
         stmts.append((
             "DELETE FROM budget_beasiswa USING budget_beasiswa_requests r "
             f"WHERE {pending} AND r.action_type='DELETE' "
-            "AND budget_beasiswa.id=r.budget_id AND budget_beasiswa.company_id=?",
+            "AND budget_beasiswa.id=r.budget_id AND budget_beasiswa.company_id=? "
+            "AND budget_beasiswa.status='open' AND " + _budget_unused_sql(),
             (req_id, company_id, company_id)
         ))
+        # Hanya yang benar-benar terterap yang APPROVED; yang diblokir kunci budget -> REJECTED.
         mark_idx.append(len(stmts))
         stmts.append((
-            f"UPDATE budget_beasiswa_requests SET status='APPROVED', processed_by=?, processed_at={_NOW_UTC} "
-            "WHERE id=? AND company_id=? AND status='PENDING'",
+            f"UPDATE budget_beasiswa_requests rq SET status='APPROVED', processed_by=?, processed_at={_NOW_UTC} "
+            f"WHERE rq.id=? AND rq.company_id=? AND rq.status='PENDING' AND NOT {blocked}",
             (processed_by, req_id, company_id)
+        ))
+        rej_idx.append(len(stmts))
+        stmts.append((
+            f"UPDATE budget_beasiswa_requests SET status='REJECTED', processed_by=?, processed_at={_NOW_UTC}, "
+            "reject_reason=? WHERE id=? AND company_id=? AND status='PENDING'",
+            (processed_by, _MSG_BUDGET_DIPAKAI_BATAL, req_id, company_id)
         ))
     curs = conn.batch(stmts)
     approved = sum(1 for i in mark_idx if curs[i].rowcount > 0)
+    cancelled = sum(1 for i in rej_idx if curs[i].rowcount > 0)
     conn.commit()
     conn.close()
-    return {"ok": True, "pesan": f"{approved} baris pengajuan disetujui."}
+    pesan = f"{approved} baris pengajuan disetujui."
+    if cancelled:
+        pesan = f"{approved} baris pengajuan disetujui, {cancelled} dibatalkan karena budget dipakai PA."
+    return {"ok": True, "pesan": pesan}
 
 def reject_budget_request_batch(company_id: int, request_ids: list, processed_by: str, reason: str) -> dict:
     """Atomik (atomic-flows.md Task 15): satu UPDATE untuk semua request PENDING milik company;
@@ -1837,3 +1925,30 @@ def reject_budget_request_batch(company_id: int, request_ids: list, processed_by
     conn.commit()
     conn.close()
     return {"ok": True, "pesan": f"{rejected} baris pengajuan ditolak."}
+
+
+def set_budget_status(company_id: int, row_id: int, status: str) -> dict:
+    """Ubah status tersimpan baris budget secara langsung (aksi Fin/Admin, bukan request)."""
+    if status not in ("open", "on_progress", "complete"):
+        return {"ok": False, "pesan": "Status tidak valid."}
+    conn = get_conn()
+    try:
+        # Lock-first dalam SATU batch: baris budget dikunci (FOR UPDATE) sebelum guard "tidak dipakai PA"
+        # dievaluasi, supaya tidak menyelip dengan submit PA / update_pa (READ COMMITTED).
+        extra = f" AND {_budget_unused_sql('budget_beasiswa.id')}" if status == "open" else ""
+        lock_cur, cur = conn.batch([
+            ("SELECT id FROM budget_beasiswa WHERE id=? AND company_id=? FOR UPDATE", (row_id, company_id)),
+            (f"UPDATE budget_beasiswa SET status=? WHERE id=? AND company_id=?{extra}",
+             (status, row_id, company_id)),
+        ])
+        if not lock_cur.fetchone():
+            conn.rollback()
+            return {"ok": False, "pesan": "Baris budget tidak ditemukan."}
+        if status == "open" and not cur.rowcount:
+            conn.rollback()
+            use = _budget_pa_usage(conn, row_id)
+            return {"ok": False, "pesan": f"Budget dipakai PA {use[0] if use else 'lain'}; hapus PA dulu."}
+        conn.commit()
+        return {"ok": True, "pesan": f"Status budget diubah ke {BUDGET_STATUS_LABELS[status]}."}
+    finally:
+        conn.close()
