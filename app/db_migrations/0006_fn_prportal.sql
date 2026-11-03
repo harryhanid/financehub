@@ -688,7 +688,7 @@ begin
       from (select jsonb_array_elements_text(p_numbers) as x limit 200) q;
     foreach v_t in array v_tbls loop
         execute format(
-            ''select coalesce(jsonb_object_agg(p.pa_number, jsonb_build_object(''''status'''', p.status, ''''reject_reason'''', p.reject_reason, ''''checked_by_fincon'''', p.checked_by_fincon, ''''approved_by_htj_1'''', p.approved_by_htj_1, ''''send_pa_back_to_educ'''', p.send_pa_back_to_educ, ''''pa_received_by_po_fin'''', p.pa_received_by_po_fin, ''''approval_by_htj_2'''', p.approval_by_htj_2, ''''nomor_pam'''', p.nomor_pam, ''''tanggal_bayar'''', p.tanggal_bayar, ''''catatan_fc'''', p.keterangan)), ''''{}''''::jsonb) ''
+            ''select coalesce(jsonb_object_agg(p.pa_number, jsonb_build_object(''''status'''', p.status, ''''reject_reason'''', p.reject_reason, ''''checked_by_fincon'''', p.checked_by_fincon, ''''approved_by_htj_1'''', p.approved_by_htj_1, ''''send_pa_back_to_educ'''', p.send_pa_back_to_educ, ''''pa_received_by_po_fin'''', p.pa_received_by_po_fin, ''''approval_by_htj_2'''', p.approval_by_htj_2, ''''nomor_pam'''', p.nomor_pam, ''''tanggal_bayar'''', p.tanggal_bayar, ''''catatan_fc'''', p.keterangan, ''''attachment_poin'''', p.attachment_poin)), ''''{}''''::jsonb) ''
             || ''from %I.%I p where p.source = ''''prportal'''' and p.pa_number = any($1)'',
             ''{{schema}}'', v_t)
           into v_part using v_nums;

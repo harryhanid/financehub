@@ -276,7 +276,7 @@ def test_submit_rejects_non_string_keperluan():
 
 def test_pa_status_returns_dates_pam_and_fc_note():
     _std_siswa("T1")
-    res = _submit(_payload("T1", _std_lines("T1")))
+    res = _submit(_payload("T1", _std_lines("T1"), attachment_file_id="f1,f2", attachment_poin="a,c"))
     conn = get_conn()
     try:
         conn.execute("UPDATE etf_pa SET checked_by_fincon='2026-08-21', approved_by_htj_1='2026-08-26', nomor_pam='PAM/X/1', "
@@ -289,6 +289,7 @@ def test_pa_status_returns_dates_pam_and_fc_note():
     r = out[num]
     assert r["status"] == "on_review_fc" and r["checked_by_fincon"] == "2026-08-21" and r["approved_by_htj_1"] == "2026-08-26"
     assert r["nomor_pam"] == "PAM/X/1" and r["tanggal_bayar"] == "2026-09-14" and r["catatan_fc"] == "catatan FC"
+    assert r["attachment_poin"] == "a,c"
     for k in ("send_pa_back_to_educ", "pa_received_by_po_fin", "approval_by_htj_2", "reject_reason"):
         assert k in r
 
