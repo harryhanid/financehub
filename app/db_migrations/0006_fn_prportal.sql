@@ -162,6 +162,46 @@ begin
 end
 ';
 
+-- Pillar vendor -> jenis PA (tabel PA). null bila pillar tidak punya tabel PA ('-', NON PILLAR, NON ALLOCATED, ...).
+create or replace function {{schema}}.fn_prp_pillar_jenis(p_pillar text)
+returns text
+language sql
+immutable
+as '
+    select case upper(trim(coalesce(p_pillar, '''')))
+        when ''AGRI'' then ''agri'' when ''APP'' then ''app'' when ''LAND'' then ''sml''
+        when ''SETF'' then ''setf'' when ''EFIN'' then ''energy'' when ''ENERGY'' then ''energy'' else null end
+';
+
+-- Cari vendor (master Vendors Flow) untuk pembebanan PA. Min 3 huruf, maks 10 hasil, hanya vendor yang pillar-nya
+-- punya tabel PA. Hanya id/nama/pillar/cost center/jenis; data bank vendor tidak pernah dikirim.
+create or replace function {{schema}}.fn_prp_search_vendor(p_query text)
+returns jsonb
+language plpgsql
+stable
+set search_path = {{schema}}
+as '
+declare
+    v_q text := trim(coalesce(p_query, ''''));
+    v_pat text;
+begin
+    if length(v_q) < 3 then
+        return ''[]''::jsonb;
+    end if;
+    v_pat := ''%'' || replace(replace(replace(v_q, ''\'', ''\\''), ''%'', ''\%''), ''_'', ''\_'') || ''%'';
+    return coalesce((
+        select jsonb_agg(jsonb_build_object(
+                   ''id'', x.id, ''name'', x.name, ''pillar'', x.pillar,
+                   ''cost_center'', coalesce(x.cost_center, ''''), ''jenis'', x.jenis) order by x.name)
+          from (select v.id, v.name, v.pillar, v.cost_center, fn_prp_pillar_jenis(v.pillar) as jenis
+                  from vendors v
+                 where v.name ilike v_pat
+                   and fn_prp_pillar_jenis(v.pillar) is not null
+                 order by v.name
+                 limit 10) x), ''[]''::jsonb);
+end
+';
+
 -- Tanggal 'YYYY-MM-DD' yang benar-benar ada (menolak 2026-02-30). Pembantu internal validasi.
 create or replace function {{schema}}.fn_prp_is_date(p_v text)
 returns boolean
@@ -181,8 +221,9 @@ end
 -- Buat PA dari PR Portal secara atomik. Masukan:
 --   {jenis, siswa_code, tgl_payment_application, tgl_surat_pengajuan, doc_received_by_educ,
 --    received_pa_from_educ, keterangan, route, klasifikasi, attachment_file_id, requested_by, cost_center,
+--    vendor_id (bila ada, menentukan jenis dan mengisi pembebanan_*; jenis diabaikan),
 --    lines:[{budget_id, tahun_ajaran, jumlah}]}
--- Keluaran: {ok:true, pa_id, pa_number, jenis, total, tgl_payment_application} atau {ok:false, pesan} tanpa tulisan apa pun.
+-- Keluaran: {ok:true, pa_id, pa_number, jenis, total, tgl_payment_application, pembebanan_pt, pembebanan_cost_center} atau {ok:false, pesan} tanpa tulisan apa pun.
 -- Urutan: validasi bentuk -> lock siswa + budget (FOR UPDATE, urut id) -> validasi bisnis -> insert header
 -- (nomor via fn_etf_pa_next_pa_number di dalam INSERT) -> insert baris -> budget on_progress.
 -- Kolom header/baris sama dengan create_pa (modules/etf_payment_application/service.py) + source/requested_by/
@@ -195,6 +236,9 @@ set search_path = {{schema}}
 as '
 declare
     v_jenis text := p->>''jenis'';
+    v_vendor vendors%rowtype;
+    v_pt text;
+    v_pt_cc text;
     v_pa_tbl text;
     v_lines_tbl text;
     v_prefix text;
@@ -224,6 +268,24 @@ begin
     -- 1. Validasi bentuk (belum ada lock / tulisan).
     if p is null or jsonb_typeof(p) <> ''object'' then
         return jsonb_build_object(''ok'', false, ''pesan'', ''Data PA tidak valid: payload.'');
+    end if;
+    -- Pembebanan: vendor_id (master Vendors) menentukan jenis PA lewat pillar-nya. Tanpa vendor_id dipakai jenis
+    -- eksplisit (jalur lama; tidak mengisi pembebanan_pt / pembebanan_cost_center).
+    if coalesce(jsonb_typeof(p->''vendor_id''), ''null'') <> ''null'' then
+        if jsonb_typeof(p->''vendor_id'') <> ''number'' or (p->>''vendor_id'') !~ ''^[1-9][0-9]{0,17}$'' then
+            return jsonb_build_object(''ok'', false, ''pesan'', ''Data PA tidak valid: vendor_id.'');
+        end if;
+        select * into v_vendor from vendors where id = (p->>''vendor_id'')::bigint;
+        if not found then
+            return jsonb_build_object(''ok'', false, ''pesan'', ''Vendor tidak ditemukan.'');
+        end if;
+        v_jenis := fn_prp_pillar_jenis(v_vendor.pillar);
+        if v_jenis is null then
+            return jsonb_build_object(''ok'', false, ''pesan'',
+                ''Vendor '' || v_vendor.name || '' belum punya pillar PA (pillar: '' || coalesce(v_vendor.pillar, ''-'') || ''). Hubungi Finance.'');
+        end if;
+        v_pt := v_vendor.name;
+        v_pt_cc := nullif(trim(coalesce(v_vendor.cost_center, '''')), '''');
     end if;
     case v_jenis
         when ''agri''   then v_pa_tbl := ''etf_pa'';    v_lines_tbl := ''etf_pa_lines'';    v_prefix := ''ETF'';
@@ -343,9 +405,9 @@ begin
     execute format(
         ''insert into %I.%I (company_id, pa_number, tgl_payment_application, tgl_surat_pengajuan, keterangan, ''
         || ''doc_received_by_educ, received_pa_from_educ, status, route, klasifikasi, attachment_file_id, ''
-        || ''created_at, source, requested_by, cost_center) ''
+        || ''created_at, source, requested_by, cost_center, pembebanan_pt, pembebanan_cost_center) ''
         || ''values ($1, fn_etf_pa_next_pa_number($2, $1, $3, $4), $5, $6, $7, $8, $9, $10, $11, $12, $13, ''
-        || ''$14, $15, $16, $17) returning id, pa_number'',
+        || ''$14, $15, $16, $17, $18, $19) returning id, pa_number'',
         ''{{schema}}'', v_pa_tbl)
       into v_pa_id, v_pa_number
      using v_company, v_pa_tbl, v_prefix, v_year,
@@ -361,7 +423,9 @@ begin
            v_ts,
            ''prportal''::text,
            trim(p->>''requested_by''),
-           nullif(trim(coalesce(p->>''cost_center'', '''')), '''');
+           nullif(trim(coalesce(p->>''cost_center'', '''')), ''''),
+           v_pt,
+           v_pt_cc;
     for v_i in 1 .. v_n loop
         execute format(
             ''insert into %I.%I (pa_id, student_id, jenis_pembayaran, semester, tahun_ajaran, ''
@@ -377,7 +441,8 @@ begin
     update budget_beasiswa set status = ''on_progress'' where id = any(v_ids);
     return jsonb_build_object(''ok'', true, ''pa_id'', v_pa_id, ''pa_number'', v_pa_number,
                               ''jenis'', v_jenis, ''total'', v_total,
-                              ''tgl_payment_application'', v_today);
+                              ''tgl_payment_application'', v_today,
+                              ''pembebanan_pt'', v_pt, ''pembebanan_cost_center'', v_pt_cc);
 end
 ';
 
@@ -438,6 +503,8 @@ begin
             ''created_at'', v_hdr->>''created_at'',
             ''requested_by'', v_hdr->>''requested_by'',
             ''cost_center'', v_hdr->>''cost_center'',
+            ''pembebanan_pt'', v_hdr->>''pembebanan_pt'',
+            ''pembebanan_cost_center'', v_hdr->>''pembebanan_cost_center'',
             ''siswa'', jsonb_build_object(
                 ''code'', v_sj->''code'', ''nama'', v_sj->''nama'', ''jenjang'', v_sj->''jenjang'',
                 ''universitas'', v_sj->''universitas'', ''program'', v_sj->''program'', ''bank'', v_sj->''bank'',

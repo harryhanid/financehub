@@ -50,3 +50,16 @@ alter table {{schema}}.setf_pa add column if not exists "cost_center" text colla
 alter table {{schema}}.energy_pa add column if not exists "source" text collate "C" not null default 'flow';
 alter table {{schema}}.energy_pa add column if not exists "requested_by" text collate "C";
 alter table {{schema}}.energy_pa add column if not exists "cost_center" text collate "C";
+
+-- 4. Pembebanan PA: vendor (Nama PT) dan Cost Center-nya, dipilih di PR Portal dari master Vendors Flow.
+-- Terpisah dari cost_center di atas (cost center pemohon). Diisi hanya untuk PA yang masuk lewat vendor_id.
+alter table {{schema}}.etf_pa add column if not exists "pembebanan_pt" text collate "C";
+alter table {{schema}}.etf_pa add column if not exists "pembebanan_cost_center" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "pembebanan_pt" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "pembebanan_cost_center" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "pembebanan_pt" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "pembebanan_cost_center" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "pembebanan_pt" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "pembebanan_cost_center" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "pembebanan_pt" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "pembebanan_cost_center" text collate "C";
