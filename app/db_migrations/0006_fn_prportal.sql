@@ -653,6 +653,38 @@ begin
 end
 ';
 
+-- Status terkini PA milik PR Portal (source='prportal') untuk riwayat di PR Portal. Hanya nomor PA -> status + alasan
+-- reject; maks 200 nomor. Tidak ada data siswa/rekening.
+create or replace function {{schema}}.fn_prp_pa_status(p_numbers jsonb)
+returns jsonb
+language plpgsql
+stable
+set search_path = {{schema}}
+as '
+declare
+    v_tbls text[] := array[''etf_pa'', ''app_pa'', ''sml_pa'', ''setf_pa'', ''energy_pa''];
+    v_t text;
+    v_nums text[];
+    v_out jsonb := ''{}''::jsonb;
+    v_part jsonb;
+begin
+    if p_numbers is null or jsonb_typeof(p_numbers) <> ''array'' then
+        return v_out;
+    end if;
+    select coalesce(array_agg(x), array[]::text[]) into v_nums
+      from (select jsonb_array_elements_text(p_numbers) as x limit 200) q;
+    foreach v_t in array v_tbls loop
+        execute format(
+            ''select coalesce(jsonb_object_agg(p.pa_number, jsonb_build_object(''''status'''', p.status, ''''reject_reason'''', p.reject_reason)), ''''{}''''::jsonb) ''
+            || ''from %I.%I p where p.source = ''''prportal'''' and p.pa_number = any($1)'',
+            ''{{schema}}'', v_t)
+          into v_part using v_nums;
+        v_out := v_out || v_part;
+    end loop;
+    return v_out;
+end
+';
+
 -- Review akhir: fungsi fn_prp_* internal tidak boleh dipanggil langsung oleh siapa pun selain owner.
 -- EXECUTE default PUBLIC dicabut; anon/authenticated (Supabase, bersyarat) juga dicabut. Wrapper
 -- public.prp_* (0007) SECURITY DEFINER milik owner, jadi tetap bisa memanggil fungsi ini.
