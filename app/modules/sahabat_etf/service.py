@@ -129,9 +129,8 @@ def _build_buckets(company_id: int, report_year: int, report_month: int = 12, pi
         tahun    = r["tahun"]
         bulan    = r["bulan"]
         amount   = float(r["amount"] or 0)
-        is_pta   = (r["cat2"] == "Tambahan Anggaran")
-        plafon_amt = 0.0 if is_pta else amount
-        pta_amt    = amount if is_pta else 0.0
+        plafon_amt = amount  # PTA (Tambahan Anggaran) digabung ke Plafon, sama dengan Report Siswa
+        pta_amt    = 0.0
         
         b = bucket(section, subgroup, r["nama"], r["group_setf"])
         b["pillars"].add(r["pillar"] or "")
@@ -240,9 +239,8 @@ def _build_diagram_buckets(company_id: int, years: list = None, month: int = 12,
         section  = _row_section(r["cat1"])
         subgroup = _row_subgroup(section, r)
         amount   = float(r["amount"] or 0)
-        is_pta   = (r["cat2"] == "Tambahan Anggaran")
-        plafon_amt = 0.0 if is_pta else amount
-        pta_amt    = amount if is_pta else 0.0
+        plafon_amt = amount  # PTA (Tambahan Anggaran) digabung ke Plafon, sama dengan Report Siswa
+        pta_amt    = 0.0
         
         b = bucket(section, subgroup, r["nama"], r["group_setf"])
         b["pillars"].add(r["pillar"] or "")
@@ -292,7 +290,7 @@ def build_pohon_data(company_id: int, years: list = None, month: int = 12, pilla
 
     for (section, subgroup, nama), b in filtered_buckets.items():
         cum = b["val"]
-        # Changed to cum["plafon"] to match the exact "Plafon" column in Laporan (5405) instead of Plafon+PTA
+        # PTA sudah tergabung di plafon (pta selalu 0)
         plafon_total = cum["plafon"] + cum["pta"]
         realisasi = cum["dibayar"]
         
@@ -378,9 +376,8 @@ def _build_pillar_breakdown(company_id: int, report_year: int, report_month: int
         pillar_code = r["pillar"] or "(Tanpa Pillar)"
         tahun, amount = r["tahun"], float(r["amount"] or 0)
         bulan = r["bulan"]
-        is_pta = (r["cat2"] == "Tambahan Anggaran")
-        plafon_amt = 0.0 if is_pta else amount
-        pta_amt    = amount if is_pta else 0.0
+        plafon_amt = amount  # PTA (Tambahan Anggaran) digabung ke Plafon, sama dengan Report Siswa
+        pta_amt    = 0.0
         b = bucket(pillar_code)
         if tahun == report_year and bulan <= report_month:
             _add_metrics(b["cur"], plafon=plafon_amt, pta=pta_amt)
