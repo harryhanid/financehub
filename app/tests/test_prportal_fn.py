@@ -242,6 +242,37 @@ def _assert_rejected(p, pesan):
     assert _state() == before
 
 
+def test_submit_stores_attachment_poin_aligned_with_files():
+    _std_siswa("T1")
+    res = _submit(_payload("T1", _std_lines("T1"), attachment_file_id="f1,f2,f3", attachment_poin="a,c,l"))
+    assert res["ok"] is True
+    conn = get_conn()
+    try:
+        hdr = conn.execute("SELECT attachment_file_id, attachment_poin FROM etf_pa WHERE id=?", (res["pa_id"],)).fetchone()
+        assert hdr["attachment_file_id"] == "f1,f2,f3" and hdr["attachment_poin"] == "a,c,l"
+    finally:
+        conn.close()
+
+
+def test_submit_without_attachment_poin_leaves_it_empty():
+    _std_siswa("T1")
+    res = _submit(_payload("T1", _std_lines("T1")))
+    assert res["ok"] is True
+    conn = get_conn()
+    try:
+        assert conn.execute("SELECT attachment_poin FROM etf_pa WHERE id=?", (res["pa_id"],)).fetchone()["attachment_poin"] is None
+    finally:
+        conn.close()
+
+
+def test_submit_rejects_bad_attachment_poin():
+    _std_siswa("T1")
+    lines = _std_lines("T1")
+    for poin, files in [("m", "f1"), ("a,b", "f1"), ("a", "f1,f2"), ("A", "f1"), ("a;b", "f1,f2"), (5, "f1")]:
+        _assert_rejected(_payload("T1", lines, attachment_file_id=files, attachment_poin=poin),
+                         "Data PA tidak valid: attachment_poin.")
+
+
 def test_submit_creates_pa_lines_and_locks_budget():
     _std_siswa("T1")
     lines = _std_lines("T1")

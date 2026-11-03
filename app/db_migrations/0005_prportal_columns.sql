@@ -66,3 +66,11 @@ alter table {{schema}}.energy_pa add column if not exists "pembebanan_cost_cente
 
 -- 5. siswa.updated_by: siapa yang terakhir mengubah data siswa lewat PR Portal ('prportal:<email>'); null bila lewat Flow.
 alter table {{schema}}.siswa add column if not exists "updated_by" text collate "C";
+
+-- 6. attachment_poin: huruf poin checklist lampiran (a-l) per file di attachment_file_id, sejajar urutannya
+-- (mis. 'a,c,h'). Diisi PR Portal; kosong untuk PA yang dibuat di Flow.
+alter table {{schema}}.etf_pa add column if not exists "attachment_poin" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "attachment_poin" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "attachment_poin" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "attachment_poin" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "attachment_poin" text collate "C";

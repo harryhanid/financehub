@@ -26,6 +26,12 @@ def get_gdrive_service():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
+            # Otorisasi interaktif (membuka browser) hanya untuk setup di komputer dev. Di server ia akan menggantung
+            # sampai request time-out (=> "Internal Server Error"), jadi gagal cepat dengan pesan yang jelas.
+            if os.environ.get("GDRIVE_INTERACTIVE_AUTH") != "1":
+                raise RuntimeError(
+                    "Token Google Drive tidak valid atau kedaluwarsa (token.json). "
+                    "Otorisasi ulang di komputer dev dengan GDRIVE_INTERACTIVE_AUTH=1 lalu salin token.json ke server.")
             if not os.path.exists(client_secret_path):
                 raise FileNotFoundError(f"File {client_secret_path} tidak ditemukan.")
             flow = InstalledAppFlow.from_client_secrets_file(client_secret_path, SCOPES)

@@ -1,5 +1,5 @@
 # modules/etf_payment_application/routes.py
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, Response
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, Response, current_app
 from flask_jwt_extended import get_jwt
 from auth.middleware import jwt_html_required, role_required
 from modules.etf_payment_application.service import (
@@ -11,6 +11,22 @@ from modules.etf_payment_application.service import (
 import config
 
 bp = Blueprint("etf_payment_application", __name__, url_prefix="/etf-payment-application")
+
+# Checklist lampiran PA Beasiswa (poin a-l) -- sama dengan 12 kotak lampiran di PR Portal.
+PA_POIN_LABELS = {
+    "a": "Surat Permohonan dari Penerima Beasiswa",
+    "b": "Kwitansi",
+    "c": "Bukti pembayaran dari Penerima Beasiswa ke vendor/kampus/dll",
+    "d": "Surat Keterangan diterima dari Perguruan Tinggi",
+    "e": "Rekap nilai/kartu hasil studi",
+    "f": "Kartu rencana studi",
+    "g": "Rincian biaya resmi dari Perguruan Tinggi (Surat Keputusan Rektor/Brosur)",
+    "h": "Rincian biaya pendidikan yang dibutuhkan Penerima Beasiswa hingga lulus (pendidikan, tunjangan & penelitian)",
+    "i": "Fotokopi lembar/halaman depan buku rekening Bank Sinarmas Penerima Beasiswa",
+    "j": "Surat penunjukkan Promotor & Ko-Promotor",
+    "k": "Supplier Data Form (SDF) - jika pilar pendana adalah APP",
+    "l": "Realisasi Biaya Penelitian",
+}
 
 
 def _ctx():
@@ -130,6 +146,7 @@ def index():
     return render_template(
         "etf_payment_application/index.html",
         pa_rows=pa_rows,
+        pa_poin_labels=PA_POIN_LABELS,
         all_pa_rows=all_rows,
         active_tab=tab,
         active_sf=sf,
@@ -262,7 +279,9 @@ def get_attachment(file_id):
         from flask import send_file
         return send_file(file_stream, as_attachment=False, mimetype=meta.get("mimeType"), download_name=meta.get("name", "lampiran"))
     except Exception as e:
-        return str(e), 500
+        current_app.logger.exception("Gagal membuka lampiran PA (file_id=%s)", file_id)
+        return (f"Lampiran tidak dapat dibuka: {e}", 502,
+                {"Content-Type": "text/plain; charset=utf-8"})
 
 
 @bp.route("/<int:pa_id>/update", methods=["POST"])

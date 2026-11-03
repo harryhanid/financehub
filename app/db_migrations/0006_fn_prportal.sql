@@ -456,6 +456,17 @@ begin
             return jsonb_build_object(''ok'', false, ''pesan'', ''Data PA tidak valid: '' || v_f || ''.'');
         end if;
     end loop;
+    -- attachment_poin: huruf a-l dipisah koma, jumlahnya sama dengan jumlah id di attachment_file_id
+    if coalesce(jsonb_typeof(p->''attachment_poin''), ''null'') not in (''null'', ''string'') then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Data PA tidak valid: attachment_poin.'');
+    end if;
+    if coalesce(p->>''attachment_poin'', '''') <> '''' then
+        if p->>''attachment_poin'' !~ ''^[a-l](,[a-l])*$''
+           or array_length(string_to_array(p->>''attachment_poin'', '',''), 1)
+              is distinct from array_length(string_to_array(coalesce(p->>''attachment_file_id'', ''''), '',''), 1) then
+            return jsonb_build_object(''ok'', false, ''pesan'', ''Data PA tidak valid: attachment_poin.'');
+        end if;
+    end if;
     if jsonb_typeof(p->''requested_by'') is distinct from ''string'' or trim(p->>''requested_by'') = '''' then
         return jsonb_build_object(''ok'', false, ''pesan'', ''Data PA tidak valid: requested_by.'');
     end if;
@@ -541,9 +552,9 @@ begin
     execute format(
         ''insert into %I.%I (company_id, pa_number, tgl_payment_application, tgl_surat_pengajuan, keterangan, ''
         || ''doc_received_by_educ, received_pa_from_educ, status, route, klasifikasi, attachment_file_id, ''
-        || ''created_at, source, requested_by, cost_center, pembebanan_pt, pembebanan_cost_center) ''
+        || ''created_at, source, requested_by, cost_center, pembebanan_pt, pembebanan_cost_center, attachment_poin) ''
         || ''values ($1, fn_etf_pa_next_pa_number($2, $1, $3, $4), $5, $6, $7, $8, $9, $10, $11, $12, $13, ''
-        || ''$14, $15, $16, $17, $18, $19) returning id, pa_number'',
+        || ''$14, $15, $16, $17, $18, $19, $20) returning id, pa_number'',
         ''{{schema}}'', v_pa_tbl)
       into v_pa_id, v_pa_number
      using v_company, v_pa_tbl, v_prefix, v_year,
@@ -561,7 +572,8 @@ begin
            trim(p->>''requested_by''),
            nullif(trim(coalesce(p->>''cost_center'', '''')), ''''),
            v_pt,
-           v_pt_cc;
+           v_pt_cc,
+           nullif(coalesce(p->>''attachment_poin'', ''''), '''');
     for v_i in 1 .. v_n loop
         execute format(
             ''insert into %I.%I (pa_id, student_id, jenis_pembayaran, semester, tahun_ajaran, ''

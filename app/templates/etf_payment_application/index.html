@@ -509,9 +509,13 @@
         </td>
         <td>
           {% if r.attachment_file_id %}
-            <div style="display:flex; flex-direction:column; gap:4px">
+            {% set poins = (r.attachment_poin or '').split(',') %}
+            <div style="display:flex; flex-direction:column; gap:4px; min-width:220px">
             {% for fid in r.attachment_file_id.split(',') %}
-              <a href="/etf-payment-application/attachment/{{ fid }}" target="_blank" style="color:var(--primary); text-decoration:underline; font-size:.75rem">View {{ loop.index }}</a>
+              {% set pk = poins[loop.index0] if loop.index0 < poins|length else '' %}
+              <a href="/etf-payment-application/attachment/{{ fid | trim }}" target="_blank" style="color:var(--primary); text-decoration:underline; font-size:.75rem; line-height:1.3">
+                {%- if pk and pa_poin_labels.get(pk) %}<b>{{ pk }}.</b> {{ pa_poin_labels[pk] }}{% else %}View {{ loop.index }}{% endif -%}
+              </a>
             {% endfor %}
             </div>
           {% else %}
