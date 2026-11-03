@@ -613,6 +613,18 @@ function _renderSpStatusPill(status) {
   return '<span class="pill-status ' + cls + '">' + _sponsorshipEsc(s) + '</span>';
 }
 
+// Status Sponsor baris proposal di Outstanding: "Versi N" + alokasi pilar (sama dengan halaman Proposal).
+const _SP_PROPOSAL_PILLARS = [["app_amount", "APP"], ["agri_amount", "AGRI"], ["energy_amount", "ENERGY"],
+                              ["land_amount", "LAND"], ["finance_amount", "FIN"]];
+function _sponsorshipProposalStatus(p) {
+  const fmt = (n) => Math.round(Number(n)).toLocaleString("id-ID");
+  const alloc = _SP_PROPOSAL_PILLARS.filter(([k]) => Number(p[k]) > 0)
+    .map(([k, l]) => '<span class="nowrap-cell">' + l + ': ' + fmt(p[k]) + '</span>').join(" &nbsp; ");
+  const versi = String(p.versi || "").trim();
+  return (versi ? '<div style="font-weight:600">' + _sponsorshipEsc(versi) + '</div>' : '') +
+         (alloc ? '<div style="font-size:0.85em">' + alloc + '</div>' : '');
+}
+
 function _sponsorshipEsc(s) {
   const d = document.createElement("div");
   d.textContent = String(s ?? "");
@@ -709,7 +721,7 @@ function _sponsorshipRenderReportTable(container, data) {
           _sponsorshipEsc(p.referensi || "") + '</td><td></td><td>' +
           _sponsorshipEsc(p.kegiatan || "") + '</td><td class="num-right">' +
           (typeof fmtRupiah === 'function' ? fmtRupiah(p.total_amount) : p.total_amount) + '</td>' +
-          '<td></td></tr>';
+          '<td>' + _sponsorshipProposalStatus(p) + '</td></tr>';
       });
 
       html += '<tr class="outstanding-overall-total"><td colspan="5">Total Keseluruhan (Outstanding + Proposal Open)</td>' +

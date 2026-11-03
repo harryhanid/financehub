@@ -275,6 +275,17 @@ def export_data_excel(company_id: int, filters: dict) -> bytes:
     return buf.getvalue()
 
 
+_PROPOSAL_PILLARS = (("app_amount", "APP"), ("agri_amount", "AGRI"), ("energy_amount", "ENERGY"),
+                     ("land_amount", "LAND"), ("finance_amount", "FIN"))
+
+
+def _proposal_status_text(p: dict) -> str:
+    """Status Sponsor baris proposal Outstanding: 'Versi N' + alokasi pilar (baris kedua)."""
+    alloc = "  ".join(f"{label}: {float(p.get(k) or 0):,.0f}".replace(",", ".")
+                      for k, label in _PROPOSAL_PILLARS if float(p.get(k) or 0) > 0)
+    return "\n".join(x for x in (str(p.get("versi") or "").strip(), alloc) if x)
+
+
 def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
     from modules.sponsorship.service import get_sponsorship_outstanding, list_proposals
     sections, grand_total = get_sponsorship_outstanding(company_id, filters)
@@ -442,10 +453,10 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
                 "",
                 p.get("kegiatan") or "",
                 float(p.get("total_amount") or 0.0),
-                ""
+                _proposal_status_text(p)
             ])
             r_idx = ws.max_row
-            ws.row_dimensions[r_idx].height = 19
+            ws.row_dimensions[r_idx].height = 32 if "\n" in _proposal_status_text(p) else 19
             is_even = (idx % 2 == 1)
             row_fill = zebra_fill if is_even else None
             
@@ -455,7 +466,9 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
                 cell.border = cell_border
                 if row_fill:
                     cell.fill = row_fill
-                if col_idx in [1, 2, 3, 7]:
+                if col_idx == 7:
+                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                elif col_idx in [1, 2, 3]:
                     cell.alignment = align_center
                 elif col_idx in [4, 5]:
                     cell.alignment = align_left
