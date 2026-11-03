@@ -87,3 +87,36 @@ update {{schema}}.app_pa set keperluan = keterangan, keterangan = '' where sourc
 update {{schema}}.sml_pa set keperluan = keterangan, keterangan = '' where source = 'prportal' and keperluan is null;
 update {{schema}}.setf_pa set keperluan = keterangan, keterangan = '' where source = 'prportal' and keperluan is null;
 update {{schema}}.energy_pa set keperluan = keterangan, keterangan = '' where source = 'prportal' and keperluan is null;
+
+-- 8. Serah terima dokumen fisik PA Beasiswa: pemohon menyerahkan (menunggu), Finance menerima (diterima, mengisi
+-- pa_received_by_po_fin) atau menolak (ditolak + serah_catatan). terima_by/terima_at = Finance yang memproses (terima ATAU tolak).
+alter table {{schema}}.etf_pa add column if not exists "serah_status" text collate "C";
+alter table {{schema}}.etf_pa add column if not exists "serah_at" text collate "C";
+alter table {{schema}}.etf_pa add column if not exists "serah_by" text collate "C";
+alter table {{schema}}.etf_pa add column if not exists "serah_catatan" text collate "C";
+alter table {{schema}}.etf_pa add column if not exists "terima_by" text collate "C";
+alter table {{schema}}.etf_pa add column if not exists "terima_at" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "serah_status" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "serah_at" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "serah_by" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "serah_catatan" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "terima_by" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "terima_at" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "serah_status" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "serah_at" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "serah_by" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "serah_catatan" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "terima_by" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "terima_at" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "serah_status" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "serah_at" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "serah_by" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "serah_catatan" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "terima_by" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "terima_at" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "serah_status" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "serah_at" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "serah_by" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "serah_catatan" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "terima_by" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "terima_at" text collate "C";

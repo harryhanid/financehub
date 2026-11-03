@@ -159,6 +159,70 @@ begin
 end
 ';
 
+create or replace function public.prp_serah_pa(p_key text, p_payload jsonb)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public, pg_temp
+as '
+declare
+    v_result jsonb;
+begin
+    execute format(''select %I.fn_prp_serah_pa($1)'', public.prp_key_schema(p_key))
+       into v_result using p_payload;
+    return v_result;
+end
+';
+
+create or replace function public.prp_terima_pa(p_key text, p_payload jsonb)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public, pg_temp
+as '
+declare
+    v_result jsonb;
+begin
+    execute format(''select %I.fn_prp_terima_pa($1)'', public.prp_key_schema(p_key))
+       into v_result using p_payload;
+    return v_result;
+end
+';
+
+create or replace function public.prp_tolak_serah_pa(p_key text, p_payload jsonb)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public, pg_temp
+as '
+declare
+    v_result jsonb;
+begin
+    execute format(''select %I.fn_prp_tolak_serah_pa($1)'', public.prp_key_schema(p_key))
+       into v_result using p_payload;
+    return v_result;
+end
+';
+
+create or replace function public.prp_list_serah(p_key text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public, pg_temp
+as '
+declare
+    v_result jsonb;
+begin
+    execute format(''select %I.fn_prp_list_serah()'', public.prp_key_schema(p_key))
+       into v_result;
+    return v_result;
+end
+';
+
 -- EXECUTE default PUBLIC dicabut. Supabase memberi default privileges di public ke anon/authenticated
 -- untuk tabel & fungsi baru, jadi dicabut eksplisit; lalu anon hanya mendapat EXECUTE keempat wrapper.
 revoke all on function public.prp_key_schema(text) from public;
@@ -169,6 +233,10 @@ revoke all on function public.prp_budget_siswa(text, text) from public;
 revoke all on function public.prp_submit_pa(text, jsonb) from public;
 revoke all on function public.prp_pa_for_print(text, text, text) from public;
 revoke all on function public.prp_pa_status(text, jsonb) from public;
+revoke all on function public.prp_serah_pa(text, jsonb) from public;
+revoke all on function public.prp_terima_pa(text, jsonb) from public;
+revoke all on function public.prp_tolak_serah_pa(text, jsonb) from public;
+revoke all on function public.prp_list_serah(text) from public;
 
 do '
 declare
@@ -185,6 +253,10 @@ begin
             execute format(''revoke all on function public.prp_submit_pa(text, jsonb) from %I'', r);
             execute format(''revoke all on function public.prp_pa_for_print(text, text, text) from %I'', r);
             execute format(''revoke all on function public.prp_pa_status(text, jsonb) from %I'', r);
+            execute format(''revoke all on function public.prp_serah_pa(text, jsonb) from %I'', r);
+            execute format(''revoke all on function public.prp_terima_pa(text, jsonb) from %I'', r);
+            execute format(''revoke all on function public.prp_tolak_serah_pa(text, jsonb) from %I'', r);
+            execute format(''revoke all on function public.prp_list_serah(text) from %I'', r);
         end if;
     end loop;
     if exists (select 1 from pg_roles where rolname = ''anon'') then
@@ -195,6 +267,10 @@ begin
         execute ''grant execute on function public.prp_submit_pa(text, jsonb) to anon'';
         execute ''grant execute on function public.prp_pa_for_print(text, text, text) to anon'';
         execute ''grant execute on function public.prp_pa_status(text, jsonb) to anon'';
+        execute ''grant execute on function public.prp_serah_pa(text, jsonb) to anon'';
+        execute ''grant execute on function public.prp_terima_pa(text, jsonb) to anon'';
+        execute ''grant execute on function public.prp_tolak_serah_pa(text, jsonb) to anon'';
+        execute ''grant execute on function public.prp_list_serah(text) to anon'';
     end if;
     if exists (select 1 from pg_roles where rolname = ''service_role'') then
         execute ''grant all on table public.prp_keys to service_role'';
