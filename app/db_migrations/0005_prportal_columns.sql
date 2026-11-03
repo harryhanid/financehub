@@ -74,3 +74,16 @@ alter table {{schema}}.app_pa add column if not exists "attachment_poin" text co
 alter table {{schema}}.sml_pa add column if not exists "attachment_poin" text collate "C";
 alter table {{schema}}.setf_pa add column if not exists "attachment_poin" text collate "C";
 alter table {{schema}}.energy_pa add column if not exists "attachment_poin" text collate "C";
+
+-- 7. keperluan: Keperluan/Penjelasan yang diketik pemohon di PR Portal (tampil di Flow dan cetak PA). Kolom keterangan
+-- khusus catatan persetujuan FC. Backfill PA PR Portal lama: salin keterangan -> keperluan, kosongkan keterangan.
+alter table {{schema}}.etf_pa add column if not exists "keperluan" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "keperluan" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "keperluan" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "keperluan" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "keperluan" text collate "C";
+update {{schema}}.etf_pa set keperluan = keterangan, keterangan = '' where source = 'prportal' and keperluan is null;
+update {{schema}}.app_pa set keperluan = keterangan, keterangan = '' where source = 'prportal' and keperluan is null;
+update {{schema}}.sml_pa set keperluan = keterangan, keterangan = '' where source = 'prportal' and keperluan is null;
+update {{schema}}.setf_pa set keperluan = keterangan, keterangan = '' where source = 'prportal' and keperluan is null;
+update {{schema}}.energy_pa set keperluan = keterangan, keterangan = '' where source = 'prportal' and keperluan is null;

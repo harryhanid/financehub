@@ -451,7 +451,7 @@ begin
             return jsonb_build_object(''ok'', false, ''pesan'', ''Data PA tidak valid: '' || v_f || ''.'');
         end if;
     end loop;
-    foreach v_f in array array[''keterangan'', ''attachment_file_id'', ''cost_center''] loop
+    foreach v_f in array array[''keterangan'', ''keperluan'', ''attachment_file_id'', ''cost_center''] loop
         if coalesce(jsonb_typeof(p->v_f), ''null'') not in (''null'', ''string'') then
             return jsonb_build_object(''ok'', false, ''pesan'', ''Data PA tidak valid: '' || v_f || ''.'');
         end if;
@@ -552,15 +552,15 @@ begin
     execute format(
         ''insert into %I.%I (company_id, pa_number, tgl_payment_application, tgl_surat_pengajuan, keterangan, ''
         || ''doc_received_by_educ, received_pa_from_educ, status, route, klasifikasi, attachment_file_id, ''
-        || ''created_at, source, requested_by, cost_center, pembebanan_pt, pembebanan_cost_center, attachment_poin) ''
+        || ''created_at, source, requested_by, cost_center, pembebanan_pt, pembebanan_cost_center, attachment_poin, keperluan) ''
         || ''values ($1, fn_etf_pa_next_pa_number($2, $1, $3, $4), $5, $6, $7, $8, $9, $10, $11, $12, $13, ''
-        || ''$14, $15, $16, $17, $18, $19, $20) returning id, pa_number'',
+        || ''$14, $15, $16, $17, $18, $19, $20, $21) returning id, pa_number'',
         ''{{schema}}'', v_pa_tbl)
       into v_pa_id, v_pa_number
      using v_company, v_pa_tbl, v_prefix, v_year,
            v_today,   -- Tgl PA = tanggal input di server (Jakarta); nilai dari PR Portal tidak dipakai
            coalesce(p->>''tgl_surat_pengajuan'', ''''),
-           coalesce(p->>''keterangan'', ''''),
+           ''''::text,   -- keterangan = catatan persetujuan FC, diisi FC di Flow
            coalesce(p->>''doc_received_by_educ'', ''''),
            coalesce(p->>''received_pa_from_educ'', ''''),
            ''on_review_fc''::text,   -- menunggu Approve/Reject FC di Flow; Approve -> open (bisa ditarik PAM)
@@ -573,7 +573,8 @@ begin
            nullif(trim(coalesce(p->>''cost_center'', '''')), ''''),
            v_pt,
            v_pt_cc,
-           nullif(coalesce(p->>''attachment_poin'', ''''), '''');
+           nullif(coalesce(p->>''attachment_poin'', ''''), ''''),
+           coalesce(p->>''keperluan'', p->>''keterangan'', '''');   -- fallback kunci lama: PR Portal versi lama masih mengirim keterangan
     for v_i in 1 .. v_n loop
         execute format(
             ''insert into %I.%I (pa_id, student_id, jenis_pembayaran, semester, tahun_ajaran, ''
@@ -644,7 +645,7 @@ begin
             ''tgl_surat_pengajuan'', coalesce(v_hdr->>''tgl_surat_pengajuan'', ''''),
             ''doc_received_by_educ'', coalesce(v_hdr->>''doc_received_by_educ'', ''''),
             ''received_pa_from_educ'', coalesce(v_hdr->>''received_pa_from_educ'', ''''),
-            ''keterangan'', coalesce(v_hdr->>''keterangan'', ''''),
+            ''keperluan'', coalesce(v_hdr->>''keperluan'', ''''),
             ''route'', v_hdr->>''route'',
             ''klasifikasi'', v_hdr->>''klasifikasi'',
             ''status'', v_hdr->>''status'',
@@ -665,8 +666,8 @@ begin
 end
 ';
 
--- Status terkini PA milik PR Portal (source='prportal') untuk riwayat di PR Portal. Hanya nomor PA -> status + alasan
--- reject; maks 200 nomor. Tidak ada data siswa/rekening.
+-- Status terkini PA milik PR Portal (source='prportal') untuk riwayat di PR Portal: nomor PA -> status, alasan reject,
+-- lima tanggal tahap, nomor PAM, tanggal bayar, catatan FC (kolom keterangan); maks 200 nomor. Tanpa data siswa/rekening.
 create or replace function {{schema}}.fn_prp_pa_status(p_numbers jsonb)
 returns jsonb
 language plpgsql
@@ -687,7 +688,7 @@ begin
       from (select jsonb_array_elements_text(p_numbers) as x limit 200) q;
     foreach v_t in array v_tbls loop
         execute format(
-            ''select coalesce(jsonb_object_agg(p.pa_number, jsonb_build_object(''''status'''', p.status, ''''reject_reason'''', p.reject_reason)), ''''{}''''::jsonb) ''
+            ''select coalesce(jsonb_object_agg(p.pa_number, jsonb_build_object(''''status'''', p.status, ''''reject_reason'''', p.reject_reason, ''''checked_by_fincon'''', p.checked_by_fincon, ''''approved_by_htj_1'''', p.approved_by_htj_1, ''''send_pa_back_to_educ'''', p.send_pa_back_to_educ, ''''pa_received_by_po_fin'''', p.pa_received_by_po_fin, ''''approval_by_htj_2'''', p.approval_by_htj_2, ''''nomor_pam'''', p.nomor_pam, ''''tanggal_bayar'''', p.tanggal_bayar, ''''catatan_fc'''', p.keterangan)), ''''{}''''::jsonb) ''
             || ''from %I.%I p where p.source = ''''prportal'''' and p.pa_number = any($1)'',
             ''{{schema}}'', v_t)
           into v_part using v_nums;

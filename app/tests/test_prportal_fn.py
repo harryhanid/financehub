@@ -186,7 +186,7 @@ def _payload(code, lines, jenis="agri", **kw):
         "jenis": jenis, "siswa_code": code,
         "tgl_payment_application": "2026-10-27", "tgl_surat_pengajuan": "2026-10-20",
         "doc_received_by_educ": "", "received_pa_from_educ": None,
-        "keterangan": "Pembayaran semester", "route": "gl", "klasifikasi": "Normal",
+        "keperluan": "Pembayaran semester", "route": "gl", "klasifikasi": "Normal",
         "attachment_file_id": "file-123", "requested_by": "harry@sinarmas.test", "cost_center": "CC-01",
         "lines": lines,
     }
@@ -240,6 +240,57 @@ def _assert_rejected(p, pesan):
     assert res["ok"] is False
     assert res["pesan"] == pesan
     assert _state() == before
+
+
+def test_submit_stores_keperluan_and_leaves_keterangan_for_fc():
+    _std_siswa("T1")
+    res = _submit(_payload("T1", _std_lines("T1")))
+    assert res["ok"] is True
+    conn = get_conn()
+    try:
+        hdr = conn.execute("SELECT keperluan, keterangan FROM etf_pa WHERE id=?", (res["pa_id"],)).fetchone()
+        assert hdr["keperluan"] == "Pembayaran semester" and hdr["keterangan"] == ""
+    finally:
+        conn.close()
+
+
+def test_submit_old_client_key_keterangan_falls_back_to_keperluan():
+    _std_siswa("T1")
+    p = _payload("T1", _std_lines("T1"))
+    p.pop("keperluan")
+    p["keterangan"] = "kunci lama"
+    res = _submit(p)
+    assert res["ok"] is True
+    conn = get_conn()
+    try:
+        hdr = conn.execute("SELECT keperluan, keterangan FROM etf_pa WHERE id=?", (res["pa_id"],)).fetchone()
+        assert hdr["keperluan"] == "kunci lama" and hdr["keterangan"] == ""
+    finally:
+        conn.close()
+
+
+def test_submit_rejects_non_string_keperluan():
+    _std_siswa("T1")
+    _assert_rejected(_payload("T1", _std_lines("T1"), keperluan=5), "Data PA tidak valid: keperluan.")
+
+
+def test_pa_status_returns_dates_pam_and_fc_note():
+    _std_siswa("T1")
+    res = _submit(_payload("T1", _std_lines("T1")))
+    conn = get_conn()
+    try:
+        conn.execute("UPDATE etf_pa SET checked_by_fincon='2026-08-21', approved_by_htj_1='2026-08-26', nomor_pam='PAM/X/1', "
+                     "tanggal_bayar='2026-09-14', keterangan='catatan FC' WHERE id=?", (res["pa_id"],))
+        conn.commit()
+        num = conn.execute("SELECT pa_number FROM etf_pa WHERE id=?", (res["pa_id"],)).fetchone()["pa_number"]
+        out = json.loads(conn.execute("SELECT fn_prp_pa_status(?::jsonb)::text", (json.dumps([num]),)).fetchone()[0])
+    finally:
+        conn.close()
+    r = out[num]
+    assert r["status"] == "on_review_fc" and r["checked_by_fincon"] == "2026-08-21" and r["approved_by_htj_1"] == "2026-08-26"
+    assert r["nomor_pam"] == "PAM/X/1" and r["tanggal_bayar"] == "2026-09-14" and r["catatan_fc"] == "catatan FC"
+    for k in ("send_pa_back_to_educ", "pa_received_by_po_fin", "approval_by_htj_2", "reject_reason"):
+        assert k in r
 
 
 def test_submit_stores_attachment_poin_aligned_with_files():
@@ -506,7 +557,7 @@ def test_print_returns_pa_for_owner():
     assert out["pa_number"] == res["pa_number"] and out["jenis"] == "sml"
     assert out["tgl_payment_application"] == _today() and out["tgl_surat_pengajuan"] == "2026-10-20"
     assert out["doc_received_by_educ"] == "" and out["received_pa_from_educ"] == ""
-    assert out["keterangan"] == "Pembayaran semester" and out["route"] == "gl"
+    assert out["keperluan"] == "Pembayaran semester" and out["route"] == "gl" and "keterangan" not in out
     assert out["klasifikasi"] == "Normal" and out["status"] == "on_review_fc"
     assert len(out["created_at"]) == 19
     assert out["requested_by"] == "harry@sinarmas.test" and out["cost_center"] == "CC-01"
