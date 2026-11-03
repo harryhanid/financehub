@@ -99,3 +99,12 @@ def test_active_filter_includes_on_review_fc():
     assert pa_id in ids
     ids = [r["pa_id"] for r in get_pa_flat(COMPANY_ID, "agri", "on_review_fc")]
     assert pa_id in ids
+
+
+def test_flat_rows_carry_keperluan_and_edit_cannot_change_it():
+    pa_id, _ = _make("F7")
+    row = [r for r in get_pa_flat(COMPANY_ID, "agri", "active") if r["pa_id"] == pa_id][0]
+    assert row["keperluan"] == "Pembayaran semester" and row["keterangan"] == ""
+    update_pa(pa_id, COMPANY_ID, {"keperluan": "diubah", "keterangan": "catatan FC"}, "agri")
+    row = [r for r in get_pa_flat(COMPANY_ID, "agri", "active") if r["pa_id"] == pa_id][0]
+    assert row["keperluan"] == "Pembayaran semester" and row["keterangan"] == "catatan FC"

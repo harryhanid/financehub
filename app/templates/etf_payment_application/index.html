@@ -442,6 +442,7 @@
         <th>Approval HTj</th>
         <th>Nomor PAM</th>
         <th>Tgl Bayar</th>
+        <th style="min-width:220px">Keperluan</th>
         <th style="min-width:260px">Keterangan</th>
         <th>Status</th>
         <th>Lampiran</th>
@@ -501,6 +502,7 @@
         <td>{{ r.approval_by_htj_2 or '--' }}</td>
         <td>{{ r.nomor_pam or '--' }}</td>
         <td>{{ r.tanggal_bayar or '--' }}</td>
+        <td style="min-width:220px; white-space:pre-wrap; word-break:break-word; line-height:1.4">{{ r.keperluan or '--' }}</td>
         <td style="min-width:260px; white-space:pre-wrap; word-break:break-word; line-height:1.4">{{ r.keterangan or '--' }}</td>
         <td>
           <span class="badge {% if r.status == 'complete' %}badge-green{% elif r.status == 'on_process' or r.status == 'partial' or r.status == 'on_review_fc' %}badge-yellow{% elif r.status == 'open' %}badge-blue{% elif r.status == 'rejected' %}badge-red{% else %}badge-gray{% endif %}">
@@ -538,7 +540,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="33"><div class="empty-state">
+      <tr><td colspan="34"><div class="empty-state">
         <svg class="empty-state-icon" viewBox="0 0 48 48" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <rect x="6" y="10" width="36" height="30" rx="3"/><line x1="6" y1="20" x2="42" y2="20"/><line x1="15" y1="10" x2="15" y2="40"/>
           <line x1="19" y1="28" x2="36" y2="28"/><line x1="19" y1="33" x2="30" y2="33"/>
@@ -969,7 +971,8 @@
         </select>
       </div>
     </div>
-    <div class="form-group"><label>Keterangan</label><textarea id="edit-keterangan" rows="3" style="width:100%; resize:vertical"></textarea></div>
+    <div class="form-group"><label>Keperluan <span style="font-weight:400;color:var(--text-muted)">(dari pemohon di PR Portal, tidak dapat diubah)</span></label><textarea id="edit-keperluan" rows="2" readonly style="width:100%; resize:vertical; background:var(--bg-subtle, #f3f4f6); cursor:not-allowed"></textarea></div>
+    <div class="form-group"><label>Keterangan <span style="font-weight:400;color:var(--text-muted)">(catatan persetujuan FC)</span></label><textarea id="edit-keterangan" rows="3" style="width:100%; resize:vertical"></textarea></div>
     
     <div style="border-top:1px solid var(--border);margin-top:.75rem;padding-top:.75rem">
       <div style="font-size:.75rem;font-weight:600;color:var(--sl-700);margin-bottom:.5rem">Lampiran</div>
@@ -1425,7 +1428,7 @@ const FIELD_COL = {
   approval_by_htj_2:       26,
   nomor_pam:               27,
   tanggal_bayar:           28,
-  status:                  30,
+  status:                  31,
 };
 
 // ─── Column group toggle — Data Siswa ─────────────────────────────────────────
@@ -1849,6 +1852,7 @@ async function openEditById(paId, lineId) {
   document.getElementById("edit-approval2").value       = pa.approval_by_htj_2 || "";
   document.getElementById("edit-nomor-pam").value       = pa.nomor_pam || "";
   document.getElementById("edit-tgl-bayar").value       = pa.tanggal_bayar || "";
+  document.getElementById("edit-keperluan").value       = pa.keperluan || "";
   document.getElementById("edit-keterangan").value      = pa.keterangan || "";
   document.getElementById("edit-status").value          = pa.status || "open";
   document.getElementById("edit-klasifikasi").value     = pa.klasifikasi || "Normal";
