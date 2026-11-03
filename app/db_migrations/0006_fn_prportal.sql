@@ -864,7 +864,8 @@ begin
             ''select coalesce(jsonb_agg(jsonb_build_object(''''pa_number'''', t.pa_number, ''''requested_by'''', t.requested_by, ''''cost_center'''', t.cost_center, ''
             || ''''''total'''', (select coalesce(sum(l.jumlah_pembayaran), 0) from %I.%I l where l.pa_id = t.id), ''
             || ''''''serah_at'''', t.serah_at, ''''serah_by'''', t.serah_by)), ''''[]''''::jsonb) ''
-            || ''from %I.%I t where t.source = ''''prportal'''' and t.serah_status = ''''menunggu'''''',
+            || ''from %I.%I t where t.source = ''''prportal'''' and t.serah_status = ''''menunggu'''' ''
+            || ''and coalesce(t.pa_received_by_po_fin, '''''''') = '''''''''',
             ''{{schema}}'', v_t || ''_lines'', ''{{schema}}'', v_t)
           into v_part;
         v_all := v_all || v_part;

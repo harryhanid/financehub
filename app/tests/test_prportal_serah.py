@@ -141,3 +141,17 @@ def test_pa_status_includes_serah_keys():
     r = _call("fn_prp_pa_status", [num])[num]
     assert r["serah_status"] == "menunggu" and r["serah_at"].startswith(_today())
     assert "serah_catatan" in r and "terima_at" in r
+
+
+def test_list_excludes_pa_already_received_manually_by_fc():
+    pa_id, num = _ready("H12")
+    _call("fn_prp_serah_pa", {"pa_number": num, "requested_by": OWNER})
+    assert num in [r["pa_number"] for r in _call("fn_prp_list_serah")["rows"]]
+    conn = get_conn()
+    try:
+        conn.execute("UPDATE etf_pa SET pa_received_by_po_fin='2026-11-03' WHERE id=?", (pa_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    assert num not in [r["pa_number"] for r in _call("fn_prp_list_serah")["rows"]], "tidak nyangkut di daftar Finance"
+    assert _call("fn_prp_terima_pa", {"pa_number": num, "oleh": FINANCE})["ok"] is False
