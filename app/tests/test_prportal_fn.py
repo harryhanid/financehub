@@ -551,6 +551,10 @@ def _print(pa_number, requested_by):
 
 def test_print_returns_pa_for_owner():
     _std_siswa("P1")
+    c = get_conn()
+    c.execute("UPDATE siswa SET angkatan=2022, angkatan_kuliah='2023' WHERE code='P1'")
+    c.commit()
+    c.close()
     lines = _std_lines("P1")
     res = _submit(_payload("P1", lines, jenis="sml"))
     assert res["ok"] is True
@@ -564,7 +568,7 @@ def test_print_returns_pa_for_owner():
     assert out["requested_by"] == "harry@sinarmas.test" and out["cost_center"] == "CC-01"
     assert out["siswa"] == {"code": "P1", "nama": "Test P1", "jenjang": "S1", "universitas": "UI",
                             "program": "SMART", "bank": "BCA", "rekening_last4": "7890",
-                            "nama_rekening": "Nama Rek"}
+                            "nama_rekening": "Nama Rek", "angkatan": 2022, "angkatan_kuliah": "2023"}
     assert [(l["jenis_pembayaran"], l["semester"], l["tahun_ajaran"], l["ipk_sem_sebelumnya"],
              l["jumlah_pembayaran"]) for l in out["lines"]] == [
         ("By Pendidikan", "Semester 1", "2026/2027", 3.4, 18662875),

@@ -657,7 +657,8 @@ begin
             ''siswa'', jsonb_build_object(
                 ''code'', v_sj->''code'', ''nama'', v_sj->''nama'', ''jenjang'', v_sj->''jenjang'',
                 ''universitas'', v_sj->''universitas'', ''program'', v_sj->''program'', ''bank'', v_sj->''bank'',
-                ''rekening_last4'', v_sj->''rekening_last4'', ''nama_rekening'', v_sj->''nama_rekening''),
+                ''rekening_last4'', v_sj->''rekening_last4'', ''nama_rekening'', v_sj->''nama_rekening'',
+                ''angkatan'', v_siswa.angkatan, ''angkatan_kuliah'', coalesce(v_siswa.angkatan_kuliah, '''')),
             ''lines'', v_lines,
             ''total'', (select coalesce(sum((e->>''jumlah_pembayaran'')::numeric), 0)::bigint
                          from jsonb_array_elements(v_lines) e));
