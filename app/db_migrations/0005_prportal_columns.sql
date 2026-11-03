@@ -63,3 +63,6 @@ alter table {{schema}}.setf_pa add column if not exists "pembebanan_pt" text col
 alter table {{schema}}.setf_pa add column if not exists "pembebanan_cost_center" text collate "C";
 alter table {{schema}}.energy_pa add column if not exists "pembebanan_pt" text collate "C";
 alter table {{schema}}.energy_pa add column if not exists "pembebanan_cost_center" text collate "C";
+
+-- 5. siswa.updated_by: siapa yang terakhir mengubah data siswa lewat PR Portal ('prportal:<email>'); null bila lewat Flow.
+alter table {{schema}}.siswa add column if not exists "updated_by" text collate "C";

@@ -44,6 +44,7 @@ def keys():
 
 _CALLS = {
     "prp_search_siswa": ("SELECT public.prp_search_siswa(?, ?)::text", ("zed",)),
+    "prp_update_siswa": ("SELECT public.prp_update_siswa(?, ?::jsonb)::text", (json.dumps({"code": "S1"}),)),
     "prp_search_vendor": ("SELECT public.prp_search_vendor(?, ?)::text", ("maju",)),
     "prp_budget_siswa": ("SELECT public.prp_budget_siswa(?, ?)::text", ("S1",)),
     "prp_submit_pa": ("SELECT public.prp_submit_pa(?, ?::jsonb)::text", (json.dumps({"jenis": "agri"}),)),
@@ -119,7 +120,7 @@ def test_api_functions_not_executable_by_public(fhdb_schema):
     finally:
         conn.close()
     by = {r["proname"]: r for r in rows}
-    for fn in ("prp_search_siswa", "prp_search_vendor", "prp_budget_siswa", "prp_submit_pa", "prp_pa_for_print", "prp_key_schema"):
+    for fn in ("prp_search_siswa", "prp_update_siswa", "prp_search_vendor", "prp_budget_siswa", "prp_submit_pa", "prp_pa_for_print", "prp_key_schema"):
         assert fn in by, fn
         assert by[fn]["prosecdef"] is True, fn
         assert by[fn]["pub"] is False, fn

@@ -157,8 +157,144 @@ begin
                and (coalesce(b.tgl_expired, '''') = '''' or b.tgl_expired >= v_today)
            ) x;
     return jsonb_build_object(
-        ''siswa'', fn_prp_siswa_json(v_siswa) || jsonb_build_object(''status'', v_siswa.status),
+        ''siswa'', fn_prp_siswa_detail(v_siswa),
         ''rows'', v_rows);
+end
+';
+
+-- Menyamarkan teks pribadi: huruf pertama tiap kata + '***' ("Ryan Eka" -> "R*** E***"). Kosong tetap kosong.
+create or replace function {{schema}}.fn_prp_mask_text(p_text text)
+returns text
+language sql
+immutable
+as '
+    select regexp_replace(trim(coalesce(p_text, '''')), ''(\S)\S*'', ''\1***'', ''g'')
+';
+
+-- Profil siswa lengkap untuk form PR Portal. Bank & nama rekening DISAMARKAN, nomor rekening hanya 4 digit akhir.
+-- Catatan Budget / Catatan Payment (catatan internal Finance) sengaja tidak ikut.
+create or replace function {{schema}}.fn_prp_siswa_detail(p_siswa {{schema}}.siswa)
+returns jsonb
+language plpgsql
+stable
+set search_path = {{schema}}
+as '
+declare
+    v_base jsonb := fn_prp_siswa_json(p_siswa);
+begin
+    return jsonb_build_object(
+        ''code'', p_siswa.code, ''nama'', p_siswa.nama, ''jenjang'', p_siswa.jenjang, ''angkatan'', p_siswa.angkatan,
+        ''program'', p_siswa.program, ''group_setf'', coalesce(p_siswa.group_setf, ''''),
+        ''status'', p_siswa.status, ''prodi'', coalesce(p_siswa.prodi, ''''),
+        ''angkatan_kuliah'', coalesce(p_siswa.angkatan_kuliah, ''''), ''fakultas'', coalesce(p_siswa.fakultas, ''''),
+        ''universitas'', coalesce(p_siswa.universitas, ''''), ''referensi'', coalesce(p_siswa.referensi, ''''),
+        ''tanggal_lahir'', coalesce(p_siswa.tanggal_lahir, ''''), ''catatan'', coalesce(p_siswa.catatan, ''''),
+        ''ipk_sem1'', p_siswa.ipk_sem1, ''ipk_sem2'', p_siswa.ipk_sem2, ''ipk_sem3'', p_siswa.ipk_sem3,
+        ''ipk_sem4'', p_siswa.ipk_sem4, ''ipk_sem5'', p_siswa.ipk_sem5, ''ipk_sem6'', p_siswa.ipk_sem6,
+        ''ipk_sem7'', p_siswa.ipk_sem7, ''ipk_sem8'', p_siswa.ipk_sem8, ''ipk_sem9'', p_siswa.ipk_sem9,
+        ''ipk_sem10'', p_siswa.ipk_sem10, ''ipk_pen1'', p_siswa.ipk_pen1, ''ipk_pen2'', p_siswa.ipk_pen2,
+        ''ipk_pen3'', p_siswa.ipk_pen3, ''ipk_terakhir'', v_base->''ipk_terakhir'',
+        ''bank_masked'', fn_prp_mask_text(p_siswa.bank), ''rekening_last4'', v_base->''rekening_last4'',
+        ''nama_rekening_masked'', fn_prp_mask_text(p_siswa.namarek), ''rekening_ok'', v_base->''rekening_ok'');
+end
+';
+
+-- Galat satu field perubahan data siswa (null bila valid). Daftar jenjang/program/status = app/config.py
+-- (dijaga test_prportal_siswa.py). Field di luar daftar (code, bank, norek, namarek, group_setf, catatan_*) ditolak.
+create or replace function {{schema}}.fn_prp_siswa_field_error(p_key text, p_val jsonb)
+returns text
+language plpgsql
+stable
+set search_path = {{schema}}
+as '
+declare
+    v_t text := jsonb_typeof(p_val);
+    v_s text := p_val #>> ''{}'';
+    v_n numeric;
+begin
+    if p_key = ''nama'' then
+        if v_t <> ''string'' or length(trim(v_s)) = 0 or length(v_s) > 150 then return ''Nama harus diisi (maks 150 karakter).''; end if;
+    elsif p_key = ''jenjang'' then
+        if v_t <> ''string'' or not (v_s = any (array[''SD'', ''SMP'', ''SMA'', ''SMK'', ''S1'', ''S2'', ''S3'', ''SETF''])) then return ''Jenjang tidak valid.''; end if;
+    elsif p_key = ''program'' then
+        if v_t <> ''string'' or not (v_s = any (array[''Kejaksaan'', ''Kejaksaan LN'', ''Polri'', ''Special Case'', ''Special Cases LN'',
+            ''Tjipta Siswa Mandiri'', ''Bank Sinarmas'', ''IKPP'', ''SMART'', ''Tjipta Bangun Desa'', ''IKPP - Tjipta Bangun Desa'',
+            ''Soci Mas'', ''SMMA'', ''Sahabat ETF'', ''Tjipta Sarjana Mandiri''])) then return ''Program tidak valid.''; end if;
+    elsif p_key = ''status'' then
+        if v_t <> ''string'' or not (v_s = any (array[''Aktif'', ''lulus'', ''gugur'', ''undur diri''])) then return ''Status tidak valid.''; end if;
+    elsif p_key = ''angkatan'' then
+        if v_t <> ''number'' or v_s !~ ''^20[0-9]{2}$'' then return ''Angkatan harus tahun 2000-2099.''; end if;
+    elsif p_key = ''tanggal_lahir'' then
+        if v_t <> ''string'' or (v_s <> '''' and not fn_prp_is_date(v_s)) then return ''Tanggal lahir tidak valid.''; end if;
+    elsif p_key in (''prodi'', ''angkatan_kuliah'', ''fakultas'', ''universitas'', ''referensi'') then
+        if v_t <> ''string'' or length(v_s) > 200 then return p_key || '' maksimal 200 karakter.''; end if;
+    elsif p_key = ''catatan'' then
+        if v_t <> ''string'' or length(v_s) > 1000 then return ''Catatan maksimal 1000 karakter.''; end if;
+    elsif p_key ~ ''^ipk_(sem([1-9]|10)|pen[1-3])$'' then
+        if v_t <> ''number'' then return ''IPK harus angka.''; end if;
+        v_n := v_s::numeric;
+        if v_n < 0 or v_n > 4 then return ''IPK harus 0 sampai 4.''; end if;
+    else
+        return ''Field tidak boleh diubah: '' || left(p_key, 40);
+    end if;
+    return null;
+end
+';
+
+-- Ubah data siswa dari PR Portal (sama dengan Edit di Data Siswa Flow, kecuali Code, Group Sahabat, Bank, No Rekening,
+-- Nama Rekening). Masukan: {code, requested_by, fields:{...}} -- hanya field yang dikirim yang diubah.
+-- Keluaran: {ok:true, changed, siswa:{...disamarkan...}} atau {ok:false, pesan} tanpa tulisan apa pun.
+create or replace function {{schema}}.fn_prp_update_siswa(p jsonb)
+returns jsonb
+language plpgsql
+volatile
+set search_path = {{schema}}
+as '
+declare
+    v_company bigint;
+    v_siswa siswa%rowtype;
+    v_f jsonb;
+    v_k text;
+    v_v jsonb;
+    v_err text;
+    v_n int := 0;
+    v_ts text := to_char(now() at time zone interval ''+07:00'', ''YYYY-MM-DD"T"HH24:MI:SS'');
+begin
+    if p is null or jsonb_typeof(p) <> ''object'' then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Data siswa tidak valid.'');
+    end if;
+    if jsonb_typeof(p->''code'') is distinct from ''string'' or trim(p->>''code'') = ''''
+       or jsonb_typeof(p->''requested_by'') is distinct from ''string'' or trim(p->>''requested_by'') = '''' then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Data siswa tidak valid.'');
+    end if;
+    v_f := p->''fields'';
+    if jsonb_typeof(v_f) is distinct from ''object'' or v_f = ''{}''::jsonb then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Tidak ada perubahan.'');
+    end if;
+    for v_k, v_v in select key, value from jsonb_each(v_f) loop
+        v_err := fn_prp_siswa_field_error(v_k, v_v);
+        if v_err is not null then
+            return jsonb_build_object(''ok'', false, ''pesan'', v_err);
+        end if;
+    end loop;
+    select id into v_company from companies where code = ''ETF'';
+    select * into v_siswa from siswa where company_id = v_company and code = trim(p->>''code'') for update;
+    if not found then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Siswa tidak ditemukan.'');
+    end if;
+    for v_k, v_v in select key, value from jsonb_each(v_f) loop
+        if v_k = ''angkatan'' then
+            update siswa set angkatan = (v_v #>> ''{}'')::bigint where id = v_siswa.id;
+        elsif v_k like ''ipk\_%'' then
+            execute format(''update siswa set %I = $1 where id = $2'', v_k) using (v_v #>> ''{}'')::double precision, v_siswa.id;
+        else
+            execute format(''update siswa set %I = $1 where id = $2'', v_k) using trim(v_v #>> ''{}''), v_siswa.id;
+        end if;
+        v_n := v_n + 1;
+    end loop;
+    update siswa set updated_at = v_ts, updated_by = ''prportal:'' || trim(p->>''requested_by'') where id = v_siswa.id;
+    select * into v_siswa from siswa where id = v_siswa.id;
+    return jsonb_build_object(''ok'', true, ''changed'', v_n, ''siswa'', fn_prp_siswa_detail(v_siswa));
 end
 ';
 

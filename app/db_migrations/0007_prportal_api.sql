@@ -111,6 +111,22 @@ begin
 end
 ';
 
+create or replace function public.prp_update_siswa(p_key text, p_payload jsonb)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public, pg_temp
+as '
+declare
+    v_result jsonb;
+begin
+    execute format(''select %I.fn_prp_update_siswa($1)'', public.prp_key_schema(p_key))
+       into v_result using p_payload;
+    return v_result;
+end
+';
+
 create or replace function public.prp_pa_for_print(p_key text, p_pa_number text, p_requested_by text)
 returns jsonb
 language plpgsql
@@ -131,6 +147,7 @@ end
 -- untuk tabel & fungsi baru, jadi dicabut eksplisit; lalu anon hanya mendapat EXECUTE keempat wrapper.
 revoke all on function public.prp_key_schema(text) from public;
 revoke all on function public.prp_search_siswa(text, text) from public;
+revoke all on function public.prp_update_siswa(text, jsonb) from public;
 revoke all on function public.prp_search_vendor(text, text) from public;
 revoke all on function public.prp_budget_siswa(text, text) from public;
 revoke all on function public.prp_submit_pa(text, jsonb) from public;
@@ -145,6 +162,7 @@ begin
             execute format(''revoke all on table public.prp_keys from %I'', r);
             execute format(''revoke all on function public.prp_key_schema(text) from %I'', r);
             execute format(''revoke all on function public.prp_search_siswa(text, text) from %I'', r);
+            execute format(''revoke all on function public.prp_update_siswa(text, jsonb) from %I'', r);
             execute format(''revoke all on function public.prp_search_vendor(text, text) from %I'', r);
             execute format(''revoke all on function public.prp_budget_siswa(text, text) from %I'', r);
             execute format(''revoke all on function public.prp_submit_pa(text, jsonb) from %I'', r);
@@ -153,6 +171,7 @@ begin
     end loop;
     if exists (select 1 from pg_roles where rolname = ''anon'') then
         execute ''grant execute on function public.prp_search_siswa(text, text) to anon'';
+        execute ''grant execute on function public.prp_update_siswa(text, jsonb) to anon'';
         execute ''grant execute on function public.prp_search_vendor(text, text) to anon'';
         execute ''grant execute on function public.prp_budget_siswa(text, text) to anon'';
         execute ''grant execute on function public.prp_submit_pa(text, jsonb) to anon'';
