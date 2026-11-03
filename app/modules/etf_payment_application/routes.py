@@ -1,11 +1,12 @@
 # modules/etf_payment_application/routes.py
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session, Response
 from flask_jwt_extended import get_jwt
-from auth.middleware import jwt_html_required
+from auth.middleware import jwt_html_required, role_required
 from modules.etf_payment_application.service import (
     get_pa_list, get_pa_flat, get_pa_header, bulk_update_pa, export_pa_excel,
     create_pa, update_pa, delete_pa, get_pa_lines, get_siswa_autocomplete,
     get_draft_siswa, get_draft_lines_for_siswa, get_pa_summary, VALID_TABS,
+    approve_pa_fc, reject_pa_fc,
 )
 import config
 
@@ -73,7 +74,7 @@ def index():
     f_nama = f_jenjang = f_program = f_angkatan = f_jenis = f_pam = f_bulan_pa = f_tahun_pa = ""
     if tab not in ("input", "summary", "advance"):
         sf = request.args.get("sf", "active").lower()
-        if sf not in ("open", "on_process", "complete", "active", ""):
+        if sf not in ("open", "on_process", "on_review_fc", "complete", "rejected", "active", ""):
             sf = "active"
         if tab == "combine":
             all_rows = []
@@ -323,6 +324,25 @@ def delete(pa_id):
     if tab not in VALID_TABS:
         tab = "agri"
     return jsonify(delete_pa(pa_id, company_id, tab))
+
+
+@bp.route("/<int:pa_id>/approve-fc", methods=["POST"])
+@role_required("FC", "Admin")
+def approve_fc(pa_id):
+    tab = request.args.get("tab", "agri").lower()
+    if tab not in VALID_TABS:
+        tab = "agri"
+    return jsonify(approve_pa_fc(pa_id, session.get("company_id"), tab))
+
+
+@bp.route("/<int:pa_id>/reject-fc", methods=["POST"])
+@role_required("FC", "Admin")
+def reject_fc(pa_id):
+    tab = request.args.get("tab", "agri").lower()
+    if tab not in VALID_TABS:
+        tab = "agri"
+    data = request.get_json(silent=True) or {}
+    return jsonify(reject_pa_fc(pa_id, session.get("company_id"), data.get("reason", ""), tab))
 
 
 @bp.route("/<int:pa_id>/lines")

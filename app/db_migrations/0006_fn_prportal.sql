@@ -182,7 +182,7 @@ end
 --   {jenis, siswa_code, tgl_payment_application, tgl_surat_pengajuan, doc_received_by_educ,
 --    received_pa_from_educ, keterangan, route, klasifikasi, attachment_file_id, requested_by, cost_center,
 --    lines:[{budget_id, tahun_ajaran, jumlah}]}
--- Keluaran: {ok:true, pa_id, pa_number, jenis, total} atau {ok:false, pesan} tanpa tulisan apa pun.
+-- Keluaran: {ok:true, pa_id, pa_number, jenis, total, tgl_payment_application} atau {ok:false, pesan} tanpa tulisan apa pun.
 -- Urutan: validasi bentuk -> lock siswa + budget (FOR UPDATE, urut id) -> validasi bisnis -> insert header
 -- (nomor via fn_etf_pa_next_pa_number di dalam INSERT) -> insert baris -> budget on_progress.
 -- Kolom header/baris sama dengan create_pa (modules/etf_payment_application/service.py) + source/requested_by/
@@ -349,12 +349,12 @@ begin
         ''{{schema}}'', v_pa_tbl)
       into v_pa_id, v_pa_number
      using v_company, v_pa_tbl, v_prefix, v_year,
-           p->>''tgl_payment_application'',
+           v_today,   -- Tgl PA = tanggal input di server (Jakarta); nilai dari PR Portal tidak dipakai
            coalesce(p->>''tgl_surat_pengajuan'', ''''),
            coalesce(p->>''keterangan'', ''''),
            coalesce(p->>''doc_received_by_educ'', ''''),
            coalesce(p->>''received_pa_from_educ'', ''''),
-           ''open''::text,
+           ''on_review_fc''::text,   -- menunggu Approve/Reject FC di Flow; Approve -> open (bisa ditarik PAM)
            p->>''route'',
            p->>''klasifikasi'',
            coalesce(p->>''attachment_file_id'', ''''),
@@ -376,7 +376,8 @@ begin
     end loop;
     update budget_beasiswa set status = ''on_progress'' where id = any(v_ids);
     return jsonb_build_object(''ok'', true, ''pa_id'', v_pa_id, ''pa_number'', v_pa_number,
-                              ''jenis'', v_jenis, ''total'', v_total);
+                              ''jenis'', v_jenis, ''total'', v_total,
+                              ''tgl_payment_application'', v_today);
 end
 ';
 

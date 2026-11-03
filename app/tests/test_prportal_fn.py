@@ -168,6 +168,10 @@ def _yyyy():
     return (datetime.now(timezone.utc) + timedelta(hours=7)).strftime("%Y")
 
 
+def _today():
+    return (datetime.now(timezone.utc) + timedelta(hours=7)).strftime("%Y-%m-%d")
+
+
 def _budget_id(code, cat2, cat1="By Pendidikan"):
     conn = get_conn()
     try:
@@ -249,12 +253,13 @@ def test_submit_creates_pa_lines_and_locks_budget():
     conn = get_conn()
     try:
         hdr = conn.execute("SELECT * FROM etf_pa WHERE id=?", (res["pa_id"],)).fetchone()
-        assert hdr["status"] == "open" and hdr["source"] == "prportal"
+        assert hdr["status"] == "on_review_fc" and hdr["source"] == "prportal"
         assert hdr["requested_by"] == "harry@sinarmas.test" and hdr["cost_center"] == "CC-01"
         assert hdr["company_id"] == COMPANY_ID and hdr["pa_number"] == res["pa_number"]
         assert hdr["route"] == "gl" and hdr["klasifikasi"] == "Normal"
         assert hdr["attachment_file_id"] == "file-123"
-        assert hdr["tgl_payment_application"] == "2026-10-27"
+        assert hdr["tgl_payment_application"] == _today()   # tanggal input server, bukan nilai payload
+        assert res["tgl_payment_application"] == _today()
         assert hdr["tgl_surat_pengajuan"] == "2026-10-20"
         assert hdr["doc_received_by_educ"] == "" and hdr["received_pa_from_educ"] == ""
         assert len(hdr["created_at"]) == 19 and hdr["created_at"][10] == "T"
@@ -284,7 +289,7 @@ def test_submit_each_jenis_goes_to_its_table(jenis):
     conn = get_conn()
     try:
         hdr = conn.execute(f"SELECT * FROM {pa_tbl} WHERE id=?", (res["pa_id"],)).fetchone()
-        assert hdr["pa_number"] == res["pa_number"] and hdr["source"] == "prportal" and hdr["status"] == "open"
+        assert hdr["pa_number"] == res["pa_number"] and hdr["source"] == "prportal" and hdr["status"] == "on_review_fc"
         assert conn.execute(f"SELECT count(*) AS n FROM {lines_tbl} WHERE pa_id=? AND budget_id IS NOT NULL",
                             (res["pa_id"],)).fetchone()["n"] == 2
         for other_pa, other_lines, _ in _JENIS_CFG.values():
@@ -468,10 +473,10 @@ def test_print_returns_pa_for_owner():
     assert res["ok"] is True
     out = _print(res["pa_number"], "HARRY@sinarmas.test")  # pencocokan requested_by tidak peka huruf besar
     assert out["pa_number"] == res["pa_number"] and out["jenis"] == "sml"
-    assert out["tgl_payment_application"] == "2026-10-27" and out["tgl_surat_pengajuan"] == "2026-10-20"
+    assert out["tgl_payment_application"] == _today() and out["tgl_surat_pengajuan"] == "2026-10-20"
     assert out["doc_received_by_educ"] == "" and out["received_pa_from_educ"] == ""
     assert out["keterangan"] == "Pembayaran semester" and out["route"] == "gl"
-    assert out["klasifikasi"] == "Normal" and out["status"] == "open"
+    assert out["klasifikasi"] == "Normal" and out["status"] == "on_review_fc"
     assert len(out["created_at"]) == 19
     assert out["requested_by"] == "harry@sinarmas.test" and out["cost_center"] == "CC-01"
     assert out["siswa"] == {"code": "P1", "nama": "Test P1", "jenjang": "S1", "universitas": "UI",

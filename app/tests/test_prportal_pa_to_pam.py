@@ -5,7 +5,7 @@ import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from database import get_conn
-from modules.etf_payment_application.service import get_draft_lines_for_siswa
+from modules.etf_payment_application.service import get_draft_lines_for_siswa, approve_pa_fc
 from modules.payment_memo.service import save_pa_payment
 from tests.test_prportal_fn import _siswa, _budget, _payload, _submit
 
@@ -25,6 +25,9 @@ def test_prportal_pa_pulled_into_pam_via_input_pa():
     pa_number = res["pa_number"]
 
     # Seperti UI Input PA: ambil baris draft siswa, lalu kirim baris dengan etf_pa_line_id.
+    # Selama On Review FC, PA belum bisa ditarik PAM; setelah FC approve baru muncul.
+    assert get_draft_lines_for_siswa(COMPANY_ID, sid, "agri") == []
+    assert approve_pa_fc(res["pa_id"], COMPANY_ID, "agri")["ok"] is True
     lines = get_draft_lines_for_siswa(COMPANY_ID, sid, "agri")
     assert len(lines) == 1, lines
     line = lines[0]

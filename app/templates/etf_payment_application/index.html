@@ -190,8 +190,9 @@
   <select id="f-status" onchange="statusFilterChanged(this)"
           style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:145px">
     <option value="">Semua Status</option>
-    <option value="active" {% if active_sf == 'active' %}selected{% endif %}>Open + On Process</option>
+    <option value="active" {% if active_sf == 'active' %}selected{% endif %}>Open + On Process + On Review FC</option>
     <option value="open" {% if active_sf == 'open' %}selected{% endif %}>Open</option>
+    <option value="on_review_fc" {% if active_sf == 'on_review_fc' %}selected{% endif %}>On Review FC</option>
     <option value="on_process" {% if active_sf == 'on_process' %}selected{% endif %}>On Process</option>
     <option value="complete" {% if active_sf == 'complete' %}selected{% endif %}>Complete</option>
     <option value="rejected" {% if active_sf == 'rejected' %}selected{% endif %}>Rejected</option>
@@ -502,7 +503,7 @@
         <td>{{ r.tanggal_bayar or '--' }}</td>
         <td style="min-width:260px; white-space:pre-wrap; word-break:break-word; line-height:1.4">{{ r.keterangan or '--' }}</td>
         <td>
-          <span class="badge {% if r.status == 'complete' %}badge-green{% elif r.status == 'on_process' or r.status == 'partial' %}badge-yellow{% elif r.status == 'open' %}badge-blue{% elif r.status == 'rejected' %}badge-red{% else %}badge-gray{% endif %}">
+          <span class="badge {% if r.status == 'complete' %}badge-green{% elif r.status == 'on_process' or r.status == 'partial' or r.status == 'on_review_fc' %}badge-yellow{% elif r.status == 'open' %}badge-blue{% elif r.status == 'rejected' %}badge-red{% else %}badge-gray{% endif %}">
             {{ r.status | replace('_', ' ') | title }}
           </span>
         </td>
@@ -520,6 +521,10 @@
         <td>{{ r.route or '-' }}</td>
         <td>{{ r.klasifikasi or 'Normal' }}</td>
         <td style="white-space:nowrap">
+          {% if r.status == 'on_review_fc' and current_role in ["FC", "Admin", "admin"] %}
+          <button type="button" class="btn btn-primary btn-sm" onclick="approvePaFc({{ r.pa_id }}, this.dataset.paNumber)" data-pa-number="{{ r.pa_number }}">Approve</button>
+          <button type="button" class="btn btn-secondary btn-sm" style="color:var(--danger,#c0392b)" onclick="rejectPaFc({{ r.pa_id }}, this.dataset.paNumber)" data-pa-number="{{ r.pa_number }}">Reject</button>
+          {% endif %}
           <button type="button" class="btn btn-secondary btn-sm" onclick="openEditById({{ r.pa_id }}, {{ r.line_id }})">Edit</button>
           <button type="button" class="btn btn-secondary btn-sm btn-more" aria-haspopup="menu" aria-expanded="false"
                   aria-label="Aksi lain untuk {{ r.pa_number }}" data-pa-id="{{ r.pa_id }}" data-pa-number="{{ r.pa_number }}"
@@ -1770,6 +1775,38 @@ async function submitPA() {
 }
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
+async function approvePaFc(paId, paNumber) {
+  if (!await confirmModal(`Setujui PA "${paNumber}"? Status menjadi Open dan Checked Fincon diisi tanggal hari ini.`,
+    { confirmText: 'Approve' })) return;
+  showLoading("Menyetujui PA...");
+  try {
+    const res = await apiFetch(`/etf-payment-application/${paId}/approve-fc?tab=${ACTIVE_TAB}`, { method: 'POST' });
+    if (!res) return;
+    const data = await res.json();
+    showToast(data.pesan, data.ok ? 'success' : 'error');
+    if (data.ok) window.location.reload();
+  } finally {
+    hideLoading();
+  }
+}
+
+async function rejectPaFc(paId, paNumber) {
+  const reason = (window.prompt(`Alasan reject PA "${paNumber}" (wajib):`) || '').trim();
+  if (!reason) { showToast('Alasan reject wajib diisi.', 'error'); return; }
+  showLoading("Menolak PA...");
+  try {
+    const res = await apiFetch(`/etf-payment-application/${paId}/reject-fc?tab=${ACTIVE_TAB}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason })
+    });
+    if (!res) return;
+    const data = await res.json();
+    showToast(data.pesan, data.ok ? 'success' : 'error');
+    if (data.ok) window.location.reload();
+  } finally {
+    hideLoading();
+  }
+}
+
 async function deletePa(paId, paNumber) {
   if (!await confirmModal(
     `Hapus PA "${paNumber}" beserta seluruh baris siswanya secara permanen?`,

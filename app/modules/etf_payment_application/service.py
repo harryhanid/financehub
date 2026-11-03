@@ -43,6 +43,9 @@ def _pb_for_line(conn, line_id, company_id: int, tab: str):
     ).fetchone()
 
 
+STATUS_REVIEW_FC = "on_review_fc"   # PA dari PR Portal menunggu Approve/Reject FC
+
+
 def _ts():
     return datetime.now().isoformat(timespec="seconds")
 
@@ -125,7 +128,7 @@ def get_pa_flat(company_id: int, tab: str = "agri", status_filter: str = "",
     extra_where = ""
     params: list = [company_id]
     if status_filter == "active":
-        extra_where = " AND LOWER(p.status) IN ('open', 'on_process')"
+        extra_where = " AND LOWER(p.status) IN ('open', 'on_process', 'on_review_fc')"
     elif status_filter:
         extra_where = " AND LOWER(p.status)=?"
         params.append(status_filter.lower())
@@ -223,8 +226,10 @@ def bulk_update_pa(pa_ids: list, field: str, value: str, company_id: int, tab: s
     conn = get_conn()
     placeholders = ",".join("?" * len(pa_ids))
     extra_set = ", status='complete'" if field == "tanggal_bayar" and value else ""
+    review_guard = f" AND status <> '{STATUS_REVIEW_FC}'" if field in (
+        "status", "checked_by_fincon", "tanggal_bayar", "nomor_pam") else ""
     conn.execute(
-        f"UPDATE {pa_tbl} SET {field}=?{extra_set}, updated_at=? WHERE id IN ({placeholders}) AND company_id=?",
+        f"UPDATE {pa_tbl} SET {field}=?{extra_set}, updated_at=? WHERE id IN ({placeholders}) AND company_id=?{review_guard}",
         [value, _ts()] + list(pa_ids) + [company_id]
     )
     count = conn.execute(
@@ -516,6 +521,10 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
     new_status = data.get("status", row["status"])
     if data.get("tanggal_bayar"):
         new_status = "complete"
+    if row["status"] == STATUS_REVIEW_FC:
+        # Hanya Approve/Reject FC (approve_pa_fc/reject_pa_fc) yang boleh mengubah status & Checked Fincon.
+        new_status = STATUS_REVIEW_FC
+        data = {**data, "checked_by_fincon": "", "tanggal_bayar": "", "nomor_pam": ""}
     nomor_pam = data.get("nomor_pam") or row["nomor_pam"]
 
     # nomor_pam baru dialokasikan di dalam UPDATE header (fn_etf_pa_next_nomor_pam, satu batch).
@@ -711,6 +720,63 @@ def delete_pa(pa_id: int, company_id: int, tab: str = "agri") -> dict:
     ])
     conn.close()
     return {"ok": True, "pesan": f"PA {pa['pa_number']} berhasil dihapus."}
+
+
+def _today_wib() -> str:
+    from datetime import timezone, timedelta
+    return datetime.now(timezone(timedelta(hours=7))).strftime("%Y-%m-%d")
+
+
+def approve_pa_fc(pa_id: int, company_id: int, tab: str = "agri") -> dict:
+    """FC menyetujui PA On Review FC: status -> open (bisa ditarik PAM) dan Checked Fincon = tanggal klik."""
+    pa_tbl, *_ = _tbls(tab)
+    conn = get_conn()
+    row = conn.execute(f"SELECT pa_number, status FROM {pa_tbl} WHERE id=? AND company_id=?",
+                       (pa_id, company_id)).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "PA tidak ditemukan."}
+    curs = conn.batch([
+        (f"UPDATE {pa_tbl} SET status='open', checked_by_fincon=?, updated_at=? "
+         f"WHERE id=? AND company_id=? AND status=?",
+         (_today_wib(), _ts(), pa_id, company_id, STATUS_REVIEW_FC)),
+    ])
+    done = curs[0].rowcount
+    conn.close()
+    if not done:
+        return {"ok": False, "pesan": f"PA {row['pa_number']} tidak berstatus On Review FC."}
+    return {"ok": True, "pesan": f"PA {row['pa_number']} disetujui dan berstatus Open."}
+
+
+def reject_pa_fc(pa_id: int, company_id: int, reason: str, tab: str = "agri") -> dict:
+    """FC menolak PA On Review FC: status -> rejected + alasan; budget yang dikunci kembali open dan
+    baris PA dilepas dari budget (budget_id NULL) supaya hapus PA nanti tidak membuka budget yang sudah dipakai PA lain."""
+    reason = (reason or "").strip()
+    if not reason:
+        return {"ok": False, "pesan": "Alasan reject wajib diisi."}
+    pa_tbl, lines_tbl, *_ = _tbls(tab)
+    conn = get_conn()
+    row = conn.execute(f"SELECT pa_number, status FROM {pa_tbl} WHERE id=? AND company_id=?",
+                       (pa_id, company_id)).fetchone()
+    if not row:
+        conn.close()
+        return {"ok": False, "pesan": "PA tidak ditemukan."}
+    guard = f"(SELECT status FROM {pa_tbl} WHERE id=? AND company_id=?) = 'rejected'"
+    curs = conn.batch([
+        (f"UPDATE {pa_tbl} SET status='rejected', reject_reason=?, updated_at=? "
+         f"WHERE id=? AND company_id=? AND status=?",
+         (reason, _ts(), pa_id, company_id, STATUS_REVIEW_FC)),
+        (f"UPDATE budget_beasiswa SET status='open' WHERE company_id=? AND status='on_progress' AND {guard} "
+         f"AND id IN (SELECT budget_id FROM {lines_tbl} WHERE pa_id=? AND budget_id IS NOT NULL)",
+         (company_id, pa_id, company_id, pa_id)),
+        (f"UPDATE {lines_tbl} SET budget_id=NULL WHERE pa_id=? AND budget_id IS NOT NULL AND {guard}",
+         (pa_id, pa_id, company_id)),
+    ])
+    done = curs[0].rowcount
+    conn.close()
+    if not done:
+        return {"ok": False, "pesan": f"PA {row['pa_number']} tidak berstatus On Review FC."}
+    return {"ok": True, "pesan": f"PA {row['pa_number']} ditolak. Budget kembali Open."}
 
 
 def get_pa_summary(company_id: int) -> list:
