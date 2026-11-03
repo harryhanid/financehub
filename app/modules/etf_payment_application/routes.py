@@ -272,8 +272,9 @@ def create():
 @bp.route("/attachment/<file_id>")
 @jwt_html_required
 def get_attachment(file_id):
-    from utils.gdrive_service import get_file_stream_from_gdrive, get_file_metadata_from_gdrive
     try:
+        # import DI DALAM try: paket Google belum terpasang di server -> pesan jelas, bukan "Internal Server Error" polos
+        from utils.gdrive_service import get_file_stream_from_gdrive, get_file_metadata_from_gdrive
         meta = get_file_metadata_from_gdrive(file_id)
         file_stream = get_file_stream_from_gdrive(file_id)
         from flask import send_file
