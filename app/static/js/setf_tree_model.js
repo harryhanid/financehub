@@ -56,7 +56,65 @@
     return { families, shownFamilies: families.length, totalFamilies: roots.length };
   }
 
-  const api = { indexTree, nameMatches, searchFocus };
+  function toggleOpen(openIds, id) {
+    const next = new Set(openIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  }
+
+  function makeRow(node, gen, indent, openIds, extra) {
+    const kids = node.children || [];
+    return Object.assign({
+      id: node.id, node, gen, indent,
+      hasChildren: kids.length > 0, childCount: kids.length,
+      open: openIds.has(node.id), badge: null, ruler: null,
+    }, extra || {});
+  }
+
+  // Kartu G2+ sebuah kolom: anak G1 selalu tampil; turunan lebih dalam hanya bila induknya terbuka.
+  function stackRows(children, gen, indent, openIds, out) {
+    children.forEach((c, i) => {
+      const row = makeRow(c, gen, indent, openIds);
+      if (i === 0 && children.length >= 2) row.badge = 'G' + gen;
+      out.push(row);
+      if (row.open && row.hasChildren) stackRows(c.children, gen + 1, indent + 1, openIds, out);
+    });
+  }
+
+  function buildColumns(roots, openIds) {
+    return roots.map((root) => ({
+      root,
+      columns: (root.children || []).map((g1) => {
+        const rows = [];
+        stackRows(g1.children || [], 2, 0, openIds, rows);
+        return { g1: makeRow(g1, 1, 0, openIds, { ruler: 'G1' }), rows };
+      }),
+    }));
+  }
+
+  // Mode pencarian: rantai leluhur -> hasil, satu penggaris per generasi.
+  function focusRows(families) {
+    return families.map((fam) => {
+      const none = new Set();
+      const chain = [];
+      const hits = [];
+      const walk = (f) => {
+        chain.push(makeRow(f.node, f.gen, f.gen - 1, none, {
+          ruler: 'G' + f.gen, isHit: f.isHit, partnerHitIds: f.partnerHitIds, hiddenSiblings: f.hiddenSiblings,
+        }));
+        if (f.isHit || f.partnerHitIds.length) hits.push(f.node.id);
+        f.children.forEach(walk);
+      };
+      fam.children.forEach(walk);
+      const root = makeRow(fam.node, 0, 0, none, {
+        isHit: fam.isHit, partnerHitIds: fam.partnerHitIds, hiddenSiblings: 0,
+      });
+      if (fam.isHit || fam.partnerHitIds.length) hits.unshift(fam.node.id);
+      return { root, chain, hits };
+    });
+  }
+
+  const api = { indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, focusRows };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SetfTreeModel = api;
 })(typeof window !== 'undefined' ? window : globalThis);

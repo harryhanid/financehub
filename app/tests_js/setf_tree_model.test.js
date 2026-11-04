@@ -86,3 +86,62 @@ test('searchFocus hasil di beberapa keluarga', () => {
   const r = M.searchFocus(fixture(), 'g');
   assert.equal(r.shownFamilies, 2);
 });
+
+test('buildColumns tampilan awal: G1 berjajar, G2 bertumpuk, G3 tertutup', () => {
+  const blocks = M.buildColumns(fixture(), new Set());
+  const a = blocks[0];
+  assert.equal(a.root.id, 'A');
+  assert.deepEqual(a.columns.map((c) => c.g1.id), ['A1', 'A2']);
+  assert.deepEqual(a.columns[0].rows.map((r) => r.id), ['A1.1', 'A1.2', 'A1.3', 'A1.4']);
+  const a12 = a.columns[0].rows[1];
+  assert.equal(a12.hasChildren, true);
+  assert.equal(a12.childCount, 1);
+  assert.equal(a12.open, false);
+  assert.equal(a12.indent, 0);
+});
+
+test('buildColumns membuka cabang ke bawah dengan indentasi', () => {
+  const col = M.buildColumns(fixture(), new Set(['A1.2']))[0].columns[0];
+  assert.deepEqual(col.rows.map((r) => r.id), ['A1.1', 'A1.2', 'A1.2.A.1', 'A1.3', 'A1.4']);
+  assert.equal(col.rows[2].indent, 1);
+  assert.equal(col.rows[1].open, true);
+});
+
+test('lencana hanya di kelompok saudara >= 2 kartu', () => {
+  const blocks = M.buildColumns(fixture(), new Set());
+  assert.equal(blocks[0].columns[0].rows[0].badge, 'G2');
+  assert.ok(blocks[0].columns[0].rows.slice(1).every((r) => r.badge === null));
+  assert.equal(blocks[0].columns[1].rows[0].badge, null); // A2 hanya satu anak
+  const open1 = M.buildColumns(fixture(), new Set(['A1.2']))[0].columns[0];
+  assert.equal(open1.rows[2].badge, null); // satu anak -> tanpa lencana
+  const f = fixture();
+  f[0].children[0].children[1].children.push(n('A1.2.A.2', 'Elizabeth Tanuwijaya'));
+  const open2 = M.buildColumns(f, new Set(['A1.2']))[0].columns[0];
+  assert.equal(open2.rows[2].badge, 'G3');
+  assert.equal(open2.rows[3].badge, null);
+});
+
+test('penggaris hanya melabeli baris G1 di tampilan awal', () => {
+  const col = M.buildColumns(fixture(), new Set())[0].columns[0];
+  assert.equal(col.g1.ruler, 'G1');
+  assert.ok(col.rows.every((r) => r.ruler === null));
+});
+
+test('toggleOpen tidak memutasi Set asal dan bisa dibalik', () => {
+  const s = new Set();
+  const s2 = M.toggleOpen(s, 'A1.2');
+  assert.equal(s.size, 0);
+  assert.equal(s2.has('A1.2'), true);
+  assert.equal(M.toggleOpen(s2, 'A1.2').has('A1.2'), false);
+});
+
+test('focusRows: rantai berpenggaris per generasi, akar tanpa penggaris', () => {
+  const blocks = M.focusRows(M.searchFocus(fixture(), 'winata').families);
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].root.id, 'A');
+  assert.equal(blocks[0].root.ruler, null);
+  assert.deepEqual(blocks[0].chain.map((r) => r.id), ['A1', 'A1.2', 'A1.2.A.1']);
+  assert.deepEqual(blocks[0].chain.map((r) => r.ruler), ['G1', 'G2', 'G3']);
+  assert.deepEqual(blocks[0].hits, ['A1.2.A.1']);
+  assert.ok(blocks[0].chain.every((r) => r.badge === null));
+});
