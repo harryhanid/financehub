@@ -108,3 +108,4 @@
 /* Saat ditangkap untuk PDF: lebar sebatas isi, penggaris tidak sticky (tetap di kiri) */
 .tr-capturing, .tr-offscreen .tr-export { min-width: 0 !important; width: max-content; }
 .tr-capturing .tr-ruler, .tr-offscreen .tr-ruler { position: relative; left: auto; }
+.tr-ptag { color: #475569; font-weight: 400; font-size: calc(var(--tree-font) - 1px); }

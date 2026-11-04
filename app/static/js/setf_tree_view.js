@@ -48,10 +48,12 @@
     const caret = opts.toggle && row.hasChildren
       ? '<span class="tr-caret">' + (row.open ? '▾' : '▸') + ' ' + row.childCount + '</span>' : '';
     const partners = (node.partners || []).map((p) => partnerHtml(p, row.partnerHitIds)).join('');
+    // G1 adalah pasangan (partner) dari kepala keluarga di akar
+    const ptag = row.gen === 1 ? ' <span class="tr-ptag">(Partner)</span>' : '';
     const data = (opts.toggle && row.hasChildren ? ' data-toggle="' + esc(row.id) + '"' : '')
       + (opts.gen ? ' data-gen="' + esc(opts.gen) + '"' : '');
     return '<div class="' + classes.join(' ') + '"' + data + ' title="' + esc(tooltip(node)) + '">'
-      + caret + '<span class="tr-name">' + esc(node.name) + '</span>' + partners + '</div>';
+      + caret + '<span class="tr-name">' + esc(node.name) + '</span>' + ptag + partners + '</div>';
   }
 
   // Baris datar (dengan indent) -> daftar bersarang; tiap tingkat punya batang garis sendiri.
@@ -109,7 +111,7 @@
             const parent = idx.byId.get(r.id);
             const kids = parent && parent.parentId ? idx.byId.get(parent.parentId).node.children : [];
             sibs = kids.filter((k) => !chainIds.has(k.id)).map((k) =>
-              cardHtml({ node: k, id: k.id, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] }, { extra: 'tr-sib' })).join('');
+              cardHtml({ node: k, id: k.id, gen: idx.byId.get(k.id).gen, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] }, { extra: 'tr-sib' })).join('');
           } else {
             chip = '<span class="tr-chip" data-reveal="' + esc(r.id) + '">+ ' + r.hiddenSiblings + ' saudara</span>';
           }
