@@ -1154,11 +1154,8 @@
       <select id="vendors-filter-pillar" onchange="loadVendorsDebounced()"
               style="padding:4px 6px;border:1px solid #d1d5db;border-radius:5px;font-size:12px;width:100px">
         <option value="">Semua Pillar</option>
-        <option value="AGRI">AGRI</option>
-        <option value="APP">APP</option>
-        <option value="LAND">LAND</option>
-        <option value="ENERGY">EFIN</option>
-        <option value="SETF">SETF</option>
+        {% for v, lbl in vendor_pillars %}<option value="{{ v }}">{{ lbl }}</option>
+        {% endfor %}
       </select>
       <span id="vendors-count" style="font-size:12px;color:var(--text-muted)"></span>
     </div>
@@ -1170,11 +1167,8 @@
       <div class="form-group" style="margin:0">
         <label style="font-size:.75rem;font-weight:600">Pillar</label>
         <select id="vendors-add-pillar" style="font-size:.82rem">
-          <option value="AGRI">AGRI</option>
-          <option value="APP">APP</option>
-          <option value="LAND">LAND</option>
-          <option value="ENERGY">EFIN</option>
-        <option value="SETF">SETF</option>
+          {% for v, lbl in vendor_pillars %}<option value="{{ v }}">{{ lbl }}</option>
+          {% endfor %}
         </select>
       </div>
       <div class="form-group" style="margin:0">
@@ -2688,7 +2682,7 @@ function vendorsStartEdit(vendorId) {
   const currentCc = ccCell.textContent === '-' ? '' : ccCell.textContent;
   nameCell.innerHTML = `<input type="text" value="${esc(currentName)}" style="width:100%;font-size:12px" class="vendors-edit-name">`;
   pillarCell.innerHTML = `<select style="font-size:12px" class="vendors-edit-pillar">` +
-    ['AGRI', 'APP', 'LAND', 'ENERGY', 'SETF'].map(p => `<option value="${p}" ${p === currentPillar ? 'selected' : ''}>${p}</option>`).join('') +
+    VENDOR_PILLARS.map(p => `<option value="${p}" ${p === currentPillar ? 'selected' : ''}>${p === 'ENERGY' ? 'EFIN' : p}</option>`).join('') +
     `</select>`;
   ccCell.innerHTML = `<input type="text" value="${esc(currentCc)}" style="width:100%;font-size:12px" class="vendors-edit-cc">`;
   actionCell.innerHTML = `<button class="btn btn-primary btn-sm" onclick="vendorsSaveEdit(${vendorId})">Simpan</button> <button class="btn btn-secondary btn-sm" onclick="loadVendors()">Batal</button>`;
@@ -5055,6 +5049,7 @@ async function ipayCheckPamCollision() {
   } catch { /* ignore */ }
 }
 
+const VENDOR_PILLARS = {{ vendor_pillars | map(attribute=0) | list | tojson }};   // dari tabel entities (halaman Vendors)
 const _IPAY_LABEL = { agri: 'AGRI', app: 'APP', sml: 'LAND', energy: 'EFIN', setf: 'SETF', smt: 'SMT', advance: 'Advance' };
 function ipayOnTypeChange() {
   const type  = document.getElementById("ipay-type")?.value || "agri";

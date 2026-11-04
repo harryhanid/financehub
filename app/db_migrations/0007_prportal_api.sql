@@ -303,6 +303,22 @@ begin
 end
 ';
 
+create or replace function public.prp_search_vendor_cc(p_key text, p_query text, p_cost_center text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as '
+declare
+    v_result jsonb;
+begin
+    execute format(''select %I.fn_prp_search_vendor($1, $2)'', public.prp_key_schema(p_key))
+       into v_result using p_query, p_cost_center;
+    return v_result;
+end
+';
+
 -- EXECUTE default PUBLIC dicabut. Supabase memberi default privileges di public ke anon/authenticated
 -- untuk tabel & fungsi baru, jadi dicabut eksplisit; lalu anon hanya mendapat EXECUTE keempat wrapper.
 revoke all on function public.prp_key_schema(text) from public;
@@ -317,6 +333,7 @@ revoke all on function public.prp_serah_pa(text, jsonb) from public;
 revoke all on function public.prp_terima_pa(text, jsonb) from public;
 revoke all on function public.prp_tolak_serah_pa(text, jsonb) from public;
 revoke all on function public.prp_list_serah(text) from public;
+revoke all on function public.prp_search_vendor_cc(text, text, text) from public;
 revoke all on function public.prp_verifikasi_pa(text, jsonb) from public;
 revoke all on function public.prp_tolak_verifikasi_pa(text, jsonb) from public;
 revoke all on function public.prp_teruskan_pa(text, jsonb) from public;
@@ -342,6 +359,7 @@ begin
             execute format(''revoke all on function public.prp_terima_pa(text, jsonb) from %I'', r);
             execute format(''revoke all on function public.prp_tolak_serah_pa(text, jsonb) from %I'', r);
             execute format(''revoke all on function public.prp_list_serah(text) from %I'', r);
+            execute format(''revoke all on function public.prp_search_vendor_cc(text, text, text) from %I'', r);
             execute format(''revoke all on function public.prp_verifikasi_pa(text, jsonb) from %I'', r);
             execute format(''revoke all on function public.prp_tolak_verifikasi_pa(text, jsonb) from %I'', r);
             execute format(''revoke all on function public.prp_teruskan_pa(text, jsonb) from %I'', r);
@@ -361,6 +379,7 @@ begin
         execute ''grant execute on function public.prp_terima_pa(text, jsonb) to anon'';
         execute ''grant execute on function public.prp_tolak_serah_pa(text, jsonb) to anon'';
         execute ''grant execute on function public.prp_list_serah(text) to anon'';
+        execute ''grant execute on function public.prp_search_vendor_cc(text, text, text) to anon'';
         execute ''grant execute on function public.prp_verifikasi_pa(text, jsonb) to anon'';
         execute ''grant execute on function public.prp_tolak_verifikasi_pa(text, jsonb) to anon'';
         execute ''grant execute on function public.prp_teruskan_pa(text, jsonb) to anon'';

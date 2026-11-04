@@ -3026,6 +3026,18 @@ def get_pam_beasiswa_lines(pam_id: int, company_id: int) -> list | None:
     return rows
 
 
+def vendor_pillar_options() -> list:
+    """[(nilai, label)] pillar untuk halaman Vendors: dari tabel entities (semua perusahaan, urut kemunculan). Entitas EFIN
+    disimpan sebagai ENERGY di data vendor lama; tanpa baris entities dipakai daftar lama."""
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT pillar, min(urutan) AS u FROM entities WHERE aktif GROUP BY pillar ORDER BY min(urutan), pillar").fetchall()
+    finally:
+        conn.close()
+    pillars = [r["pillar"] for r in rows] or ["AGRI", "APP", "LAND", "EFIN", "SETF"]
+    return [("ENERGY" if p == "EFIN" else p, p) for p in pillars]
+
+
 def list_vendors(search: str = "") -> list:
     conn = get_conn()
     if search:

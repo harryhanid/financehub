@@ -299,19 +299,39 @@ end
 ';
 
 -- Pillar vendor -> jenis PA (tabel PA). null bila pillar tidak punya tabel PA ('-', NON PILLAR, NON ALLOCATED, ...).
-create or replace function {{schema}}.fn_prp_pillar_jenis(p_pillar text)
+-- Pillar vendor -> tab_key entitas (tabel entities). p_company_id null = entitas perusahaan mana pun; ENERGY = EFIN (nama lama).
+-- plpgsql (bukan sql) supaya tabel entities (dibuat di 0008) tidak perlu ada saat fungsi ini dibuat.
+drop function if exists {{schema}}.fn_prp_pillar_jenis(text);
+create or replace function {{schema}}.fn_prp_pillar_jenis(p_pillar text, p_company_id bigint default null)
 returns text
-language sql
-immutable
+language plpgsql
+stable
+set search_path = {{schema}}
 as '
-    select case upper(trim(coalesce(p_pillar, '''')))
-        when ''AGRI'' then ''agri'' when ''APP'' then ''app'' when ''LAND'' then ''sml''
-        when ''SETF'' then ''setf'' when ''EFIN'' then ''energy'' when ''ENERGY'' then ''energy'' else null end
+declare
+    v_p text := upper(trim(coalesce(p_pillar, '''')));
+    v_tab text;
+begin
+    if v_p = '''' then
+        return null;
+    end if;
+    if v_p = ''ENERGY'' then
+        v_p := ''EFIN'';
+    end if;
+    select e.tab_key into v_tab
+      from entities e
+     where upper(e.pillar) = v_p and e.aktif and (p_company_id is null or e.company_id = p_company_id)
+     order by e.company_id
+     limit 1;
+    return v_tab;
+end
 ';
 
--- Cari vendor (master Vendors Flow) untuk pembebanan PA. Min 3 huruf, maks 10 hasil, hanya vendor yang pillar-nya
--- punya tabel PA. Hanya id/nama/pillar/cost center/jenis; data bank vendor tidak pernah dikirim.
-create or replace function {{schema}}.fn_prp_search_vendor(p_query text)
+-- Cari vendor (master Vendors Flow) untuk pembebanan PA. Min 3 huruf, maks 10 hasil, hanya vendor yang pillar-nya entitas
+-- perusahaan cost center pemohon (PO -> SMT, TF -> ETF; cost center lain -> kosong; tanpa cost center = ETF, panggilan lama).
+-- Hanya id/nama/pillar/cost center/jenis; data bank vendor tidak pernah dikirim.
+drop function if exists {{schema}}.fn_prp_search_vendor(text);
+create or replace function {{schema}}.fn_prp_search_vendor(p_query text, p_cost_center text default null)
 returns jsonb
 language plpgsql
 stable
@@ -320,8 +340,17 @@ as '
 declare
     v_q text := trim(coalesce(p_query, ''''));
     v_pat text;
+    v_company bigint;
 begin
     if length(v_q) < 3 then
+        return ''[]''::jsonb;
+    end if;
+    if p_cost_center is null then
+        select id into v_company from companies where code = ''ETF'';
+    else
+        v_company := fn_prp_company_of_cost_center(p_cost_center);
+    end if;
+    if v_company is null then
         return ''[]''::jsonb;
     end if;
     v_pat := ''%'' || replace(replace(replace(v_q, ''\'', ''\\''), ''%'', ''\%''), ''_'', ''\_'') || ''%'';
@@ -329,10 +358,10 @@ begin
         select jsonb_agg(jsonb_build_object(
                    ''id'', x.id, ''name'', x.name, ''pillar'', x.pillar,
                    ''cost_center'', coalesce(x.cost_center, ''''), ''jenis'', x.jenis) order by x.name)
-          from (select v.id, v.name, v.pillar, v.cost_center, fn_prp_pillar_jenis(v.pillar) as jenis
+          from (select v.id, v.name, v.pillar, v.cost_center, fn_prp_pillar_jenis(v.pillar, v_company) as jenis
                   from vendors v
                  where v.name ilike v_pat
-                   and fn_prp_pillar_jenis(v.pillar) is not null
+                   and fn_prp_pillar_jenis(v.pillar, v_company) is not null
                  order by v.name
                  limit 10) x), ''[]''::jsonb);
 end
@@ -415,7 +444,11 @@ begin
         if not found then
             return jsonb_build_object(''ok'', false, ''pesan'', ''Vendor tidak ditemukan.'');
         end if;
-        v_jenis := fn_prp_pillar_jenis(v_vendor.pillar);
+        select id into v_company from companies where code = ''ETF'';
+        v_jenis := fn_prp_pillar_jenis(v_vendor.pillar, v_company);
+        if v_jenis is null and fn_prp_pillar_jenis(v_vendor.pillar) is not null then
+            return jsonb_build_object(''ok'', false, ''pesan'', ''Vendor tidak termasuk entitas perusahaan Anda.'');
+        end if;
         if v_jenis is null then
             return jsonb_build_object(''ok'', false, ''pesan'',
                 ''Vendor '' || v_vendor.name || '' belum punya pillar PA (pillar: '' || coalesce(v_vendor.pillar, ''-'') || ''). Hubungi Finance.'');

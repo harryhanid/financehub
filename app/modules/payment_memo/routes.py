@@ -29,7 +29,7 @@ from modules.payment_memo.service import (
     get_pam_beasiswa_lines,
     get_advance_payments, realize_advance_payment, _workday,
 )
-from modules.payment_memo.service import list_vendors, add_vendor, update_vendor
+from modules.payment_memo.service import list_vendors, add_vendor, update_vendor, vendor_pillar_options
 from modules.payment_memo.exports import (
     export_pam_pdf, export_pam_excel,
     export_pam_pdf_custom, export_pam_excel_custom,
@@ -118,6 +118,7 @@ def index():
         pam_approved_by_2=config.PAM_APPROVED_BY_2,
         siswa_list=get_siswa_list(company_id),
         vendor_list=get_vendors(),
+        vendor_pillars=vendor_pillar_options(),
         perusahaan_list=config.PERUSAHAAN,
         coa_pam_list=get_coa_pam_list(),
         budget_activities=get_budget_activities(),
