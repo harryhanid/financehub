@@ -158,9 +158,9 @@ import pytest
 _JENIS_CFG = {
     "agri": ("etf_pa", "etf_pa_lines", "ETF"),
     "app": ("app_pa", "app_pa_lines", "APP"),
-    "sml": ("sml_pa", "sml_pa_lines", "SML"),
+    "sml": ("sml_pa", "sml_pa_lines", "LAND"),
     "setf": ("setf_pa", "setf_pa_lines", "SETF"),
-    "energy": ("energy_pa", "energy_pa_lines", "ENERGY"),
+    "energy": ("energy_pa", "energy_pa_lines", "EFIN"),
 }
 
 

@@ -8,6 +8,23 @@ import bcrypt
 
 import config
 
+# Entitas per perusahaan: (kode perusahaan, kode entitas, label, tab_key, tabel PA, prefix nomor PA, pillar, urutan). Sumber kebenaran
+# tab/prefix/pillar; sama dengan seed di db_migrations/0008_entities.sql.
+ENTITY_SEED = [
+    ("SMT", "AGRI", "AGRI", "agri", "etf_pa", "SMT", "AGRI", 1),
+    ("SMT", "APP", "APP", "app", "app_pa", "APP", "APP", 2),
+    ("SMT", "LAND", "LAND", "sml", "sml_pa", "LAND", "LAND", 3),
+    ("SMT", "EFIN", "EFIN", "energy", "energy_pa", "EFIN", "EFIN", 4),
+    ("SMT", "SMT", "SMT", "sm", "sm_pa", "SM", "SMT", 5),
+    ("ETF", "AGRI", "AGRI", "agri", "etf_pa", "ETF", "AGRI", 1),
+    ("ETF", "APP", "APP", "app", "app_pa", "APP", "APP", 2),
+    ("ETF", "LAND", "LAND", "sml", "sml_pa", "LAND", "LAND", 3),
+    ("ETF", "EFIN", "EFIN", "energy", "energy_pa", "EFIN", "EFIN", 4),
+    ("ETF", "SETF", "SETF", "setf", "setf_pa", "SETF", "SETF", 5),
+    ("ETF", "ETF", "ETF", "ef", "ef_pa", "EF", "ETF", 6),
+]
+
+
 VENDOR_SEED = [
     ("PT. Aditunggal Mahajaya",                        "AGRI",           "5101C1POFF"),
     ("PT. Agrokarya Primalestari",                     "AGRI",           "4401C1POFF"),
@@ -50,6 +67,13 @@ def seed_reference_data(conn) -> None:
         "(SELECT coalesce(max(id), 1) FROM companies))",
         (),
     ))
+    for comp, code, label, tab_key, pa_table, prefix, pillar, urutan in ENTITY_SEED:
+        items.append((
+            "INSERT INTO entities (company_id, code, label, tab_key, pa_table, lines_table, pa_prefix, pillar, urutan) "
+            "SELECT c.id, ?, ?, ?, ?, ?, ?, ?, ? FROM companies c WHERE c.code = ? "
+            "ON CONFLICT (company_id, code) DO NOTHING",
+            (code, label, tab_key, pa_table, pa_table + "_lines", prefix, pillar, urutan, comp),
+        ))
     for entry in config.COA_LIST:
         items.append((
             "INSERT INTO coa (gl_code, gl_name) VALUES (?, ?) ON CONFLICT DO NOTHING",

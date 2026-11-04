@@ -32,7 +32,8 @@ as '
 declare
     v_count bigint;
 begin
-    if p_pa_tbl is null or p_pa_tbl not in (''etf_pa'', ''app_pa'', ''sml_pa'', ''setf_pa'', ''energy_pa'') then
+    if p_pa_tbl is null or (p_pa_tbl not in (''etf_pa'', ''app_pa'', ''sml_pa'', ''setf_pa'', ''energy_pa'')
+        and not exists (select 1 from {{schema}}.entities where pa_table = p_pa_tbl)) then
         raise exception ''fn_etf_pa_next_pa_number: tabel % tidak diizinkan'', coalesce(p_pa_tbl, ''<null>'');
     end if;
     perform pg_advisory_xact_lock(hashtext(''pa:'' || p_pa_tbl || '':'' || p_company_id::text));

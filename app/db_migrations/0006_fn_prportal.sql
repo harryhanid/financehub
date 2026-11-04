@@ -423,15 +423,12 @@ begin
         v_pt := v_vendor.name;
         v_pt_cc := nullif(trim(coalesce(v_vendor.cost_center, '''')), '''');
     end if;
-    case v_jenis
-        when ''agri''   then v_pa_tbl := ''etf_pa'';    v_lines_tbl := ''etf_pa_lines'';    v_prefix := ''ETF'';
-        when ''app''    then v_pa_tbl := ''app_pa'';    v_lines_tbl := ''app_pa_lines'';    v_prefix := ''APP'';
-        when ''sml''    then v_pa_tbl := ''sml_pa'';    v_lines_tbl := ''sml_pa_lines'';    v_prefix := ''SML'';
-        when ''setf''   then v_pa_tbl := ''setf_pa'';   v_lines_tbl := ''setf_pa_lines'';   v_prefix := ''SETF'';
-        when ''energy'' then v_pa_tbl := ''energy_pa''; v_lines_tbl := ''energy_pa_lines''; v_prefix := ''ENERGY'';
-        else
-            return jsonb_build_object(''ok'', false, ''pesan'', ''Jenis PA tidak dikenal.'');
-    end case;
+    select e.pa_table, e.lines_table, e.pa_prefix into v_pa_tbl, v_lines_tbl, v_prefix
+      from entities e join companies c on c.id = e.company_id
+     where c.code = ''ETF'' and e.tab_key = v_jenis and e.aktif;
+    if v_pa_tbl is null then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Jenis PA tidak dikenal.'');
+    end if;
     if jsonb_typeof(p->''siswa_code'') is distinct from ''string'' or trim(p->>''siswa_code'') = '''' then
         return jsonb_build_object(''ok'', false, ''pesan'', ''Data PA tidak valid: siswa_code.'');
     end if;

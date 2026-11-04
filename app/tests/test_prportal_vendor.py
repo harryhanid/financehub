@@ -59,8 +59,8 @@ def test_search_vendor_max_10_and_wildcards_literal():
 
 
 @pytest.mark.parametrize("pillar,table,prefix", [
-    ("AGRI", "etf_pa", "ETF"), ("APP", "app_pa", "APP"), ("LAND", "sml_pa", "SML"),
-    ("SETF", "setf_pa", "SETF"), ("EFIN", "energy_pa", "ENERGY"),
+    ("AGRI", "etf_pa", "ETF"), ("APP", "app_pa", "APP"), ("LAND", "sml_pa", "LAND"),
+    ("SETF", "setf_pa", "SETF"), ("EFIN", "energy_pa", "EFIN"),
 ])
 def test_submit_with_vendor_derives_jenis_and_stores_pembebanan(pillar, table, prefix):
     vid = _vendor("PT. Beban " + pillar, pillar, "CC-" + pillar)
