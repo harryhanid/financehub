@@ -162,6 +162,7 @@
     host.style.setProperty('--tree-indent', (14 * mult) + 'px');
   }
   function getExportElement() { return host; }
+  function currentQuery() { return mode === 'focus' ? query : ''; }
 
-  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, rerender };
+  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, rerender };
 })(window);

@@ -2471,6 +2471,77 @@ function resetTreeQuery() {
   SetfTreeView.reset();
 }
 
+function setfLoadScriptOnce(src, isLoaded) {
+  if (isLoaded()) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = src;
+    el.onload = resolve;
+    el.onerror = () => reject(new Error("Gagal memuat " + src));
+    document.head.appendChild(el);
+  });
+}
+
+function setfBlobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(blob);
+  });
+}
+
 async function exportTreePDF() {
-  showToast("Export PDF belum tersedia", "info");
+  if (!treeLoaded) return;
+  showToast("Mempersiapkan PDF...", "info");
+  const wrap = document.getElementById("tree-wrapper");
+  const saved = wrap ? [wrap.scrollLeft, wrap.scrollTop] : [0, 0];
+  try {
+    await setfLoadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js", () => typeof window.jspdf !== "undefined");
+    await setfLoadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js", () => typeof window.html2canvas !== "undefined");
+    const logoBlob = await (await fetch("/static/img/flow-mark.png")).blob();
+    const logo = await setfBlobToDataUrl(logoBlob);
+
+    const el = SetfTreeView.getExportElement();
+    if (wrap) { wrap.scrollLeft = 0; wrap.scrollTop = 0; }
+    const canvas = await html2canvas(el, {
+      scale: 2, backgroundColor: "#ffffff",
+      width: el.scrollWidth, height: el.scrollHeight, windowWidth: el.scrollWidth,
+    });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: canvas.height > canvas.width ? "portrait" : "landscape", unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 10;
+    const headerH = 16;
+    const { scale, slices } = SetfTreeModel.slicePages(canvas.width, canvas.height, { pageW, pageH, margin, headerH });
+    const stamp = SetfTreeModel.formatPrintStamp(new Date());
+    const q = SetfTreeView.currentQuery();
+    const sub = "Tree Query" + (q ? ' — pencarian: "' + q + '"' : "");
+
+    slices.forEach((sl, i) => {
+      if (i > 0) doc.addPage();
+      doc.addImage(logo, "PNG", margin, margin, 10, 10);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("Flow - Beasiswa Sahabat ETF", margin + 13, margin + 4.5);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(sub, margin + 13, margin + 9);
+      doc.text(stamp, pageW - margin, margin + 4.5, { align: "right" });
+      doc.text("Halaman " + (i + 1) + " / " + slices.length, pageW - margin, margin + 9, { align: "right" });
+      const part = document.createElement("canvas");
+      part.width = canvas.width;
+      part.height = sl.sh;
+      part.getContext("2d").drawImage(canvas, 0, sl.sy, canvas.width, sl.sh, 0, 0, canvas.width, sl.sh);
+      doc.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", margin, margin + headerH, canvas.width * scale, sl.sh * scale);
+    });
+    doc.save("Sahabat_ETF_Tree.pdf");
+    showToast("PDF berhasil diunduh!", "success");
+  } catch (err) {
+    setfReportError("Gagal membuat PDF: ", err);
+  } finally {
+    if (wrap) { wrap.scrollLeft = saved[0]; wrap.scrollTop = saved[1]; }
+  }
 }
