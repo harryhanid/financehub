@@ -6,7 +6,7 @@ from modules.etf_payment_application.service import (
     get_pa_list, get_pa_flat, get_pa_header, bulk_update_pa, export_pa_excel,
     create_pa, update_pa, delete_pa, get_pa_lines, get_siswa_autocomplete,
     get_draft_siswa, get_draft_lines_for_siswa, get_pa_summary, VALID_TABS,
-    approve_pa_fc, reject_pa_fc, get_serah_log,
+    approve_pa_fc, reject_pa_fc, get_serah_log, valid_tabs, entity_tabs,
 )
 import config
 
@@ -55,7 +55,7 @@ def _tab(allow_input: bool = False, allow_summary: bool = False, allow_advance: 
         return "advance"
     if allow_combine and t == "combine":
         return "combine"
-    return t if t in VALID_TABS else "summary"
+    return t if t in valid_tabs(session.get("company_id")) else "summary"
 
 
 PA_PAGE_SIZE = 50
@@ -96,7 +96,7 @@ def index():
             sf = "active"
         if tab == "combine":
             all_rows = []
-            for t in VALID_TABS:
+            for t, _lbl in entity_tabs(company_id):
                 rows = get_pa_flat(company_id, t, sf)
                 for r in rows:
                     r["pillar"] = t
@@ -149,6 +149,8 @@ def index():
         "etf_payment_application/index.html",
         pa_rows=pa_rows,
         pa_poin_labels=PA_POIN_LABELS,
+        entity_tabs=entity_tabs(company_id),
+        tab_labels=dict(entity_tabs(company_id)),
         pa_poin_display=PA_POIN_DISPLAY,
         all_pa_rows=all_rows,
         active_tab=tab,
@@ -209,7 +211,7 @@ def draft_lines():
 def create():
     company_id = session.get("company_id")
     tab        = request.args.get("tab", "agri").lower()
-    if tab not in VALID_TABS:
+    if tab not in valid_tabs(session.get("company_id")):
         tab = "agri"
     if request.is_json:
         data = request.get_json(force=True)
@@ -292,7 +294,7 @@ def get_attachment(file_id):
 @jwt_html_required
 def serah_log(pa_id):
     tab = request.args.get("tab", "agri").lower()
-    if tab not in VALID_TABS:
+    if tab not in valid_tabs(session.get("company_id")):
         tab = "agri"
     return jsonify({"ok": True, "rows": get_serah_log(pa_id, session.get("company_id"), tab)})
 
@@ -302,7 +304,7 @@ def serah_log(pa_id):
 def update(pa_id):
     company_id = session.get("company_id")
     tab        = request.args.get("tab", "agri").lower()
-    if tab not in VALID_TABS:
+    if tab not in valid_tabs(session.get("company_id")):
         tab = "agri"
     if request.is_json:
         data = request.get_json(force=True)
@@ -353,7 +355,7 @@ def update(pa_id):
 def delete(pa_id):
     company_id = session.get("company_id")
     tab        = request.args.get("tab", "agri").lower()
-    if tab not in VALID_TABS:
+    if tab not in valid_tabs(session.get("company_id")):
         tab = "agri"
     return jsonify(delete_pa(pa_id, company_id, tab))
 
@@ -362,7 +364,7 @@ def delete(pa_id):
 @role_required("FC", "Admin")
 def approve_fc(pa_id):
     tab = request.args.get("tab", "agri").lower()
-    if tab not in VALID_TABS:
+    if tab not in valid_tabs(session.get("company_id")):
         tab = "agri"
     return jsonify(approve_pa_fc(pa_id, session.get("company_id"), tab))
 
@@ -371,7 +373,7 @@ def approve_fc(pa_id):
 @role_required("FC", "Admin")
 def reject_fc(pa_id):
     tab = request.args.get("tab", "agri").lower()
-    if tab not in VALID_TABS:
+    if tab not in valid_tabs(session.get("company_id")):
         tab = "agri"
     data = request.get_json(silent=True) or {}
     return jsonify(reject_pa_fc(pa_id, session.get("company_id"), data.get("reason", ""), tab))
@@ -413,7 +415,7 @@ def export_excel():
 def bulk_update():
     company_id = session.get("company_id")
     tab        = request.args.get("tab", "agri").lower()
-    if tab not in VALID_TABS:
+    if tab not in valid_tabs(session.get("company_id")):
         tab = "agri"
     data = request.get_json(force=True)
     return jsonify(bulk_update_pa(
@@ -440,7 +442,7 @@ def header(pa_id):
 def summary_data():
     company_id = session.get("company_id")
     all_data = []
-    for t in VALID_TABS:
+    for t, _lbl in entity_tabs(company_id):
         rows = get_pa_flat(company_id, tab=t)
         for r in rows:
             r['nama_student'] = r.get('nama', '')
@@ -457,7 +459,7 @@ def advance_data():
     company_id = session.get("company_id")
     status     = request.args.get("status", "").strip().lower()
     all_data   = []
-    for t in VALID_TABS:
+    for t, _lbl in entity_tabs(company_id):
         rows = get_pa_flat(company_id, tab=t)
         for r in rows:
             # Filter on the PA header's own route (source of truth), not the

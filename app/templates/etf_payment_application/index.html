@@ -166,7 +166,7 @@
 
 {% block module_tabs %}
 <div class="tabs" style="margin-bottom:0" title="Alt+&#8592; / Alt+&#8594; untuk pindah tab">
-  {% for t, label in [('summary','Open PA'),('advance','Advance'),('combine','Combine'),('input','Input'),('agri','AGRI'),('app','APP'),('sml','LAND'),('energy','EFIN'),('setf','SETF')] %}
+  {% for t, label in [('summary','Open PA'),('advance','Advance'),('combine','Combine'),('input','Input')] + entity_tabs %}
   {% if t == 'input' and current_role not in ["FC", "Admin", "admin"] %}
   {% else %}
   <a href="?tab={{ t }}{% if t != 'input' and active_sf %}&sf={{ active_sf }}{% endif %}"
@@ -285,7 +285,7 @@
   <div class="form-section tint-jenis">
     <div class="form-section-title">Pilih Jenis PA *</div>
     <div style="display:flex; gap:1.25rem; flex-wrap:wrap">
-      {% for t, lbl in [('agri','AGRI'),('app','APP'),('sml','LAND'),('energy','EFIN'),('setf','SETF')] %}
+      {% for t, lbl in entity_tabs %}
       <label style="display:flex; align-items:center; gap:.35rem; font-size:.85rem; font-weight:600; cursor:pointer">
         <input type="radio" name="pa-company-type" value="{{ t }}" {% if loop.first %}checked{% endif %} style="width:15px;height:15px;accent-color:#1d4ed8">
         {{ lbl }}
@@ -475,8 +475,8 @@
         <td class="grp-toggle-cell" onclick="toggleSiswaGroup()" title="Expand/collapse Data Siswa">·</td>
         {% if active_tab == 'combine' %}
         <td>
-          {% set p_color = {'agri':'badge-yellow','app':'badge-blue','sml':'badge-green','energy':'badge-red','setf':'badge-gray'}.get(r.pillar, 'badge-gray') %}
-          {% set p_lbl = {'agri':'AGRI','app':'APP','sml':'LAND','energy':'EFIN','setf':'SETF'}.get(r.pillar, (r.pillar|upper)) %}
+          {% set p_color = {'agri':'badge-yellow','app':'badge-blue','sml':'badge-green','energy':'badge-red','setf':'badge-gray','sm':'badge-blue','ef':'badge-yellow'}.get(r.pillar, 'badge-gray') %}
+          {% set p_lbl = tab_labels.get(r.pillar, (r.pillar|upper)) %}
           <span class="badge {{ p_color }}">{{ p_lbl }}</span>
         </td>
         {% endif %}
@@ -1760,7 +1760,7 @@ function addPayLine() {
 }
 
 // ─── Create ───────────────────────────────────────────────────────────────────
-const _TAB_LABEL = { agri: 'AGRI', app: 'APP', sml: 'LAND', energy: 'EFIN', setf: 'SETF' };
+const _TAB_LABEL = {{ tab_labels | tojson }};
 async function submitPA() {
   const selectedTab = document.querySelector('input[name="pa-company-type"]:checked')?.value || 'agri';
   const siswaId = document.getElementById('pa-siswa-id').value;

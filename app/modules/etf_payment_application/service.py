@@ -3,16 +3,80 @@ from datetime import datetime
 from database import get_conn
 from modules.payment_memo.service import _pb_lock_stmt
 
-VALID_TABS = {"agri", "app", "sml", "setf", "energy"}
+VALID_TABS = {"agri", "app", "sml", "setf", "energy", "sm", "ef"}   # semua kunci tab yang dikenal; yang berlaku per perusahaan: valid_tabs()
 
-# Maps tab → (pa_table, lines_table, pa_number_prefix, pam_prefix)
+# Maps tab → (pa_table, lines_table, pa_number_prefix, pam_prefix). Prefix nomor PA per perusahaan dibaca dari tabel
+# entities (entity_prefix); nilai di sini hanya cadangan dan prefix PAM.
 _TAB_CFG = {
     "agri":   ("etf_pa",     "etf_pa_lines",     "ETF",    "ETF"),
     "app":    ("app_pa",     "app_pa_lines",     "APP",    "APP"),
     "sml":    ("sml_pa",     "sml_pa_lines",     "SML",    "SML"),
     "setf":   ("setf_pa",    "setf_pa_lines",    "SETF",   "SETF"),
     "energy": ("energy_pa",  "energy_pa_lines",  "ENERGY", "ENERGY"),
+    "sm":     ("sm_pa",      "sm_pa_lines",      "SM",     "SM"),
+    "ef":     ("ef_pa",      "ef_pa_lines",      "EF",     "EF"),
 }
+
+# Entitas per perusahaan (tabel entities): tab, label, prefix. Cache pendek karena dibaca di banyak permintaan.
+_ENTITY_CACHE: dict = {}
+_ENTITY_TTL = 60.0
+_LEGACY_ENTITIES = [("agri", "AGRI"), ("app", "APP"), ("sml", "LAND"), ("energy", "EFIN"), ("setf", "SETF")]
+
+
+def get_entities(company_id: int) -> list:
+    """Entitas aktif perusahaan (urut `urutan`): [{code, label, tab_key, pa_table, lines_table, pa_prefix, pillar}]."""
+    import time
+    hit = _ENTITY_CACHE.get(company_id)
+    if hit and time.monotonic() - hit[0] < _ENTITY_TTL:
+        return hit[1]
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT code, label, tab_key, pa_table, lines_table, pa_prefix, pillar FROM entities "
+            "WHERE company_id=? AND aktif ORDER BY urutan, id", (company_id,)).fetchall()
+    finally:
+        conn.close()
+    result = [dict(r) for r in rows]
+    _ENTITY_CACHE[company_id] = (time.monotonic(), result)
+    return result
+
+
+def _entities_unseeded() -> bool:
+    """True hanya bila tabel entities kosong untuk SEMUA perusahaan (migrasi/seed belum jalan): pakai daftar lama."""
+    import time
+    hit = _ENTITY_CACHE.get("_unseeded")
+    if hit and time.monotonic() - hit[0] < _ENTITY_TTL:
+        return hit[1]
+    conn = get_conn()
+    try:
+        empty = conn.execute("SELECT count(*) AS n FROM entities").fetchone()["n"] == 0
+    finally:
+        conn.close()
+    _ENTITY_CACHE["_unseeded"] = (time.monotonic(), empty)
+    return empty
+
+
+def clear_entity_cache() -> None:
+    _ENTITY_CACHE.clear()
+
+
+def entity_tabs(company_id: int) -> list:
+    """[(tab_key, label)] untuk tab data perusahaan; tanpa baris entities dipakai daftar lama (kompatibilitas)."""
+    ents = get_entities(company_id)
+    if ents:
+        return [(e["tab_key"], e["label"]) for e in ents]
+    return list(_LEGACY_ENTITIES) if _entities_unseeded() else []
+
+
+def valid_tabs(company_id: int) -> set:
+    return {t for t, _ in entity_tabs(company_id)} if company_id else set()
+
+
+def entity_prefix(company_id: int, tab: str):
+    for e in get_entities(company_id):
+        if e["tab_key"] == tab:
+            return e["pa_prefix"]
+    return None
 
 
 # Tab → nilai payment_beasiswa.pillar milik tab itu. `id` baris PA adalah serial per tabel, jadi
@@ -20,6 +84,8 @@ _TAB_CFG = {
 # payment_beasiswa dari baris PA wajib difilter pillar ini (regresi: edit PA SETF menimpa amount
 # payment LAND ber-id baris sama).
 _TAB_PB_PILLARS = {
+    "sm":     ("SMT",),
+    "ef":     ("ETF",),
     "agri":   ("AGRI",),
     "app":    ("APP",),
     "sml":    ("LAND",),
@@ -292,10 +358,11 @@ def export_pa_excel(company_id: int, tab: str = "agri",
 
     if tab == "combine":
         all_rows = []
-        for t in VALID_TABS:
+        labels = dict(entity_tabs(company_id))
+        for t, _lbl in entity_tabs(company_id):
             rows = get_pa_flat(company_id, t, sf, nama, jenjang, program, angkatan, jenis, pam, bulan_pa, tahun_pa)
             for r in rows:
-                r["pillar"] = {'agri':'AGRI','app':'APP','sml':'LAND','energy':'EFIN','setf':'SETF'}.get(t, t.upper())
+                r["pillar"] = labels.get(t, t.upper())
             all_rows.extend(rows)
         all_rows.sort(key=lambda x: (x.get("tgl_payment_application") or "", x.get("pa_number") or ""), reverse=True)
         rows = all_rows
@@ -426,6 +493,7 @@ def create_pa(company_id: int, header: dict, lines: list, tab: str = "agri",
         return {"ok": False, "pesan": "Minimal 1 siswa harus diisi."}
 
     pa_tbl, lines_tbl, pa_prefix, _ = _tbls(tab)
+    pa_prefix = entity_prefix(company_id, tab) or pa_prefix   # prefix per perusahaan dari tabel entities
     conn = get_conn()
 
     sids = [line.get("student_id") for line in lines]
