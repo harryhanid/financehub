@@ -52,7 +52,8 @@
 
 .tr-chainrow { display: flex; align-items: stretch; border-top: 1px dashed #bfdbfe; min-width: max-content; }
 .tr-chainrow .tr-ruler-cell { height: 100%; min-height: 54px; }
-.tr-chainbody { padding: 6px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tr-chainbody { padding: 6px 14px; }
+.tr-chaininline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .tr-chip {
   border: 1px dashed #94a3b8; border-radius: 10px; padding: 0 8px; background: #f8fafc;
   color: #475569; font-size: calc(var(--tree-font) - 1px); cursor: pointer;

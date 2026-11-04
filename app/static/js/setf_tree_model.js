@@ -35,11 +35,12 @@
     });
     if (!isHit && kept.length === 0) return null;
     const out = { node, gen, isHit: m.self, partnerHitIds: m.partnerIds, hiddenSiblings: 0, children: [] };
-    if (isHit) {
-      // Hasil: anak-anaknya tertutup; kecuali akar, yang tampil dengan G1-nya.
-      if (gen === 0) out.children = kids.map((c) => bareFocus(c, gen + 1));
+    if (isHit && gen === 0) {
+      // Akar yang cocok tampil dengan G1-nya; G1 yang punya hasil di bawahnya memakai rantai hasilnya.
+      out.children = kids.map((c) => kept.find((k) => k.node === c) || bareFocus(c, gen + 1));
       return out;
     }
+    // Hasil: anak-anaknya tertutup, kecuali yang membawa hasil lain di bawahnya.
     kept.forEach((f) => { f.hiddenSiblings = kids.length - kept.length; });
     out.children = kept;
     return out;
@@ -92,6 +93,13 @@
     }));
   }
 
+  // Kartu anak sebuah node (untuk membuka turunan hasil pencarian); turunan lebih dalam hanya bila terbuka.
+  function childRows(node, gen, openIds) {
+    const out = [];
+    stackRows(node.children || [], gen + 1, 0, openIds, out);
+    return out;
+  }
+
   // Mode pencarian: rantai leluhur -> hasil, satu penggaris per generasi.
   function focusRows(families) {
     return families.map((fam) => {
@@ -101,6 +109,7 @@
       const walk = (f) => {
         chain.push(makeRow(f.node, f.gen, f.gen - 1, none, {
           ruler: 'G' + f.gen, isHit: f.isHit, partnerHitIds: f.partnerHitIds, hiddenSiblings: f.hiddenSiblings,
+          focusChildren: f.children.length,
         }));
         if (f.isHit || f.partnerHitIds.length) hits.push(f.node.id);
         f.children.forEach(walk);
@@ -134,7 +143,7 @@
     return { scale, slices };
   }
 
-  const api = { indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, focusRows, formatPrintStamp, slicePages };
+  const api = { indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, childRows, focusRows, formatPrintStamp, slicePages };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SetfTreeModel = api;
 })(typeof window !== 'undefined' ? window : globalThis);

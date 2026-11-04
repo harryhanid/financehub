@@ -8,6 +8,7 @@
   let revealed = new Set();
   let mode = 'default';
   let query = '';
+  let bound = false;
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -89,8 +90,20 @@
           }
         }
         const pad = 'padding-left:calc(14px + ' + (r.gen - 1) + ' * var(--tree-indent) * 2)';
+        const canOpen = r.hasChildren && r.focusChildren === 0;
+        const open = canOpen && openIds.has(r.id);
+        const row = Object.assign({}, r, { open });
+        let kids = '';
+        if (open) {
+          kids = '<div class="tr-stack">' + M.childRows(r.node, r.gen, openIds).map((k) => {
+            const badge = k.badge ? '<div><span class="tr-badge">' + k.badge + '</span></div>' : '';
+            const nested = k.indent > 0 ? ' style="--ind:' + (k.indent - 1) + '"' : '';
+            return badge + '<div class="tr-item"' + nested + '>' + cardHtml(k, { toggle: true }) + '</div>';
+          }).join('') + '</div>';
+        }
         return '<div class="tr-chainrow"><div class="tr-ruler"><div class="tr-ruler-cell">' + r.ruler + '</div></div>'
-          + '<div class="tr-chainbody" style="' + pad + '">' + cardHtml(r, { path: true }) + chip + sibs + '</div></div>';
+          + '<div class="tr-chainbody" style="' + pad + '"><div class="tr-chaininline">'
+          + cardHtml(row, { path: true, toggle: canOpen }) + chip + sibs + '</div>' + kids + '</div></div>';
       }).join('');
       return '<div class="tr-block"><div class="tr-block-head"><div class="tr-root-card">'
         + cardHtml(b.root, { path: true }) + '</div></div>' + rows + '</div>';
@@ -136,14 +149,19 @@
     const rv = e.target.closest('[data-reveal]');
     if (rv) { revealed.add(rv.getAttribute('data-reveal')); renderFocus(query); return; }
     const tg = e.target.closest('[data-toggle]');
-    if (tg && mode === 'default') { openIds = M.toggleOpen(openIds, tg.getAttribute('data-toggle')); renderDefault(); }
+    if (tg) { openIds = M.toggleOpen(openIds, tg.getAttribute('data-toggle')); rerender(); }
   }
 
   function mount(container, data) {
     host = container;
     roots = data;
     idx = M.indexTree(roots);
-    host.addEventListener('click', onClick);
+    if (!bound) {
+      bound = true;
+      host.addEventListener('click', onClick);
+      const st = statusEl();
+      if (st) st.addEventListener('click', onClick);
+    }
     reset();
   }
 

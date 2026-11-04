@@ -2415,11 +2415,13 @@ function setfRenderDiagram2(data) {
 }
 
 let treeLoaded = false;
+let treeLoading = false;
 
 async function initTreeQuery() {
-  if (treeLoaded) return;
+  if (treeLoaded || treeLoading) return;
   const box = document.getElementById("tree-stack");
   if (!box || !window.SetfTreeView) return;
+  treeLoading = true;
   box.innerHTML = '<div class="tr-empty">Memuat data tree...</div>';
   try {
     const res = await fetch("/beasiswa/sahabat/tree-data");
@@ -2438,6 +2440,8 @@ async function initTreeQuery() {
   } catch (err) {
     box.innerHTML = '<div class="tr-empty">Gagal memuat tree.</div>';
     setfReportError("Err Tree Query: ", err);
+  } finally {
+    treeLoading = false;
   }
 }
 

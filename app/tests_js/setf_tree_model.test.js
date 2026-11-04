@@ -164,3 +164,40 @@ test('slicePages: konten pendek satu halaman', () => {
   const r = M.slicePages(500, 300, { pageW: 210, pageH: 297, margin: 10, headerH: 20 });
   assert.deepEqual(r.slices, [{ sy: 0, sh: 300 }]);
 });
+
+test('searchFocus: hasil yang juga leluhur hasil lain tetap menampilkan hasil di bawahnya', () => {
+  const f = fixture();
+  f[0].children[0].children[1].children[0].children[0].name = 'Oei Olivia'; // A1.2.A.1.A.1
+  const r = M.searchFocus(f, 'oei');
+  const a1 = r.families[0].children[0];
+  const a12 = a1.children.find((c) => c.node.id === 'A1.2');
+  assert.equal(a12.isHit, true);
+  const deep = a12.children[0].children[0];
+  assert.equal(deep.node.id, 'A1.2.A.1.A.1');
+  assert.equal(deep.isHit, true);
+});
+
+test('searchFocus: akar yang cocok menggabungkan G1 polos dengan rantai hasil', () => {
+  const f = fixture();
+  f[0].children[1].children[0].name = 'Eka Nanny'; // A2.1
+  const root = M.searchFocus(f, 'eka').families[0];
+  assert.equal(root.isHit, true);
+  const a1 = root.children.find((c) => c.node.id === 'A1');
+  const a2 = root.children.find((c) => c.node.id === 'A2');
+  assert.deepEqual(a1.children, []);
+  assert.deepEqual(a2.children.map((c) => c.node.id), ['A2.1']);
+  assert.equal(a2.children[0].isHit, true);
+});
+
+test('childRows: anak sebuah node, turunan hanya bila dibuka', () => {
+  const a12 = fixture()[0].children[0].children[1];
+  const closed = M.childRows(a12, 2, new Set());
+  assert.deepEqual(closed.map((r) => [r.id, r.gen, r.indent]), [['A1.2.A.1', 3, 0]]);
+  const open = M.childRows(a12, 2, new Set(['A1.2.A.1']));
+  assert.deepEqual(open.map((r) => [r.id, r.indent]), [['A1.2.A.1', 0], ['A1.2.A.1.A.1', 1]]);
+});
+
+test('focusRows: jumlah anak dalam rantai tercatat', () => {
+  const b = M.focusRows(M.searchFocus(fixture(), 'winata').families)[0];
+  assert.deepEqual(b.chain.map((r) => r.focusChildren), [1, 1, 0]);
+});
