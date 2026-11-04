@@ -377,10 +377,12 @@ def tree_data():
 
     bloodlines = {}
     partners = {}
+    # Root keluarga = group satu huruf (A, B, C, ...); tidak di-hardcode agar keluarga baru ikut tampil.
+    root_ids = {r[2].strip() for r in rows if re.fullmatch(r'[A-Za-z]', r[2].strip())}
 
     for code, nama, g, tgl_lahir, catatan in rows:
         g = g.strip()
-        if g in ['A', 'B']:
+        if g in root_ids:
             bloodlines[g] = {'id': g, 'code': code, 'name': nama, 'partners': [], 'children': [], 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
         elif '.' not in g:
             base = g[0]
@@ -394,13 +396,11 @@ def tree_data():
             else:
                 bloodlines[g] = {'id': g, 'code': code, 'name': nama, 'partners': [], 'children': [], 'parent': base, 'tanggal_lahir': tgl_lahir, 'catatan': catatan}
 
-    roots = []
-    if 'A' in bloodlines: roots.append(bloodlines['A'])
-    if 'B' in bloodlines: roots.append(bloodlines['B'])
+    roots = [bloodlines[r] for r in sorted(root_ids) if r in bloodlines]
 
     for pid, p in partners.items():
         base = p['base']
-        if base in ['A', 'B']:
+        if base in root_ids:
             if base in bloodlines:
                 pass # Removed prepending
                 p['children'] = []
@@ -410,12 +410,12 @@ def tree_data():
                 bloodlines[base]['partners'].append(p)
 
     for g, b in bloodlines.items():
-        if g in ['A', 'B']: continue
+        if g in root_ids: continue
         parent_partner_id = b.get('parent')
         
         if parent_partner_id in partners:
             partner = partners[parent_partner_id]
-            if partner['base'] in ['A', 'B']:
+            if partner['base'] in root_ids:
                 partner['children'].append(b)
             else:
                 base_bloodline_id = partner['base']

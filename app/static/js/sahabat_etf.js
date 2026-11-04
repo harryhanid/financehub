@@ -2464,7 +2464,7 @@ let treeRawData = null;
 
 function assignGenerations(node, depth) {
   if (depth > 1) {
-    node.genLabel = "L" + (depth - 1);
+    node.genLabel = "G" + (depth - 1);
   } else {
     node.genLabel = "";
   }
@@ -2525,7 +2525,7 @@ async function initTreeQuery() {
     };
     assignGenerations(treeRawData, 0);
       assignUID(treeRawData);
-      applyInitialDepth(treeRawData, 0, 2);
+      applyInitialDepth(treeRawData, 0, 3);
       window.treeRawDataPristine = JSON.parse(JSON.stringify(treeRawData));
       
     const dl = document.getElementById("tree-search-list");
@@ -2574,7 +2574,7 @@ function renderTree(data) {
     let newWidth = Math.max(baseW, reqW);
     let newHeight = Math.max(baseH, reqH);
     
-    let paddingX = Math.max(20, (newWidth - reqW) / 2);
+    let paddingX = Math.max(140, (newWidth - reqW) / 2);
     let paddingY = Math.max(80, (newHeight - reqH) / 2);
     
     let chartDiv = document.getElementById("tree-chart");
@@ -2654,16 +2654,14 @@ function renderTree(data) {
 
             let n = params.data.name || '';
             let fullCode = params.data.id ? params.data.id : '';
-            if (fullCode && fullCode !== 'A' && fullCode !== 'B') {
+            if (fullCode && !/^[A-Za-z]$/.test(fullCode)) {
                 n = n + ' (' + fullCode + ')';
             }
             
-            let gen = params.data.genLabel ? `{gen|[${params.data.genLabel}]} ` : '';
             let lines = [];
             let wrappedMain = wrapText(n, 15);
             wrappedMain.forEach((w, idx) => {
-                if (idx === 0) lines.push(`${gen}{main|${w}}`);
-                else lines.push(`{main|${w}}`);
+                lines.push(`{main|${w}}`);
             });
             
             let ps = params.data.partners;
@@ -2698,7 +2696,47 @@ function renderTree(data) {
       }
     ]
   };
-  treeChartInstance.setOption(option);
+  // Kolom penggaris generasi (G1, G2, ...) di kiri; menempel saat scroll horizontal
+  const RULER_W = 48;
+  const innerH = newHeight - 2 * paddingY;
+  const layerH = maxDepth > 0 ? innerH / maxDepth : 0;
+  const genDepths = [];
+  for (let d = 2; d <= maxDepth; d++) genDepths.push(d);
+  const rulerEls = (sx) => {
+    if (!genDepths.length) return [];
+    const els = [
+      { id: 'gen-ruler', type: 'rect', silent: true, z: 90,
+        shape: { x: sx, y: 0, width: RULER_W, height: newHeight },
+        style: { fill: '#f1f5f9' } },
+      { id: 'gen-ruler-edge', type: 'line', silent: true, z: 91,
+        shape: { x1: sx + RULER_W, y1: 0, x2: sx + RULER_W, y2: newHeight },
+        style: { stroke: '#cbd5e1', lineWidth: 1 } }
+    ];
+    genDepths.forEach(d => {
+      els.push({ id: 'gen-label-' + d, type: 'text', silent: true, z: 92,
+        x: sx + RULER_W / 2, y: paddingY + d * layerH,
+        style: { text: 'G' + (d - 1), fontSize: 13, fontWeight: 'bold', fill: '#2563eb',
+                 textAlign: 'center', textVerticalAlign: 'middle' } });
+    });
+    return els;
+  };
+  const sepEls = [];
+  for (let d = 1; d < maxDepth; d++) {
+    const y = paddingY + (d + 0.5) * layerH;
+    sepEls.push({ id: 'gen-sep-' + d, type: 'line', silent: true, z: 0,
+      shape: { x1: RULER_W, y1: y, x2: newWidth, y2: y },
+      style: { stroke: '#93c5fd', lineWidth: 1, lineDash: [4, 5] } });
+  }
+  option.graphic = { elements: [...sepEls, ...rulerEls(wrapper ? wrapper.scrollLeft : 0)] };
+  window.treeRulerEls = rulerEls;
+  if (wrapper && !wrapper._genScrollBound) {
+    wrapper._genScrollBound = true;
+    wrapper.addEventListener('scroll', () => {
+      if (!treeChartInstance || !window.treeRulerEls) return;
+      treeChartInstance.setOption({ graphic: { elements: window.treeRulerEls(wrapper.scrollLeft) } });
+    });
+  }
+  treeChartInstance.setOption(option, true);
     
     treeChartInstance.off('click');
     treeChartInstance.on('click', function(e) {
