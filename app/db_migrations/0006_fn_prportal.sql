@@ -689,7 +689,7 @@ begin
       from (select jsonb_array_elements_text(p_numbers) as x limit 200) q;
     foreach v_t in array v_tbls loop
         execute format(
-            ''select coalesce(jsonb_object_agg(p.pa_number, jsonb_build_object(''''status'''', p.status, ''''reject_reason'''', p.reject_reason, ''''checked_by_fincon'''', p.checked_by_fincon, ''''approved_by_htj_1'''', p.approved_by_htj_1, ''''send_pa_back_to_educ'''', p.send_pa_back_to_educ, ''''pa_received_by_po_fin'''', p.pa_received_by_po_fin, ''''approval_by_htj_2'''', p.approval_by_htj_2, ''''nomor_pam'''', p.nomor_pam, ''''tanggal_bayar'''', p.tanggal_bayar, ''''catatan_fc'''', p.keterangan, ''''attachment_poin'''', p.attachment_poin, ''''serah_status'''', p.serah_status, ''''serah_at'''', p.serah_at, ''''serah_catatan'''', p.serah_catatan, ''''terima_at'''', p.terima_at)), ''''{}''''::jsonb) ''
+            ''select coalesce(jsonb_object_agg(p.pa_number, jsonb_build_object(''''status'''', p.status, ''''reject_reason'''', p.reject_reason, ''''checked_by_fincon'''', p.checked_by_fincon, ''''approved_by_htj_1'''', p.approved_by_htj_1, ''''send_pa_back_to_educ'''', p.send_pa_back_to_educ, ''''pa_received_by_po_fin'''', p.pa_received_by_po_fin, ''''approval_by_htj_2'''', p.approval_by_htj_2, ''''nomor_pam'''', p.nomor_pam, ''''tanggal_bayar'''', p.tanggal_bayar, ''''catatan_fc'''', p.keterangan, ''''attachment_poin'''', p.attachment_poin, ''''serah_status'''', p.serah_status, ''''serah_at'''', p.serah_at, ''''serah_catatan'''', p.serah_catatan, ''''terima_at'''', p.terima_at, ''''pa_verified_by_po_fin'''', p.pa_verified_by_po_fin, ''''verif_at'''', p.verif_at, ''''verif_catatan'''', p.verif_catatan)), ''''{}''''::jsonb) ''
             || ''from %I.%I p where p.source = ''''prportal'''' and p.pa_number = any($1)'',
             ''{{schema}}'', v_t)
           into v_part using v_nums;
@@ -700,6 +700,9 @@ end
 ';
 
 -- Serah terima dokumen fisik PA Beasiswa. Pelaku diteruskan PR Portal (email sesi); kepemilikan & prasyarat dicek di sini.
+-- Alur: pemohon serahkan (menunggu) -> Finance terima (menunggu_verifikasi) -> Verificator verifikasi (terverifikasi) atau tolak
+-- (dikembalikan ke Finance) -> Finance teruskan (menunggu_verifikasi) atau tolak ke pemohon (ditolak). Setiap transisi ditulis ke
+-- pa_serah_log; UPDATE bersyarat pada serah_status membuat dua pemanggil bersamaan hanya satu yang berhasil.
 -- Letak PA (tabel + id) dari nomor PA, hanya source='prportal'.
 create or replace function {{schema}}.fn_prp_pa_locate(p_pa_number text)
 returns jsonb
@@ -724,6 +727,19 @@ begin
         end if;
     end loop;
     return null;
+end
+';
+
+create or replace function {{schema}}.fn_prp_serah_log_add(p_pa_number text, p_kejadian text, p_oleh text, p_catatan text)
+returns void
+language plpgsql
+volatile
+set search_path = {{schema}}
+as '
+begin
+    insert into pa_serah_log (pa_number, kejadian, oleh, waktu, catatan)
+    values (p_pa_number, p_kejadian, p_oleh, to_char(now() at time zone interval ''+07:00'', ''YYYY-MM-DD HH24:MI:SS''),
+            nullif(coalesce(p_catatan, ''''), ''''));
 end
 ';
 
@@ -758,22 +774,27 @@ begin
     if coalesce(v_row->>''send_pa_back_to_educ'', '''') = '''' then
         return jsonb_build_object(''ok'', false, ''pesan'', ''Dokumen belum dikembalikan ke pemohon (Send Back Educ belum terisi).'');
     end if;
-    if coalesce(v_row->>''pa_received_by_po_fin'', '''') <> '''' or v_row->>''serah_status'' = ''diterima'' then
+    if coalesce(v_row->>''pa_received_by_po_fin'', '''') <> '''' then
         return jsonb_build_object(''ok'', false, ''pesan'', ''Dokumen fisik PA ini sudah diterima Finance.'');
     end if;
     if v_row->>''serah_status'' = ''menunggu'' then
         return jsonb_build_object(''ok'', false, ''pesan'', ''PA sudah diserahkan dan menunggu Finance.'');
     end if;
+    if v_row->>''serah_status'' in (''menunggu_verifikasi'', ''dikembalikan'', ''terverifikasi'') then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''PA sudah diserahkan dan sedang diproses.'');
+    end if;
     execute format(''update %I.%I set serah_status = ''''menunggu'''', serah_at = $2, serah_by = $3, serah_catatan = null, ''
-                   || ''terima_by = null, terima_at = null where id = $1 and status = ''''open'''' ''
+                   || ''terima_by = null, terima_at = null, verif_by = null, verif_at = null, verif_catatan = null ''
+                   || ''where id = $1 and status = ''''open'''' ''
                    || ''and coalesce(pa_received_by_po_fin, '''''''') = '''''''' ''
-                   || ''and coalesce(serah_status, '''''''') not in (''''menunggu'''', ''''diterima'''')'',
+                   || ''and coalesce(serah_status, '''''''') not in (''''menunggu'''', ''''menunggu_verifikasi'''', ''''dikembalikan'''', ''''terverifikasi'''')'',
                    ''{{schema}}'', v_loc->>''tbl'')
       using (v_loc->>''id'')::bigint, v_now, v_by;
     get diagnostics v_n = row_count;
     if v_n = 0 then
         return jsonb_build_object(''ok'', false, ''pesan'', ''PA sudah diserahkan atau diproses.'');
     end if;
+    perform fn_prp_serah_log_add(p->>''pa_number'', ''diserahkan'', v_by, null);
     return jsonb_build_object(''ok'', true);
 end
 ';
@@ -798,14 +819,15 @@ begin
     if v_loc is null then
         return jsonb_build_object(''ok'', false, ''pesan'', ''PA tidak ditemukan.'');
     end if;
-    execute format(''update %I.%I set serah_status = ''''diterima'''', pa_received_by_po_fin = $2, terima_by = $3, terima_at = $4 ''
-                   || ''where id = $1 and serah_status = ''''menunggu'''' and coalesce(pa_received_by_po_fin, '''''''') = '''''''''',
+    execute format(''update %I.%I set serah_status = ''''menunggu_verifikasi'''', pa_received_by_po_fin = $2, terima_by = $3, terima_at = $4, ''
+                   || ''verif_catatan = null where id = $1 and serah_status = ''''menunggu'''' and coalesce(pa_received_by_po_fin, '''''''') = '''''''''',
                    ''{{schema}}'', v_loc->>''tbl'')
       using (v_loc->>''id'')::bigint, v_today, v_by, v_now;
     get diagnostics v_n = row_count;
     if v_n = 0 then
         return jsonb_build_object(''ok'', false, ''pesan'', ''PA ini tidak sedang menunggu penerimaan Finance.'');
     end if;
+    perform fn_prp_serah_log_add(p->>''pa_number'', ''diterima_finance'', v_by, null);
     return jsonb_build_object(''ok'', true, ''tanggal'', v_today);
 end
 ';
@@ -836,18 +858,136 @@ begin
     if v_loc is null then
         return jsonb_build_object(''ok'', false, ''pesan'', ''PA tidak ditemukan.'');
     end if;
-    execute format(''update %I.%I set serah_status = ''''ditolak'''', serah_catatan = $2, terima_by = $3, terima_at = $4 ''
-                   || ''where id = $1 and serah_status = ''''menunggu'''''',
+    -- dari dikembalikan (Verificator -> Finance -> pemohon): siklus penerimaan diulang, jadi dua tanggal dikosongkan
+    -- (riwayat tetap menyimpan tanggal lama); dari menunggu: tanggal tidak disentuh.
+    execute format(''update %I.%I set pa_received_by_po_fin = case when serah_status = ''''dikembalikan'''' then '''''''' else pa_received_by_po_fin end, ''
+                   || ''pa_verified_by_po_fin = case when serah_status = ''''dikembalikan'''' then null else pa_verified_by_po_fin end, ''
+                   || ''serah_status = ''''ditolak'''', serah_catatan = $2, terima_by = $3, terima_at = $4 ''
+                   || ''where id = $1 and serah_status in (''''menunggu'''', ''''dikembalikan'''')'',
                    ''{{schema}}'', v_loc->>''tbl'')
       using (v_loc->>''id'')::bigint, v_alasan, v_by, v_now;
     get diagnostics v_n = row_count;
     if v_n = 0 then
         return jsonb_build_object(''ok'', false, ''pesan'', ''PA ini tidak sedang menunggu penerimaan Finance.'');
     end if;
+    perform fn_prp_serah_log_add(p->>''pa_number'', ''ditolak_finance'', v_by, v_alasan);
     return jsonb_build_object(''ok'', true);
 end
 ';
 
+create or replace function {{schema}}.fn_prp_verifikasi_pa(p jsonb)
+returns jsonb
+language plpgsql
+volatile
+set search_path = {{schema}}
+as '
+declare
+    v_loc jsonb;
+    v_row jsonb;
+    v_by text := lower(trim(coalesce(p->>''oleh'', '''')));
+    v_now text := to_char(now() at time zone interval ''+07:00'', ''YYYY-MM-DD HH24:MI:SS'');
+    v_today text := to_char(now() at time zone interval ''+07:00'', ''YYYY-MM-DD'');
+    v_n int;
+begin
+    if jsonb_typeof(p->''pa_number'') is distinct from ''string'' or v_by = '''' then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Data verifikasi tidak valid.'');
+    end if;
+    v_loc := fn_prp_pa_locate(p->>''pa_number'');
+    if v_loc is null then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''PA tidak ditemukan.'');
+    end if;
+    execute format(''select to_jsonb(t) from %I.%I t where id = $1'', ''{{schema}}'', v_loc->>''tbl'')
+       into v_row using (v_loc->>''id'')::bigint;
+    if v_row->>''serah_status'' is distinct from ''menunggu_verifikasi'' then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''PA ini tidak sedang menunggu verifikasi.'');
+    end if;
+    if coalesce(v_row->>''nomor_pam'', '''') = '''' then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''PA belum punya Nomor PAM; PAM harus dibuat Finance sebelum verifikasi.'');
+    end if;
+    execute format(''update %I.%I set serah_status = ''''terverifikasi'''', pa_verified_by_po_fin = $2, verif_by = $3, verif_at = $4, verif_catatan = null ''
+                   || ''where id = $1 and serah_status = ''''menunggu_verifikasi'''' and coalesce(nomor_pam, '''''''') <> '''''''''',
+                   ''{{schema}}'', v_loc->>''tbl'')
+      using (v_loc->>''id'')::bigint, v_today, v_by, v_now;
+    get diagnostics v_n = row_count;
+    if v_n = 0 then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''PA ini tidak sedang menunggu verifikasi.'');
+    end if;
+    perform fn_prp_serah_log_add(p->>''pa_number'', ''terverifikasi'', v_by, null);
+    return jsonb_build_object(''ok'', true, ''tanggal'', v_today);
+end
+';
+
+create or replace function {{schema}}.fn_prp_tolak_verifikasi_pa(p jsonb)
+returns jsonb
+language plpgsql
+volatile
+set search_path = {{schema}}
+as '
+declare
+    v_loc jsonb;
+    v_by text := lower(trim(coalesce(p->>''oleh'', '''')));
+    v_alasan text := trim(coalesce(p->>''alasan'', ''''));
+    v_now text := to_char(now() at time zone interval ''+07:00'', ''YYYY-MM-DD HH24:MI:SS'');
+    v_n int;
+begin
+    if jsonb_typeof(p->''pa_number'') is distinct from ''string'' or v_by = '''' then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Data penolakan tidak valid.'');
+    end if;
+    if v_alasan = '''' then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Alasan penolakan wajib diisi.'');
+    end if;
+    if char_length(v_alasan) > 300 then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Alasan penolakan maksimal 300 karakter.'');
+    end if;
+    v_loc := fn_prp_pa_locate(p->>''pa_number'');
+    if v_loc is null then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''PA tidak ditemukan.'');
+    end if;
+    execute format(''update %I.%I set serah_status = ''''dikembalikan'''', verif_catatan = $2, verif_by = $3, verif_at = $4 ''
+                   || ''where id = $1 and serah_status = ''''menunggu_verifikasi'''''',
+                   ''{{schema}}'', v_loc->>''tbl'')
+      using (v_loc->>''id'')::bigint, v_alasan, v_by, v_now;
+    get diagnostics v_n = row_count;
+    if v_n = 0 then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''PA ini tidak sedang menunggu verifikasi.'');
+    end if;
+    perform fn_prp_serah_log_add(p->>''pa_number'', ''dikembalikan_verificator'', v_by, v_alasan);
+    return jsonb_build_object(''ok'', true);
+end
+';
+
+create or replace function {{schema}}.fn_prp_teruskan_pa(p jsonb)
+returns jsonb
+language plpgsql
+volatile
+set search_path = {{schema}}
+as '
+declare
+    v_loc jsonb;
+    v_by text := lower(trim(coalesce(p->>''oleh'', '''')));
+    v_n int;
+begin
+    if jsonb_typeof(p->''pa_number'') is distinct from ''string'' or v_by = '''' then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''Data penerusan tidak valid.'');
+    end if;
+    v_loc := fn_prp_pa_locate(p->>''pa_number'');
+    if v_loc is null then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''PA tidak ditemukan.'');
+    end if;
+    execute format(''update %I.%I set serah_status = ''''menunggu_verifikasi'''', verif_catatan = null ''
+                   || ''where id = $1 and serah_status = ''''dikembalikan'''''',
+                   ''{{schema}}'', v_loc->>''tbl'')
+      using (v_loc->>''id'')::bigint;
+    get diagnostics v_n = row_count;
+    if v_n = 0 then
+        return jsonb_build_object(''ok'', false, ''pesan'', ''PA ini tidak sedang dikembalikan Verificator.'');
+    end if;
+    perform fn_prp_serah_log_add(p->>''pa_number'', ''diteruskan_finance'', v_by, null);
+    return jsonb_build_object(''ok'', true);
+end
+';
+
+-- Daftar kerja Finance: PA menunggu diterima (belum ada PA Recv PO Fin) dan PA yang dikembalikan Verificator.
 create or replace function {{schema}}.fn_prp_list_serah()
 returns jsonb
 language plpgsql
@@ -864,15 +1004,63 @@ begin
         execute format(
             ''select coalesce(jsonb_agg(jsonb_build_object(''''pa_number'''', t.pa_number, ''''requested_by'''', t.requested_by, ''''cost_center'''', t.cost_center, ''
             || ''''''total'''', (select coalesce(sum(l.jumlah_pembayaran), 0) from %I.%I l where l.pa_id = t.id), ''
-            || ''''''serah_at'''', t.serah_at, ''''serah_by'''', t.serah_by)), ''''[]''''::jsonb) ''
-            || ''from %I.%I t where t.source = ''''prportal'''' and t.serah_status = ''''menunggu'''' ''
-            || ''and coalesce(t.pa_received_by_po_fin, '''''''') = '''''''''',
+            || ''''''serah_at'''', t.serah_at, ''''serah_by'''', t.serah_by, ''''status'''', t.serah_status, ''
+            || ''''''catatan'''', case when t.serah_status = ''''dikembalikan'''' then coalesce(t.verif_catatan, '''''''') else '''''''' end, ''
+            || ''''''nomor_pam'''', coalesce(t.nomor_pam, '''''''')) ''
+            || ''), ''''[]''''::jsonb) from %I.%I t where t.source = ''''prportal'''' and (''
+            || ''(t.serah_status = ''''menunggu'''' and coalesce(t.pa_received_by_po_fin, '''''''') = '''''''') or t.serah_status = ''''dikembalikan'''')'',
             ''{{schema}}'', v_t || ''_lines'', ''{{schema}}'', v_t)
           into v_part;
         v_all := v_all || v_part;
     end loop;
     return jsonb_build_object(''ok'', true,
         ''rows'', (select coalesce(jsonb_agg(e order by e->>''serah_at'', e->>''pa_number''), ''[]''::jsonb) from jsonb_array_elements(v_all) e));
+end
+';
+
+-- Daftar kerja Verificator: PA yang sudah diterima Finance dan menunggu verifikasi.
+create or replace function {{schema}}.fn_prp_list_verifikasi()
+returns jsonb
+language plpgsql
+stable
+set search_path = {{schema}}
+as '
+declare
+    v_tbls text[] := array[''etf_pa'', ''app_pa'', ''sml_pa'', ''setf_pa'', ''energy_pa''];
+    v_t text;
+    v_all jsonb := ''[]''::jsonb;
+    v_part jsonb;
+begin
+    foreach v_t in array v_tbls loop
+        execute format(
+            ''select coalesce(jsonb_agg(jsonb_build_object(''''pa_number'''', t.pa_number, ''''requested_by'''', t.requested_by, ''''cost_center'''', t.cost_center, ''
+            || ''''''total'''', (select coalesce(sum(l.jumlah_pembayaran), 0) from %I.%I l where l.pa_id = t.id), ''
+            || ''''''nomor_pam'''', coalesce(t.nomor_pam, ''''''''), ''''terima_at'''', t.terima_at)), ''''[]''''::jsonb) ''
+            || ''from %I.%I t where t.source = ''''prportal'''' and t.serah_status = ''''menunggu_verifikasi'''''',
+            ''{{schema}}'', v_t || ''_lines'', ''{{schema}}'', v_t)
+          into v_part;
+        v_all := v_all || v_part;
+    end loop;
+    return jsonb_build_object(''ok'', true,
+        ''rows'', (select coalesce(jsonb_agg(e order by e->>''terima_at'', e->>''pa_number''), ''[]''::jsonb) from jsonb_array_elements(v_all) e));
+end
+';
+
+-- Riwayat serah terima satu PA (kronologis). Hanya PA source=prportal.
+create or replace function {{schema}}.fn_prp_serah_log(p_pa_number text)
+returns jsonb
+language plpgsql
+stable
+set search_path = {{schema}}
+as '
+begin
+    if fn_prp_pa_locate(p_pa_number) is null then
+        return jsonb_build_object(''ok'', true, ''rows'', ''[]''::jsonb);
+    end if;
+    return jsonb_build_object(''ok'', true, ''rows'',
+        (select coalesce(jsonb_agg(jsonb_build_object(''kejadian'', l.kejadian, ''oleh'', l.oleh, ''waktu'', l.waktu, ''catatan'', coalesce(l.catatan, ''''))
+                                   order by l.waktu, l.id), ''[]''::jsonb)
+           from pa_serah_log l where l.pa_number = p_pa_number));
 end
 ';
 

@@ -120,3 +120,44 @@ alter table {{schema}}.energy_pa add column if not exists "serah_by" text collat
 alter table {{schema}}.energy_pa add column if not exists "serah_catatan" text collate "C";
 alter table {{schema}}.energy_pa add column if not exists "terima_by" text collate "C";
 alter table {{schema}}.energy_pa add column if not exists "terima_at" text collate "C";
+
+-- 9. Verifikasi Verificator (PA Verified PO Fin): tanggal + pelaku terkini. serah_status diperluas: menunggu | ditolak |
+-- menunggu_verifikasi | dikembalikan | terverifikasi. Nilai lama 'diterima' dipetakan ke menunggu_verifikasi.
+alter table {{schema}}.etf_pa add column if not exists "pa_verified_by_po_fin" text collate "C";
+alter table {{schema}}.etf_pa add column if not exists "verif_by" text collate "C";
+alter table {{schema}}.etf_pa add column if not exists "verif_at" text collate "C";
+alter table {{schema}}.etf_pa add column if not exists "verif_catatan" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "pa_verified_by_po_fin" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "verif_by" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "verif_at" text collate "C";
+alter table {{schema}}.app_pa add column if not exists "verif_catatan" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "pa_verified_by_po_fin" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "verif_by" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "verif_at" text collate "C";
+alter table {{schema}}.sml_pa add column if not exists "verif_catatan" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "pa_verified_by_po_fin" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "verif_by" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "verif_at" text collate "C";
+alter table {{schema}}.setf_pa add column if not exists "verif_catatan" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "pa_verified_by_po_fin" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "verif_by" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "verif_at" text collate "C";
+alter table {{schema}}.energy_pa add column if not exists "verif_catatan" text collate "C";
+update {{schema}}.etf_pa set serah_status = 'menunggu_verifikasi' where serah_status = 'diterima';
+update {{schema}}.app_pa set serah_status = 'menunggu_verifikasi' where serah_status = 'diterima';
+update {{schema}}.sml_pa set serah_status = 'menunggu_verifikasi' where serah_status = 'diterima';
+update {{schema}}.setf_pa set serah_status = 'menunggu_verifikasi' where serah_status = 'diterima';
+update {{schema}}.energy_pa set serah_status = 'menunggu_verifikasi' where serah_status = 'diterima';
+
+-- Riwayat serah terima: satu baris per kejadian (tidak pernah dihapus). Kejadian: diserahkan, diterima_finance, ditolak_finance,
+-- dikembalikan_verificator, diteruskan_finance, terverifikasi. Waktu WIB 'YYYY-MM-DD HH24:MI:SS'.
+create table if not exists {{schema}}.pa_serah_log (
+    id bigserial primary key,
+    pa_number text collate "C" not null,
+    kejadian text collate "C" not null,
+    oleh text collate "C",
+    waktu text collate "C" not null,
+    catatan text collate "C"
+);
+create index if not exists pa_serah_log_pa_number_idx on {{schema}}.pa_serah_log (pa_number);
+alter table {{schema}}.pa_serah_log enable row level security;

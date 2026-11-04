@@ -84,7 +84,7 @@ def test_serah_then_terima_sets_recv_today_and_audit():
     out = _call("fn_prp_terima_pa", {"pa_number": num, "oleh": FINANCE})
     assert out == {"ok": True, "tanggal": _today()}
     row = _row(pa_id)
-    assert row["serah_status"] == "diterima" and row["pa_received_by_po_fin"] == _today()
+    assert row["serah_status"] == "menunggu_verifikasi" and row["pa_received_by_po_fin"] == _today()
     assert row["terima_by"] == FINANCE and row["terima_at"].startswith(_today())
 
 
