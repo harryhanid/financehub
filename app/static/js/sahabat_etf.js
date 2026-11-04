@@ -2497,6 +2497,7 @@ function setfBlobToDataUrl(blob) {
 
 async function exportTreePDF() {
   if (!treeLoaded) return;
+  if (!SetfTreeView.hasContent()) { showToast("Pilih cabang atau cari nama dulu sebelum export PDF.", "info"); return; }
   showToast("Mempersiapkan PDF...", "info");
   const wrap = document.getElementById("tree-wrapper");
   const saved = wrap ? [wrap.scrollLeft, wrap.scrollTop] : [0, 0];
@@ -2508,10 +2509,16 @@ async function exportTreePDF() {
 
     const el = SetfTreeView.getExportElement();
     if (wrap) { wrap.scrollLeft = 0; wrap.scrollTop = 0; }
-    const canvas = await html2canvas(el, {
+    const full = await html2canvas(el, {
       scale: 2, backgroundColor: "#ffffff",
       width: el.scrollWidth, height: el.scrollHeight, windowWidth: el.scrollWidth,
     });
+    // Pangkas ruang kosong agar tree memenuhi lebar halaman saat dicetak.
+    const bb = SetfTreeModel.contentBounds(full.getContext("2d").getImageData(0, 0, full.width, full.height).data, full.width, full.height, 24);
+    const canvas = document.createElement("canvas");
+    canvas.width = bb.right - bb.left;
+    canvas.height = bb.bottom - bb.top;
+    canvas.getContext("2d").drawImage(full, bb.left, bb.top, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: canvas.height > canvas.width ? "portrait" : "landscape", unit: "mm", format: "a4" });
@@ -2539,7 +2546,8 @@ async function exportTreePDF() {
       part.width = canvas.width;
       part.height = sl.sh;
       part.getContext("2d").drawImage(canvas, 0, sl.sy, canvas.width, sl.sh, 0, 0, canvas.width, sl.sh);
-      doc.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", margin, margin + headerH, canvas.width * scale, sl.sh * scale);
+      const imgW = canvas.width * scale;
+      doc.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", (pageW - imgW) / 2, margin + headerH, imgW, sl.sh * scale);
     });
     doc.save("Sahabat_ETF_Tree.pdf");
     showToast("PDF berhasil diunduh!", "success");

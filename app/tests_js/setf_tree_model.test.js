@@ -201,3 +201,36 @@ test('focusRows: jumlah anak dalam rantai tercatat', () => {
   const b = M.focusRows(M.searchFocus(fixture(), 'winata').families)[0];
   assert.deepEqual(b.chain.map((r) => r.focusChildren), [1, 1, 0]);
 });
+
+function pixels(w, h, painted) {
+  const d = new Uint8ClampedArray(w * h * 4).fill(255);
+  painted.forEach(([x, y]) => { const i = (y * w + x) * 4; d[i] = 10; d[i + 1] = 10; d[i + 2] = 10; });
+  return d;
+}
+
+test('contentBounds memangkas ruang putih dengan padding', () => {
+  const d = pixels(100, 50, [[20, 10], [60, 30]]);
+  assert.deepEqual(M.contentBounds(d, 100, 50, 5), { left: 15, top: 5, right: 66, bottom: 36 });
+});
+
+test('contentBounds dibatasi ukuran gambar', () => {
+  const d = pixels(40, 20, [[0, 0], [39, 19]]);
+  assert.deepEqual(M.contentBounds(d, 40, 20, 8), { left: 0, top: 0, right: 40, bottom: 20 });
+});
+
+test('contentBounds gambar kosong mengembalikan seluruh gambar', () => {
+  assert.deepEqual(M.contentBounds(pixels(10, 8, []), 10, 8, 3), { left: 0, top: 0, right: 10, bottom: 8 });
+});
+
+test('slicePages: kelebihan tinggi kecil dimuat satu halaman dengan skala dikecilkan', () => {
+  const r = M.slicePages(500, 700, { pageW: 210, pageH: 297, margin: 10, headerH: 20 });
+  assert.equal(r.slices.length, 1);
+  assert.deepEqual(r.slices[0], { sy: 0, sh: 700 });
+  assert.ok(r.scale < 0.38 && r.scale > 0.36);
+});
+
+test('slicePages: kelebihan tinggi besar tetap dipotong', () => {
+  const r = M.slicePages(500, 800, { pageW: 210, pageH: 297, margin: 10, headerH: 20 });
+  assert.equal(r.scale, 0.38);
+  assert.equal(r.slices.length, 2);
+});

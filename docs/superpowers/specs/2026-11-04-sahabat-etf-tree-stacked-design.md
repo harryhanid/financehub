@@ -86,3 +86,10 @@ Keputusan saya (bisa diubah):
 
 - Menampilkan keluarga C di produksi menunggu rilis ("Update FLOW").
 - Perapian data (tanggal lahir 2995, 2026-11-01, duplikat Jety/David) tidak termasuk.
+
+## Revisi 2026-11-04 (tampilan klasik, garis bloodline)
+
+- Tampilan awal: pemilih cabang (A, B, C, ...); tree satu cabang baru tampil setelah dipilih, bukan semua sekaligus.
+- Gaya garis (pilihan pengguna, opsi B): garis keturunan tebal biru (3px) dengan simpul bulat di tiap percabangan. Akar di atas, garis siku ke tiap G1, dari G1 turun batang vertikal ke kartu G2, turunan lebih dalam bersarang dengan batangnya sendiri. Mode pencarian memakai garis siku bertangga dari akar ke hasil.
+- Export PDF: ruang kosong dipangkas dan konten dipas ke lebar halaman; bila tinggi hanya melebihi satu halaman <= 8%, skala dikecilkan agar muat satu halaman. Export tanpa cabang terpilih dan tanpa pencarian menampilkan pesan.
+- Keputusan saya (pengguna hanya memilih "B"): tampilan pencarian ikut memakai garis klasik yang sama.

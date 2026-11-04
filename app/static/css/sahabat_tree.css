@@ -1,17 +1,28 @@
-/* Tree Query Sahabat ETF — kartu bertumpuk */
+/* Tree Query Sahabat ETF — kartu bertumpuk dengan garis bloodline klasik */
 #tree-stack {
   --tree-font: 12px;
   --tree-gap: 14px;
   --tree-indent: 14px;
+  --ln: #3b82f6;
+  --w: 3px;
   font-size: var(--tree-font);
   color: #1e293b;
   padding: 12px 0 24px;
   min-width: max-content;
 }
+.tr-picker { display: flex; gap: 8px; align-items: center; padding: 0 14px 12px; color: #475569; }
+.tr-pill {
+  border: 1px solid #cbd5e1; border-radius: 16px; padding: 4px 14px; background: #fff;
+  font-weight: 700; cursor: pointer; color: #334155; font-size: inherit;
+}
+.tr-pill:hover { border-color: #3b82f6; }
+.tr-pill.on { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+.tr-export { background: #fff; display: block; width: max-content; min-width: 100%; }
 .tr-block { margin-bottom: 28px; }
 .tr-block-head { display: flex; align-items: center; min-height: 44px; }
-.tr-root-card { margin-left: 64px; }
-.tr-body { display: flex; align-items: stretch; margin-top: 8px; }
+.tr-root-card { margin-left: 62px; }
+.tr-body { display: flex; align-items: stretch; }
 .tr-ruler {
   position: sticky; left: 0; z-index: 5; flex: none; width: 48px;
   background: #f1f5f9; border-right: 1px solid #cbd5e1;
@@ -20,17 +31,29 @@
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; color: #2563eb; font-size: calc(var(--tree-font) + 1px);
 }
-.tr-cols { display: flex; gap: var(--tree-gap); align-items: flex-start; padding-left: 14px; }
-.tr-col { width: calc(var(--tree-font) * 17); flex: none; }
-.tr-g1-row { display: flex; align-items: center; min-height: 64px; }
-.tr-g1-row .tr-card { width: 100%; text-align: center; }
+.tr-tree { display: flex; flex-direction: column; align-items: center; padding: 12px 24px 8px; }
+.tr-stem { width: 0; height: 18px; border-left: var(--w) solid var(--ln); }
+.tr-row { display: flex; align-items: flex-start; }
+
+/* kolom G1: garis siku dari akar (bus horizontal + batang turun) */
+.tr-c {
+  position: relative; padding: 18px calc(var(--tree-gap) / 2) 0; display: flex; flex-direction: column;
+  align-items: stretch; width: calc(var(--tree-font) * 17.5);
+}
+.tr-c::before { content: ""; position: absolute; top: 0; left: 0; right: 0; border-top: var(--w) solid var(--ln); }
+.tr-c:first-child::before { left: 50%; }
+.tr-c:last-child::before { right: 50%; }
+.tr-c:only-child::before { display: none; }
+.tr-c::after { content: ""; position: absolute; top: 0; left: 50%; height: 18px; border-left: var(--w) solid var(--ln); }
 
 .tr-card {
-  position: relative; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px;
+  position: relative; background: #fff; border: 1px solid #94a3b8; border-radius: 6px;
   padding: 5px 8px; line-height: 1.35; box-sizing: border-box;
 }
+.tr-g1card { text-align: center; }
+.tr-rootcard { text-align: center; font-size: calc(var(--tree-font) + 1px); }
 .tr-card.clickable { cursor: pointer; }
-.tr-card.clickable:hover { border-color: #94a3b8; }
+.tr-card.clickable:hover { border-color: #3b82f6; }
 .tr-card.open { border-color: #3b82f6; background: #eff6ff; }
 .tr-card.path { border-color: #3b82f6; background: #eff6ff; }
 .tr-card.hit { border: 2px solid #f59e0b; background: #fef3c7; font-weight: 600; }
@@ -41,18 +64,32 @@
 .tr-caret { float: right; color: #64748b; font-size: calc(var(--tree-font) - 1px); margin-left: 6px; }
 .tr-badge {
   display: inline-block; background: #dbeafe; color: #1d4ed8; border-radius: 10px;
-  padding: 0 7px; font-size: calc(var(--tree-font) - 2px); font-weight: 700; margin: 0 0 5px 12px;
+  padding: 0 7px; font-size: calc(var(--tree-font) - 2px); font-weight: 700; margin: 0 0 5px 16px;
 }
-.tr-stack { margin: 6px 0 0 14px; border-left: 1.5px solid #93c5fd; padding-top: 4px; }
-.tr-item { position: relative; margin: 0 0 5px calc(12px + var(--tree-indent) * var(--ind, 0)); }
-.tr-item::before {
-  content: ""; position: absolute; left: -12px; top: 14px; width: 12px; border-top: 1.5px solid #93c5fd;
-}
-.tr-item.nested { border-left: 1.5px solid #cbd5e1; padding-left: 0; }
 
-.tr-chainrow { display: flex; align-items: stretch; border-top: 1px dashed #bfdbfe; min-width: max-content; }
+/* tumpukan G2+: batang vertikal + siku + simpul */
+.tr-stack { margin: 0 0 0 calc(10px + var(--tree-indent)); border-left: var(--w) solid var(--ln); padding-top: 6px; }
+.tr-trunk { margin-top: 0; }
+.tr-item { position: relative; margin: 0 0 6px 18px; }
+.tr-item::before {
+  content: ""; position: absolute; left: -18px; top: 14px; width: 18px; border-top: var(--w) solid var(--ln);
+}
+.tr-item::after {
+  content: ""; position: absolute; left: -23px; top: 14px; margin-top: -4px; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--ln);
+}
+.tr-item > .tr-stack { margin-top: 6px; }
+
+/* mode pencarian: rantai leluhur dengan siku bertangga */
+.tr-chainrow { display: flex; align-items: stretch; min-width: max-content; }
 .tr-chainrow .tr-ruler-cell { height: 100%; min-height: 54px; }
-.tr-chainbody { padding: 6px 14px; }
+.tr-chainbody { position: relative; padding: 6px 14px 6px calc(14px + var(--g) * var(--tree-indent) * 2); }
+.tr-chainbody::before {
+  content: ""; position: absolute; top: -7px; height: calc(50% + 7px);
+  left: calc(14px + (var(--g) - 1) * var(--tree-indent) * 2 + 12px);
+  width: max(0px, calc(var(--tree-indent) * 2 - 12px));
+  border-left: var(--w) solid var(--ln); border-bottom: var(--w) solid var(--ln); border-bottom-left-radius: 8px;
+}
 .tr-chaininline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .tr-chip {
   border: 1px dashed #94a3b8; border-radius: 10px; padding: 0 8px; background: #f8fafc;

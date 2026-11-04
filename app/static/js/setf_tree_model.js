@@ -133,9 +133,13 @@
       + ' ' + p2(w.getUTCHours()) + ':' + p2(w.getUTCMinutes()) + ' WIB';
   }
 
+  // Lebar konten dipas ke lebar halaman. Bila tingginya hanya sedikit melebihi satu halaman (<= 8%),
+  // skala dikecilkan agar muat satu halaman; selain itu dipotong per halaman.
   function slicePages(contentW, contentH, opt) {
-    const scale = (opt.pageW - 2 * opt.margin) / contentW;
-    const perPage = Math.floor((opt.pageH - 2 * opt.margin - opt.headerH) / scale);
+    let scale = (opt.pageW - 2 * opt.margin) / contentW;
+    const usableH = opt.pageH - 2 * opt.margin - opt.headerH;
+    if (contentH * scale > usableH && contentH * scale <= usableH * 1.08) scale = usableH / contentH;
+    const perPage = Math.max(1, Math.floor(usableH / scale));
     const slices = [];
     for (let sy = 0; sy < contentH; sy += perPage) {
       slices.push({ sy, sh: Math.min(perPage, contentH - sy) });
@@ -143,7 +147,28 @@
     return { scale, slices };
   }
 
-  const api = { indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, childRows, focusRows, formatPrintStamp, slicePages };
+  // Kotak pembatas piksel non-putih (RGBA) + padding, dipotong ke ukuran gambar; untuk memangkas ruang kosong PDF.
+  function contentBounds(rgba, w, h, pad) {
+    let left = w, top = h, right = -1, bottom = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (rgba[i + 3] > 0 && (rgba[i] < 250 || rgba[i + 1] < 250 || rgba[i + 2] < 250)) {
+          if (x < left) left = x;
+          if (x > right) right = x;
+          if (y < top) top = y;
+          if (y > bottom) bottom = y;
+        }
+      }
+    }
+    if (right < 0) return { left: 0, top: 0, right: w, bottom: h };
+    return {
+      left: Math.max(0, left - pad), top: Math.max(0, top - pad),
+      right: Math.min(w, right + 1 + pad), bottom: Math.min(h, bottom + 1 + pad),
+    };
+  }
+
+  const api = { contentBounds, indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, childRows, focusRows, formatPrintStamp, slicePages };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SetfTreeModel = api;
 })(typeof window !== 'undefined' ? window : globalThis);

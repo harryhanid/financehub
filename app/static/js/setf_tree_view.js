@@ -1,4 +1,5 @@
-// Renderer DOM Tree Query Sahabat ETF (kartu bertumpuk). Logika ada di setf_tree_model.js.
+// Renderer DOM Tree Query Sahabat ETF (kartu bertumpuk, garis bloodline klasik).
+// Logika ada di setf_tree_model.js.
 (function (root) {
   const M = root.SetfTreeModel;
   let host = null;
@@ -8,6 +9,7 @@
   let revealed = new Set();
   let mode = 'default';
   let query = '';
+  let picked = null;
   let bound = false;
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -53,28 +55,49 @@
       + caret + '<span class="tr-name">' + esc(node.name) + '</span>' + code + partners + '</div>';
   }
 
+  // Baris datar (dengan indent) -> daftar bersarang; tiap tingkat punya batang garis sendiri.
+  function stackHtml(rows) {
+    let i = 0;
+    function level(ind) {
+      let h = '';
+      while (i < rows.length && rows[i].indent === ind) {
+        const r = rows[i++];
+        const badge = r.badge ? '<div class="tr-badgewrap"><span class="tr-badge">' + r.badge + '</span></div>' : '';
+        let sub = '';
+        if (i < rows.length && rows[i].indent > ind) sub = '<div class="tr-stack">' + level(ind + 1) + '</div>';
+        h += badge + '<div class="tr-item">' + cardHtml(r, { toggle: true }) + sub + '</div>';
+      }
+      return h;
+    }
+    return level(0);
+  }
+
+  function pickerHtml() {
+    const pills = roots.map((r) =>
+      '<button type="button" class="tr-pill' + (picked === r.id ? ' on' : '') + '" data-pick="' + esc(r.id) + '" title="'
+      + esc(r.name) + '">Cabang ' + esc(r.id) + '</button>').join('');
+    return '<div class="tr-picker"><span>Pilih cabang:</span>' + pills + '</div>';
+  }
+
   function defaultHtml() {
-    return M.buildColumns(roots, openIds).map((block) => {
-      const rootRow = { node: block.root, id: block.root.id, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
-      const cols = block.columns.map((col) => {
-        const items = col.rows.map((r, i) => {
-          const badge = r.badge ? '<div><span class="tr-badge">' + r.badge + '</span></div>' : '';
-          const nested = r.indent > 0 ? ' style="--ind:' + (r.indent - 1) + '"' : '';
-          return badge + '<div class="tr-item"' + nested + '>' + cardHtml(r, { toggle: true }) + '</div>';
-        }).join('');
-        return '<div class="tr-col"><div class="tr-g1-row">' + cardHtml(col.g1, { toggle: false }) + '</div>'
-          + (items ? '<div class="tr-stack">' + items + '</div>' : '') + '</div>';
-      }).join('');
-      return '<div class="tr-block"><div class="tr-block-head"><div class="tr-root-card">'
-        + cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' }) + '</div></div>'
-        + (block.columns.length
-          ? '<div class="tr-body"><div class="tr-ruler"><div class="tr-ruler-cell tr-g1-row">G1</div></div>'
-            + '<div class="tr-cols">' + cols + '</div></div>' : '') + '</div>';
-    }).join('');
+    const sel = roots.filter((r) => r.id === picked);
+    if (!sel.length) {
+      return pickerHtml() + '<div class="tr-empty">Pilih cabang (' + roots.map((r) => esc(r.id)).join(', ') + ') untuk menampilkan tree.</div>';
+    }
+    const block = M.buildColumns(sel, openIds)[0];
+    const rootRow = { node: block.root, id: block.root.id, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
+    const cols = block.columns.map((col) =>
+      '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card' })
+      + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>').join('');
+    return pickerHtml() + '<div class="tr-export"><div class="tr-block"><div class="tr-body">'
+      + '<div class="tr-ruler"><div class="tr-ruler-cell" data-g1label="1">G1</div></div>'
+      + '<div class="tr-tree">' + cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' })
+      + (block.columns.length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '')
+      + '</div></div></div></div>';
   }
 
   function focusHtml(blocks) {
-    return blocks.map((b) => {
+    return '<div class="tr-export">' + blocks.map((b) => {
       const chainIds = new Set(b.chain.map((r) => r.id).concat([b.root.id]));
       const rows = b.chain.map((r) => {
         let sibs = '';
@@ -89,31 +112,38 @@
             chip = '<span class="tr-chip" data-reveal="' + esc(r.id) + '">+ ' + r.hiddenSiblings + ' saudara</span>';
           }
         }
-        const pad = 'padding-left:calc(14px + ' + (r.gen - 1) + ' * var(--tree-indent) * 2)';
         const canOpen = r.hasChildren && r.focusChildren === 0;
         const open = canOpen && openIds.has(r.id);
         const row = Object.assign({}, r, { open });
-        let kids = '';
-        if (open) {
-          kids = '<div class="tr-stack">' + M.childRows(r.node, r.gen, openIds).map((k) => {
-            const badge = k.badge ? '<div><span class="tr-badge">' + k.badge + '</span></div>' : '';
-            const nested = k.indent > 0 ? ' style="--ind:' + (k.indent - 1) + '"' : '';
-            return badge + '<div class="tr-item"' + nested + '>' + cardHtml(k, { toggle: true }) + '</div>';
-          }).join('') + '</div>';
-        }
+        const kids = open
+          ? '<div class="tr-stack tr-trunk">' + stackHtml(M.childRows(r.node, r.gen, openIds)) + '</div>' : '';
         return '<div class="tr-chainrow"><div class="tr-ruler"><div class="tr-ruler-cell">' + r.ruler + '</div></div>'
-          + '<div class="tr-chainbody" style="' + pad + '"><div class="tr-chaininline">'
+          + '<div class="tr-chainbody" style="--g:' + r.gen + '"><div class="tr-chaininline">'
           + cardHtml(row, { path: true, toggle: canOpen }) + chip + sibs + '</div>' + kids + '</div></div>';
       }).join('');
       return '<div class="tr-block"><div class="tr-block-head"><div class="tr-root-card">'
         + cardHtml(b.root, { path: true }) + '</div></div>' + rows + '</div>';
-    }).join('');
+    }).join('') + '</div>';
+  }
+
+  // Label G1 sejajar dengan baris kartu G1 (posisi tergantung tinggi kartu akar).
+  function placeRulers() {
+    if (!host) return;
+    host.querySelectorAll('.tr-body').forEach((body) => {
+      const g1 = body.querySelector('.tr-g1card');
+      const lab = body.querySelector('[data-g1label]');
+      if (!g1 || !lab) return;
+      const top = g1.getBoundingClientRect().top - body.getBoundingClientRect().top;
+      lab.style.marginTop = Math.max(0, top) + 'px';
+      lab.style.height = g1.offsetHeight + 'px';
+    });
   }
 
   function paint(html) {
     const wrap = document.getElementById('tree-wrapper');
     const st = wrap ? [wrap.scrollTop, wrap.scrollLeft] : [0, 0];
     host.innerHTML = html;
+    placeRulers();
     if (wrap) { wrap.scrollTop = st[0]; wrap.scrollLeft = st[1]; }
   }
 
@@ -146,6 +176,8 @@
   function onClick(e) {
     const rs = e.target.closest('[data-reset]');
     if (rs) { e.preventDefault(); const inp = document.getElementById('tree-search-input'); if (inp) inp.value = ''; reset(); return; }
+    const pk = e.target.closest('[data-pick]');
+    if (pk) { picked = pk.getAttribute('data-pick'); openIds = new Set(); renderDefault(); return; }
     const rv = e.target.closest('[data-reveal]');
     if (rv) { revealed.add(rv.getAttribute('data-reveal')); renderFocus(query); return; }
     const tg = e.target.closest('[data-toggle]');
@@ -174,13 +206,15 @@
     return Array.from(set).filter(Boolean).sort();
   }
 
-  function setTextScale(mult) { host.style.setProperty('--tree-font', (12 * mult) + 'px'); }
+  function setTextScale(mult) { host.style.setProperty('--tree-font', (12 * mult) + 'px'); placeRulers(); }
   function setSpacing(mult) {
     host.style.setProperty('--tree-gap', (14 * mult) + 'px');
     host.style.setProperty('--tree-indent', (14 * mult) + 'px');
+    placeRulers();
   }
-  function getExportElement() { return host; }
+  function getExportElement() { return host.querySelector('.tr-export') || host; }
   function currentQuery() { return mode === 'focus' ? query : ''; }
+  function hasContent() { return !!host.querySelector('.tr-export'); }
 
-  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, rerender };
+  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, hasContent, rerender };
 })(window);
