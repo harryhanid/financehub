@@ -114,7 +114,27 @@
     });
   }
 
-  const api = { indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, focusRows };
+  const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+  // WIB = UTC+7 tetap; dihitung dari UTC agar tidak bergantung zona waktu peramban.
+  function formatPrintStamp(date) {
+    const w = new Date(date.getTime() + 7 * 3600 * 1000);
+    const p2 = (v) => String(v).padStart(2, '0');
+    return 'Dicetak: ' + p2(w.getUTCDate()) + ' ' + BULAN[w.getUTCMonth()] + ' ' + w.getUTCFullYear()
+      + ' ' + p2(w.getUTCHours()) + ':' + p2(w.getUTCMinutes()) + ' WIB';
+  }
+
+  function slicePages(contentW, contentH, opt) {
+    const scale = (opt.pageW - 2 * opt.margin) / contentW;
+    const perPage = Math.floor((opt.pageH - 2 * opt.margin - opt.headerH) / scale);
+    const slices = [];
+    for (let sy = 0; sy < contentH; sy += perPage) {
+      slices.push({ sy, sh: Math.min(perPage, contentH - sy) });
+    }
+    return { scale, slices };
+  }
+
+  const api = { indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, focusRows, formatPrintStamp, slicePages };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SetfTreeModel = api;
 })(typeof window !== 'undefined' ? window : globalThis);

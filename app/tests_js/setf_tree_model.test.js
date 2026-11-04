@@ -145,3 +145,22 @@ test('focusRows: rantai berpenggaris per generasi, akar tanpa penggaris', () => 
   assert.deepEqual(blocks[0].hits, ['A1.2.A.1']);
   assert.ok(blocks[0].chain.every((r) => r.badge === null));
 });
+
+test('formatPrintStamp dalam WIB', () => {
+  assert.equal(M.formatPrintStamp(new Date('2026-11-04T04:23:00Z')), 'Dicetak: 04 Nov 2026 11:23 WIB');
+});
+
+test('formatPrintStamp melewati tengah malam dan pergantian tahun', () => {
+  assert.equal(M.formatPrintStamp(new Date('2026-12-31T18:05:00Z')), 'Dicetak: 01 Jan 2027 01:05 WIB');
+});
+
+test('slicePages memotong konten tinggi per halaman', () => {
+  const r = M.slicePages(500, 1000, { pageW: 210, pageH: 297, margin: 10, headerH: 20 });
+  assert.equal(r.scale, 0.38);
+  assert.deepEqual(r.slices, [{ sy: 0, sh: 676 }, { sy: 676, sh: 324 }]);
+});
+
+test('slicePages: konten pendek satu halaman', () => {
+  const r = M.slicePages(500, 300, { pageW: 210, pageH: 297, margin: 10, headerH: 20 });
+  assert.deepEqual(r.slices, [{ sy: 0, sh: 300 }]);
+});
