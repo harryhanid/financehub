@@ -152,6 +152,19 @@
     return { scale, slices };
   }
 
+  // Pilih landscape atau portrait (A4) yang paling pas untuk ukuran konten: halaman paling sedikit,
+  // lalu skala terbesar; bila seri, landscape.
+  function pickLayout(contentW, contentH, opt) {
+    const cands = [['landscape', 297, 210], ['portrait', 210, 297]].map(([orientation, pageW, pageH]) => {
+      const r = slicePages(contentW, contentH, Object.assign({}, opt, { pageW, pageH }));
+      return { orientation, pageW, pageH, scale: r.scale, slices: r.slices };
+    });
+    const [land, port] = cands;
+    if (port.slices.length < land.slices.length) return port;
+    if (port.slices.length === land.slices.length && port.scale > land.scale + 1e-9) return port;
+    return land;
+  }
+
   // Kotak pembatas piksel non-putih (RGBA) + padding, dipotong ke ukuran gambar; untuk memangkas ruang kosong PDF.
   function contentBounds(rgba, w, h, pad) {
     let left = w, top = h, right = -1, bottom = -1;
@@ -173,7 +186,7 @@
     };
   }
 
-  const api = { contentBounds, indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, childRows, focusRows, formatPrintStamp, slicePages };
+  const api = { contentBounds, pickLayout, indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, childRows, focusRows, formatPrintStamp, slicePages };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SetfTreeModel = api;
 })(typeof window !== 'undefined' ? window : globalThis);

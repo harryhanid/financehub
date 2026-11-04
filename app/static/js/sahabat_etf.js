@@ -2545,10 +2545,9 @@ async function exportTreePDF() {
     const parts = [];
     for (const it of items) {
       const canvas = await setfCaptureTree(it.el);
-      const landscape = canvas.width >= canvas.height;
-      const pageW = landscape ? 297 : 210;
-      const pageH = landscape ? 210 : 297;
-      const { scale, slices } = SetfTreeModel.slicePages(canvas.width, canvas.height, { pageW, pageH, margin, headerH, maxScale: 0.16 });
+      const lay = SetfTreeModel.pickLayout(canvas.width, canvas.height, { margin, headerH, maxScale: 0.3 });
+      const { scale, slices, pageW, pageH } = lay;
+      const landscape = lay.orientation === "landscape";
       parts.push({ canvas, label: it.label, landscape, pageW, pageH, scale, slices });
     }
     const total = parts.reduce((n, p) => n + p.slices.length, 0);

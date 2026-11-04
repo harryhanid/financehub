@@ -242,3 +242,30 @@ test('slicePages: konten sempit tidak diperbesar melebihi maxScale', () => {
   assert.equal(r.scale, 0.16);
   assert.deepEqual(r.slices, [{ sy: 0, sh: 300 }]);
 });
+
+const A4 = { margin: 10, headerH: 20 };
+
+test('pickLayout: konten lebar dan pendek memilih landscape', () => {
+  const l = M.pickLayout(1000, 300, A4);
+  assert.equal(l.orientation, 'landscape');
+  assert.deepEqual([l.pageW, l.pageH], [297, 210]);
+  assert.equal(l.slices.length, 1);
+});
+
+test('pickLayout: konten sempit dan tinggi memilih portrait (lebih sedikit halaman)', () => {
+  const l = M.pickLayout(300, 900, A4);
+  assert.equal(l.orientation, 'portrait');
+  assert.deepEqual([l.pageW, l.pageH], [210, 297]);
+  assert.equal(l.slices.length, 3);
+});
+
+test('pickLayout: seri halaman dan skala sama memilih landscape', () => {
+  const l = M.pickLayout(200, 300, { ...A4, maxScale: 0.16 });
+  assert.equal(l.orientation, 'landscape');
+  assert.equal(l.scale, 0.16);
+});
+
+test('pickLayout: pada jumlah halaman sama memilih skala lebih besar', () => {
+  const l = M.pickLayout(400, 500, A4); // landscape 3 halaman, portrait 1 halaman pada skala 0.475
+  assert.equal(l.orientation, 'portrait');
+});
