@@ -6,7 +6,7 @@ from modules.etf_payment_application.service import (
     get_pa_list, get_pa_flat, get_pa_header, bulk_update_pa, export_pa_excel,
     create_pa, update_pa, delete_pa, get_pa_lines, get_siswa_autocomplete,
     get_draft_siswa, get_draft_lines_for_siswa, get_pa_summary, VALID_TABS,
-    approve_pa_fc, reject_pa_fc,
+    approve_pa_fc, reject_pa_fc, get_serah_log,
 )
 import config
 
@@ -286,6 +286,15 @@ def get_attachment(file_id):
         current_app.logger.exception("Gagal membuka lampiran PA (file_id=%s)", file_id)
         return (f"Lampiran tidak dapat dibuka: {e}", 502,
                 {"Content-Type": "text/plain; charset=utf-8"})
+
+
+@bp.route("/<int:pa_id>/serah-log")
+@jwt_html_required
+def serah_log(pa_id):
+    tab = request.args.get("tab", "agri").lower()
+    if tab not in VALID_TABS:
+        tab = "agri"
+    return jsonify({"ok": True, "rows": get_serah_log(pa_id, session.get("company_id"), tab)})
 
 
 @bp.route("/<int:pa_id>/update", methods=["POST"])

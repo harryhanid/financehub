@@ -260,6 +260,7 @@
       <option value="approved_by_htj_1">Approved HTj</option>
       <option value="send_pa_back_to_educ">Send Back Educ</option>
       <option value="pa_received_by_po_fin">PA Recv PO Fin</option>
+      <option value="pa_verified_by_po_fin">PA Verified PO Fin</option>
       <option value="approval_by_htj_2">Approval HTj</option>
       <option value="tanggal_bayar">Tgl Bayar</option>
     </select>
@@ -439,6 +440,7 @@
         <th>Approved HTj</th>
         <th>Send Back Educ</th>
         <th>PA Recv PO Fin</th>
+        <th>PA Verified PO Fin</th>
         <th>Approval HTj</th>
         <th>Nomor PAM</th>
         <th>Tgl Bayar</th>
@@ -467,7 +469,7 @@
           class="{% if r.status == 'on_process' %}row-op{% endif %}">
         <td class="s0"><input type="checkbox" class="row-chk" onchange="onRowCheck()" value="{{ r.line_id }}"></td>
         <td class="s1"><code style="white-space:nowrap">{{ r.pa_number }}</code>
-          {% if r.source == 'prportal' %}<span class="badge badge-blue badge-prportal" title="Diajukan via PR Portal{% if r.requested_by %} oleh {{ r.requested_by }}{% endif %}" style="margin-left:.25rem">PR Portal{% if r.requested_by %} · {{ r.requested_by }}{% endif %}</span>{% endif %}</td>
+          {% if r.source == 'prportal' %}<span class="badge badge-blue badge-prportal" title="Diajukan via PR Portal{% if r.requested_by %} oleh {{ r.requested_by }}{% endif %}" style="margin-left:.25rem">PR Portal{% if r.requested_by %} · {{ r.requested_by }}{% endif %}</span> <a href="#" onclick="showSerahLog({{ r.pa_id }}); return false;" style="font-size:.7rem; margin-left:.25rem">Riwayat</a>{% endif %}</td>
         <td class="s2">{{ r.student_code }}</td>
         <td class="s3" style="white-space:nowrap">{{ r.nama }}</td>
         <td class="grp-toggle-cell" onclick="toggleSiswaGroup()" title="Expand/collapse Data Siswa">·</td>
@@ -499,6 +501,7 @@
         <td>{{ r.approved_by_htj_1 or '--' }}</td>
         <td>{{ r.send_pa_back_to_educ or '--' }}</td>
         <td>{{ r.pa_received_by_po_fin or '--' }}</td>
+        <td>{{ r.pa_verified_by_po_fin or '--' }}</td>
         <td>{{ r.approval_by_htj_2 or '--' }}</td>
         <td>{{ r.nomor_pam or '--' }}</td>
         <td>{{ r.tanggal_bayar or '--' }}</td>
@@ -543,7 +546,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="34"><div class="empty-state">
+      <tr><td colspan="35"><div class="empty-state">
         <svg class="empty-state-icon" viewBox="0 0 48 48" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <rect x="6" y="10" width="36" height="30" rx="3"/><line x1="6" y1="20" x2="42" y2="20"/><line x1="15" y1="10" x2="15" y2="40"/>
           <line x1="19" y1="28" x2="36" y2="28"/><line x1="19" y1="33" x2="30" y2="33"/>
@@ -940,6 +943,16 @@
 {% endif %}{# end input/data tab conditional #}
 
 {# ── Modal Edit PA ──────────────────────────────────────────────────────── #}
+<div class="modal-overlay" id="modal-serah-log">
+  <div class="modal" style="max-width:560px; width:95%">
+    <div class="modal-header">
+      <span class="modal-title">Riwayat Serah Terima Dokumen</span>
+      <button class="modal-close" onclick="closeModal('modal-serah-log')" aria-label="Tutup">x</button>
+    </div>
+    <div class="modal-body" id="serah-log-body" style="font-size:.85rem"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-edit-pa">
   <div class="modal" style="max-width:660px; width:95%">
     <div class="modal-header">
@@ -957,6 +970,7 @@
       <div class="form-group"><label>Approved by HTj (1)</label><input type="date" id="edit-approved1"></div>
       <div class="form-group"><label>Send PA Back to Educ</label><input type="date" id="edit-send-back"></div>
       <div class="form-group"><label>PA Recv by PO Fin</label><input type="date" id="edit-recv-po"></div>
+      <div class="form-group"><label>PA Verified by PO Fin</label><input type="date" id="edit-verified"></div>
       <div class="form-group"><label>Approval by HTj (final)</label><input type="date" id="edit-approval2"></div>
       <div class="form-group"><label>Tanggal Bayar</label><input type="date" id="edit-tgl-bayar"></div>
       <div class="form-group"><label>Nomor PAM</label><input type="text" id="edit-nomor-pam" placeholder="Auto-generate saat On Process"></div>
@@ -1428,10 +1442,11 @@ const FIELD_COL = {
   approved_by_htj_1:       23,
   send_pa_back_to_educ:    24,
   pa_received_by_po_fin:   25,
-  approval_by_htj_2:       26,
-  nomor_pam:               27,
-  tanggal_bayar:           28,
-  status:                  31,
+  pa_verified_by_po_fin:   26,
+  approval_by_htj_2:       27,
+  nomor_pam:               28,
+  tanggal_bayar:           29,
+  status:                  32,
 };
 
 // ─── Column group toggle — Data Siswa ─────────────────────────────────────────
@@ -1458,6 +1473,27 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch(e) {}
 });
 
+const SERAH_LOG_LABEL = {
+  diserahkan: "Diserahkan pemohon ke Finance", diterima_finance: "Diterima Finance",
+  ditolak_finance: "Ditolak Finance (kembali ke pemohon)", dikembalikan_verificator: "Dikembalikan Verificator ke Finance",
+  diteruskan_finance: "Diteruskan Finance ke Verificator", terverifikasi: "Diverifikasi Verificator (PA Verified PO Fin)",
+};
+function _escLog(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+async function showSerahLog(paId) {
+  const body = document.getElementById("serah-log-body");
+  body.innerHTML = "Memuat...";
+  openModal("modal-serah-log");
+  try {
+    const r = await fetch(`/etf-payment-application/${paId}/serah-log?tab=${ACTIVE_TAB}`);
+    const d = await r.json();
+    const rows = (d && d.rows) || [];
+    body.innerHTML = rows.length ? rows.map(x =>
+      `<div style="padding:.45rem 0; border-bottom:1px solid var(--border)"><b>${_escLog(SERAH_LOG_LABEL[x.kejadian] || x.kejadian)}</b><br>` +
+      `<span style="color:var(--text-muted)">${_escLog(x.waktu)} &middot; ${_escLog(x.oleh)}</span>` +
+      (x.catatan ? `<div style="margin-top:.2rem; white-space:pre-wrap">${_escLog(x.catatan)}</div>` : "") + `</div>`).join("") : "Belum ada riwayat serah terima.";
+  } catch (e) { body.innerHTML = "Gagal memuat riwayat."; }
+}
+
 function _updateRowCells(paIds, field, value) {
   const colIdx = FIELD_COL[field];
   paIds.forEach(id => {
@@ -1467,13 +1503,13 @@ function _updateRowCells(paIds, field, value) {
         if (td) td.textContent = value || "--";
       }
       if (field === "tanggal_bayar" && value) {
-        const stTd = tr.querySelectorAll("td")[29];
+        const stTd = tr.querySelectorAll("td")[FIELD_COL.status];
         if (stTd) stTd.innerHTML = '<span class="badge badge-green">Complete</span>';
         tr.classList.remove("row-op");
         tr.dataset.status = "complete";
       }
       if (field === "status") {
-        const stTd = tr.querySelectorAll("td")[29];
+        const stTd = tr.querySelectorAll("td")[FIELD_COL.status];
         if (stTd) {
           const cls = value === "complete" ? "badge-green" : value === "on_process" ? "badge-yellow" : value === "open" ? "badge-blue" : value === "rejected" ? "badge-red" : "badge-gray";
           stTd.innerHTML = `<span class="badge ${cls}">${value.replace("_"," ").replace(/\b\w/g,c=>c.toUpperCase())}</span>`;
@@ -1852,6 +1888,7 @@ async function openEditById(paId, lineId) {
   document.getElementById("edit-approved1").value       = pa.approved_by_htj_1 || "";
   document.getElementById("edit-send-back").value       = pa.send_pa_back_to_educ || "";
   document.getElementById("edit-recv-po").value         = pa.pa_received_by_po_fin || "";
+  document.getElementById("edit-verified").value        = pa.pa_verified_by_po_fin || "";
   document.getElementById("edit-approval2").value       = pa.approval_by_htj_2 || "";
   document.getElementById("edit-nomor-pam").value       = pa.nomor_pam || "";
   document.getElementById("edit-tgl-bayar").value       = pa.tanggal_bayar || "";
@@ -1973,6 +2010,7 @@ async function saveEdit() {
     approved_by_htj_1:       document.getElementById("edit-approved1").value,
     send_pa_back_to_educ:    document.getElementById("edit-send-back").value,
     pa_received_by_po_fin:   document.getElementById("edit-recv-po").value,
+    pa_verified_by_po_fin:   document.getElementById("edit-verified").value,
     approval_by_htj_2:       document.getElementById("edit-approval2").value,
     nomor_pam:               document.getElementById("edit-nomor-pam").value,
     tanggal_bayar:           document.getElementById("edit-tgl-bayar").value,

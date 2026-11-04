@@ -183,6 +183,7 @@ def get_pa_flat(company_id: int, tab: str = "agri", status_filter: str = "",
                   p.approved_by_htj_1,
                   p.send_pa_back_to_educ,
                   p.pa_received_by_po_fin,
+                  p.pa_verified_by_po_fin,
                   p.approval_by_htj_2,
                   p.nomor_pam,
                   p.tanggal_bayar,
@@ -216,7 +217,7 @@ def bulk_update_pa(pa_ids: list, field: str, value: str, company_id: int, tab: s
     ALLOWED_FIELDS = {
         "tgl_payment_application", "tgl_surat_pengajuan",
         "doc_received_by_educ", "received_pa_from_educ", "checked_by_fincon",
-        "approved_by_htj_1", "send_pa_back_to_educ", "pa_received_by_po_fin",
+        "approved_by_htj_1", "send_pa_back_to_educ", "pa_received_by_po_fin", "pa_verified_by_po_fin",
         "approval_by_htj_2", "tanggal_bayar", "nomor_pam", "status",
     }
     if field not in ALLOWED_FIELDS:
@@ -312,7 +313,7 @@ def export_pa_excel(company_id: int, tab: str = "agri",
         "Angkatan Kuliah", "Jenjang", "Program", "Fakultas", "Program Studi",
         "Tgl PA", "Tgl Surat Pengajuan", "Jenis Bayar", "Semester", "Tahun Ajaran",
         "IPK Sblmnya", "Jumlah (Rp)", "Doc Recv Educ", "Recv PA Educ",
-        "Checked Fincon", "Approved HTj", "Send Back Educ", "PA Recv PO Fin",
+        "Checked Fincon", "Approved HTj", "Send Back Educ", "PA Recv PO Fin", "PA Verified PO Fin",
         "Approval HTj", "Nomor PAM", "Tgl Bayar", "Keterangan", "Status",
     ]
     fields = [
@@ -322,11 +323,11 @@ def export_pa_excel(company_id: int, tab: str = "agri",
         "jenis_pembayaran", "semester", "tahun_ajaran", "ipk_sem_sebelumnya",
         "jumlah_pembayaran", "doc_received_by_educ", "received_pa_from_educ",
         "checked_by_fincon", "approved_by_htj_1", "send_pa_back_to_educ",
-        "pa_received_by_po_fin", "approval_by_htj_2", "nomor_pam", "tanggal_bayar",
+        "pa_received_by_po_fin", "pa_verified_by_po_fin", "approval_by_htj_2", "nomor_pam", "tanggal_bayar",
         "keterangan", "status",
     ]
     col_widths = [16, 12, 22, 9, 22, 11, 12, 9, 12, 18, 20,
-                  12, 14, 14, 12, 12, 10, 14, 12, 12, 12, 12, 12, 12, 12, 16, 12, 40, 10]
+                  12, 14, 14, 12, 12, 10, 14, 12, 12, 12, 12, 12, 12, 12, 12, 16, 12, 40, 10]
 
     if tab == "combine":
         headers.insert(1, "Pillar")
@@ -368,6 +369,20 @@ def export_pa_excel(company_id: int, tab: str = "agri",
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def get_serah_log(pa_id: int, company_id: int, tab: str = "agri") -> list:
+    """Riwayat serah terima dokumen fisik (pa_serah_log) untuk satu PA PR Portal; PA lain/tak dikenal -> []."""
+    pa = get_pa_header(pa_id, company_id, tab)
+    if not pa or pa.get("source") != "prportal":
+        return []
+    conn = get_conn()
+    try:
+        import json
+        row = conn.execute("SELECT fn_prp_serah_log(?)::text", (pa["pa_number"],)).fetchone()
+        return (json.loads(row[0]) or {}).get("rows", [])
+    finally:
+        conn.close()
 
 
 def get_pa_header(pa_id: int, company_id: int, tab: str = "agri") -> dict | None:
@@ -586,6 +601,9 @@ def update_pa(pa_id: int, company_id: int, data: dict, tab: str = "agri") -> dic
         *nomor_pam_params, data.get("tanggal_bayar", ""), data.get("keterangan", ""), new_status, data.get("klasifikasi", "Normal"), _ts()
     ]
     
+    if "pa_verified_by_po_fin" in data:
+        update_fields.append("pa_verified_by_po_fin = ?")
+        values.append(data["pa_verified_by_po_fin"])
     if "attachment_file_id" in data:
         update_fields.append("attachment_file_id = ?")
         values.append(data["attachment_file_id"])
