@@ -22,7 +22,7 @@
 .tr-block { margin-bottom: 28px; }
 .tr-block-head { display: flex; align-items: center; min-height: 44px; }
 .tr-root-card { margin-left: 62px; }
-.tr-body { display: flex; align-items: stretch; }
+.tr-body { position: relative; display: flex; align-items: stretch; }
 .tr-ruler {
   position: sticky; left: 0; z-index: 5; flex: none; width: 48px;
   background: #f1f5f9; border-right: 1px solid #cbd5e1;
@@ -81,8 +81,8 @@
 .tr-item > .tr-stack { margin-top: 6px; }
 
 /* mode pencarian: rantai leluhur dengan siku bertangga */
-.tr-chainrow { display: flex; align-items: stretch; min-width: max-content; }
-.tr-chainrow .tr-ruler-cell { height: 100%; min-height: 54px; }
+.tr-chainrow { position: relative; display: flex; align-items: stretch; min-width: max-content; }
+.tr-chainrow { min-height: 54px; }
 .tr-chainbody { position: relative; padding: 6px 14px 6px calc(14px + var(--g) * var(--tree-indent) * 2); }
 .tr-chainbody::before {
   content: ""; position: absolute; top: -7px; height: calc(50% + 7px);
@@ -99,3 +99,9 @@
 .tr-sib { opacity: .85; }
 .tr-empty { padding: 32px; text-align: center; color: #64748b; }
 .tr-offscreen { position: absolute; left: -100000px; top: 0; }
+.tr-glabel {
+  position: absolute; left: 0; right: 0; transform: translateY(-50%); text-align: center;
+  font-weight: 700; color: #2563eb; font-size: calc(var(--tree-font) + 1px);
+}
+.tr-guide { position: absolute; left: 48px; right: 0; height: 0; border-top: 1px dashed #bfdbfe; z-index: 0; pointer-events: none; }
+.tr-card, .tr-stem, .tr-c::before, .tr-c::after { z-index: 1; }

@@ -32,9 +32,8 @@
   }
 
   function partnerHtml(p, hitIds) {
-    const code = p.id ? p.id.split('.').pop().toUpperCase() : '';
     const cls = hitIds && hitIds.indexOf(p.id) >= 0 ? ' hit' : '';
-    return '<div class="tr-partner' + cls + '">' + esc(p.name) + ' (Partner' + (code ? ' ' + code : '') + ')</div>';
+    return '<div class="tr-partner' + cls + '">' + esc(p.name) + ' (Partner)</div>';
   }
 
   function cardHtml(row, opts) {
@@ -46,13 +45,13 @@
     if (row.isHit) classes.push('hit');
     else if (opts.path) classes.push('path');
     if (opts.extra) classes.push(opts.extra);
-    const code = node.id && !/^[A-Za-z]$/.test(node.id) ? '<span class="tr-code">(' + esc(node.id) + ')</span>' : '';
     const caret = opts.toggle && row.hasChildren
       ? '<span class="tr-caret">' + (row.open ? '▾' : '▸') + ' ' + row.childCount + '</span>' : '';
     const partners = (node.partners || []).map((p) => partnerHtml(p, row.partnerHitIds)).join('');
-    const data = opts.toggle && row.hasChildren ? ' data-toggle="' + esc(row.id) + '"' : '';
+    const data = (opts.toggle && row.hasChildren ? ' data-toggle="' + esc(row.id) + '"' : '')
+      + (opts.gen ? ' data-gen="' + esc(opts.gen) + '"' : '');
     return '<div class="' + classes.join(' ') + '"' + data + ' title="' + esc(tooltip(node)) + '">'
-      + caret + '<span class="tr-name">' + esc(node.name) + '</span>' + code + partners + '</div>';
+      + caret + '<span class="tr-name">' + esc(node.name) + '</span>' + partners + '</div>';
   }
 
   // Baris datar (dengan indent) -> daftar bersarang; tiap tingkat punya batang garis sendiri.
@@ -62,10 +61,9 @@
       let h = '';
       while (i < rows.length && rows[i].indent === ind) {
         const r = rows[i++];
-        const badge = r.badge ? '<div class="tr-badgewrap"><span class="tr-badge">' + r.badge + '</span></div>' : '';
         let sub = '';
         if (i < rows.length && rows[i].indent > ind) sub = '<div class="tr-stack">' + level(ind + 1) + '</div>';
-        h += badge + '<div class="tr-item">' + cardHtml(r, { toggle: true }) + sub + '</div>';
+        h += '<div class="tr-item">' + cardHtml(r, { toggle: true, gen: r.badge }) + sub + '</div>';
       }
       return h;
     }
@@ -83,10 +81,10 @@
     const block = M.buildColumns([rootNode], open)[0];
     const rootRow = { node: block.root, id: block.root.id, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
     const cols = block.columns.map((col) =>
-      '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card' })
+      '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card', gen: 'G1' })
       + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>').join('');
     return '<div class="tr-block"><div class="tr-body">'
-      + '<div class="tr-ruler"><div class="tr-ruler-cell" data-g1label="1">G1</div></div>'
+      + '<div class="tr-ruler"></div>'
       + '<div class="tr-tree">' + cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' })
       + (block.columns.length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '')
       + '</div></div></div>';
@@ -121,25 +119,41 @@
         const row = Object.assign({}, r, { open });
         const kids = open
           ? '<div class="tr-stack tr-trunk">' + stackHtml(M.childRows(r.node, r.gen, openIds)) + '</div>' : '';
-        return '<div class="tr-chainrow"><div class="tr-ruler"><div class="tr-ruler-cell">' + r.ruler + '</div></div>'
+        return '<div class="tr-chainrow"><div class="tr-ruler"></div>'
           + '<div class="tr-chainbody" style="--g:' + r.gen + '"><div class="tr-chaininline">'
-          + cardHtml(row, { path: true, toggle: canOpen }) + chip + sibs + '</div>' + kids + '</div></div>';
+          + cardHtml(row, { path: true, toggle: canOpen, gen: r.ruler }) + chip + sibs + '</div>' + kids + '</div></div>';
       }).join('');
       return '<div class="tr-block"><div class="tr-block-head"><div class="tr-root-card">'
         + cardHtml(b.root, { path: true }) + '</div></div>' + rows + '</div>';
     }).join('') + '</div>';
   }
 
-  // Label G1 sejajar dengan baris kartu G1 (posisi tergantung tinggi kartu akar).
-  function placeRulers() {
-    if (!host) return;
-    host.querySelectorAll('.tr-body').forEach((body) => {
-      const g1 = body.querySelector('.tr-g1card');
-      const lab = body.querySelector('[data-g1label]');
-      if (!g1 || !lab) return;
-      const top = g1.getBoundingClientRect().top - body.getBoundingClientRect().top;
-      lab.style.marginTop = Math.max(0, top) + 'px';
-      lab.style.height = g1.offsetHeight + 'px';
+  // Label generasi (G1, G2, ...) di kolom penggaris kiri sejajar dengan kartu awal tiap kelompok,
+  // plus garis putus-putus tipis ke kanan.
+  function placeRulers(scope) {
+    (scope || host).querySelectorAll('.tr-ruler').forEach((ruler) => {
+      const cont = ruler.parentElement;
+      ruler.querySelectorAll('.tr-glabel').forEach((e) => e.remove());
+      cont.querySelectorAll(':scope > .tr-guide').forEach((e) => e.remove());
+      const top = cont.getBoundingClientRect().top;
+      const placed = [];
+      cont.querySelectorAll('[data-gen]').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const y = r.top - top + r.height / 2;
+        const gen = el.getAttribute('data-gen');
+        // kolom berdampingan menghasilkan label generasi yang sama di tinggi hampir sama: satu saja
+        if (placed.some((p) => p.gen === gen && Math.abs(p.y - y) < 16)) return;
+        placed.push({ gen, y });
+        const lab = document.createElement('div');
+        lab.className = 'tr-glabel';
+        lab.textContent = el.getAttribute('data-gen');
+        lab.style.top = y + 'px';
+        ruler.appendChild(lab);
+        const g = document.createElement('div');
+        g.className = 'tr-guide';
+        g.style.top = y + 'px';
+        cont.appendChild(g);
+      });
     });
   }
 
@@ -226,13 +240,7 @@
     box.className = 'tr-offscreen';
     box.innerHTML = roots.map((r) => '<div class="tr-export">' + treeHtml(r, new Set()) + '</div>').join('');
     document.body.appendChild(box);
-    box.querySelectorAll('.tr-body').forEach((body) => {
-      const g1 = body.querySelector('.tr-g1card');
-      const lab = body.querySelector('[data-g1label]');
-      if (!g1 || !lab) return;
-      lab.style.marginTop = Math.max(0, g1.getBoundingClientRect().top - body.getBoundingClientRect().top) + 'px';
-      lab.style.height = g1.offsetHeight + 'px';
-    });
+    placeRulers(box);
     const els = Array.from(box.querySelectorAll('.tr-export'));
     return {
       items: els.map((el, i) => ({ el, label: 'Tree ' + (i + 1) + ' — ' + roots[i].name })),
