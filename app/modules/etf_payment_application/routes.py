@@ -12,21 +12,23 @@ import config
 
 bp = Blueprint("etf_payment_application", __name__, url_prefix="/etf-payment-application")
 
-# Checklist lampiran PA Beasiswa (poin a-l) -- sama dengan 12 kotak lampiran di PR Portal.
+# Lampiran PA Beasiswa per kelompok: a, b (=b & c), d (=d, e & f), g (=g & h), i, j, k, l -- sama dengan kotak lampiran di PR Portal.
+# Huruf lama (c, e, f, h) tetap berlabel untuk PA yang diajukan sebelum kelompok digabung.
 PA_POIN_LABELS = {
     "a": "Surat Permohonan dari Penerima Beasiswa",
-    "b": "Kwitansi",
+    "b": "Kwitansi; Bukti pembayaran dari Penerima Beasiswa ke vendor/kampus/dll",
     "c": "Bukti pembayaran dari Penerima Beasiswa ke vendor/kampus/dll",
-    "d": "Surat Keterangan diterima dari Perguruan Tinggi",
+    "d": "Surat Keterangan diterima dari Perguruan Tinggi; Rekap nilai/kartu hasil studi; Kartu rencana studi",
     "e": "Rekap nilai/kartu hasil studi",
     "f": "Kartu rencana studi",
-    "g": "Rincian biaya resmi dari Perguruan Tinggi (Surat Keputusan Rektor/Brosur)",
+    "g": "Rincian biaya resmi dari Perguruan Tinggi (Surat Keputusan Rektor/Brosur); Rincian biaya pendidikan yang dibutuhkan Penerima Beasiswa hingga lulus (pendidikan, tunjangan & penelitian)",
     "h": "Rincian biaya pendidikan yang dibutuhkan Penerima Beasiswa hingga lulus (pendidikan, tunjangan & penelitian)",
     "i": "Fotokopi lembar/halaman depan buku rekening Bank Sinarmas Penerima Beasiswa",
     "j": "Surat penunjukkan Promotor & Ko-Promotor",
     "k": "Supplier Data Form (SDF) - jika pilar pendana adalah APP",
     "l": "Realisasi Biaya Penelitian",
 }
+PA_POIN_DISPLAY = {"b": "b & c", "d": "d, e & f", "g": "g & h"}
 
 
 def _ctx():
@@ -147,6 +149,7 @@ def index():
         "etf_payment_application/index.html",
         pa_rows=pa_rows,
         pa_poin_labels=PA_POIN_LABELS,
+        pa_poin_display=PA_POIN_DISPLAY,
         all_pa_rows=all_rows,
         active_tab=tab,
         active_sf=sf,

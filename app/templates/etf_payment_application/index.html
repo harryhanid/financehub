@@ -512,11 +512,14 @@
         <td>
           {% if r.attachment_file_id %}
             {% set poins = (r.attachment_poin or '').split(',') %}
+            {% set ns = namespace(seen={}) %}
             <div style="display:flex; flex-direction:column; gap:4px; min-width:220px">
             {% for fid in r.attachment_file_id.split(',') %}
               {% set pk = poins[loop.index0] if loop.index0 < poins|length else '' %}
+              {% set total = poins|select('equalto', pk)|list|length if pk else 0 %}
+              {% set _x = ns.seen.update({pk: (ns.seen.get(pk, 0) + 1)}) if pk else None %}
               <a href="/etf-payment-application/attachment/{{ fid | trim }}" target="_blank" style="color:var(--primary); text-decoration:underline; font-size:.75rem; line-height:1.3">
-                {%- if pk and pa_poin_labels.get(pk) %}<b>{{ pk }}.</b> {{ pa_poin_labels[pk] }}{% else %}View {{ loop.index }}{% endif -%}
+                {%- if pk and pa_poin_labels.get(pk) %}<b>{{ pa_poin_display.get(pk, pk) }}.</b> {{ pa_poin_labels[pk] }}{% if total > 1 %} ({{ ns.seen[pk] }}/{{ total }}){% endif %}{% else %}View {{ loop.index }}{% endif -%}
               </a>
             {% endfor %}
             </div>

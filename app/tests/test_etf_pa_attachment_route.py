@@ -54,3 +54,13 @@ def test_gdrive_without_valid_token_fails_fast_unless_interactive(tmp_path, monk
 def test_auth_helper_script_enables_interactive_flow():
     src = open(os.path.join(APP_DIR, "auth.py"), encoding="utf-8").read()
     assert "GDRIVE_INTERACTIVE_AUTH" in src, "skrip otorisasi manual harus mengaktifkan alur interaktif"
+
+
+def test_poin_labels_cover_groups_and_legacy_letters():
+    from modules.etf_payment_application.routes import PA_POIN_LABELS, PA_POIN_DISPLAY
+    # kelompok baru: a, b&c, d-e-f, g&h, i, j, k, l; huruf lama (c, e, f, h) tetap berlabel untuk PA lama
+    assert set(PA_POIN_LABELS) == set("abcdefghijkl")
+    assert PA_POIN_DISPLAY == {"b": "b & c", "d": "d, e & f", "g": "g & h"}
+    assert "Kwitansi" in PA_POIN_LABELS["b"] and "Bukti pembayaran" in PA_POIN_LABELS["b"]
+    assert "Kartu rencana studi" in PA_POIN_LABELS["d"] and "Rekap nilai" in PA_POIN_LABELS["d"]
+    assert "Rincian biaya pendidikan" in PA_POIN_LABELS["g"]
