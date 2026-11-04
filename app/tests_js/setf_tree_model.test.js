@@ -107,18 +107,23 @@ test('buildColumns membuka cabang ke bawah dengan indentasi', () => {
   assert.equal(col.rows[1].open, true);
 });
 
-test('lencana hanya di kelompok saudara >= 2 kartu', () => {
+test('lencana di baris pertama setiap kelompok saudara, termasuk anak tunggal', () => {
   const blocks = M.buildColumns(fixture(), new Set());
   assert.equal(blocks[0].columns[0].rows[0].badge, 'G2');
   assert.ok(blocks[0].columns[0].rows.slice(1).every((r) => r.badge === null));
-  assert.equal(blocks[0].columns[1].rows[0].badge, null); // A2 hanya satu anak
+  assert.equal(blocks[0].columns[1].rows[0].badge, 'G2'); // A2 hanya satu anak
   const open1 = M.buildColumns(fixture(), new Set(['A1.2']))[0].columns[0];
-  assert.equal(open1.rows[2].badge, null); // satu anak -> tanpa lencana
+  assert.equal(open1.rows[2].badge, 'G3'); // satu anak tetap berlabel
   const f = fixture();
   f[0].children[0].children[1].children.push(n('A1.2.A.2', 'Elizabeth Tanuwijaya'));
   const open2 = M.buildColumns(f, new Set(['A1.2']))[0].columns[0];
   assert.equal(open2.rows[2].badge, 'G3');
   assert.equal(open2.rows[3].badge, null);
+});
+
+test('childRows: kelompok anak diberi lencana generasinya', () => {
+  const a12 = fixture()[0].children[0].children[1];
+  assert.equal(M.childRows(a12, 2, new Set())[0].badge, 'G3');
 });
 
 test('penggaris hanya melabeli baris G1 di tampilan awal', () => {

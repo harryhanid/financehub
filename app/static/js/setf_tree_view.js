@@ -73,27 +73,31 @@
   }
 
   function pickerHtml() {
-    const pills = roots.map((r) =>
+    const pills = roots.map((r, i) =>
       '<button type="button" class="tr-pill' + (picked === r.id ? ' on' : '') + '" data-pick="' + esc(r.id) + '" title="'
-      + esc(r.name) + '">Cabang ' + esc(r.id) + '</button>').join('');
-    return '<div class="tr-picker"><span>Pilih cabang:</span>' + pills + '</div>';
+      + esc(r.name) + '">Tree ' + (i + 1) + '</button>').join('');
+    return '<div class="tr-picker"><span>Pilih tree:</span>' + pills + '</div>';
+  }
+
+  function treeHtml(rootNode, open) {
+    const block = M.buildColumns([rootNode], open)[0];
+    const rootRow = { node: block.root, id: block.root.id, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
+    const cols = block.columns.map((col) =>
+      '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card' })
+      + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>').join('');
+    return '<div class="tr-block"><div class="tr-body">'
+      + '<div class="tr-ruler"><div class="tr-ruler-cell" data-g1label="1">G1</div></div>'
+      + '<div class="tr-tree">' + cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' })
+      + (block.columns.length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '')
+      + '</div></div></div>';
   }
 
   function defaultHtml() {
     const sel = roots.filter((r) => r.id === picked);
     if (!sel.length) {
-      return pickerHtml() + '<div class="tr-empty">Pilih cabang (' + roots.map((r) => esc(r.id)).join(', ') + ') untuk menampilkan tree.</div>';
+      return pickerHtml() + '<div class="tr-empty">Pilih Tree 1 sampai Tree ' + roots.length + ' untuk menampilkan tree.</div>';
     }
-    const block = M.buildColumns(sel, openIds)[0];
-    const rootRow = { node: block.root, id: block.root.id, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
-    const cols = block.columns.map((col) =>
-      '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card' })
-      + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>').join('');
-    return pickerHtml() + '<div class="tr-export"><div class="tr-block"><div class="tr-body">'
-      + '<div class="tr-ruler"><div class="tr-ruler-cell" data-g1label="1">G1</div></div>'
-      + '<div class="tr-tree">' + cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' })
-      + (block.columns.length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '')
-      + '</div></div></div></div>';
+    return pickerHtml() + '<div class="tr-export">' + treeHtml(sel[0], openIds) + '</div>';
   }
 
   function focusHtml(blocks) {
@@ -216,5 +220,25 @@
   function currentQuery() { return mode === 'focus' ? query : ''; }
   function hasContent() { return !!host.querySelector('.tr-export'); }
 
-  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, hasContent, rerender };
+  // Semua tree dalam keadaan default (tanpa cabang terbuka), masing-masing di wadah di luar layar untuk ditangkap.
+  function buildDefaultExport() {
+    const box = document.createElement('div');
+    box.className = 'tr-offscreen';
+    box.innerHTML = roots.map((r) => '<div class="tr-export">' + treeHtml(r, new Set()) + '</div>').join('');
+    document.body.appendChild(box);
+    box.querySelectorAll('.tr-body').forEach((body) => {
+      const g1 = body.querySelector('.tr-g1card');
+      const lab = body.querySelector('[data-g1label]');
+      if (!g1 || !lab) return;
+      lab.style.marginTop = Math.max(0, g1.getBoundingClientRect().top - body.getBoundingClientRect().top) + 'px';
+      lab.style.height = g1.offsetHeight + 'px';
+    });
+    const els = Array.from(box.querySelectorAll('.tr-export'));
+    return {
+      items: els.map((el, i) => ({ el, label: 'Tree ' + (i + 1) + ' — ' + roots[i].name })),
+      dispose: () => box.remove(),
+    };
+  }
+
+  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, hasContent, buildDefaultExport, rerender };
 })(window);

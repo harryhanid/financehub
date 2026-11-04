@@ -1,5 +1,5 @@
 /* Tree Query Sahabat ETF — kartu bertumpuk dengan garis bloodline klasik */
-#tree-stack {
+#tree-stack, .tr-offscreen {
   --tree-font: 12px;
   --tree-gap: 14px;
   --tree-indent: 14px;
@@ -98,3 +98,4 @@
 .tr-chip:hover { background: #e2e8f0; }
 .tr-sib { opacity: .85; }
 .tr-empty { padding: 32px; text-align: center; color: #64748b; }
+.tr-offscreen { position: absolute; left: -100000px; top: 0; }

@@ -76,7 +76,7 @@
   function stackRows(children, gen, indent, openIds, out) {
     children.forEach((c, i) => {
       const row = makeRow(c, gen, indent, openIds);
-      if (i === 0 && children.length >= 2) row.badge = 'G' + gen;
+      if (i === 0) row.badge = 'G' + gen;
       out.push(row);
       if (row.open && row.hasChildren) stackRows(c.children, gen + 1, indent + 1, openIds, out);
     });

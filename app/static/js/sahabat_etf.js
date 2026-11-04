@@ -2495,65 +2495,90 @@ function setfBlobToDataUrl(blob) {
   });
 }
 
+// Tangkap satu elemen tree jadi canvas, ruang kosongnya dipangkas agar memenuhi lebar halaman.
+async function setfCaptureTree(el) {
+  const full = await html2canvas(el, {
+    scale: 2, backgroundColor: "#ffffff",
+    width: el.scrollWidth, height: el.scrollHeight, windowWidth: el.scrollWidth,
+  });
+  const bb = SetfTreeModel.contentBounds(full.getContext("2d").getImageData(0, 0, full.width, full.height).data, full.width, full.height, 24);
+  const canvas = document.createElement("canvas");
+  canvas.width = bb.right - bb.left;
+  canvas.height = bb.bottom - bb.top;
+  canvas.getContext("2d").drawImage(full, bb.left, bb.top, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+// Mode cari: hanya halaman yang tampil sekarang. Default/reset: semua tree dalam keadaan default.
 async function exportTreePDF() {
   if (!treeLoaded) return;
-  if (!SetfTreeView.hasContent()) { showToast("Pilih cabang atau cari nama dulu sebelum export PDF.", "info"); return; }
+  const q = SetfTreeView.currentQuery();
+  if (q && !SetfTreeView.hasContent()) { showToast("Tidak ada hasil pencarian untuk diexport.", "info"); return; }
   showToast("Mempersiapkan PDF...", "info");
   const wrap = document.getElementById("tree-wrapper");
   const saved = wrap ? [wrap.scrollLeft, wrap.scrollTop] : [0, 0];
+  let batch = null;
   try {
     await setfLoadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js", () => typeof window.jspdf !== "undefined");
     await setfLoadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js", () => typeof window.html2canvas !== "undefined");
     const logoBlob = await (await fetch("/static/img/flow-mark.png")).blob();
     const logo = await setfBlobToDataUrl(logoBlob);
 
-    const el = SetfTreeView.getExportElement();
+    let items;
+    if (q) {
+      items = [{ el: SetfTreeView.getExportElement(), label: 'Pencarian: "' + q + '"' }];
+    } else {
+      batch = SetfTreeView.buildDefaultExport();
+      items = batch.items;
+    }
     if (wrap) { wrap.scrollLeft = 0; wrap.scrollTop = 0; }
-    const full = await html2canvas(el, {
-      scale: 2, backgroundColor: "#ffffff",
-      width: el.scrollWidth, height: el.scrollHeight, windowWidth: el.scrollWidth,
-    });
-    // Pangkas ruang kosong agar tree memenuhi lebar halaman saat dicetak.
-    const bb = SetfTreeModel.contentBounds(full.getContext("2d").getImageData(0, 0, full.width, full.height).data, full.width, full.height, 24);
-    const canvas = document.createElement("canvas");
-    canvas.width = bb.right - bb.left;
-    canvas.height = bb.bottom - bb.top;
-    canvas.getContext("2d").drawImage(full, bb.left, bb.top, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: canvas.height > canvas.width ? "portrait" : "landscape", unit: "mm", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
     const margin = 10;
     const headerH = 16;
-    const { scale, slices } = SetfTreeModel.slicePages(canvas.width, canvas.height, { pageW, pageH, margin, headerH });
+    const parts = [];
+    for (const it of items) {
+      const canvas = await setfCaptureTree(it.el);
+      const landscape = canvas.width >= canvas.height;
+      const pageW = landscape ? 297 : 210;
+      const pageH = landscape ? 210 : 297;
+      const { scale, slices } = SetfTreeModel.slicePages(canvas.width, canvas.height, { pageW, pageH, margin, headerH });
+      parts.push({ canvas, label: it.label, landscape, pageW, pageH, scale, slices });
+    }
+    const total = parts.reduce((n, p) => n + p.slices.length, 0);
     const stamp = SetfTreeModel.formatPrintStamp(new Date());
-    const q = SetfTreeView.currentQuery();
-    const sub = "Tree Query" + (q ? ' — pencarian: "' + q + '"' : "");
 
-    slices.forEach((sl, i) => {
-      if (i > 0) doc.addPage();
-      doc.addImage(logo, "PNG", margin, margin, 10, 10);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text("Flow - Beasiswa Sahabat ETF", margin + 13, margin + 4.5);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.text(sub, margin + 13, margin + 9);
-      doc.text(stamp, pageW - margin, margin + 4.5, { align: "right" });
-      doc.text("Halaman " + (i + 1) + " / " + slices.length, pageW - margin, margin + 9, { align: "right" });
-      const part = document.createElement("canvas");
-      part.width = canvas.width;
-      part.height = sl.sh;
-      part.getContext("2d").drawImage(canvas, 0, sl.sy, canvas.width, sl.sh, 0, 0, canvas.width, sl.sh);
-      const imgW = canvas.width * scale;
-      doc.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", (pageW - imgW) / 2, margin + headerH, imgW, sl.sh * scale);
+    let doc = null;
+    let pageNo = 0;
+    parts.forEach((p) => {
+      p.slices.forEach((sl) => {
+        const orient = p.landscape ? "landscape" : "portrait";
+        if (!doc) doc = new jsPDF({ orientation: orient, unit: "mm", format: "a4" });
+        else doc.addPage("a4", orient);
+        pageNo += 1;
+        doc.addImage(logo, "PNG", margin, margin, 10, 10);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text("Flow - Beasiswa Sahabat ETF", margin + 13, margin + 4.5);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.text("Tree Query — " + p.label, margin + 13, margin + 9);
+        doc.text(stamp, p.pageW - margin, margin + 4.5, { align: "right" });
+        doc.text("Halaman " + pageNo + " / " + total, p.pageW - margin, margin + 9, { align: "right" });
+        const part = document.createElement("canvas");
+        part.width = p.canvas.width;
+        part.height = sl.sh;
+        part.getContext("2d").drawImage(p.canvas, 0, sl.sy, p.canvas.width, sl.sh, 0, 0, p.canvas.width, sl.sh);
+        const imgW = p.canvas.width * p.scale;
+        doc.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", (p.pageW - imgW) / 2, margin + headerH, imgW, sl.sh * p.scale);
+      });
     });
-    doc.save("Sahabat_ETF_Tree.pdf");
+    doc.save(q ? "Sahabat_ETF_Tree_Pencarian.pdf" : "Sahabat_ETF_Tree.pdf");
     showToast("PDF berhasil diunduh!", "success");
   } catch (err) {
     setfReportError("Gagal membuat PDF: ", err);
   } finally {
+    if (batch) batch.dispose();
     if (wrap) { wrap.scrollLeft = saved[0]; wrap.scrollTop = saved[1]; }
   }
 }
