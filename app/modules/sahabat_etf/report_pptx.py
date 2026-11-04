@@ -59,16 +59,14 @@ def _add_text(slide, text, left, top, width, height, size=12, bold=False, rgb=(0
     return txBox
 
 def _draw_table(slide, left, top, width, rows, total_data, header_rgb, mode_key):
-    table_shape = slide.shapes.add_table(7, 5, left, top, width, Inches(2.6))
+    table_shape = slide.shapes.add_table(7, 6, left, top, width, Inches(2.6))
     table = table_shape.table
     
-    headers = ["Penerima", "Plafon", "Klaim", "Dibayar", "Saldo"]
+    headers = ["Penerima", "Plafon", "PTA", "Klaim", "Dibayar", "Saldo"]
     
-    table.columns[0].width = int(width * 0.28)
-    table.columns[1].width = int(width * 0.18)
-    table.columns[2].width = int(width * 0.18)
-    table.columns[3].width = int(width * 0.18)
-    table.columns[4].width = int(width * 0.18)
+    table.columns[0].width = int(width * 0.25)
+    for ci in range(1, 6):
+        table.columns[ci].width = int(width * 0.15)
     
     def _cell(r, c, text, bg_rgb, text_rgb, bold=False, align=PP_ALIGN.CENTER):
         cell = table.cell(r, c)
@@ -79,7 +77,7 @@ def _draw_table(slide, left, top, width, rows, total_data, header_rgb, mode_key)
         p = cell.text_frame.paragraphs[0]
         p.alignment = align
         p.font.name = 'Segoe UI'
-        p.font.size = Pt(10)
+        p.font.size = Pt(9)
         p.font.bold = bold
         p.font.color.rgb = RGBColor(*text_rgb)
             
@@ -97,33 +95,37 @@ def _draw_table(slide, left, top, width, rows, total_data, header_rgb, mode_key)
                     nama = parts[0] + " " + " ".join([p[0] + "." for p in parts[1:]])
             
             c_data = row_data[mode_key]
-            plafon = c_data["plafon"]
+            pta = c_data.get("pta_info", 0)
+            plafon = c_data["plafon"] - pta  # plafon di data sudah termasuk PTA; di PPT dipisah
             klaim = c_data["klaim"]
             dibayar = c_data["dibayar"]
             saldo = c_data.get("saldo", 0)
             
             _cell(r+1, 0, nama, bg, (0,0,0), align=PP_ALIGN.LEFT)
             _cell(r+1, 1, _fmt(plafon), bg, (0,0,0))
-            _cell(r+1, 2, _fmt(klaim), bg, (0,0,0))
-            _cell(r+1, 3, _fmt(dibayar), bg, (0,0,0))
-            _cell(r+1, 4, _fmt(saldo), bg, (0,0,0))
+            _cell(r+1, 2, _fmt(pta), bg, (0,0,0))
+            _cell(r+1, 3, _fmt(klaim), bg, (0,0,0))
+            _cell(r+1, 4, _fmt(dibayar), bg, (0,0,0))
+            _cell(r+1, 5, _fmt(saldo), bg, (0,0,0))
         else:
-            for c in range(5):
+            for c in range(6):
                 _cell(r+1, c, "", bg, (0,0,0))
                 
     footer_bg = header_rgb
     _cell(6, 0, "Subtotal", footer_bg, (255,255,255), bold=True, align=PP_ALIGN.LEFT)
     if total_data:
-        plafon = total_data.get("plafon", 0)
+        pta = total_data.get("pta_info", 0)
+        plafon = total_data.get("plafon", 0) - pta
         klaim = total_data.get("klaim", 0)
         dibayar = total_data.get("dibayar", 0)
         saldo = total_data.get("saldo", 0)
         _cell(6, 1, _fmt(plafon), footer_bg, (255,255,255), bold=True)
-        _cell(6, 2, _fmt(klaim), footer_bg, (255,255,255), bold=True)
-        _cell(6, 3, _fmt(dibayar), footer_bg, (255,255,255), bold=True)
-        _cell(6, 4, _fmt(saldo), footer_bg, (255,255,255), bold=True)
+        _cell(6, 2, _fmt(pta), footer_bg, (255,255,255), bold=True)
+        _cell(6, 3, _fmt(klaim), footer_bg, (255,255,255), bold=True)
+        _cell(6, 4, _fmt(dibayar), footer_bg, (255,255,255), bold=True)
+        _cell(6, 5, _fmt(saldo), footer_bg, (255,255,255), bold=True)
     else:
-        for c in range(1, 5):
+        for c in range(1, 6):
             _cell(6, c, "-", footer_bg, (255,255,255), bold=True)
 
 def build_report_pptx(data: dict, mode: str = "ytd") -> bytes:
@@ -272,23 +274,21 @@ def build_report_pptx(data: dict, mode: str = "ytd") -> bytes:
         # Divider
         _draw_rect(slide, Inches(3.1), Inches(6.5), Inches(0.01), Inches(0.7), (200,200,200))
         
-        box_w = Inches(2.3)
-        _add_text(slide, "💼", Inches(3.2), Inches(6.5), width=Inches(0.6), height=Inches(0.6), size=32)
-        _add_text(slide, "Total Plafon", Inches(3.8), Inches(6.5), width=box_w, height=Inches(0.3), size=12)
-        _add_text(slide, f"Rp {_fmt(g_tot['plafon'])}", Inches(3.8), Inches(6.8), width=box_w, height=Inches(0.4), size=14, bold=True)
+        box_w = Inches(1.4)
+        g_pta = g_tot.get("pta_info", 0)
+        totals = [
+            ("💼", "Total Plafon", g_tot["plafon"] - g_pta),
+            ("➕", "Total PTA", g_pta),
+            ("⏩", "Total Klaim", g_tot["klaim"]),
+            ("✅", "Total Dibayar", g_tot["dibayar"]),
+            ("💰", "Total Saldo", g_tot.get("saldo", 0)),
+        ]
+        for i, (icon, label, val) in enumerate(totals):
+            x = 3.2 + i * 1.95
+            _add_text(slide, icon, Inches(x), Inches(6.5), width=Inches(0.6), height=Inches(0.6), size=28)
+            _add_text(slide, label, Inches(x + 0.6), Inches(6.5), width=box_w, height=Inches(0.3), size=11)
+            _add_text(slide, f"Rp {_fmt(val)}", Inches(x + 0.6), Inches(6.8), width=box_w, height=Inches(0.4), size=12, bold=True)
 
-        _add_text(slide, "⏩", Inches(5.5), Inches(6.5), width=Inches(0.6), height=Inches(0.6), size=32)
-        _add_text(slide, "Total Klaim", Inches(6.1), Inches(6.5), width=box_w, height=Inches(0.3), size=12)
-        _add_text(slide, f"Rp {_fmt(g_tot['klaim'])}", Inches(6.1), Inches(6.8), width=box_w, height=Inches(0.4), size=14, bold=True)
-
-        _add_text(slide, "✅", Inches(7.8), Inches(6.5), width=Inches(0.6), height=Inches(0.6), size=32)
-        _add_text(slide, "Total Dibayar", Inches(8.4), Inches(6.5), width=box_w, height=Inches(0.3), size=12)
-        _add_text(slide, f"Rp {_fmt(g_tot['dibayar'])}", Inches(8.4), Inches(6.8), width=box_w, height=Inches(0.4), size=14, bold=True)
-        
-        _add_text(slide, "💰", Inches(10.1), Inches(6.5), width=Inches(0.6), height=Inches(0.6), size=32)
-        _add_text(slide, "Total Saldo", Inches(10.7), Inches(6.5), width=box_w, height=Inches(0.3), size=12)
-        _add_text(slide, f"Rp {_fmt(g_tot.get('saldo', 0))}", Inches(10.7), Inches(6.8), width=box_w, height=Inches(0.4), size=14, bold=True)
-        
         # 6. Page Numbering
         _add_text(slide, f"Page {page+1} of {pages}", Inches(11.5), Inches(7.3), width=Inches(1.5), height=Inches(0.2), size=10, bold=False, rgb=(120,120,120), align=PP_ALIGN.RIGHT)
         

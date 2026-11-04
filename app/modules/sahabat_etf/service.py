@@ -22,12 +22,13 @@ KESEHATAN_CAT1 = "By Medical"
 
 
 def _empty_metrics() -> dict:
-    return {"plafon": 0.0, "pta": 0.0, "klaim": 0.0, "dibayar": 0.0, "saldo": 0.0}
+    return {"plafon": 0.0, "pta": 0.0, "pta_info": 0.0, "klaim": 0.0, "dibayar": 0.0, "saldo": 0.0}
 
 
-def _add_metrics(target: dict, plafon: float = 0.0, pta: float = 0.0, klaim: float = 0.0, dibayar: float = 0.0):
+def _add_metrics(target: dict, plafon: float = 0.0, pta: float = 0.0, klaim: float = 0.0, dibayar: float = 0.0, pta_info: float = 0.0):
     target["plafon"]  += plafon
     target["pta"]     += pta
+    target["pta_info"] += pta_info  # porsi PTA di dalam plafon (info untuk PPT; tidak masuk saldo)
     target["klaim"]   += klaim
     target["dibayar"] += dibayar
     target["saldo"]    = target["plafon"] + target["pta"] - target["dibayar"]
@@ -36,7 +37,7 @@ def _add_metrics(target: dict, plafon: float = 0.0, pta: float = 0.0, klaim: flo
 def _sum_metrics(*metric_dicts) -> dict:
     total = _empty_metrics()
     for m in metric_dicts:
-        _add_metrics(total, plafon=m["plafon"], pta=m.get("pta", 0.0), klaim=m["klaim"], dibayar=m["dibayar"])
+        _add_metrics(total, plafon=m["plafon"], pta=m.get("pta", 0.0), klaim=m["klaim"], dibayar=m["dibayar"], pta_info=m.get("pta_info", 0.0))
     return total
 
 
@@ -131,14 +132,15 @@ def _build_buckets(company_id: int, report_year: int, report_month: int = 12, pi
         amount   = float(r["amount"] or 0)
         plafon_amt = amount  # PTA (Tambahan Anggaran) digabung ke Plafon, sama dengan Report Siswa
         pta_amt    = 0.0
+        pta_info   = amount if r["cat2"] == "Tambahan Anggaran" else 0.0
         
         b = bucket(section, subgroup, r["nama"], r["group_setf"])
         b["pillars"].add(r["pillar"] or "")
         b["angkatan"] = r["angkatan"]
         if tahun == report_year and bulan <= report_month:
-            _add_metrics(b["cur"], plafon=plafon_amt, pta=pta_amt)
+            _add_metrics(b["cur"], plafon=plafon_amt, pta=pta_amt, pta_info=pta_info)
         if tahun < report_year or (tahun == report_year and bulan <= report_month):
-            _add_metrics(b["cum"], plafon=plafon_amt, pta=pta_amt)
+            _add_metrics(b["cum"], plafon=plafon_amt, pta=pta_amt, pta_info=pta_info)
 
     for r in payment_rows:
         if pillars and r["pillar"] and r["pillar"] not in pillars:
