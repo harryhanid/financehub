@@ -611,3 +611,14 @@ def test_export_ppt_report_respects_month_and_pillars_array_query_params(client,
     client.get("/beasiswa/sahabat/api/report/export_ppt?year=2026&month=11&pillars[]=APP")
     
     mock_build.assert_called_once_with(2, 2026, 11, ["APP"])
+
+
+def test_tree_query_uses_stacked_view_assets(client):
+    login(client)
+    _select_etf(client)
+    resp = client.get("/beasiswa/")
+    assert b"js/setf_tree_model.js" in resp.data
+    assert b"js/setf_tree_view.js" in resp.data
+    assert b"css/sahabat_tree.css" in resp.data
+    assert b'id="tree-stack"' in resp.data
+    assert b'id="tree-chart"' not in resp.data

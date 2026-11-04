@@ -14,50 +14,6 @@ window.textZoomMultiplier = 1.0;
 
 
 
-  let uidCounter = 0;
-  function assignUID(node) {
-      if (!node) return;
-      node._uid = ++uidCounter;
-      if (node.children) node.children.forEach(assignUID);
-  }
-
-  function applyInitialDepth(node, currentDepth, maxDepth) {
-      if (!node) return;
-      if (currentDepth >= maxDepth && node.children && node.children.length > 0) {
-          node.collapsed = true;
-      } else {
-          node.collapsed = false;
-      }
-      if (node.children) {
-          node.children.forEach(c => applyInitialDepth(c, currentDepth + 1, maxDepth));
-      }
-  }
-
-  
-  function getVisibleDepth(node, currentDepth) {
-      if (!node) return currentDepth;
-      if (node.collapsed || !node.children || node.children.length === 0) {
-          return currentDepth;
-      }
-      let maxD = currentDepth;
-      node.children.forEach(c => {
-          let d = getVisibleDepth(c, currentDepth + 1);
-          if (d > maxD) maxD = d;
-      });
-      return maxD;
-  }
-
-  function countVisibleLeaves(node) {
-      if (!node) return 1;
-      if (node.collapsed || !node.children || node.children.length === 0) {
-          return 1;
-      }
-      let sum = 0;
-      node.children.forEach(c => sum += countVisibleLeaves(c));
-      return sum;
-  }
-
-
 function setfRenderKategoriChartCustom(canvasId, kategoriRows) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
@@ -2458,602 +2414,63 @@ function setfRenderDiagram2(data) {
   `;
 }
 
-let treeChartInstance = null;
-let treeRawData = null;
-
-
-function assignGenerations(node, depth) {
-  if (depth > 1) {
-    node.genLabel = "G" + (depth - 1);
-  } else {
-    node.genLabel = "";
-  }
-  if (node.children) {
-    node.children.forEach(c => assignGenerations(c, depth + 1));
-  }
-}
+let treeLoaded = false;
 
 async function initTreeQuery() {
-  if (treeChartInstance) return;
-  const chartDom = document.getElementById("tree-chart");
-  if (!chartDom) return;
-  
-  treeChartInstance = echarts.init(chartDom);
-  const slider = document.getElementById("tree-wrapper");
-  if (slider) {
-      let isDown = false;
-      let startX, startY, scrollLeft, scrollTop;
-      slider.style.cursor = 'grab';
-      slider.addEventListener('mousedown', (e) => {
-          if (e.button !== 0) return;
-          isDown = true;
-          slider.style.cursor = 'grabbing';
-          startX = e.pageX - slider.offsetLeft;
-          startY = e.pageY - slider.offsetTop;
-          scrollLeft = slider.scrollLeft;
-          scrollTop = slider.scrollTop;
-      });
-      window.addEventListener('mouseup', () => {
-          isDown = false;
-          if(slider) slider.style.cursor = 'grab';
-      });
-      slider.addEventListener('mousemove', (e) => {
-          if (!isDown) return;
-          e.preventDefault();
-          const x = e.pageX - slider.offsetLeft;
-          const y = e.pageY - slider.offsetTop;
-          slider.scrollLeft = scrollLeft - (x - startX);
-          slider.scrollTop = scrollTop - (y - startY);
-      });
-  }
-  const searchInput = document.getElementById('tree-search-input');
-  if (searchInput) {
-    searchInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') searchTree();
-    });
-  }
-  treeChartInstance.showLoading();
-  
+  if (treeLoaded) return;
+  const box = document.getElementById("tree-stack");
+  if (!box || !window.SetfTreeView) return;
+  box.innerHTML = '<div class="tr-empty">Memuat data tree...</div>';
   try {
     const res = await fetch("/beasiswa/sahabat/tree-data");
     const json = await res.json();
     if (!json.ok) throw new Error("Gagal ambil data");
-    
-        treeRawData = {
-      name: "Sahabat ETF",
-      children: json.data
-    };
-    assignGenerations(treeRawData, 0);
-      assignUID(treeRawData);
-      applyInitialDepth(treeRawData, 0, 3);
-      window.treeRawDataPristine = JSON.parse(JSON.stringify(treeRawData));
-      
+    SetfTreeView.mount(box, json.data);
+    SetfTreeView.setTextScale(window.textZoomMultiplier);
+    SetfTreeView.setSpacing(window.treeSpacingMultiplier);
     const dl = document.getElementById("tree-search-list");
-    if (dl) {
-      let opts = [];
-      function collectNames(n) {
-         opts.push(`<option value="${n.name}">`);
-         if (n.partners) n.partners.forEach(p => opts.push(`<option value="${p.name}">`));
-         if (n.children) n.children.forEach(c => collectNames(c));
-      }
-      if (window.treeRawDataPristine.children) window.treeRawDataPristine.children.forEach(c => collectNames(c));
-      dl.innerHTML = opts.join("");
+    if (dl) dl.innerHTML = SetfTreeView.names().map(n => `<option value="${n.replace(/"/g, "&quot;")}">`).join("");
+    const searchInput = document.getElementById("tree-search-input");
+    if (searchInput) {
+      searchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") searchTree(); });
     }
-    renderTree([treeRawData]);
+    treeLoaded = true;
   } catch (err) {
-    console.error(err);
-  } finally {
-    treeChartInstance.hideLoading();
+    box.innerHTML = '<div class="tr-empty">Gagal memuat tree.</div>';
+    setfReportError("Err Tree Query: ", err);
   }
-}
-
-function renderTree(data) {
-    window.currentTreeData = data;
-    let leaves = countVisibleLeaves(data[0]);
-    let maxDepth = getVisibleDepth(data[0], 0);
-    let wrapper = document.getElementById("tree-wrapper");
-    let baseW = wrapper ? wrapper.clientWidth : 1200;
-    let baseH = wrapper ? wrapper.clientHeight : 800;
-    if (baseH < 600) baseH = 600;
-    
-    let tz = window.textZoomMultiplier || 1.0;
-    let ts = window.treeSpacingMultiplier || 1.0;
-    
-    // Smart Positioning Safety Net:
-    // 1. Box width is ~160px at tz=1.0. We enforce a hard floor of 170px to guarantee no overlap.
-    let minReqW = leaves * 170 * tz;
-    let userReqW = leaves * 250 * tz * ts;
-    let reqW = Math.max(minReqW, userReqW);
-    
-    // 2. Box height is ~120px at tz=1.0. We enforce a hard floor of 140px.
-    // Vertical spacing (userReqH) ignores text zoom to maintain layout shape, unless the text grows so large it risks overlapping.
-    let minReqH = (maxDepth + 1) * 140 * tz;
-    let userReqH = (maxDepth + 1) * 450 * ts;
-    let reqH = Math.max(minReqH, userReqH);
-    
-    let newWidth = Math.max(baseW, reqW);
-    let newHeight = Math.max(baseH, reqH);
-    
-    let paddingX = Math.max(140, (newWidth - reqW) / 2);
-    let paddingY = Math.max(80, (newHeight - reqH) / 2);
-    
-    let chartDiv = document.getElementById("tree-chart");
-    if (chartDiv) {
-        chartDiv.style.width = newWidth + "px";
-        chartDiv.style.height = newHeight + "px";
-        if (treeChartInstance) treeChartInstance.resize();
-    }
-  const option = {
-    tooltip: { 
-      trigger: 'item', 
-      triggerOn: 'mousemove',
-      formatter: function(params) {
-         let d = params.data;
-         if (!d) return '';
-         let mainIdStr = d.id ? ' | ' + d.id : '';
-           let html = '<div style=\"font-weight:bold;margin-bottom:5px;border-bottom:1px solid #eee;padding-bottom:3px;\">' + (d.name || '') + mainIdStr + '</div>';
-         
-         let hasInfo = false;
-         if (d.tanggal_lahir) { html += '<div style="font-size:12px;"><b>Tanggal Lahir:</b> ' + d.tanggal_lahir + '</div>'; hasInfo = true; }
-         if (d.catatan) { html += '<div style="font-size:12px;max-width:250px;white-space:normal;"><b>Catatan:</b> ' + d.catatan + '</div>'; hasInfo = true; }
-         if (!hasInfo) { html += '<div style="font-size:12px;color:#888;"><i>Tidak ada informasi tambahan</i></div>'; }
-         
-         if (d.partners && d.partners.length > 0) {
-             html += '<hr style="margin:8px 0; border:0; border-top:1px solid #ddd">';
-             d.partners.forEach(p => {
-                 let pIdStr = p.id ? ' | ' + p.id : '';
-                   html += '<div style=\"font-weight:bold;margin-bottom:3px;\">' + (p.name || '') + ' <span style=\"font-size:12px;color:#666;font-weight:normal;\">(Partner)</span>' + pIdStr + '</div>';
-                 let hasPInfo = false;
-                 if (p.tanggal_lahir) { html += '<div style="font-size:12px;"><b>Tanggal Lahir:</b> ' + p.tanggal_lahir + '</div>'; hasPInfo = true; }
-                 if (p.catatan) { html += '<div style="font-size:12px;max-width:250px;white-space:normal;"><b>Catatan:</b> ' + p.catatan + '</div>'; hasPInfo = true; }
-                 if (!hasPInfo) { html += '<div style="font-size:12px;color:#888;"><i>Tidak ada informasi tambahan</i></div>'; }
-             });
-         }
-         return html;
-      }
-    },
-    series: [
-      {
-        type: 'tree',
-        orient: 'TB',
-        edgeShape: 'polyline',
-        data: data,
-        top: paddingY, left: paddingX, bottom: paddingY, right: paddingX,
-        symbolSize: 7 * window.textZoomMultiplier,
-        roam: false,
-          expandAndCollapse: false,
-          zoom: 1,
-        label: {
-          position: 'top',
-          verticalAlign: 'middle',
-          align: 'center',
-          fontSize: Math.round(12 * window.textZoomMultiplier),
-          backgroundColor: '#f8f9fa',
-          borderColor: '#d1d5db',
-          borderWidth: 1,
-          borderRadius: 4,
-          padding: 6,
-          
-                    formatter: function(params) {
-            function wrapText(str, maxLen) {
-                if (!str) return [''];
-                let words = str.split(' ');
-                let outLines = [];
-                let currentLine = '';
-                for (let word of words) {
-                    if (currentLine.length + word.length > maxLen && currentLine.length > 0) {
-                        outLines.push(currentLine.trim());
-                        currentLine = word + ' ';
-                    } else {
-                        currentLine += word + ' ';
-                    }
-                }
-                if (currentLine.trim()) outLines.push(currentLine.trim());
-                return outLines.length > 0 ? outLines : [''];
-            }
-
-            let n = params.data.name || '';
-            let fullCode = params.data.id ? params.data.id : '';
-            if (fullCode && !/^[A-Za-z]$/.test(fullCode)) {
-                n = n + ' (' + fullCode + ')';
-            }
-            
-            let lines = [];
-            let wrappedMain = wrapText(n, 15);
-            wrappedMain.forEach((w, idx) => {
-                lines.push(`{main|${w}}`);
-            });
-            
-            let ps = params.data.partners;
-            if (ps && ps.length > 0) {
-                lines.push('{sep|---------------}');
-                ps.forEach(p => {
-                    let pCode = p.id ? p.id.split('.').pop().toUpperCase() : '';
-                    let pName = p.name || '';
-                    let partnerSuffix = pCode ? 'Partner ' + pCode : 'Partner';
-                    pName = pName + ' (' + partnerSuffix + ')';
-                    let wrappedPartner = wrapText(pName, 20);
-                    wrappedPartner.forEach(w => {
-                        lines.push(`{partner|${w}}`); 
-                    });
-                });
-            }
-            
-            return lines.join('\n');
-          },
-          rich: {
-            main: { fontWeight: 'bold', fontSize: Math.round(13 * window.textZoomMultiplier), padding: [Math.round(4 * window.textZoomMultiplier), 0, Math.round(4 * window.textZoomMultiplier), 0] },
-            gen: { fontSize: Math.round(11 * window.textZoomMultiplier), color: '#3b82f6', fontWeight: 'bold' },
-            sep: { color: '#ccc', height: Math.max(1, Math.round(2 * window.textZoomMultiplier)) },
-            partner: { fontSize: Math.round(11 * window.textZoomMultiplier), color: '#666', padding: [Math.round(2 * window.textZoomMultiplier), 0, Math.round(2 * window.textZoomMultiplier), 0] }
-          }
-        },
-        leaves: { label: { position: 'bottom', verticalAlign: 'middle', align: 'center' } },
-        emphasis: { focus: 'descendant' },
-        expandAndCollapse: true,
-        animationDuration: 550,
-        animationDurationUpdate: 750
-      }
-    ]
-  };
-  // Kolom penggaris generasi (G1, G2, ...) di kiri; menempel saat scroll horizontal
-  const RULER_W = 48;
-  const innerH = newHeight - 2 * paddingY;
-  const layerH = maxDepth > 0 ? innerH / maxDepth : 0;
-  const genDepths = [];
-  for (let d = 2; d <= maxDepth; d++) genDepths.push(d);
-  const rulerEls = (sx) => {
-    if (!genDepths.length) return [];
-    const els = [
-      { id: 'gen-ruler', type: 'rect', silent: true, z: 90,
-        shape: { x: sx, y: 0, width: RULER_W, height: newHeight },
-        style: { fill: '#f1f5f9' } },
-      { id: 'gen-ruler-edge', type: 'line', silent: true, z: 91,
-        shape: { x1: sx + RULER_W, y1: 0, x2: sx + RULER_W, y2: newHeight },
-        style: { stroke: '#cbd5e1', lineWidth: 1 } }
-    ];
-    genDepths.forEach(d => {
-      els.push({ id: 'gen-label-' + d, type: 'text', silent: true, z: 92,
-        x: sx + RULER_W / 2, y: paddingY + d * layerH,
-        style: { text: 'G' + (d - 1), fontSize: 13, fontWeight: 'bold', fill: '#2563eb',
-                 textAlign: 'center', textVerticalAlign: 'middle' } });
-    });
-    return els;
-  };
-  const sepEls = [];
-  for (let d = 1; d < maxDepth; d++) {
-    const y = paddingY + (d + 0.5) * layerH;
-    sepEls.push({ id: 'gen-sep-' + d, type: 'line', silent: true, z: 0,
-      shape: { x1: RULER_W, y1: y, x2: newWidth, y2: y },
-      style: { stroke: '#93c5fd', lineWidth: 1, lineDash: [4, 5] } });
-  }
-  option.graphic = { elements: [...sepEls, ...rulerEls(wrapper ? wrapper.scrollLeft : 0)] };
-  window.treeRulerEls = rulerEls;
-  if (wrapper && !wrapper._genScrollBound) {
-    wrapper._genScrollBound = true;
-    wrapper.addEventListener('scroll', () => {
-      if (!treeChartInstance || !window.treeRulerEls) return;
-      treeChartInstance.setOption({ graphic: { elements: window.treeRulerEls(wrapper.scrollLeft) } });
-    });
-  }
-  treeChartInstance.setOption(option, true);
-    
-    treeChartInstance.off('click');
-    treeChartInstance.on('click', function(e) {
-        if (!e.data || !e.data._uid) return;
-        
-        let targetUid = e.data._uid;
-        
-        function findParentUid(node, targetId, parentId) {
-            if (node._uid === targetId) return parentId;
-            if (node.children) {
-                for (let i = 0; i < node.children.length; i++) {
-                    let pid = findParentUid(node.children[i], targetId, node._uid);
-                    if (pid) return pid;
-                }
-            }
-            return null;
-        }
-        
-        if (window.currentDrillTargetUid === targetUid) {
-            let parentUid = findParentUid(window.treeRawDataPristine, targetUid, null);
-            if (parentUid) {
-                targetUid = parentUid;
-            } else {
-                resetTreeQuery();
-                window.currentDrillTargetUid = null;
-                return;
-            }
-        }
-        window.currentDrillTargetUid = targetUid;
-        
-        let dataCopy = JSON.parse(JSON.stringify(window.treeRawDataPristine));
-        
-        function drillDownToUid(node, targetId) {
-            if (node._uid === targetId) {
-                node.collapsed = false;
-                return true;
-            }
-            
-            let foundChild = null;
-            if (node.children) {
-                for (let i = 0; i < node.children.length; i++) {
-                    let c = node.children[i];
-                    if (drillDownToUid(c, targetId)) {
-                        foundChild = c;
-                        break;
-                    }
-                }
-            }
-            
-            if (foundChild) {
-                node.children = [foundChild];
-                node.collapsed = false;
-                
-                // If this node has multiple partners, only keep the partner that is in the lineage of the drilled-down child.
-                if (node.partners && node.partners.length > 0) {
-                    let childId = foundChild.id || '';
-                    node.partners = node.partners.filter(p => {
-                        let partnerId = p.id || '';
-                        // E.g., partnerId is 'A3.4.B', childId is 'A3.4.B.2'
-                        if (partnerId && childId.startsWith(partnerId + '.')) {
-                            return true;
-                        }
-                        return false;
-                    });
-                }
-                
-                return true;
-            }
-            return false;
-        }
-        
-        if (drillDownToUid(dataCopy, targetUid)) {
-            renderTree([dataCopy]);
-        }
-    });
-
-    setTimeout(() => {
-        const wrapper = document.getElementById("tree-wrapper");
-        if (wrapper) {
-            wrapper.scrollLeft = (wrapper.scrollWidth - wrapper.clientWidth) / 2;
-        }
-    }, 100);
-  }
-
-function expandPathToName(node, searchName) {
-  let found = false;
-  let isTarget = false;
-
-  if (node.name.toLowerCase().includes(searchName)) {
-    found = true;
-    isTarget = true;
-  }
-  if (node.partners && node.partners.some(p => p.name.toLowerCase().includes(searchName))) {
-    found = true;
-    isTarget = true;
-  }
-
-  let matchedChildren = [];
-  let neededPartnerIds = new Set();
-  let hasTargetChild = false;
-
-  if (node.children && node.children.length > 0) {
-    node.children.forEach(c => {
-      let isChildTarget = (c.name.toLowerCase().includes(searchName) || 
-                          (c.partners && c.partners.some(p => p.name.toLowerCase().includes(searchName))));
-      if (isChildTarget) {
-          hasTargetChild = true;
-      }
-      if (expandPathToName(c, searchName)) {
-        matchedChildren.push(c);
-        if (c.parent_partner_id) {
-          neededPartnerIds.add(c.parent_partner_id);
-        }
-        found = true;
-      }
-    });
-  }
-
-  if (found && !isTarget) {
-    let arr = Array.from(neededPartnerIds);
-    if (hasTargetChild) {
-        node.children = node.children.filter(c => c.parent_partner_id && arr.includes(c.parent_partner_id));
-        if (node.partners) {
-           node.partners = node.partners.filter(p => arr.includes(p.id));
-        }
-        node.collapsed = false;
-    } else {
-        node.children = matchedChildren;
-        if (node.partners) {
-           node.partners = node.partners.filter(p => arr.includes(p.id));
-        }
-        node.collapsed = false;
-    }
-  } else if (isTarget) {
-    node.collapsed = false; 
-    node.itemStyle = { borderColor: '#ef4444', borderWidth: 3 };
-    node.label = { backgroundColor: '#fee2e2', borderColor: '#ef4444' };
-  } else {
-    node.collapsed = true;
-  }
-  return found;
 }
 
 function searchTree() {
-    window.currentDrillTargetUid = null;
-    const input = document.getElementById("tree-search-input");
-    const q = input ? input.value.toLowerCase() : "";
-    let dataCopy = JSON.parse(JSON.stringify(window.treeRawDataPristine));
-    
-    if (!q) {
-        renderTree([dataCopy]);
-        return;
-    }
-    
-    expandPathToName(dataCopy, q);
-    if (dataCopy.children && dataCopy.children.length === 1) {
-        renderTree([dataCopy.children[0]]);
-    } else {
-        renderTree([dataCopy]);
-    }
-  }
-
-
-  function adjustSpacing(delta) {
-      if (!window.currentTreeData) return;
-      window.treeSpacingMultiplier += delta;
-      if (window.treeSpacingMultiplier < 0.1) window.treeSpacingMultiplier = 0.1;
-      if (window.treeSpacingMultiplier > 5.0) window.treeSpacingMultiplier = 5.0;
-      
-      renderTree(window.currentTreeData);
-  }
+  if (!treeLoaded) return;
+  const input = document.getElementById("tree-search-input");
+  const q = input ? input.value : "";
+  if (q.trim()) SetfTreeView.renderFocus(q); else SetfTreeView.renderDefault();
+}
 
 function zoomTreeQuery(ratio) {
-      if (!window.currentTreeData) return;
-      if (ratio > 1) {
-          window.textZoomMultiplier += 0.2;
-      } else {
-          window.textZoomMultiplier -= 0.2;
-      }
-      if (window.textZoomMultiplier < 0.2) window.textZoomMultiplier = 0.2;
-      if (window.textZoomMultiplier > 5.0) window.textZoomMultiplier = 5.0;
-      
-      renderTree(window.currentTreeData);
-  }
-  function foldChildren(node, depth) {
-    // If it's Depth 2 (Wives) and it's not part of an expanded search path
-    if (depth === 2 && node.collapsed !== false && node.children && node.children.length > 0) {
-      node._folded = true;
-      node._actualChildren = node.children;
-      node.children = []; // Remove children so they don't branch
-    } else if (node.children) {
-      node.children.forEach(c => foldChildren(c, depth + 1));
-    }
-  }
+  if (!treeLoaded) return;
+  window.textZoomMultiplier = Math.min(3, Math.max(0.4, window.textZoomMultiplier + (ratio > 1 ? 0.2 : -0.2)));
+  SetfTreeView.setTextScale(window.textZoomMultiplier);
+}
 
-  function resetTreeQuery() {
-    window.treeSpacingMultiplier = 1.0;
-    window.textZoomMultiplier = 1.0;
-window.textZoomMultiplier = 1.0;
-    window.currentDrillTargetUid = null;
-    const input = document.getElementById("tree-search-input");
-    if (input) input.value = "";
-    searchTree();
-  }
+function adjustSpacing(delta) {
+  if (!treeLoaded) return;
+  window.treeSpacingMultiplier = Math.min(3, Math.max(0.3, window.treeSpacingMultiplier + delta));
+  SetfTreeView.setSpacing(window.treeSpacingMultiplier);
+}
 
-  async function exportTreePDF() {
-    if (!treeChartInstance) return;
-    showToast("Mempersiapkan PDF... Memotong area kosong agar maksimal.", "info");
-    
-    if (typeof window.jspdf === 'undefined') {
-        await new Promise((resolve, reject) => {
-            const script = document.createElement("script");
-            script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-    }
+function resetTreeQuery() {
+  window.treeSpacingMultiplier = 1.0;
+  window.textZoomMultiplier = 1.0;
+  const input = document.getElementById("tree-search-input");
+  if (input) input.value = "";
+  if (!treeLoaded) return;
+  SetfTreeView.setTextScale(1);
+  SetfTreeView.setSpacing(1);
+  SetfTreeView.reset();
+}
 
-    let rawImgData = treeChartInstance.getDataURL({
-        type: 'png',
-        pixelRatio: 2,
-        backgroundColor: '#fff'
-    });
-    
-    // Helper to crop whitespace
-    function cropWhitespace(dataUrl) {
-        return new Promise((resolve) => {
-            let img = new Image();
-            img.onload = () => {
-                let canvas = document.createElement('canvas');
-                let ctx = canvas.getContext('2d');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-                
-                let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                let data = imgData.data;
-                
-                let top = null, bottom = null, left = null, right = null;
-                
-                for (let y = 0; y < canvas.height; y++) {
-                    for (let x = 0; x < canvas.width; x++) {
-                        let alpha = data[(y * canvas.width + x) * 4 + 3];
-                        let r = data[(y * canvas.width + x) * 4];
-                        let g = data[(y * canvas.width + x) * 4 + 1];
-                        let b = data[(y * canvas.width + x) * 4 + 2];
-                        
-                        // Check if pixel is NOT white (#ffffff)
-                        if (alpha > 0 && (r < 254 || g < 254 || b < 254)) {
-                            if (top === null) top = y;
-                            bottom = y;
-                            if (left === null || x < left) left = x;
-                            if (right === null || x > right) right = x;
-                        }
-                    }
-                }
-                
-                if (top === null) {
-                    resolve(dataUrl);
-                    return;
-                }
-                
-                // 40px padding
-                let padding = 40;
-                top = Math.max(0, top - padding);
-                bottom = Math.min(canvas.height, bottom + padding);
-                left = Math.max(0, left - padding);
-                right = Math.min(canvas.width, right + padding);
-                
-                let width = right - left;
-                let height = bottom - top;
-                
-                let cropCanvas = document.createElement('canvas');
-                cropCanvas.width = width;
-                cropCanvas.height = height;
-                let cropCtx = cropCanvas.getContext('2d');
-                
-                cropCtx.fillStyle = '#ffffff';
-                cropCtx.fillRect(0, 0, width, height);
-                cropCtx.drawImage(canvas, left, top, width, height, 0, 0, width, height);
-                
-                resolve(cropCanvas.toDataURL('image/jpeg', 1.0));
-            };
-            img.src = dataUrl;
-        });
-    }
-
-    let imgData = await cropWhitespace(rawImgData);
-
-    let img = new Image();
-    img.onload = function() {
-        const { jsPDF } = window.jspdf;
-        let orientation = img.height > img.width ? 'portrait' : 'landscape';
-        let doc = new jsPDF({
-            orientation: orientation,
-            unit: 'mm',
-            format: 'a4'
-        });
-        
-        let pdfW = doc.internal.pageSize.getWidth();
-        let pdfH = doc.internal.pageSize.getHeight();
-        let margin = 10; // 10mm margin
-        let maxW = pdfW - (margin * 2);
-        let maxH = pdfH - (margin * 2);
-        
-        let ratio = Math.min(maxW / img.width, maxH / img.height);
-        let finalW = img.width * ratio;
-        let finalH = img.height * ratio;
-        
-        let x = (pdfW - finalW) / 2;
-        let y = (pdfH - finalH) / 2;
-        
-        doc.addImage(imgData, 'JPEG', x, y, finalW, finalH);
-        doc.save('Sahabat_ETF_Tree.pdf');
-        
-        showToast("PDF berhasil diunduh!", "success");
-    };
-    img.src = imgData;
-  }
+async function exportTreePDF() {
+  showToast("Export PDF belum tersedia", "info");
+}
