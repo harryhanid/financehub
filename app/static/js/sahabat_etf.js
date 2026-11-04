@@ -2497,10 +2497,16 @@ function setfBlobToDataUrl(blob) {
 
 // Tangkap satu elemen tree jadi canvas, ruang kosongnya dipangkas agar memenuhi lebar halaman.
 async function setfCaptureTree(el) {
-  const full = await html2canvas(el, {
-    scale: 2, backgroundColor: "#ffffff",
-    width: el.scrollWidth, height: el.scrollHeight, windowWidth: el.scrollWidth,
-  });
+  el.classList.add("tr-capturing");
+  let full;
+  try {
+    full = await html2canvas(el, {
+      scale: 2, backgroundColor: "#ffffff",
+      width: el.scrollWidth, height: el.scrollHeight, windowWidth: el.scrollWidth,
+    });
+  } finally {
+    el.classList.remove("tr-capturing");
+  }
   const bb = SetfTreeModel.contentBounds(full.getContext("2d").getImageData(0, 0, full.width, full.height).data, full.width, full.height, 24);
   const canvas = document.createElement("canvas");
   canvas.width = bb.right - bb.left;
@@ -2542,7 +2548,7 @@ async function exportTreePDF() {
       const landscape = canvas.width >= canvas.height;
       const pageW = landscape ? 297 : 210;
       const pageH = landscape ? 210 : 297;
-      const { scale, slices } = SetfTreeModel.slicePages(canvas.width, canvas.height, { pageW, pageH, margin, headerH });
+      const { scale, slices } = SetfTreeModel.slicePages(canvas.width, canvas.height, { pageW, pageH, margin, headerH, maxScale: 0.16 });
       parts.push({ canvas, label: it.label, landscape, pageW, pageH, scale, slices });
     }
     const total = parts.reduce((n, p) => n + p.slices.length, 0);

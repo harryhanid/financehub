@@ -133,12 +133,17 @@
       + ' ' + p2(w.getUTCHours()) + ':' + p2(w.getUTCMinutes()) + ' WIB';
   }
 
-  // Lebar konten dipas ke lebar halaman. Bila tingginya hanya sedikit melebihi satu halaman (<= 8%),
-  // skala dikecilkan agar muat satu halaman; selain itu dipotong per halaman.
+  // Dipas ke halaman: lebar konten memenuhi lebar halaman (tidak diperbesar melebihi opt.maxScale).
+  // Bila tinggi melebihi satu halaman, konten dikecilkan sampai muat satu halaman selama skalanya
+  // masih >= 60% dari skala fit-lebar; bila lebih tinggi lagi, dipotong per halaman pada skala fit-lebar.
   function slicePages(contentW, contentH, opt) {
-    let scale = (opt.pageW - 2 * opt.margin) / contentW;
     const usableH = opt.pageH - 2 * opt.margin - opt.headerH;
-    if (contentH * scale > usableH && contentH * scale <= usableH * 1.08) scale = usableH / contentH;
+    const base = Math.min((opt.pageW - 2 * opt.margin) / contentW, opt.maxScale || Infinity);
+    let scale = base;
+    if (contentH * base > usableH) {
+      const fitH = usableH / contentH;
+      if (fitH >= 0.6 * base) scale = fitH;
+    }
     const perPage = Math.max(1, Math.floor(usableH / scale));
     const slices = [];
     for (let sy = 0; sy < contentH; sy += perPage) {

@@ -105,3 +105,6 @@
 }
 .tr-guide { position: absolute; left: 48px; right: 0; height: 0; border-top: 1px dashed #bfdbfe; z-index: 0; pointer-events: none; }
 .tr-card, .tr-stem, .tr-c::before, .tr-c::after { z-index: 1; }
+/* Saat ditangkap untuk PDF: lebar sebatas isi, penggaris tidak sticky (tetap di kiri) */
+.tr-capturing, .tr-offscreen .tr-export { min-width: 0 !important; width: max-content; }
+.tr-capturing .tr-ruler, .tr-offscreen .tr-ruler { position: relative; left: auto; }

@@ -159,17 +159,6 @@ test('formatPrintStamp melewati tengah malam dan pergantian tahun', () => {
   assert.equal(M.formatPrintStamp(new Date('2026-12-31T18:05:00Z')), 'Dicetak: 01 Jan 2027 01:05 WIB');
 });
 
-test('slicePages memotong konten tinggi per halaman', () => {
-  const r = M.slicePages(500, 1000, { pageW: 210, pageH: 297, margin: 10, headerH: 20 });
-  assert.equal(r.scale, 0.38);
-  assert.deepEqual(r.slices, [{ sy: 0, sh: 676 }, { sy: 676, sh: 324 }]);
-});
-
-test('slicePages: konten pendek satu halaman', () => {
-  const r = M.slicePages(500, 300, { pageW: 210, pageH: 297, margin: 10, headerH: 20 });
-  assert.deepEqual(r.slices, [{ sy: 0, sh: 300 }]);
-});
-
 test('searchFocus: hasil yang juga leluhur hasil lain tetap menampilkan hasil di bawahnya', () => {
   const f = fixture();
   f[0].children[0].children[1].children[0].children[0].name = 'Oei Olivia'; // A1.2.A.1.A.1
@@ -227,15 +216,29 @@ test('contentBounds gambar kosong mengembalikan seluruh gambar', () => {
   assert.deepEqual(M.contentBounds(pixels(10, 8, []), 10, 8, 3), { left: 0, top: 0, right: 10, bottom: 8 });
 });
 
-test('slicePages: kelebihan tinggi kecil dimuat satu halaman dengan skala dikecilkan', () => {
-  const r = M.slicePages(500, 700, { pageW: 210, pageH: 297, margin: 10, headerH: 20 });
-  assert.equal(r.slices.length, 1);
-  assert.deepEqual(r.slices[0], { sy: 0, sh: 700 });
-  assert.ok(r.scale < 0.38 && r.scale > 0.36);
+const PG = { pageW: 210, pageH: 297, margin: 10, headerH: 20 };
+
+test('slicePages: konten pendek dipas lebar, satu halaman', () => {
+  const r = M.slicePages(500, 300, PG);
+  assert.equal(r.scale, 0.38);
+  assert.deepEqual(r.slices, [{ sy: 0, sh: 300 }]);
 });
 
-test('slicePages: kelebihan tinggi besar tetap dipotong', () => {
-  const r = M.slicePages(500, 800, { pageW: 210, pageH: 297, margin: 10, headerH: 20 });
+test('slicePages: konten agak tinggi dikecilkan agar muat satu halaman', () => {
+  const r = M.slicePages(500, 1000, PG); // fit lebar 0.38, fit tinggi 0.257 (>= 60% dari 0.38)
+  assert.equal(r.slices.length, 1);
+  assert.deepEqual(r.slices[0], { sy: 0, sh: 1000 });
+  assert.ok(Math.abs(r.scale - 0.257) < 1e-9);
+});
+
+test('slicePages: konten sangat tinggi dipotong per halaman pada skala fit lebar', () => {
+  const r = M.slicePages(500, 2000, PG);
   assert.equal(r.scale, 0.38);
-  assert.equal(r.slices.length, 2);
+  assert.deepEqual(r.slices, [{ sy: 0, sh: 676 }, { sy: 676, sh: 676 }, { sy: 1352, sh: 648 }]);
+});
+
+test('slicePages: konten sempit tidak diperbesar melebihi maxScale', () => {
+  const r = M.slicePages(200, 300, { ...PG, maxScale: 0.16 });
+  assert.equal(r.scale, 0.16);
+  assert.deepEqual(r.slices, [{ sy: 0, sh: 300 }]);
 });
