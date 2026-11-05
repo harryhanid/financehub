@@ -450,7 +450,7 @@
   function wideLabel() {
     if (mode !== 'default' || !wide || !picked) return null;
     const t = roots.findIndex((r) => r.id === picked);
-    return 'Tree ' + (t + 1) + (wideA ? '.1a' : '.1') + ' — ' + roots[t].name;
+    return 'Tree ' + (t + 1) + '.1 — ' + roots[t].name;
   }
   function hasContent() { return !!host.querySelector('.tr-export'); }
 
