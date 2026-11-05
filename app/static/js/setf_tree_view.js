@@ -109,8 +109,9 @@
     let inner;
     if (wideAll) {
       // Tree n.1: semua G1 berjajar, G2 horizontal di bawah tiap G1, G3+ vertikal
-      const mkGroup = (g1, asInner) => {
-        const outer = asInner ? 'tr-wide tr-inner' : 'tr-c tr-wide';
+      const mkGroup = (g1, asInner, extras) => {
+        const outer = asInner === 'slot4' ? 'tr-wide tr-inner tr-slot tr-slot-4' : asInner === 'slot5' ? 'tr-wide tr-inner tr-slot tr-slot-5'
+          : asInner ? 'tr-wide tr-inner' : 'tr-c tr-wide';
         const blk = M.buildColumns([g1], open, 1)[0];
         const g1Row = { node: g1, id: g1.id, gen: 1, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
         // G1 dengan sedikit G2 (<= 3): satu kolom vertikal, G2 dan G3 bertumpuk di bawah G1
@@ -123,6 +124,14 @@
         const colsHtml = blk.columns.map((col) =>
           '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card', gen: 'G2', num: true })
           + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>');
+        // Tree n.1a: G1 ke-4 (kolom terakhir kiri, di bawah G2 terakhir) dan G1 ke-5 (kolom kanan) ditempel ke kolom G2 terakhir
+        if (extras) {
+          const n = colsHtml.length;
+          const li = n % 2 ? n - 1 : n - 2;
+          colsHtml[li] = colsHtml[li].replace(/<\/div>$/, extras.left + '</div>');
+          if (n % 2) colsHtml.push('<div class="tr-c tr-xcol">' + extras.right + '</div>');
+          else colsHtml[n - 1] = colsHtml[n - 1].replace(/<\/div>$/, extras.right + '</div>');
+        }
         // G2: maksimal 2 kartu per baris, sisanya turun ke baris berikut; G3+ vertikal di bawah tiap G2
         let grid = '';
         for (let i = 0; i < colsHtml.length; i += 2) {
@@ -137,9 +146,8 @@
       let cols;
       if (variantA && kids.length >= 5) {
         // Tree n.1a: G1 ke-4 dan ke-5 dipindah ke ruang kosong di bawah G1 ke-3
-        const lanj = '<div class="tr-contw"><div class="tr-cont">' + esc(rootNode.name) + ' (lanjutan)</div><div class="tr-stem"></div></div>';
         cols = mkGroup(kids[0]) + mkGroup(kids[1])
-          + '<div class="tr-c tr-wide tr-stackcol">' + mkGroup(kids[2], true) + lanj + mkGroup(kids[3], true) + lanj + mkGroup(kids[4], true) + '</div>'
+          + '<div class="tr-c tr-wide tr-pcol">' + mkGroup(kids[2], true, { left: mkGroup(kids[3], 'slot4'), right: mkGroup(kids[4], 'slot5') }) + '</div>'
           + kids.slice(5).map((g) => mkGroup(g)).join('');
       } else {
         cols = kids.map((g) => mkGroup(g)).join('');
@@ -238,6 +246,45 @@
     });
   }
 
+  // Tree n.1a: G1 ke-5 diturunkan (zig-zag di bawah G1 ke-4) dan garis Root diteruskan di tepi kanan kolom
+  // ke G1 ke-4 dan ke-5. Garis digambar dari posisi hasil tata letak.
+  function layoutA(el) {
+    if (!el) return;
+    const pcol = el.querySelector('.tr-pcol');
+    if (!pcol) return;
+    const g4 = pcol.querySelector('.tr-slot-4');
+    const g5 = pcol.querySelector('.tr-slot-5');
+    if (!g4 || !g5) return;
+    const had = el.classList.contains('tr-capturing');
+    el.classList.add('tr-capturing');
+    pcol.querySelectorAll('.tr-trunk-line').forEach((e) => e.remove());
+    g5.style.marginTop = '0px';
+    const c4 = g4.querySelector('.tr-g1wide');
+    const c5 = g5.querySelector('.tr-g1wide');
+    const gap = 26;
+    const need = c4.getBoundingClientRect().bottom + gap - c5.getBoundingClientRect().top;
+    g5.style.marginTop = Math.max(0, need) + 'px';
+    const W = pcol.getBoundingClientRect();
+    const xR = W.width - 20;
+    const line = (x, y, w, h) => {
+      const d = document.createElement('div');
+      d.className = 'tr-trunk-line';
+      d.style.cssText = 'position:absolute;background:var(--ln);z-index:0;left:' + x + 'px;top:' + y + 'px;width:' + w + 'px;height:' + h + 'px';
+      pcol.appendChild(d);
+    };
+    const wd = 3;
+    const rel = (c) => { const r = c.getBoundingClientRect(); return { cx: r.left - W.left + r.width / 2, top: r.top - W.top }; };
+    const a = rel(c4);
+    const b = rel(c5);
+    const ya = a.top - 14;
+    const yb = b.top - 14;
+    line(W.width / 2, 0, xR - W.width / 2 + wd, wd);      // bus Root diteruskan ke kanan
+    line(xR, 0, wd, yb + wd);                              // batang di tepi kanan
+    line(a.cx, ya, xR - a.cx + wd, wd);  line(a.cx, ya, wd, 14);   // cabang ke G1 ke-4
+    line(b.cx, yb, xR - b.cx + wd, wd);  line(b.cx, yb, wd, 14);   // cabang ke G1 ke-5
+    if (!had) el.classList.remove('tr-capturing');
+  }
+
   // Tree n.1a: kartu Root dan batangnya digeser tepat di atas tengah kelompok ke-2 (G1 Mellie) agar garisnya lurus.
   function alignRoot(el) {
     if (!el) return;
@@ -260,7 +307,7 @@
     const st = wrap ? [wrap.scrollTop, wrap.scrollLeft] : [0, 0];
     host.innerHTML = html;
     placeRulers();
-    if (mode === 'default' && wide && wideA) alignRoot(host.querySelector('.tr-export'));
+    if (mode === 'default' && wide && wideA) { layoutA(host.querySelector('.tr-export')); alignRoot(host.querySelector('.tr-export')); }
     if (wrap) { wrap.scrollTop = st[0]; wrap.scrollLeft = st[1]; }
   }
 
@@ -376,7 +423,7 @@
       });
     }
     placeRulers(el);
-    if (wideA) alignRoot(el);
+    if (wideA) { layoutA(el); alignRoot(el); }
     return el;
   }
   // Legenda melayang di sudut kanan bawah pohon bila tidak menimpa kartu/kolom (menghemat tinggi halaman);
