@@ -2496,14 +2496,25 @@ function setfBlobToDataUrl(blob) {
 }
 
 // Tangkap satu elemen tree jadi canvas, ruang kosongnya dipangkas agar memenuhi lebar halaman.
-async function setfCaptureTree(el) {
+async function setfCaptureTree(el, wantCols) {
   el.classList.add("tr-capturing");
   let full;
+  let cols = [];
+  let rulerW = 0;
   try {
     full = await html2canvas(el, {
       scale: 2, backgroundColor: "#ffffff",
       width: el.scrollWidth, height: el.scrollHeight, windowWidth: el.scrollWidth,
     });
+    if (wantCols) {
+      const o = el.getBoundingClientRect().left;
+      cols = Array.from(el.querySelectorAll(".tr-wide .tr-row > .tr-c")).map((c) => {
+        const r = c.getBoundingClientRect();
+        return { l: (r.left - o) * 2, r: (r.right - o) * 2 };
+      });
+      const ru = el.querySelector(".tr-ruler");
+      rulerW = ru ? ru.getBoundingClientRect().width * 2 : 0;
+    }
   } finally {
     el.classList.remove("tr-capturing");
   }
@@ -2512,6 +2523,8 @@ async function setfCaptureTree(el) {
   canvas.width = bb.right - bb.left;
   canvas.height = bb.bottom - bb.top;
   canvas.getContext("2d").drawImage(full, bb.left, bb.top, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+  canvas.setfCols = cols.map((c) => ({ l: c.l - bb.left, r: c.r - bb.left }));
+  canvas.setfRulerW = Math.max(0, rulerW - bb.left);
   return canvas;
 }
 
@@ -2549,40 +2562,52 @@ async function exportTreePDF() {
     const { jsPDF } = window.jspdf;
     const margin = 10;
     const headerH = 16;
-    const parts = [];
+    // Daftar halaman: tiap halaman = beberapa potongan gambar (crops) + posisi gambar.
+    const pages = [];
     for (const it of items) {
-      const canvas = await setfCaptureTree(it.el);
-      const lay = SetfTreeModel.pickLayout(canvas.width, canvas.height, { margin, headerH, maxScale: wl ? 0.45 : 0.3, paper: wl ? "A3" : "A4" });
-      const { scale, slices, pageW, pageH } = lay;
-      const landscape = lay.orientation === "landscape";
-      parts.push({ canvas, label: it.label, landscape, pageW, pageH, scale, slices });
+      const canvas = await setfCaptureTree(it.el, !!wl);
+      if (wl) {
+        // Tree n.1 sangat lebar: dipotong per kelompok kolom ke beberapa halaman A3 dengan tulisan terbaca;
+        // penggaris G1/G2/G3 diulang di tiap halaman.
+        const pageW = 420, pageH = 297;
+        const s = Math.min(0.13, (pageH - 2 * margin - headerH) / canvas.height);
+        const rw = canvas.setfRulerW;
+        const maxW = (pageW - 2 * margin - rw * s) / s;
+        const tiles = SetfTreeModel.tileCuts(canvas.setfCols, rw, canvas.width, maxW);
+        tiles.forEach((t, i) => {
+          const crops = [{ sx: 0, sw: rw, dx: margin }, { sx: t.sx, sw: t.sw, dx: margin + rw * s }];
+          pages.push({ canvas, label: it.label + " (bagian " + (i + 1) + " / " + tiles.length + ")", orient: "landscape", pageW, pageH, scale: s, sy: 0, sh: canvas.height, crops });
+        });
+        continue;
+      }
+      const lay = SetfTreeModel.pickLayout(canvas.width, canvas.height, { margin, headerH, maxScale: 0.3, paper: "A4" });
+      lay.slices.forEach((sl) => {
+        const imgW = canvas.width * lay.scale;
+        pages.push({ canvas, label: it.label, orient: lay.orientation, pageW: lay.pageW, pageH: lay.pageH, scale: lay.scale, sy: sl.sy, sh: sl.sh, crops: [{ sx: 0, sw: canvas.width, dx: (lay.pageW - imgW) / 2 }] });
+      });
     }
-    const total = parts.reduce((n, p) => n + p.slices.length, 0);
+    const total = pages.length;
     const stamp = SetfTreeModel.formatPrintStamp(new Date());
 
     let doc = null;
-    let pageNo = 0;
-    parts.forEach((p) => {
-      p.slices.forEach((sl) => {
-        const orient = p.landscape ? "landscape" : "portrait";
-        if (!doc) doc = new jsPDF({ orientation: orient, unit: "mm", format: paper });
-        else doc.addPage(paper, orient);
-        pageNo += 1;
-        doc.addImage(logo, "PNG", margin, margin, 10, 10);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.text("Flow - Beasiswa Sahabat ETF", margin + 13, margin + 4.5);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.text("Tree Query — " + p.label, margin + 13, margin + 9);
-        doc.text(stamp, p.pageW - margin, margin + 4.5, { align: "right" });
-        doc.text("Halaman " + pageNo + " / " + total, p.pageW - margin, margin + 9, { align: "right" });
+    pages.forEach((p, i) => {
+      if (!doc) doc = new jsPDF({ orientation: p.orient, unit: "mm", format: paper });
+      else doc.addPage(paper, p.orient);
+      doc.addImage(logo, "PNG", margin, margin, 10, 10);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("Flow - Beasiswa Sahabat ETF", margin + 13, margin + 4.5);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text("Tree Query — " + p.label, margin + 13, margin + 9);
+      doc.text(stamp, p.pageW - margin, margin + 4.5, { align: "right" });
+      doc.text("Halaman " + (i + 1) + " / " + total, p.pageW - margin, margin + 9, { align: "right" });
+      p.crops.forEach((c) => {
         const part = document.createElement("canvas");
-        part.width = p.canvas.width;
-        part.height = sl.sh;
-        part.getContext("2d").drawImage(p.canvas, 0, sl.sy, p.canvas.width, sl.sh, 0, 0, p.canvas.width, sl.sh);
-        const imgW = p.canvas.width * p.scale;
-        doc.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", (p.pageW - imgW) / 2, margin + headerH, imgW, sl.sh * p.scale);
+        part.width = Math.max(1, Math.round(c.sw));
+        part.height = p.sh;
+        part.getContext("2d").drawImage(p.canvas, c.sx, p.sy, c.sw, p.sh, 0, 0, part.width, p.sh);
+        doc.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", c.dx, margin + headerH, c.sw * p.scale, p.sh * p.scale);
       });
     });
     doc.save(q ? "Sahabat_ETF_Tree_Pencarian.pdf" : (wl ? "Sahabat_ETF_Tree_A3.pdf" : fl ? "Sahabat_ETF_Tree_Fokus.pdf" : "Sahabat_ETF_Tree.pdf"));

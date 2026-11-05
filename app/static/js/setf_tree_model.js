@@ -170,6 +170,25 @@
     return land;
   }
 
+  // Potongan horizontal untuk gambar yang terlalu lebar: tiap potongan <= maxW piksel, dipotong
+  // di tepi kanan kolom (cols = [{l, r}]) agar kartu tidak terbelah. Mulai dari startX (setelah penggaris).
+  function tileCuts(cols, startX, totalW, maxW) {
+    const rights = cols.map((c) => c.r).sort((a, b) => a - b);
+    const out = [];
+    let x0 = startX;
+    while (x0 < totalW - 1) {
+      const limit = x0 + maxW;
+      if (totalW <= limit) { out.push({ sx: x0, sw: totalW - x0 }); break; }
+      let cut = limit;
+      for (let i = rights.length - 1; i >= 0; i--) {
+        if (rights[i] <= limit && rights[i] > x0 + 1) { cut = rights[i]; break; }
+      }
+      out.push({ sx: x0, sw: cut - x0 });
+      x0 = cut;
+    }
+    return out;
+  }
+
   // Kotak pembatas piksel non-putih (RGBA) + padding, dipotong ke ukuran gambar; untuk memangkas ruang kosong PDF.
   function contentBounds(rgba, w, h, pad) {
     let left = w, top = h, right = -1, bottom = -1;
@@ -191,7 +210,7 @@
     };
   }
 
-  const api = { contentBounds, pickLayout, indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, childRows, focusRows, formatPrintStamp, slicePages };
+  const api = { tileCuts, contentBounds, pickLayout, indexTree, nameMatches, searchFocus, toggleOpen, buildColumns, childRows, focusRows, formatPrintStamp, slicePages };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SetfTreeModel = api;
 })(typeof window !== 'undefined' ? window : globalThis);
