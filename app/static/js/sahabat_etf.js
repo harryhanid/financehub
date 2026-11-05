@@ -2531,8 +2531,15 @@ async function exportTreePDF() {
     const logo = await setfBlobToDataUrl(logoBlob);
 
     let items;
+    const fl = SetfTreeView.focusLabel();
+    const wl = q ? null : SetfTreeView.wideLabel();
+    const paper = wl ? "a3" : "a4";
     if (q) {
       items = [{ el: SetfTreeView.getExportElement(), label: 'Pencarian: "' + q + '"' }];
+    } else if (wl) {
+      items = [{ el: SetfTreeView.getExportElement(), label: wl }];
+    } else if (fl) {
+      items = [{ el: SetfTreeView.getExportElement(), label: fl }];
     } else {
       batch = SetfTreeView.buildDefaultExport();
       items = batch.items;
@@ -2545,7 +2552,7 @@ async function exportTreePDF() {
     const parts = [];
     for (const it of items) {
       const canvas = await setfCaptureTree(it.el);
-      const lay = SetfTreeModel.pickLayout(canvas.width, canvas.height, { margin, headerH, maxScale: 0.3 });
+      const lay = SetfTreeModel.pickLayout(canvas.width, canvas.height, { margin, headerH, maxScale: wl ? 0.45 : 0.3, paper: wl ? "A3" : "A4" });
       const { scale, slices, pageW, pageH } = lay;
       const landscape = lay.orientation === "landscape";
       parts.push({ canvas, label: it.label, landscape, pageW, pageH, scale, slices });
@@ -2558,8 +2565,8 @@ async function exportTreePDF() {
     parts.forEach((p) => {
       p.slices.forEach((sl) => {
         const orient = p.landscape ? "landscape" : "portrait";
-        if (!doc) doc = new jsPDF({ orientation: orient, unit: "mm", format: "a4" });
-        else doc.addPage("a4", orient);
+        if (!doc) doc = new jsPDF({ orientation: orient, unit: "mm", format: paper });
+        else doc.addPage(paper, orient);
         pageNo += 1;
         doc.addImage(logo, "PNG", margin, margin, 10, 10);
         doc.setFont("helvetica", "bold");
@@ -2578,7 +2585,7 @@ async function exportTreePDF() {
         doc.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", (p.pageW - imgW) / 2, margin + headerH, imgW, sl.sh * p.scale);
       });
     });
-    doc.save(q ? "Sahabat_ETF_Tree_Pencarian.pdf" : "Sahabat_ETF_Tree.pdf");
+    doc.save(q ? "Sahabat_ETF_Tree_Pencarian.pdf" : (wl ? "Sahabat_ETF_Tree_A3.pdf" : fl ? "Sahabat_ETF_Tree_Fokus.pdf" : "Sahabat_ETF_Tree.pdf"));
     showToast("PDF berhasil diunduh!", "success");
   } catch (err) {
     setfReportError("Gagal membuat PDF: ", err);

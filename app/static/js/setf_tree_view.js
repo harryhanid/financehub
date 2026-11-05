@@ -10,6 +10,8 @@
   let mode = 'default';
   let query = '';
   let picked = null;
+  let focusG1 = null;
+  let wide = false;
   let bound = false;
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -51,9 +53,18 @@
     // G1 adalah pasangan (partner) dari kepala keluarga di akar
     const ptag = row.gen === 1 ? ' <span class="tr-ptag">(Partner)</span>' : '';
     const data = (opts.toggle && row.hasChildren ? ' data-toggle="' + esc(row.id) + '"' : '')
+      + (opts.focus ? ' data-focus="' + esc(row.id) + '"' : '')
+      + (opts.unfocus ? ' data-unfocus="1"' : '')
       + (opts.gen ? ' data-gen="' + esc(opts.gen) + '"' : '');
+    // nomor urut = angka terakhir dari kode (A1.2 -> 2)
+    let num = '';
+    if (opts.num) {
+      const m = /(\d+)\s*$/.exec(String(node.id || '').split('.').pop());
+      if (m) num = '<span class="tr-num">' + parseInt(m[1], 10) + '</span>';
+    }
+    if (num) classes.push('has-num');
     return '<div class="' + classes.join(' ') + '"' + data + ' title="' + esc(tooltip(node)) + '">'
-      + caret + '<span class="tr-name">' + esc(node.name) + '</span>' + ptag + partners + '</div>';
+      + num + caret + '<span class="tr-name">' + esc(node.name) + '</span>' + ptag + partners + '</div>';
   }
 
   // Baris datar (dengan indent) -> daftar bersarang; tiap tingkat punya batang garis sendiri.
@@ -65,7 +76,7 @@
         const r = rows[i++];
         let sub = '';
         if (i < rows.length && rows[i].indent > ind) sub = '<div class="tr-stack">' + level(ind + 1) + '</div>';
-        h += '<div class="tr-item">' + cardHtml(r, { toggle: true, gen: r.badge }) + sub + '</div>';
+        h += '<div class="tr-item">' + cardHtml(r, { toggle: true, gen: r.badge, num: true }) + sub + '</div>';
       }
       return h;
     }
@@ -73,23 +84,54 @@
   }
 
   function pickerHtml() {
-    const pills = roots.map((r, i) =>
-      '<button type="button" class="tr-pill' + (picked === r.id ? ' on' : '') + '" data-pick="' + esc(r.id) + '" title="'
-      + esc(r.name) + '">Tree ' + (i + 1) + '</button>').join('');
-    return '<div class="tr-picker"><span>Pilih tree:</span>' + pills + '</div>';
+    const mk = (isWide) => roots.map((r, i) =>
+      '<button type="button" class="tr-pill' + (picked === r.id && wide === isWide ? ' on' : '') + '" data-pick="' + esc(r.id)
+      + '"' + (isWide ? ' data-wide="1"' : '') + ' title="' + esc(r.name) + (isWide ? ' (lebar: G2 horizontal, G3 vertikal; cetak A3)' : '')
+      + '">Tree ' + (i + 1) + (isWide ? '.1' : '') + '</button>').join('');
+    const pills = mk(false) + '<span class="tr-sep"></span>' + mk(true);
+    const back = focusG1 ? '<a href="#" class="tr-back" data-unfocus="1">&laquo; Semua G1</a>' : '';
+    return '<div class="tr-picker"><span>Pilih tree:</span>' + pills + back + '</div>';
   }
 
-  function treeHtml(rootNode, open) {
-    const block = M.buildColumns([rootNode], open)[0];
-    const rootRow = { node: block.root, id: block.root.id, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
-    const cols = block.columns.map((col) =>
-      '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card', gen: 'G1' })
-      + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>').join('');
+  // focusId: id G1 yang difokuskan (G1 lain hilang, G2 horizontal, G3+ vertikal); null = semua G1.
+  function treeHtml(rootNode, open, focusId, wideAll) {
+    const rootRow = { node: rootNode, id: rootNode.id, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
+    const g1Node = focusId ? (rootNode.children || []).find((c) => c.id === focusId) : null;
+    let inner;
+    if (wideAll) {
+      // Tree n.1: semua G1 berjajar, G2 horizontal di bawah tiap G1, G3+ vertikal
+      const cols = (rootNode.children || []).map((g1) => {
+        const blk = M.buildColumns([g1], open, 1)[0];
+        const g1Row = { node: g1, id: g1.id, gen: 1, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
+        const sub = blk.columns.map((col) =>
+          '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card', gen: 'G2', num: true })
+          + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>').join('');
+        return '<div class="tr-c tr-wide">' + cardHtml(g1Row, { toggle: false, extra: 'tr-g1card tr-g1wide', gen: 'G1', num: true })
+          + (blk.columns.length ? '<div class="tr-stem tr-stem-c"></div><div class="tr-row">' + sub + '</div>' : '') + '</div>';
+      }).join('');
+      inner = cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' })
+        + ((rootNode.children || []).length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '');
+    } else if (g1Node) {
+      const block = M.buildColumns([g1Node], open, 1)[0];
+      const g1Row = { node: g1Node, id: g1Node.id, gen: 1, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
+      const cols = block.columns.map((col) =>
+        '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card', gen: 'G2', num: true })
+        + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>').join('');
+      inner = cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' })
+        + '<div class="tr-stem"></div>'
+        + cardHtml(g1Row, { toggle: false, extra: 'tr-g1card clickable', gen: 'G1', num: true, unfocus: true })
+        + (block.columns.length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '');
+    } else {
+      const block = M.buildColumns([rootNode], open)[0];
+      const cols = block.columns.map((col) =>
+        '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card clickable', gen: 'G1', num: true, focus: true })
+        + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>').join('');
+      inner = cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' })
+        + (block.columns.length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '');
+    }
     return '<div class="tr-block"><div class="tr-body">'
       + '<div class="tr-ruler"></div>'
-      + '<div class="tr-tree">' + cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' })
-      + (block.columns.length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '')
-      + '</div></div></div>';
+      + '<div class="tr-tree">' + inner + '</div></div></div>';
   }
 
   function defaultHtml() {
@@ -97,7 +139,7 @@
     if (!sel.length) {
       return pickerHtml() + '<div class="tr-empty">Pilih Tree 1 sampai Tree ' + roots.length + ' untuk menampilkan tree.</div>';
     }
-    return pickerHtml() + '<div class="tr-export">' + treeHtml(sel[0], openIds) + '</div>';
+    return pickerHtml() + '<div class="tr-export">' + treeHtml(sel[0], openIds, focusG1, wide) + '</div>';
   }
 
   function focusHtml(blocks) {
@@ -144,8 +186,9 @@
         const y = r.top - top + r.height / 2;
         const gen = el.getAttribute('data-gen');
         // kolom berdampingan menghasilkan label generasi yang sama di tinggi hampir sama: satu saja
-        if (placed.some((p) => p.gen === gen && Math.abs(p.y - y) < 16)) return;
-        placed.push({ gen, y });
+        const topY = r.top - top;
+        if (placed.some((p) => p.gen === gen && Math.abs(p.t - topY) < 40)) return;
+        placed.push({ gen, y, t: topY });
         const lab = document.createElement('div');
         lab.className = 'tr-glabel';
         lab.textContent = el.getAttribute('data-gen');
@@ -191,13 +234,17 @@
 
   function rerender() { if (mode === 'focus') renderFocus(query); else renderDefault(); }
 
-  function reset() { openIds = new Set(); revealed = new Set(); renderDefault(); }
+  function reset() { openIds = new Set(); revealed = new Set(); focusG1 = null; wide = false; renderDefault(); }
 
   function onClick(e) {
     const rs = e.target.closest('[data-reset]');
     if (rs) { e.preventDefault(); const inp = document.getElementById('tree-search-input'); if (inp) inp.value = ''; reset(); return; }
     const pk = e.target.closest('[data-pick]');
-    if (pk) { picked = pk.getAttribute('data-pick'); openIds = new Set(); renderDefault(); return; }
+    if (pk) { picked = pk.getAttribute('data-pick'); wide = pk.hasAttribute('data-wide'); openIds = new Set(); focusG1 = null; renderDefault(); return; }
+    const uf = e.target.closest('[data-unfocus]');
+    if (uf) { e.preventDefault(); focusG1 = null; openIds = new Set(); renderDefault(); return; }
+    const fc = e.target.closest('[data-focus]');
+    if (fc) { focusG1 = fc.getAttribute('data-focus'); openIds = new Set(); renderDefault(); return; }
     const rv = e.target.closest('[data-reveal]');
     if (rv) { revealed.add(rv.getAttribute('data-reveal')); renderFocus(query); return; }
     const tg = e.target.closest('[data-toggle]');
@@ -234,6 +281,19 @@
   }
   function getExportElement() { return host.querySelector('.tr-export') || host; }
   function currentQuery() { return mode === 'focus' ? query : ''; }
+  // Label tampilan saat satu G1 difokuskan (null bila tidak sedang fokus).
+  function focusLabel() {
+    if (mode !== 'default' || !focusG1 || !idx) return null;
+    const f = idx.byId.get(focusG1);
+    const t = roots.findIndex((r) => r.id === picked);
+    return f ? 'Tree ' + (t + 1) + ' — Fokus G1: ' + f.node.name : null;
+  }
+  // Label tampilan Tree n.1 (cetak A3); null bila tidak sedang tampil.
+  function wideLabel() {
+    if (mode !== 'default' || !wide || !picked) return null;
+    const t = roots.findIndex((r) => r.id === picked);
+    return 'Tree ' + (t + 1) + '.1 — ' + roots[t].name;
+  }
   function hasContent() { return !!host.querySelector('.tr-export'); }
 
   // Semua tree dalam keadaan default (tanpa cabang terbuka), masing-masing di wadah di luar layar untuk ditangkap.
@@ -250,5 +310,5 @@
     };
   }
 
-  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, hasContent, buildDefaultExport, rerender };
+  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, focusLabel, wideLabel, hasContent, buildDefaultExport, rerender };
 })(window);

@@ -15,6 +15,11 @@
   border: 1px solid #cbd5e1; border-radius: 16px; padding: 4px 14px; background: #fff;
   font-weight: 700; cursor: pointer; color: #334155; font-size: inherit;
 }
+.tr-sep { width: 1px; height: 18px; background: #cbd5e1; margin: 0 4px; }
+.tr-c.tr-wide { width: auto; align-items: center; }
+.tr-c.tr-wide > .tr-g1wide { width: calc(var(--tree-font) * 16.5); }
+.tr-stem-c { align-self: center; }
+.tr-back { margin-left: 12px; color: #2563eb; font-weight: 600; text-decoration: none; }
 .tr-pill:hover { border-color: #3b82f6; }
 .tr-pill.on { background: #2563eb; border-color: #2563eb; color: #fff; }
 
@@ -57,6 +62,12 @@
 .tr-card.open { border-color: #3b82f6; background: #eff6ff; }
 .tr-card.path { border-color: #3b82f6; background: #eff6ff; }
 .tr-card.hit { border: 2px solid #f59e0b; background: #fef3c7; font-weight: 600; }
+.tr-num {
+  position: absolute; left: 6px; top: 4px; color: #2563eb; font-weight: 700;
+  font-size: calc(var(--tree-font) - 1px); line-height: 1.2;
+}
+.tr-card.has-num { padding-left: 22px; }
+.tr-g1card.has-num { padding-right: 22px; }
 .tr-name { font-weight: 600; word-break: break-word; }
 .tr-code { color: #64748b; font-size: calc(var(--tree-font) - 2px); margin-left: 4px; font-weight: 400; }
 .tr-partner { color: #475569; font-size: calc(var(--tree-font) - 1px); margin-top: 2px; font-weight: 400; }
@@ -68,15 +79,19 @@
 }
 
 /* tumpukan G2+: batang vertikal + siku + simpul */
-.tr-stack { margin: 0 0 0 calc(10px + var(--tree-indent)); border-left: var(--w) solid var(--ln); padding-top: 6px; }
+/* batang digambar per item agar berhenti tepat di siku kartu terakhir */
+.tr-stack { margin: 0 0 0 calc(10px + var(--tree-indent)); padding: 6px 0 0 var(--w); }
 .tr-trunk { margin-top: 0; }
 .tr-item { position: relative; margin: 0 0 6px 18px; }
 .tr-item::before {
-  content: ""; position: absolute; left: -18px; top: 14px; width: 18px; border-top: var(--w) solid var(--ln);
+  content: ""; position: absolute; left: -21px; top: -6px; width: var(--w);
+  height: calc(100% + 6px); background: var(--ln);
 }
+.tr-item:last-child::before { height: 23px; }
 .tr-item::after {
-  content: ""; position: absolute; left: -23px; top: 14px; margin-top: -4px; width: 8px; height: 8px;
-  border-radius: 50%; background: var(--ln);
+  content: ""; position: absolute; left: -23.5px; top: 11.5px; width: 23.5px; height: 8px;
+  background: radial-gradient(circle at 4px 4px, var(--ln) 4px, transparent 4.5px),
+    linear-gradient(var(--ln), var(--ln)) 4px 2.5px / 19.5px 3px no-repeat;
 }
 .tr-item > .tr-stack { margin-top: 6px; }
 

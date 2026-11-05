@@ -82,13 +82,15 @@
     });
   }
 
-  function buildColumns(roots, openIds) {
+  // base = 0: kolom = G1, tumpukan = G2+. base = 1 (fokus satu G1): kolom = G2, tumpukan = G3+.
+  function buildColumns(roots, openIds, base) {
+    const b = base || 0;
     return roots.map((root) => ({
       root,
       columns: (root.children || []).map((g1) => {
         const rows = [];
-        stackRows(g1.children || [], 2, 0, openIds, rows);
-        return { g1: makeRow(g1, 1, 0, openIds, { ruler: 'G1' }), rows };
+        stackRows(g1.children || [], 2 + b, 0, openIds, rows);
+        return { g1: makeRow(g1, 1 + b, 0, openIds, { ruler: 'G' + (1 + b) }), rows };
       }),
     }));
   }
@@ -155,7 +157,10 @@
   // Pilih landscape atau portrait (A4) yang paling pas untuk ukuran konten: halaman paling sedikit,
   // lalu skala terbesar; bila seri, landscape.
   function pickLayout(contentW, contentH, opt) {
-    const cands = [['landscape', 297, 210], ['portrait', 210, 297]].map(([orientation, pageW, pageH]) => {
+    const sizes = opt.paper === 'A3'
+      ? [['landscape', 420, 297], ['portrait', 297, 420]]
+      : [['landscape', 297, 210], ['portrait', 210, 297]];
+    const cands = sizes.map(([orientation, pageW, pageH]) => {
       const r = slicePages(contentW, contentH, Object.assign({}, opt, { pageW, pageH }));
       return { orientation, pageW, pageH, scale: r.scale, slices: r.slices };
     });
