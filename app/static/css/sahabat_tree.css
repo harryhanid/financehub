@@ -108,6 +108,8 @@
   font-size: calc(var(--tree-font) - 1px); line-height: 1.2;
 }
 .tr-card.has-num { padding-left: 22px; }
+.tr-pl { font-weight: 700; color: #2563eb; }
+.tr-g1wide .tr-pl { color: #bfdbfe; }
 .tr-g1card.has-num { padding-right: 22px; }
 .tr-name { font-weight: 600; word-break: break-word; }
 .tr-code { color: #64748b; font-size: calc(var(--tree-font) - 2px); margin-left: 4px; font-weight: 400; }

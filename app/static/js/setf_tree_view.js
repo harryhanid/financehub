@@ -34,9 +34,13 @@
     return lines.join('\n');
   }
 
-  function partnerHtml(p, hitIds) {
+  // Huruf partner (A, B, ...) dari id partner, mis. A3.4.B -> B; hanya dipakai bila ada lebih dari satu partner
+  function partnerLetter(p) { return String(p.id || '').split('.').pop(); }
+
+  function partnerHtml(p, hitIds, multi) {
     const cls = hitIds && hitIds.indexOf(p.id) >= 0 ? ' hit' : '';
-    return '<div class="tr-partner' + cls + '">' + esc(p.name) + ' (Partner)</div>';
+    const lt = multi ? '<span class="tr-pl">' + esc(partnerLetter(p)) + '</span> ' : '';
+    return '<div class="tr-partner' + cls + '">' + lt + esc(p.name) + ' (Partner)</div>';
   }
 
   function cardHtml(row, opts) {
@@ -50,7 +54,7 @@
     if (opts.extra) classes.push(opts.extra);
     const caret = opts.toggle && row.hasChildren
       ? '<span class="tr-caret">' + (row.open ? '▾' : '▸') + ' ' + row.childCount + '</span>' : '';
-    const partners = (node.partners || []).map((p) => partnerHtml(p, row.partnerHitIds)).join('');
+    const partners = (node.partners || []).map((p) => partnerHtml(p, row.partnerHitIds, (node.partners || []).length >= 2)).join('');
     // G1 adalah pasangan (partner) dari kepala keluarga di akar
     const ptag = row.gen === 1 ? ' <span class="tr-ptag">(Partner)</span>' : '';
     const data = (opts.toggle && row.hasChildren ? ' data-toggle="' + esc(row.id) + '"' : '')
@@ -61,7 +65,13 @@
     let num = '';
     if (opts.num) {
       const m = /(\d+)\s*$/.exec(String(node.id || '').split('.').pop());
-      if (m) num = '<span class="tr-num">' + parseInt(m[1], 10) + '</span>';
+      if (m) {
+        // anak dari orang tua dengan lebih dari satu partner diberi huruf partner: A1, A2, B1
+        const ent = idx && idx.byId.get(node.id);
+        const par = ent && ent.parentId ? idx.byId.get(ent.parentId).node : null;
+        const lt = par && (par.partners || []).length >= 2 && node.parent_partner_id ? partnerLetter({ id: node.parent_partner_id }) : '';
+        num = '<span class="tr-num' + (lt ? ' lt' : '') + '">' + esc(lt) + parseInt(m[1], 10) + '</span>';
+      }
     }
     if (num) classes.push('has-num');
     return '<div class="' + classes.join(' ') + '"' + data + ' title="' + esc(tooltip(node)) + '">'

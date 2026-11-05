@@ -424,11 +424,13 @@ def tree_data():
                     bloodlines[base_bloodline_id]['children'].append(b)
                     
     def get_sort_key(x):
-        last = x['id'].split('.')[-1]
-        if last.isdigit(): return int(last)
+        # Urut per partner (A dulu, lalu B, ...), lalu nomor anak: A1, A2, B1
+        parts = x['id'].split('.')
+        last = parts[-1]
+        letter = parts[-2] if len(parts) >= 2 and parts[-2].isalpha() else ''
         m = re.search(r'[0-9]+', last)
-        if m: return int(m.group())
-        return last
+        if m: return (letter, int(m.group()), '')
+        return (letter, 0, last)
 
     def sort_tree(node):
         if 'children' in node and node['children']:
