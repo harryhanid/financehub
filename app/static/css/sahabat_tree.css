@@ -18,6 +18,19 @@
 .tr-sep { width: 1px; height: 18px; background: #cbd5e1; margin: 0 4px; }
 .tr-c.tr-wide { width: auto; align-items: center; }
 .tr-c.tr-wide > .tr-g1wide { width: calc(var(--tree-font) * 16.5); }
+.tr-cont {
+  margin-top: 22px; border: 1px dashed #94a3b8; border-radius: 12px; padding: 1px 10px; background: #f8fafc;
+  color: #475569; font-size: calc(var(--tree-font) - 1px);
+}
+.tr-g2grid { display: flex; flex-direction: column; align-items: center; }
+.tr-g2row { position: relative; }
+.tr-g2row + .tr-g2row { margin-top: 12px; }
+.tr-g2row:not(:last-child)::after {
+  content: ""; position: absolute; left: 50%; margin-left: calc(var(--w) / -2); top: 0; bottom: -12px;
+  border-left: var(--w) solid var(--ln); z-index: 0;
+}
+.tr-ph { visibility: hidden; height: 1px; }
+.tr-ph::before, .tr-ph::after { display: none; }
 .tr-stem-c { align-self: center; }
 .tr-back { margin-left: 12px; color: #2563eb; font-weight: 600; text-decoration: none; }
 .tr-pill:hover { border-color: #3b82f6; }

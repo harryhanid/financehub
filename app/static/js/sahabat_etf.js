@@ -2496,30 +2496,14 @@ function setfBlobToDataUrl(blob) {
 }
 
 // Tangkap satu elemen tree jadi canvas, ruang kosongnya dipangkas agar memenuhi lebar halaman.
-async function setfCaptureTree(el, wantCols) {
+async function setfCaptureTree(el) {
   el.classList.add("tr-capturing");
   let full;
-  let cols = [];
-  let rulerW = 0;
-  let avoid = [];
   try {
     full = await html2canvas(el, {
       scale: 2, backgroundColor: "#ffffff",
       width: el.scrollWidth, height: el.scrollHeight, windowWidth: el.scrollWidth,
     });
-    if (wantCols) {
-      const o = el.getBoundingClientRect().left;
-      cols = Array.from(el.querySelectorAll(".tr-wide .tr-row > .tr-c")).map((c) => {
-        const r = c.getBoundingClientRect();
-        return { l: (r.left - o) * 2, r: (r.right - o) * 2 };
-      });
-      avoid = Array.from(el.querySelectorAll(".tr-rootcard, .tr-g1wide")).map((c) => {
-        const r = c.getBoundingClientRect();
-        return { l: (r.left - o) * 2, r: (r.right - o) * 2 };
-      });
-      const ru = el.querySelector(".tr-ruler");
-      rulerW = ru ? ru.getBoundingClientRect().width * 2 : 0;
-    }
   } finally {
     el.classList.remove("tr-capturing");
   }
@@ -2528,9 +2512,6 @@ async function setfCaptureTree(el, wantCols) {
   canvas.width = bb.right - bb.left;
   canvas.height = bb.bottom - bb.top;
   canvas.getContext("2d").drawImage(full, bb.left, bb.top, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
-  canvas.setfCols = cols.map((c) => ({ l: c.l - bb.left, r: c.r - bb.left }));
-  canvas.setfAvoid = avoid.map((c) => ({ l: c.l - bb.left, r: c.r - bb.left }));
-  canvas.setfRulerW =Math.max(0, rulerW - bb.left);
   return canvas;
 }
 
@@ -2543,6 +2524,7 @@ async function exportTreePDF() {
   const wrap = document.getElementById("tree-wrapper");
   const saved = wrap ? [wrap.scrollLeft, wrap.scrollTop] : [0, 0];
   let batch = null;
+  let wideUsed = false;
   try {
     await setfLoadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js", () => typeof window.jspdf !== "undefined");
     await setfLoadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js", () => typeof window.html2canvas !== "undefined");
@@ -2553,10 +2535,23 @@ async function exportTreePDF() {
     const fl = SetfTreeView.focusLabel();
     const wl = q ? null : SetfTreeView.wideLabel();
     const paper = wl ? "a3" : "a4";
+    wideUsed = !!wl;
     if (q) {
       items = [{ el: SetfTreeView.getExportElement(), label: 'Pencarian: "' + q + '"' }];
     } else if (wl) {
-      items = [{ el: SetfTreeView.getExportElement(), label: wl }];
+      // Tree n.1: kelompok G1 disusun ulang jadi k baris; pilih k yang paling sedikit halaman, lalu tulisan terbesar.
+      let best = null;
+      for (let k = 1; k <= 8; k++) {
+        const el = SetfTreeView.printLayout(k);
+        el.classList.add("tr-capturing");
+        const w = el.scrollWidth, h = el.scrollHeight;
+        el.classList.remove("tr-capturing");
+        const lay = SetfTreeModel.pickLayout(w * 2, h * 2, { margin: 10, headerH: 16, maxScale: 0.2, paper: "A3" });
+        if (!best || lay.slices.length < best.pages || (lay.slices.length === best.pages && lay.scale > best.scale)) {
+          best = { k, pages: lay.slices.length, scale: lay.scale };
+        }
+      }
+      items = [{ el: SetfTreeView.printLayout(best.k), label: wl }];
     } else if (fl) {
       items = [{ el: SetfTreeView.getExportElement(), label: fl }];
     } else {
@@ -2571,27 +2566,8 @@ async function exportTreePDF() {
     // Daftar halaman: tiap halaman = beberapa potongan gambar (crops) + posisi gambar.
     const pages = [];
     for (const it of items) {
-      const canvas = await setfCaptureTree(it.el, !!wl);
-      if (wl) {
-        // Tree n.1 sangat lebar: dipotong per kelompok kolom ke beberapa halaman A3 dengan tulisan terbaca;
-        // penggaris G1/G2/G3 diulang di tiap halaman.
-        const pageW = 420, pageH = 297;
-        const rw = canvas.setfRulerW;
-        const sMax = Math.min(0.13, (pageH - 2 * margin - headerH) / canvas.height);
-        // Coba beberapa skala yang masih terbaca (0.13 ... 0.085 mm/px): pilih halaman paling sedikit, lalu skala terbesar.
-        let s = sMax;
-        let tiles = null;
-        for (let c = sMax; c >= Math.min(sMax, 0.085) - 1e-9; c -= 0.005) {
-          const t = SetfTreeModel.tileCuts(canvas.setfCols, rw, canvas.width, (pageW - 2 * margin - rw * c) / c, canvas.setfAvoid);
-          if (!tiles || t.length < tiles.length) { tiles = t; s = c; }
-        }
-        tiles.forEach((t, i) => {
-          const crops = [{ sx: 0, sw: rw, dx: margin }, { sx: t.sx, sw: t.sw, dx: margin + rw * s }];
-          pages.push({ canvas, label: it.label + " (bagian " + (i + 1) + " / " + tiles.length + ")", orient: "landscape", pageW, pageH, scale: s, sy: 0, sh: canvas.height, crops });
-        });
-        continue;
-      }
-      const lay = SetfTreeModel.pickLayout(canvas.width, canvas.height, { margin, headerH, maxScale: 0.3, paper: "A4" });
+      const canvas = await setfCaptureTree(it.el);
+      const lay = SetfTreeModel.pickLayout(canvas.width, canvas.height, { margin, headerH, maxScale: wl ? 0.2 : 0.3, paper: wl ? "A3" : "A4" });
       lay.slices.forEach((sl) => {
         const imgW = canvas.width * lay.scale;
         pages.push({ canvas, label: it.label, orient: lay.orientation, pageW: lay.pageW, pageH: lay.pageH, scale: lay.scale, sy: sl.sy, sh: sl.sh, crops: [{ sx: 0, sw: canvas.width, dx: (lay.pageW - imgW) / 2 }] });
@@ -2627,6 +2603,7 @@ async function exportTreePDF() {
     setfReportError("Gagal membuat PDF: ", err);
   } finally {
     if (batch) batch.dispose();
+    if (wideUsed) SetfTreeView.rerender();
     if (wrap) { wrap.scrollLeft = saved[0]; wrap.scrollTop = saved[1]; }
   }
 }

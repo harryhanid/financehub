@@ -103,11 +103,18 @@
       const cols = (rootNode.children || []).map((g1) => {
         const blk = M.buildColumns([g1], open, 1)[0];
         const g1Row = { node: g1, id: g1.id, gen: 1, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
-        const sub = blk.columns.map((col) =>
+        const colsHtml = blk.columns.map((col) =>
           '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card', gen: 'G2', num: true })
-          + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>').join('');
+          + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>');
+        // G2: maksimal 2 kartu per baris, sisanya turun ke baris berikut; G3+ vertikal di bawah tiap G2
+        let grid = '';
+        for (let i = 0; i < colsHtml.length; i += 2) {
+          const pair = colsHtml.slice(i, i + 2);
+          if (pair.length === 1 && colsHtml.length > 1) pair.push('<div class="tr-c tr-ph"></div>');
+          grid += '<div class="tr-row tr-g2row">' + pair.join('') + '</div>';
+        }
         return '<div class="tr-c tr-wide">' + cardHtml(g1Row, { toggle: false, extra: 'tr-g1card tr-g1wide', gen: 'G1', num: true })
-          + (blk.columns.length ? '<div class="tr-stem tr-stem-c"></div><div class="tr-row">' + sub + '</div>' : '') + '</div>';
+          + (blk.columns.length ? '<div class="tr-stem tr-stem-c"></div><div class="tr-g2grid">' + grid + '</div>' : '') + '</div>';
       }).join('');
       inner = cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' })
         + ((rootNode.children || []).length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '');
@@ -288,6 +295,42 @@
     const t = roots.findIndex((r) => r.id === picked);
     return f ? 'Tree ' + (t + 1) + ' — Fokus G1: ' + f.node.name : null;
   }
+  // Tata letak cetak Tree n.1: kelompok G1 dipecah jadi k baris berurutan (tiap baris punya bus sendiri
+  // dengan penanda lanjutan dari akar) agar pohon lebih ringkas. Mengembalikan elemen ekspor.
+  function printLayout(k) {
+    rerender();
+    const el = getExportElement();
+    const tree = el.querySelector('.tr-tree');
+    const row = tree && tree.querySelector(':scope > .tr-row');
+    if (row && k > 1) {
+      const rootName = (el.querySelector('.tr-rootcard .tr-name') || {}).textContent || '';
+      const items = Array.from(row.children);
+      const ws = items.map((i) => i.offsetWidth);
+      const target = ws.reduce((a, b) => a + b, 0) / k;
+      const rows = [[]];
+      let acc = 0;
+      items.forEach((it, i) => {
+        if (rows[rows.length - 1].length && acc + ws[i] / 2 > target && rows.length < k) { rows.push([]); acc = 0; }
+        rows[rows.length - 1].push(it);
+        acc += ws[i];
+      });
+      rows.slice(1).forEach((grp) => {
+        const cont = document.createElement('div');
+        cont.className = 'tr-cont';
+        cont.textContent = rootName + ' (lanjutan)';
+        const stem = document.createElement('div');
+        stem.className = 'tr-stem';
+        const nr = document.createElement('div');
+        nr.className = 'tr-row';
+        grp.forEach((g) => nr.appendChild(g));
+        tree.appendChild(cont);
+        tree.appendChild(stem);
+        tree.appendChild(nr);
+      });
+    }
+    placeRulers(el);
+    return el;
+  }
   // Label tampilan Tree n.1 (cetak A3); null bila tidak sedang tampil.
   function wideLabel() {
     if (mode !== 'default' || !wide || !picked) return null;
@@ -310,5 +353,5 @@
     };
   }
 
-  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, focusLabel, wideLabel, hasContent, buildDefaultExport, rerender };
+  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, focusLabel, wideLabel, printLayout, hasContent, buildDefaultExport, rerender };
 })(window);
