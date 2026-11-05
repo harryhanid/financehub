@@ -12,6 +12,7 @@
   let picked = null;
   let focusG1 = null;
   let wide = false;
+  let wideA = false;
   let bound = false;
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -84,11 +85,12 @@
   }
 
   function pickerHtml() {
-    const mk = (isWide) => roots.map((r, i) =>
-      '<button type="button" class="tr-pill' + (picked === r.id && wide === isWide ? ' on' : '') + '" data-pick="' + esc(r.id)
-      + '"' + (isWide ? ' data-wide="1"' : '') + ' title="' + esc(r.name) + (isWide ? ' (lebar: G2 horizontal, G3 vertikal; cetak A3)' : '')
-      + '">Tree ' + (i + 1) + (isWide ? '.1' : '') + '</button>').join('');
-    const pills = mk(false) + '<span class="tr-sep"></span>' + mk(true);
+    const mk = (isWide, isA) => roots.map((r, i) => (isA && (r.children || []).length < 5 ? '' :
+      '<button type="button" class="tr-pill' + (picked === r.id && wide === isWide && wideA === !!isA ? ' on' : '') + '" data-pick="' + esc(r.id)
+      + '"' + (isWide ? ' data-wide="1"' : '') + (isA ? ' data-variant="a"' : '') + ' title="' + esc(r.name)
+      + (isA ? ' (lebar, G1 ke-4 dan ke-5 dipindah ke bawah G1 ke-3; cetak A3 portrait)' : isWide ? ' (lebar: G2 horizontal, G3 vertikal; cetak A3)' : '')
+      + '">Tree ' + (i + 1) + (isA ? '.1a' : isWide ? '.1' : '') + '</button>')).join('');
+    const pills = mk(false) + '<span class="tr-sep"></span>' + mk(true) + mk(true, true);
     const back = focusG1 ? '<a href="#" class="tr-back" data-unfocus="1">&laquo; Semua G1</a>' : '';
     return '<div class="tr-picker"><span>Pilih tree:</span>' + pills + back + '</div>';
   }
@@ -101,20 +103,21 @@
   }
 
   // focusId: id G1 yang difokuskan (G1 lain hilang, G2 horizontal, G3+ vertikal); null = semua G1.
-  function treeHtml(rootNode, open, focusId, wideAll) {
+  function treeHtml(rootNode, open, focusId, wideAll, variantA) {
     const rootRow = { node: rootNode, id: rootNode.id, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
     const g1Node = focusId ? (rootNode.children || []).find((c) => c.id === focusId) : null;
     let inner;
     if (wideAll) {
       // Tree n.1: semua G1 berjajar, G2 horizontal di bawah tiap G1, G3+ vertikal
-      const cols = (rootNode.children || []).map((g1) => {
+      const mkGroup = (g1, asInner) => {
+        const outer = asInner ? 'tr-wide tr-inner' : 'tr-c tr-wide';
         const blk = M.buildColumns([g1], open, 1)[0];
         const g1Row = { node: g1, id: g1.id, gen: 1, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
         // G1 dengan sedikit G2 (<= 3): satu kolom vertikal, G2 dan G3 bertumpuk di bawah G1
         if (blk.columns.length <= 3) {
           const g2Open = new Set((g1.children || []).map((c) => c.id));
           const vrows = M.childRows(g1, 1, g2Open);
-          return '<div class="tr-c tr-wide tr-vgroup">' + cardHtml(g1Row, { toggle: false, extra: 'tr-g1card tr-g1wide', gen: 'G1', num: true })
+          return '<div class="' + outer + ' tr-vgroup">' + cardHtml(g1Row, { toggle: false, extra: 'tr-g1card tr-g1wide', gen: 'G1', num: true })
             + (vrows.length ? '<div class="tr-stack tr-trunk tr-vg">' + stackHtml(vrows, true) + '</div>' : '') + '</div>';
         }
         const colsHtml = blk.columns.map((col) =>
@@ -127,9 +130,20 @@
           if (pair.length === 1 && colsHtml.length > 1) pair.push('<div class="tr-c tr-ph"></div>');
           grid += '<div class="tr-row tr-g2row">' + pair.join('') + '</div>';
         }
-        return '<div class="tr-c tr-wide">' + cardHtml(g1Row, { toggle: false, extra: 'tr-g1card tr-g1wide', gen: 'G1', num: true })
+        return '<div class="' + outer + '">' + cardHtml(g1Row, { toggle: false, extra: 'tr-g1card tr-g1wide', gen: 'G1', num: true })
           + (blk.columns.length ? '<div class="tr-stem tr-stem-c"></div><div class="tr-g2grid">' + grid + '</div>' : '') + '</div>';
-      }).join('');
+      };
+      const kids = rootNode.children || [];
+      let cols;
+      if (variantA && kids.length >= 5) {
+        // Tree n.1a: G1 ke-4 dan ke-5 dipindah ke ruang kosong di bawah G1 ke-3
+        const lanj = '<div class="tr-contw"><div class="tr-cont">' + esc(rootNode.name) + ' (lanjutan)</div><div class="tr-stem"></div></div>';
+        cols = mkGroup(kids[0]) + mkGroup(kids[1])
+          + '<div class="tr-c tr-wide tr-stackcol">' + mkGroup(kids[2], true) + lanj + mkGroup(kids[3], true) + lanj + mkGroup(kids[4], true) + '</div>'
+          + kids.slice(5).map((g) => mkGroup(g)).join('');
+      } else {
+        cols = kids.map((g) => mkGroup(g)).join('');
+      }
       inner = cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard tr-rootwide' })
         + ((rootNode.children || []).length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '');
     } else if (g1Node) {
@@ -161,7 +175,7 @@
     if (!sel.length) {
       return pickerHtml() + '<div class="tr-empty">Pilih Tree 1 sampai Tree ' + roots.length + ' untuk menampilkan tree.</div>';
     }
-    return pickerHtml() + '<div class="tr-export">' + treeHtml(sel[0], openIds, focusG1, wide) + '</div>';
+    return pickerHtml() + '<div class="tr-export">' + treeHtml(sel[0], openIds, focusG1, wide, wide && wideA) + '</div>';
   }
 
   function focusHtml(blocks) {
@@ -224,11 +238,29 @@
     });
   }
 
+  // Tree n.1a: kartu Root dan batangnya digeser tepat di atas tengah kelompok ke-2 (G1 Mellie) agar garisnya lurus.
+  function alignRoot(el) {
+    if (!el) return;
+    const root = el.querySelector('.tr-rootcard');
+    const cols = el.querySelectorAll('.tr-tree > .tr-row > .tr-c');
+    if (!root || !cols[1]) return;
+    const had = el.classList.contains('tr-capturing');
+    el.classList.add('tr-capturing');
+    const stem = root.nextElementSibling;
+    [root, stem].forEach((e) => { if (e) e.style.left = '0px'; });
+    const rc = root.getBoundingClientRect();
+    const mc = cols[1].getBoundingClientRect();
+    const d = (mc.left + mc.width / 2) - (rc.left + rc.width / 2);
+    [root, stem].forEach((e) => { if (e) { e.style.position = 'relative'; e.style.left = d + 'px'; } });
+    if (!had) el.classList.remove('tr-capturing');
+  }
+
   function paint(html) {
     const wrap = document.getElementById('tree-wrapper');
     const st = wrap ? [wrap.scrollTop, wrap.scrollLeft] : [0, 0];
     host.innerHTML = html;
     placeRulers();
+    if (mode === 'default' && wide && wideA) alignRoot(host.querySelector('.tr-export'));
     if (wrap) { wrap.scrollTop = st[0]; wrap.scrollLeft = st[1]; }
   }
 
@@ -256,13 +288,13 @@
 
   function rerender() { if (mode === 'focus') renderFocus(query); else renderDefault(); }
 
-  function reset() { openIds = new Set(); revealed = new Set(); focusG1 = null; wide = false; renderDefault(); }
+  function reset() { openIds = new Set(); revealed = new Set(); focusG1 = null; wide = false; wideA = false; renderDefault(); }
 
   function onClick(e) {
     const rs = e.target.closest('[data-reset]');
     if (rs) { e.preventDefault(); const inp = document.getElementById('tree-search-input'); if (inp) inp.value = ''; reset(); return; }
     const pk = e.target.closest('[data-pick]');
-    if (pk) { picked = pk.getAttribute('data-pick'); wide = pk.hasAttribute('data-wide'); openIds = new Set(); focusG1 = null; renderDefault(); return; }
+    if (pk) { picked = pk.getAttribute('data-pick'); wide = pk.hasAttribute('data-wide'); wideA = pk.getAttribute('data-variant') === 'a'; openIds = new Set(); focusG1 = null; renderDefault(); return; }
     const uf = e.target.closest('[data-unfocus]');
     if (uf) { e.preventDefault(); focusG1 = null; openIds = new Set(); renderDefault(); return; }
     const fc = e.target.closest('[data-focus]');
@@ -317,7 +349,7 @@
     const el = getExportElement();
     const tree = el.querySelector('.tr-tree');
     const row = tree && tree.querySelector(':scope > .tr-row');
-    if (row && k > 1) {
+    if (row && k > 1 && !wideA) {
       const rootName = (el.querySelector('.tr-rootcard .tr-name') || {}).textContent || '';
       const items = Array.from(row.children);
       const ws = items.map((i) => i.offsetWidth);
@@ -344,6 +376,7 @@
       });
     }
     placeRulers(el);
+    if (wideA) alignRoot(el);
     return el;
   }
   // Legenda melayang di sudut kanan bawah pohon bila tidak menimpa kartu/kolom (menghemat tinggi halaman);
@@ -367,7 +400,7 @@
   function wideLabel() {
     if (mode !== 'default' || !wide || !picked) return null;
     const t = roots.findIndex((r) => r.id === picked);
-    return 'Tree ' + (t + 1) + '.1 — ' + roots[t].name;
+    return 'Tree ' + (t + 1) + (wideA ? '.1a' : '.1') + ' — ' + roots[t].name;
   }
   function hasContent() { return !!host.querySelector('.tr-export'); }
 

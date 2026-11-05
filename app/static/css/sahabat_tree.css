@@ -51,6 +51,10 @@
 .tr-vgroup > .tr-g1wide { width: auto; }
 .tr-vg { margin-top: 0; }
 .tr-vg > .tr-item > .tr-card { background: #dbeafe; border: 2px solid #2563eb; }
+.tr-inner { display: flex; flex-direction: column; align-items: center; }
+.tr-inner.tr-vgroup { align-items: stretch; }
+.tr-stackcol { align-items: center; }
+.tr-contw { display: flex; flex-direction: column; align-items: center; }
 .tr-ph { visibility: hidden; height: 1px; }
 .tr-ph::before, .tr-ph::after { display: none; }
 .tr-stem-c { align-self: center; }
