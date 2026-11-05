@@ -35,6 +35,13 @@
 .tr-g1wide .tr-ptag, .tr-g1wide .tr-partner { color: #dbeafe; }
 .tr-g1wide .tr-num { color: #bfdbfe; }
 .tr-g2row > .tr-c > .tr-card.tr-g1card { background: #dbeafe; border: 2px solid #2563eb; }
+.tr-legend { display: flex; justify-content: flex-end; padding: 14px 24px 4px; }
+.tr-lg-box { border: 1.5px solid #94a3b8; border-radius: 6px; padding: 8px 12px; background: #fff; }
+.tr-lg-title { font-weight: 700; margin-bottom: 5px; color: #334155; }
+.tr-lg-item { display: flex; align-items: center; gap: 8px; margin-top: 3px; color: #334155; }
+.tr-lg-sw { display: inline-block; width: 22px; height: 12px; border-radius: 3px; border: 1px solid #94a3b8; background: #fff; }
+.tr-lg-sw.g1 { background: #1e40af; border: 2px solid #1e3a8a; }
+.tr-lg-sw.g2 { background: #dbeafe; border: 2px solid #2563eb; }
 .tr-ph { visibility: hidden; height: 1px; }
 .tr-ph::before, .tr-ph::after { display: none; }
 .tr-stem-c { align-self: center; }

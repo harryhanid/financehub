@@ -93,6 +93,13 @@
     return '<div class="tr-picker"><span>Pilih tree:</span>' + pills + back + '</div>';
   }
 
+  // Legenda warna Tree n.1 (pengganti label G1/G2/G3), kotak di kanan bawah.
+  function legendHtml() {
+    const it = (cls, t) => '<div class="tr-lg-item"><span class="tr-lg-sw ' + cls + '"></span>' + t + '</div>';
+    return '<div class="tr-legend"><div class="tr-lg-box"><div class="tr-lg-title">Keterangan</div>'
+      + it('g1', 'G1 (generasi 1)') + it('g2', 'G2 (generasi 2)') + it('g3', 'G3 dan seterusnya') + '</div></div>';
+  }
+
   // focusId: id G1 yang difokuskan (G1 lain hilang, G2 horizontal, G3+ vertikal); null = semua G1.
   function treeHtml(rootNode, open, focusId, wideAll) {
     const rootRow = { node: rootNode, id: rootNode.id, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
@@ -137,8 +144,9 @@
         + (block.columns.length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '');
     }
     return '<div class="tr-block"><div class="tr-body">'
-      + '<div class="tr-ruler"></div>'
-      + '<div class="tr-tree">' + inner + '</div></div></div>';
+      + (wideAll ? '' : '<div class="tr-ruler"></div>')
+      + '<div class="tr-tree">' + inner + '</div></div>'
+      + (wideAll ? legendHtml() : '') + '</div>';
   }
 
   function defaultHtml() {
