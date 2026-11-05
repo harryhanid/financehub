@@ -346,6 +346,23 @@
     placeRulers(el);
     return el;
   }
+  // Legenda melayang di sudut kanan bawah pohon bila tidak menimpa kartu/kolom (menghemat tinggi halaman);
+  // bila bertabrakan, legenda tetap di bawah pohon.
+  function floatLegend(el) {
+    const lg = el.querySelector('.tr-legend');
+    if (!lg) return false;
+    el.classList.add('tr-capturing');
+    el.style.position = 'relative';
+    lg.classList.add('tr-legend-float');
+    const r = lg.firstElementChild.getBoundingClientRect();
+    const hit = Array.from(el.querySelectorAll('.tr-card, .tr-c')).some((c) => {
+      const b = c.getBoundingClientRect();
+      return b.left < r.right + 8 && b.right > r.left - 8 && b.top < r.bottom + 8 && b.bottom > r.top - 8;
+    });
+    if (hit) { lg.classList.remove('tr-legend-float'); el.style.position = ''; }
+    el.classList.remove('tr-capturing');
+    return !hit;
+  }
   // Label tampilan Tree n.1 (cetak A3); null bila tidak sedang tampil.
   function wideLabel() {
     if (mode !== 'default' || !wide || !picked) return null;
@@ -368,5 +385,5 @@
     };
   }
 
-  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, focusLabel, wideLabel, printLayout, hasContent, buildDefaultExport, rerender };
+  root.SetfTreeView = { mount, renderDefault, renderFocus, reset, names, setTextScale, setSpacing, getExportElement, currentQuery, focusLabel, wideLabel, printLayout, floatLegend, hasContent, buildDefaultExport, rerender };
 })(window);
