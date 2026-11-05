@@ -36,15 +36,17 @@
 .tr-g1wide .tr-num { color: #bfdbfe; }
 .tr-g2row > .tr-c > .tr-card.tr-g1card { background: #dbeafe; border: 2px solid #2563eb; }
 .tr-legend { display: flex; justify-content: flex-end; padding: 14px 24px 4px; }
-.tr-lg-box { border: 1.5px solid #94a3b8; border-radius: 6px; padding: 8px 12px; background: #fff; }
-.tr-lg-title { font-weight: 700; margin-bottom: 5px; color: #334155; }
-.tr-lg-item { display: flex; align-items: center; gap: 8px; margin-top: 3px; color: #334155; }
-.tr-lg-sw { display: inline-block; width: 22px; height: 12px; border-radius: 3px; border: 1px solid #94a3b8; background: #fff; }
-.tr-card.tr-rootwide { background: #64748b; border: 2px solid #334155; color: #fff; padding: 6px 16px; }
-.tr-rootwide .tr-name { color: #fff; }
-.tr-lg-sw.root { background: #64748b; border: 2px solid #334155; }
+/* saat dicetak legenda diperbesar agar tetap terbaca walau pohonnya dikecilkan */
+.tr-capturing .tr-legend { font-size: calc(var(--tree-font) * 2); }
+.tr-lg-box { border: 0.12em solid #94a3b8; border-radius: 0.5em; padding: 0.7em 1em; background: #fff; }
+.tr-lg-title { font-weight: 700; margin-bottom: 0.4em; color: #334155; }
+.tr-lg-item { display: flex; align-items: center; gap: 0.7em; margin-top: 0.3em; color: #334155; }
+.tr-lg-sw { display: inline-block; width: 2em; height: 1em; border-radius: 0.25em; border: 1px solid #94a3b8; background: #fff; }
 .tr-lg-sw.g1 { background: #1e40af; border: 2px solid #1e3a8a; }
 .tr-lg-sw.g2 { background: #dbeafe; border: 2px solid #2563eb; }
+.tr-lg-sw.root { background: #cbd5e1; border: 2px solid #64748b; }
+.tr-card.tr-rootwide { background: #cbd5e1; border: 2px solid #64748b; color: #1e293b; padding: 6px 16px; }
+.tr-rootwide .tr-name { color: #1e293b; }
 .tr-ph { visibility: hidden; height: 1px; }
 .tr-ph::before, .tr-ph::after { display: none; }
 .tr-stem-c { align-self: center; }

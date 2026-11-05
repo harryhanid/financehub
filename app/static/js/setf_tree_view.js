@@ -97,7 +97,7 @@
   function legendHtml() {
     const it = (cls, t) => '<div class="tr-lg-item"><span class="tr-lg-sw ' + cls + '"></span>' + t + '</div>';
     return '<div class="tr-legend"><div class="tr-lg-box"><div class="tr-lg-title">Keterangan</div>'
-      + it('root', 'Root') + it('g1', 'G1 (generasi 1)') + it('g2', 'G2 (generasi 2)') + it('g3', 'G3 dan seterusnya') + '</div></div>';
+      + it('root', 'Root') + it('g1', 'G1 (generasi 1)') + it('g2', 'G2 (generasi 2)') + it('g3', 'G3 (generasi 3)') + '</div></div>';
   }
 
   // focusId: id G1 yang difokuskan (G1 lain hilang, G2 horizontal, G3+ vertikal); null = semua G1.
