@@ -265,7 +265,10 @@
     const need = c4.getBoundingClientRect().bottom + gap - c5.getBoundingClientRect().top;
     g5.style.marginTop = Math.max(0, need) + 'px';
     const W = pcol.getBoundingClientRect();
-    const xR = W.width - 20;
+    // batang di sisi kanan kartu paling kanan (bukan di belakangnya)
+    let maxRight = 0;
+    pcol.querySelectorAll('.tr-card').forEach((c) => { maxRight = Math.max(maxRight, c.getBoundingClientRect().right); });
+    const xR = Math.min(W.width - 6, maxRight - W.left + 18);
     const line = (x, y, w, h) => {
       const d = document.createElement('div');
       d.className = 'tr-trunk-line';
@@ -276,11 +279,11 @@
     const rel = (c) => { const r = c.getBoundingClientRect(); return { cx: r.left - W.left + r.width / 2, top: r.top - W.top }; };
     const a = rel(c4);
     const b = rel(c5);
-    const ya = a.top - 14;
+    const ya = a.top - 19;   // tengah celah antara Dedy dan G1 ke-4
     const yb = b.top - 14;
     line(W.width / 2, 0, xR - W.width / 2 + wd, wd);      // bus Root diteruskan ke kanan
     line(xR, 0, wd, yb + wd);                              // batang di tepi kanan
-    line(a.cx, ya, xR - a.cx + wd, wd);  line(a.cx, ya, wd, 14);   // cabang ke G1 ke-4
+    line(a.cx, ya, xR - a.cx + wd, wd);  line(a.cx, ya, wd, 19);   // cabang ke G1 ke-4
     line(b.cx, yb, xR - b.cx + wd, wd);  line(b.cx, yb, wd, 14);   // cabang ke G1 ke-5
     if (!had) el.classList.remove('tr-capturing');
   }
