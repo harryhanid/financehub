@@ -40,9 +40,9 @@
 .tr-lg-title { font-weight: 700; margin-bottom: 5px; color: #334155; }
 .tr-lg-item { display: flex; align-items: center; gap: 8px; margin-top: 3px; color: #334155; }
 .tr-lg-sw { display: inline-block; width: 22px; height: 12px; border-radius: 3px; border: 1px solid #94a3b8; background: #fff; }
-.tr-card.tr-rootwide { background: #0f172a; border: 2px solid #020617; color: #fff; padding: 6px 16px; }
+.tr-card.tr-rootwide { background: #64748b; border: 2px solid #334155; color: #fff; padding: 6px 16px; }
 .tr-rootwide .tr-name { color: #fff; }
-.tr-lg-sw.root { background: #0f172a; border: 2px solid #020617; }
+.tr-lg-sw.root { background: #64748b; border: 2px solid #334155; }
 .tr-lg-sw.g1 { background: #1e40af; border: 2px solid #1e3a8a; }
 .tr-lg-sw.g2 { background: #dbeafe; border: 2px solid #2563eb; }
 .tr-ph { visibility: hidden; height: 1px; }
