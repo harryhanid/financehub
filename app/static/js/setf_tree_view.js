@@ -97,7 +97,7 @@
   function legendHtml() {
     const it = (cls, t) => '<div class="tr-lg-item"><span class="tr-lg-sw ' + cls + '"></span>' + t + '</div>';
     return '<div class="tr-legend"><div class="tr-lg-box"><div class="tr-lg-title">Keterangan</div>'
-      + it('g1', 'G1 (generasi 1)') + it('g2', 'G2 (generasi 2)') + it('g3', 'G3 dan seterusnya') + '</div></div>';
+      + it('root', 'Akar keluarga') + it('g1', 'G1 (generasi 1)') + it('g2', 'G2 (generasi 2)') + it('g3', 'G3 dan seterusnya') + '</div></div>';
   }
 
   // focusId: id G1 yang difokuskan (G1 lain hilang, G2 horizontal, G3+ vertikal); null = semua G1.
@@ -123,7 +123,7 @@
         return '<div class="tr-c tr-wide">' + cardHtml(g1Row, { toggle: false, extra: 'tr-g1card tr-g1wide', gen: 'G1', num: true })
           + (blk.columns.length ? '<div class="tr-stem tr-stem-c"></div><div class="tr-g2grid">' + grid + '</div>' : '') + '</div>';
       }).join('');
-      inner = cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard' })
+      inner = cardHtml(rootRow, { toggle: false, extra: 'tr-rootcard tr-rootwide' })
         + ((rootNode.children || []).length ? '<div class="tr-stem"></div><div class="tr-row">' + cols + '</div>' : '');
     } else if (g1Node) {
       const block = M.buildColumns([g1Node], open, 1)[0];
