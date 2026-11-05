@@ -2554,7 +2554,10 @@ async function exportTreePDF() {
       const pool = cands.filter((c) => c.pages === minPages);
       const maxScale = Math.max(...pool.map((c) => c.scale));
       const best = pool.find((c) => c.scale >= 0.5 * maxScale);
-      items = [{ el: SetfTreeView.printLayout(best.k), label: wl }];
+      const wel = SetfTreeView.printLayout(best.k);
+      // Legenda berukuran tetap di kertas (~3.4 mm tinggi huruf): px css = mm / (2 * skala mm-per-piksel-kanvas)
+      wel.style.setProperty("--lg-font", Math.min(44, Math.max(12, 3.4 / (2 * best.scale))) + "px");
+      items = [{ el: wel, label: wl }];
     } else if (fl) {
       items = [{ el: SetfTreeView.getExportElement(), label: fl }];
     } else {
