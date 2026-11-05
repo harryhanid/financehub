@@ -258,8 +258,21 @@
     const had = el.classList.contains('tr-capturing');
     el.classList.add('tr-capturing');
     pcol.querySelectorAll('.tr-trunk-line').forEach((e) => e.remove());
+    g4.style.marginTop = '';
     g5.style.marginTop = '0px';
     const c4 = g4.querySelector('.tr-g1wide');
+    // G1 ke-4 diturunkan sampai di bawah kolom tetangga yang sejajar dengan kartu di atasnya (mis. Garick di kelompok sebelah)
+    const above = g4.previousElementSibling ? g4.previousElementSibling.getBoundingClientRect().bottom : c4.getBoundingClientRect().top;
+    const prevGrp = pcol.previousElementSibling;
+    if (prevGrp) {
+      let target = 0;
+      prevGrp.querySelectorAll('.tr-g2row').forEach((r) => {
+        const b = r.getBoundingClientRect();
+        if (b.top <= above && above <= b.bottom) target = Math.max(target, b.bottom);
+      });
+      const extra = target + 24 - c4.getBoundingClientRect().top;
+      if (extra > 0) g4.style.marginTop = (38 + extra) + 'px';
+    }
     const c5 = g5.querySelector('.tr-g1wide');
     const gap = 26;
     const need = c4.getBoundingClientRect().bottom + gap - c5.getBoundingClientRect().top;
