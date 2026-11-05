@@ -68,7 +68,7 @@
   }
 
   // Baris datar (dengan indent) -> daftar bersarang; tiap tingkat punya batang garis sendiri.
-  function stackHtml(rows) {
+  function stackHtml(rows, noToggle) {
     let i = 0;
     function level(ind) {
       let h = '';
@@ -76,7 +76,7 @@
         const r = rows[i++];
         let sub = '';
         if (i < rows.length && rows[i].indent > ind) sub = '<div class="tr-stack">' + level(ind + 1) + '</div>';
-        h += '<div class="tr-item">' + cardHtml(r, { toggle: true, gen: r.badge, num: true }) + sub + '</div>';
+        h += '<div class="tr-item">' + cardHtml(r, { toggle: !noToggle, gen: r.badge, num: true }) + sub + '</div>';
       }
       return h;
     }
@@ -97,7 +97,7 @@
   function legendHtml() {
     const it = (cls, t) => '<div class="tr-lg-item"><span class="tr-lg-sw ' + cls + '"></span>' + t + '</div>';
     return '<div class="tr-legend"><div class="tr-lg-box"><div class="tr-lg-title">Keterangan</div>'
-      + it('root', 'Root') + it('g1', 'G1 (generasi 1)') + it('g2', 'G2 (generasi 2)') + it('g3', 'G3 (generasi 3)') + '</div></div>';
+      + it('g1', 'G1 (generasi 1)') + it('g2', 'G2 (generasi 2)') + it('g3', 'G3 (generasi 3)') + '</div></div>';
   }
 
   // focusId: id G1 yang difokuskan (G1 lain hilang, G2 horizontal, G3+ vertikal); null = semua G1.
@@ -110,6 +110,13 @@
       const cols = (rootNode.children || []).map((g1) => {
         const blk = M.buildColumns([g1], open, 1)[0];
         const g1Row = { node: g1, id: g1.id, gen: 1, open: false, hasChildren: false, childCount: 0, partnerHitIds: [] };
+        // G1 dengan sedikit G2 (<= 3): satu kolom vertikal, G2 dan G3 bertumpuk di bawah G1
+        if (blk.columns.length <= 3) {
+          const g2Open = new Set((g1.children || []).map((c) => c.id));
+          const vrows = M.childRows(g1, 1, g2Open);
+          return '<div class="tr-c tr-wide tr-vgroup">' + cardHtml(g1Row, { toggle: false, extra: 'tr-g1card tr-g1wide', gen: 'G1', num: true })
+            + (vrows.length ? '<div class="tr-stack tr-trunk tr-vg">' + stackHtml(vrows, true) + '</div>' : '') + '</div>';
+        }
         const colsHtml = blk.columns.map((col) =>
           '<div class="tr-c">' + cardHtml(col.g1, { toggle: false, extra: 'tr-g1card', gen: 'G2', num: true })
           + (col.rows.length ? '<div class="tr-stack tr-trunk">' + stackHtml(col.rows) + '</div>' : '') + '</div>');

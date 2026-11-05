@@ -2496,7 +2496,7 @@ function setfBlobToDataUrl(blob) {
 }
 
 // Tangkap satu elemen tree jadi canvas, ruang kosongnya dipangkas agar memenuhi lebar halaman.
-async function setfCaptureTree(el) {
+async function setfCaptureTree(el, pad) {
   el.classList.add("tr-capturing");
   let full;
   try {
@@ -2507,7 +2507,7 @@ async function setfCaptureTree(el) {
   } finally {
     el.classList.remove("tr-capturing");
   }
-  const bb = SetfTreeModel.contentBounds(full.getContext("2d").getImageData(0, 0, full.width, full.height).data, full.width, full.height, 24);
+  const bb = SetfTreeModel.contentBounds(full.getContext("2d").getImageData(0, 0, full.width, full.height).data, full.width, full.height, pad == null ? 24 : pad);
   const canvas = document.createElement("canvas");
   canvas.width = bb.right - bb.left;
   canvas.height = bb.bottom - bb.top;
@@ -2546,7 +2546,7 @@ async function exportTreePDF() {
         el.classList.add("tr-capturing");
         const w = el.scrollWidth, h = el.scrollHeight;
         el.classList.remove("tr-capturing");
-        const lay = SetfTreeModel.pickLayout(w * 2, h * 2, { margin: 10, headerH: 16, maxScale: 0.2, paper: "A3" });
+        const lay = SetfTreeModel.pickLayout(w * 2, h * 2, { margin: 3, headerH: 11, maxScale: 0.2, paper: "A3" });
         cands.push({ k, pages: lay.slices.length, scale: lay.scale });
       }
       // Halaman paling sedikit; lalu baris "lanjutan" paling sedikit selama tulisan >= 50% dari yang terbesar.
@@ -2567,12 +2567,12 @@ async function exportTreePDF() {
     if (wrap) { wrap.scrollLeft = 0; wrap.scrollTop = 0; }
 
     const { jsPDF } = window.jspdf;
-    const margin = 10;
-    const headerH = 16;
+    const margin = wl ? 3 : 10;
+    const headerH = wl ? 11 : 16;
     // Daftar halaman: tiap halaman = beberapa potongan gambar (crops) + posisi gambar.
     const pages = [];
     for (const it of items) {
-      const canvas = await setfCaptureTree(it.el);
+      const canvas = await setfCaptureTree(it.el, wl ? 6 : 24);
       const lay = SetfTreeModel.pickLayout(canvas.width, canvas.height, { margin, headerH, maxScale: wl ? 0.2 : 0.3, paper: wl ? "A3" : "A4" });
       lay.slices.forEach((sl) => {
         const imgW = canvas.width * lay.scale;

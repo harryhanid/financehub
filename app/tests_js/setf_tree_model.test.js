@@ -152,11 +152,11 @@ test('focusRows: rantai berpenggaris per generasi, akar tanpa penggaris', () => 
 });
 
 test('formatPrintStamp dalam WIB', () => {
-  assert.equal(M.formatPrintStamp(new Date('2026-11-04T04:23:00Z')), 'Dicetak: 04 Nov 2026 11:23 WIB');
+  assert.equal(M.formatPrintStamp(new Date('2026-11-04T04:23:00Z')), 'Data Update: 04 Nov 2026 11:23 WIB · by HF');
 });
 
 test('formatPrintStamp melewati tengah malam dan pergantian tahun', () => {
-  assert.equal(M.formatPrintStamp(new Date('2026-12-31T18:05:00Z')), 'Dicetak: 01 Jan 2027 01:05 WIB');
+  assert.equal(M.formatPrintStamp(new Date('2026-12-31T18:05:00Z')), 'Data Update: 01 Jan 2027 01:05 WIB · by HF');
 });
 
 test('searchFocus: hasil yang juga leluhur hasil lain tetap menampilkan hasil di bawahnya', () => {

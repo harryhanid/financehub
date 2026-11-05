@@ -131,8 +131,8 @@
   function formatPrintStamp(date) {
     const w = new Date(date.getTime() + 7 * 3600 * 1000);
     const p2 = (v) => String(v).padStart(2, '0');
-    return 'Dicetak: ' + p2(w.getUTCDate()) + ' ' + BULAN[w.getUTCMonth()] + ' ' + w.getUTCFullYear()
-      + ' ' + p2(w.getUTCHours()) + ':' + p2(w.getUTCMinutes()) + ' WIB';
+    return 'Data Update: ' + p2(w.getUTCDate()) + ' ' + BULAN[w.getUTCMonth()] + ' ' + w.getUTCFullYear()
+      + ' ' + p2(w.getUTCHours()) + ':' + p2(w.getUTCMinutes()) + ' WIB · by HF';
   }
 
   // Dipas ke halaman: lebar konten memenuhi lebar halaman (tidak diperbesar melebihi opt.maxScale).

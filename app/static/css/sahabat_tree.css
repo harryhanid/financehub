@@ -44,9 +44,12 @@
 .tr-lg-sw { display: inline-block; width: 2em; height: 1em; border-radius: 0.25em; border: 1px solid #94a3b8; background: #fff; }
 .tr-lg-sw.g1 { background: #1e40af; border: 2px solid #1e3a8a; }
 .tr-lg-sw.g2 { background: #dbeafe; border: 2px solid #2563eb; }
-.tr-lg-sw.root { background: #cbd5e1; border: 2px solid #64748b; }
-.tr-card.tr-rootwide { background: #cbd5e1; border: 2px solid #64748b; color: #1e293b; padding: 6px 16px; }
-.tr-rootwide .tr-name { color: #1e293b; }
+.tr-card.tr-rootwide { background: #1e40af; border: 2px solid #1e3a8a; color: #fff; padding: 6px 16px; }
+.tr-rootwide .tr-name { color: #fff; }
+.tr-vgroup { width: calc(var(--tree-font) * 17.5); align-items: stretch; }
+.tr-vgroup > .tr-g1wide { width: auto; }
+.tr-vg { margin-top: 0; }
+.tr-vg > .tr-item > .tr-card { background: #dbeafe; border: 2px solid #2563eb; }
 .tr-ph { visibility: hidden; height: 1px; }
 .tr-ph::before, .tr-ph::after { display: none; }
 .tr-stem-c { align-self: center; }
