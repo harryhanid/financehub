@@ -2501,6 +2501,7 @@ async function setfCaptureTree(el, wantCols) {
   let full;
   let cols = [];
   let rulerW = 0;
+  let avoid = [];
   try {
     full = await html2canvas(el, {
       scale: 2, backgroundColor: "#ffffff",
@@ -2509,6 +2510,10 @@ async function setfCaptureTree(el, wantCols) {
     if (wantCols) {
       const o = el.getBoundingClientRect().left;
       cols = Array.from(el.querySelectorAll(".tr-wide .tr-row > .tr-c")).map((c) => {
+        const r = c.getBoundingClientRect();
+        return { l: (r.left - o) * 2, r: (r.right - o) * 2 };
+      });
+      avoid = Array.from(el.querySelectorAll(".tr-rootcard, .tr-g1wide")).map((c) => {
         const r = c.getBoundingClientRect();
         return { l: (r.left - o) * 2, r: (r.right - o) * 2 };
       });
@@ -2524,7 +2529,8 @@ async function setfCaptureTree(el, wantCols) {
   canvas.height = bb.bottom - bb.top;
   canvas.getContext("2d").drawImage(full, bb.left, bb.top, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
   canvas.setfCols = cols.map((c) => ({ l: c.l - bb.left, r: c.r - bb.left }));
-  canvas.setfRulerW = Math.max(0, rulerW - bb.left);
+  canvas.setfAvoid = avoid.map((c) => ({ l: c.l - bb.left, r: c.r - bb.left }));
+  canvas.setfRulerW =Math.max(0, rulerW - bb.left);
   return canvas;
 }
 
@@ -2570,10 +2576,15 @@ async function exportTreePDF() {
         // Tree n.1 sangat lebar: dipotong per kelompok kolom ke beberapa halaman A3 dengan tulisan terbaca;
         // penggaris G1/G2/G3 diulang di tiap halaman.
         const pageW = 420, pageH = 297;
-        const s = Math.min(0.13, (pageH - 2 * margin - headerH) / canvas.height);
         const rw = canvas.setfRulerW;
-        const maxW = (pageW - 2 * margin - rw * s) / s;
-        const tiles = SetfTreeModel.tileCuts(canvas.setfCols, rw, canvas.width, maxW);
+        const sMax = Math.min(0.13, (pageH - 2 * margin - headerH) / canvas.height);
+        // Coba beberapa skala yang masih terbaca (0.13 ... 0.085 mm/px): pilih halaman paling sedikit, lalu skala terbesar.
+        let s = sMax;
+        let tiles = null;
+        for (let c = sMax; c >= Math.min(sMax, 0.085) - 1e-9; c -= 0.005) {
+          const t = SetfTreeModel.tileCuts(canvas.setfCols, rw, canvas.width, (pageW - 2 * margin - rw * c) / c, canvas.setfAvoid);
+          if (!tiles || t.length < tiles.length) { tiles = t; s = c; }
+        }
         tiles.forEach((t, i) => {
           const crops = [{ sx: 0, sw: rw, dx: margin }, { sx: t.sx, sw: t.sw, dx: margin + rw * s }];
           pages.push({ canvas, label: it.label + " (bagian " + (i + 1) + " / " + tiles.length + ")", orient: "landscape", pageW, pageH, scale: s, sy: 0, sh: canvas.height, crops });

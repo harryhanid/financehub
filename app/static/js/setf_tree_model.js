@@ -172,8 +172,9 @@
 
   // Potongan horizontal untuk gambar yang terlalu lebar: tiap potongan <= maxW piksel, dipotong
   // di tepi kanan kolom (cols = [{l, r}]) agar kartu tidak terbelah. Mulai dari startX (setelah penggaris).
-  function tileCuts(cols, startX, totalW, maxW) {
-    const rights = cols.map((c) => c.r).sort((a, b) => a - b);
+  function tileCuts(cols, startX, totalW, maxW, avoid) {
+    const av = avoid || [];
+    const rights = cols.map((c) => c.r).filter((x) => !av.some((a) => x > a.l + 1 && x < a.r - 1)).sort((a, b) => a - b);
     const out = [];
     let x0 = startX;
     while (x0 < totalW - 1) {
