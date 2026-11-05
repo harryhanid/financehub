@@ -2540,17 +2540,20 @@ async function exportTreePDF() {
       items = [{ el: SetfTreeView.getExportElement(), label: 'Pencarian: "' + q + '"' }];
     } else if (wl) {
       // Tree n.1: kelompok G1 disusun ulang jadi k baris; pilih k yang paling sedikit halaman, lalu tulisan terbesar.
-      let best = null;
+      const cands = [];
       for (let k = 1; k <= 8; k++) {
         const el = SetfTreeView.printLayout(k);
         el.classList.add("tr-capturing");
         const w = el.scrollWidth, h = el.scrollHeight;
         el.classList.remove("tr-capturing");
         const lay = SetfTreeModel.pickLayout(w * 2, h * 2, { margin: 10, headerH: 16, maxScale: 0.2, paper: "A3" });
-        if (!best || lay.slices.length < best.pages || (lay.slices.length === best.pages && lay.scale > best.scale)) {
-          best = { k, pages: lay.slices.length, scale: lay.scale };
-        }
+        cands.push({ k, pages: lay.slices.length, scale: lay.scale });
       }
+      // Halaman paling sedikit; lalu baris "lanjutan" paling sedikit selama tulisan >= 50% dari yang terbesar.
+      const minPages = Math.min(...cands.map((c) => c.pages));
+      const pool = cands.filter((c) => c.pages === minPages);
+      const maxScale = Math.max(...pool.map((c) => c.scale));
+      const best = pool.find((c) => c.scale >= 0.5 * maxScale);
       items = [{ el: SetfTreeView.printLayout(best.k), label: wl }];
     } else if (fl) {
       items = [{ el: SetfTreeView.getExportElement(), label: fl }];

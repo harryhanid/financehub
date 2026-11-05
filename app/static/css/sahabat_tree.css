@@ -29,6 +29,12 @@
   content: ""; position: absolute; left: 50%; margin-left: calc(var(--w) / -2); top: 0; bottom: -12px;
   border-left: var(--w) solid var(--ln); z-index: 0;
 }
+/* Tree n.1: G1 dan G2 dibedakan jelas (terutama saat dicetak) */
+.tr-card.tr-g1wide { background: #1e40af; border: 2px solid #1e3a8a; color: #fff; }
+.tr-g1wide .tr-name { color: #fff; }
+.tr-g1wide .tr-ptag, .tr-g1wide .tr-partner { color: #dbeafe; }
+.tr-g1wide .tr-num { color: #bfdbfe; }
+.tr-g2row > .tr-c > .tr-card.tr-g1card { background: #dbeafe; border: 2px solid #2563eb; }
 .tr-ph { visibility: hidden; height: 1px; }
 .tr-ph::before, .tr-ph::after { display: none; }
 .tr-stem-c { align-self: center; }
