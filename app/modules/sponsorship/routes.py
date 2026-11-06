@@ -695,7 +695,13 @@ def form_export_excel_route(proposal_id):
     if not proposal:
         return jsonify({"ok": False, "pesan": "Proposal tidak ditemukan."}), 404
 
-    xls_bytes = export_proposal_form_excel(proposal)
+    try:
+        xls_bytes = export_proposal_form_excel(proposal)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "pesan": f"Gagal mengekspor form Excel: {str(e)}"}), 500
+
     no_clean = (proposal.get("nomor_proposal") or f"PROP_{proposal_id}").replace("/", "_").replace("\\", "_")
     filename = f"Sponsorship_Form_{no_clean}.xlsx"
 

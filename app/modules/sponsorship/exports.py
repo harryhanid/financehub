@@ -641,6 +641,7 @@ def export_proposal_form_excel(proposal: dict) -> bytes:
     import openpyxl
 
     template_paths = [
+        os.path.join(os.path.dirname(__file__), "templates", "Form_Sponsorship_Template.xlsx"),
         os.path.join(os.path.dirname(__file__), "..", "..", "storage", "templates", "Form_Sponsorship_Template.xlsx"),
         "C:/Financehub/app/storage/templates/Form_Sponsorship_Template.xlsx",
         "C:/Users/25010160/Downloads/Form Sponsor/Form.xlsx",
