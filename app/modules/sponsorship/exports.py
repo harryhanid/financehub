@@ -293,7 +293,10 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
     prop_filters = {"status": "Open"}
     if filters.get("tahun"):
         prop_filters["tahun"] = filters.get("tahun")
-    open_proposals = list_proposals(company_id, prop_filters, limit=2000, offset=0)
+    try:
+        open_proposals = list_proposals(company_id, prop_filters, limit=2000, offset=0)
+    except Exception:
+        open_proposals = []
     open_total = sum(float(p.get("total_amount") or 0) for p in open_proposals)
     
     wb = openpyxl.Workbook()
@@ -303,25 +306,25 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
     # Enable grid lines
     ws.views.sheetView[0].showGridLines = True
     
-    # Styles matching outstanding.html
+    # Styles matching reference format
     hdr_fill = PatternFill("solid", fgColor="1E3A8A")
     grand_fill = PatternFill("solid", fgColor="256D7B")
     sec_fill = PatternFill("solid", fgColor="5B929E")
     zebra_fill = PatternFill("solid", fgColor="F8FAFC")
+    prop_sec_fill = PatternFill("solid", fgColor="0D9488")
+    overall_fill = PatternFill("solid", fgColor="1E293B")
     
-    font_hdr = Font(name="Arial", size=10, bold=True, color="FFFFFF")
-    font_bold_white = Font(name="Arial", size=10, bold=True, color="FFFFFF")
-    font_regular = Font(name="Arial", size=10)
+    font_hdr = Font(name="Arial", size=12, bold=True, color="FFFFFF")
+    font_bold_white = Font(name="Arial", size=12, bold=True, color="FFFFFF")
+    font_regular = Font(name="Arial", size=12)
     
     thin_side = Side(style="thin", color="D1D5DB")
     cell_border = Border(top=thin_side, bottom=thin_side, left=thin_side, right=thin_side)
     
-    align_center = Alignment(horizontal="center", vertical="center")
-    align_left = Alignment(horizontal="left", vertical="center")
-    align_right = Alignment(horizontal="right", vertical="center")
+    num_fmt_accounting = '_-* #,##0_-;\\-* #,##0_-;_-* "-"??_-;_-@_-'
     
     headers = [
-        "NO",
+        "No",
         "Tanggal Approval",
         "Reff",
         "LEMBAGA/ PERORANGAN",
@@ -331,25 +334,25 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
     ]
     num_cols = len(headers)
     
-    # Header row
+    # Header row (height = 44.0)
     ws.append(headers)
-    ws.row_dimensions[1].height = 24
+    ws.row_dimensions[1].height = 44.0
     for col_idx in range(1, num_cols + 1):
         cell = ws.cell(row=1, column=col_idx)
         cell.fill = hdr_fill
         cell.font = font_hdr
         cell.border = cell_border
-        if col_idx in [1, 2, 3, 7]:
-            cell.alignment = align_center
+        if col_idx in [1, 6]:
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+        elif col_idx in [2, 3, 7]:
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         elif col_idx in [4, 5]:
-            cell.alignment = align_left
-        elif col_idx == 6:
-            cell.alignment = align_right
+            cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-    # Grand Total row (matching outstanding.html top row)
+    # Grand Total row (height = 27.5)
     ws.append(["Total Outstanding Sponsorship", "", "", "", "", grand_total, ""])
     gt_row = ws.max_row
-    ws.row_dimensions[gt_row].height = 22
+    ws.row_dimensions[gt_row].height = 27.5
     ws.merge_cells(start_row=gt_row, start_column=1, end_row=gt_row, end_column=5)
     for col_idx in range(1, num_cols + 1):
         cell = ws.cell(row=gt_row, column=col_idx)
@@ -357,19 +360,19 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
         cell.font = font_bold_white
         cell.border = cell_border
         if col_idx == 1:
-            cell.alignment = align_left
+            cell.alignment = Alignment(horizontal="left", vertical="center")
         elif col_idx == 6:
-            cell.alignment = align_right
-            cell.number_format = _NUM_FMT
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.number_format = num_fmt_accounting
         elif col_idx == 7:
-            cell.alignment = align_center
+            cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Section rows
     for section in sections:
-        # Category Header row
+        # Category Header row (height = 27.5)
         ws.append([section["cat2_label"], "", "", "", "", section["subtotal"], ""])
         sec_row = ws.max_row
-        ws.row_dimensions[sec_row].height = 20
+        ws.row_dimensions[sec_row].height = 27.5
         ws.merge_cells(start_row=sec_row, start_column=1, end_row=sec_row, end_column=5)
         for col_idx in range(1, num_cols + 1):
             cell = ws.cell(row=sec_row, column=col_idx)
@@ -377,14 +380,14 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
             cell.font = font_bold_white
             cell.border = cell_border
             if col_idx == 1:
-                cell.alignment = align_left
+                cell.alignment = Alignment(horizontal="left", vertical="center")
             elif col_idx == 6:
-                cell.alignment = align_right
-                cell.number_format = _NUM_FMT
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                cell.number_format = num_fmt_accounting
             elif col_idx == 7:
-                cell.alignment = align_center
+                cell.alignment = Alignment(horizontal="center", vertical="center")
 
-        # Item rows
+        # Item rows (height = 39.5)
         for idx, r in enumerate(section["rows"]):
             ws.append([
                 r.get("no"),
@@ -396,7 +399,7 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
                 r.get("status") or ""
             ])
             r_idx = ws.max_row
-            ws.row_dimensions[r_idx].height = 19
+            ws.row_dimensions[r_idx].height = 39.5
             is_even = (idx % 2 == 1)
             row_fill = zebra_fill if is_even else None
             
@@ -406,19 +409,27 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
                 cell.border = cell_border
                 if row_fill:
                     cell.fill = row_fill
-                if col_idx in [1, 2, 3, 7]:
-                    cell.alignment = align_center
+                if col_idx in [1, 2]:
+                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+                elif col_idx == 3:
+                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 elif col_idx in [4, 5]:
-                    cell.alignment = align_left
+                    cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
                 elif col_idx == 6:
-                    cell.alignment = align_right
-                    cell.number_format = _NUM_FMT
+                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+                    cell.number_format = num_fmt_accounting
+                elif col_idx == 7:
+                    cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+        # Spacer row after section data rows ("jeda baris setelah data", height = 9.0)
+        ws.append(["", "", "", "", "", "", ""])
+        spacer_idx = ws.max_row
+        ws.row_dimensions[spacer_idx].height = 9.0
 
     if open_proposals:
-        prop_sec_fill = PatternFill("solid", fgColor="0D9488")
         ws.append([f"Proposal Sponsor (Status: Open) - {len(open_proposals)} Proposal", "", "", "", "", open_total, ""])
         prop_row = ws.max_row
-        ws.row_dimensions[prop_row].height = 20
+        ws.row_dimensions[prop_row].height = 27.5
         ws.merge_cells(start_row=prop_row, start_column=1, end_row=prop_row, end_column=5)
         for col_idx in range(1, num_cols + 1):
             cell = ws.cell(row=prop_row, column=col_idx)
@@ -426,12 +437,12 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
             cell.font = font_bold_white
             cell.border = cell_border
             if col_idx == 1:
-                cell.alignment = align_left
+                cell.alignment = Alignment(horizontal="left", vertical="center")
             elif col_idx == 6:
-                cell.alignment = align_right
-                cell.number_format = _NUM_FMT
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                cell.number_format = num_fmt_accounting
             elif col_idx == 7:
-                cell.alignment = align_center
+                cell.alignment = Alignment(horizontal="center", vertical="center")
 
         months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
         for idx, p in enumerate(open_proposals, start=1):
@@ -446,6 +457,10 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
                 except Exception:
                     pass
 
+            status_text = _proposal_status_text(p)
+            lines_count = status_text.count("\n") + 1 if status_text else 1
+            prop_height = max(39.5, lines_count * 19.75) if lines_count > 1 else 39.5
+
             ws.append([
                 idx,
                 tgl_display,
@@ -453,10 +468,10 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
                 "",
                 p.get("kegiatan") or "",
                 float(p.get("total_amount") or 0.0),
-                _proposal_status_text(p)
+                status_text
             ])
             r_idx = ws.max_row
-            ws.row_dimensions[r_idx].height = 32 if "\n" in _proposal_status_text(p) else 19
+            ws.row_dimensions[r_idx].height = prop_height
             is_even = (idx % 2 == 1)
             row_fill = zebra_fill if is_even else None
             
@@ -466,21 +481,22 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
                 cell.border = cell_border
                 if row_fill:
                     cell.fill = row_fill
-                if col_idx == 7:
+                if col_idx in [1, 2]:
+                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+                elif col_idx == 3:
                     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                elif col_idx in [1, 2, 3]:
-                    cell.alignment = align_center
                 elif col_idx in [4, 5]:
-                    cell.alignment = align_left
+                    cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
                 elif col_idx == 6:
-                    cell.alignment = align_right
-                    cell.number_format = _NUM_FMT
+                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=False)
+                    cell.number_format = num_fmt_accounting
+                elif col_idx == 7:
+                    cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-        # Overall Grand Total row
-        overall_fill = PatternFill("solid", fgColor="1E293B")
+        # Overall Grand Total row (height = 27.5)
         ws.append(["Total Keseluruhan (Outstanding + Proposal Open)", "", "", "", "", grand_total + open_total, ""])
         tot_row = ws.max_row
-        ws.row_dimensions[tot_row].height = 22
+        ws.row_dimensions[tot_row].height = 27.5
         ws.merge_cells(start_row=tot_row, start_column=1, end_row=tot_row, end_column=5)
         for col_idx in range(1, num_cols + 1):
             cell = ws.cell(row=tot_row, column=col_idx)
@@ -488,24 +504,24 @@ def export_outstanding_excel(company_id: int, filters: dict) -> bytes:
             cell.font = font_bold_white
             cell.border = cell_border
             if col_idx == 1:
-                cell.alignment = align_left
+                cell.alignment = Alignment(horizontal="left", vertical="center")
             elif col_idx == 6:
-                cell.alignment = align_right
-                cell.number_format = _NUM_FMT
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                cell.number_format = num_fmt_accounting
             elif col_idx == 7:
-                cell.alignment = align_center
+                cell.alignment = Alignment(horizontal="center", vertical="center")
 
     # Freeze header + grand total row
     ws.freeze_panes = "A3"
 
-    # Column widths
-    ws.column_dimensions["A"].width = 7    # NO
-    ws.column_dimensions["B"].width = 18   # Tanggal Approval
-    ws.column_dimensions["C"].width = 16   # Reff
-    ws.column_dimensions["D"].width = 38   # LEMBAGA/ PERORANGAN
-    ws.column_dimensions["E"].width = 44   # PERIHAL
-    ws.column_dimensions["F"].width = 22   # Amount in Rp
-    ws.column_dimensions["G"].width = 18   # Status Sponsor
+    # Column widths matching desired reference format
+    ws.column_dimensions["A"].width = 7.0   # No
+    ws.column_dimensions["B"].width = 13.5  # Tanggal Approval
+    ws.column_dimensions["C"].width = 19.5  # Reff
+    ws.column_dimensions["D"].width = 44.0  # LEMBAGA/ PERORANGAN
+    ws.column_dimensions["E"].width = 66.5  # PERIHAL
+    ws.column_dimensions["F"].width = 22.0  # Amount in Rp
+    ws.column_dimensions["G"].width = 47.0  # Status Sponsor
 
     buf = io.BytesIO()
     wb.save(buf)

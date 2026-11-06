@@ -149,7 +149,10 @@ def api_report_data():
         prop_filters = {"status": "Open"}
         if tahun:
             prop_filters["tahun"] = tahun
-        open_proposals = list_proposals(_cid(), prop_filters, limit=2000, offset=0)
+        try:
+            open_proposals = list_proposals(_cid(), prop_filters, limit=2000, offset=0)
+        except Exception:
+            open_proposals = []
         open_total = sum(float(p.get("total_amount") or 0) for p in open_proposals)
         months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
         for p in open_proposals:
@@ -272,7 +275,10 @@ def outstanding_page():
         prop_filters = {"status": "Open"}
         if filters.get("tahun"):
             prop_filters["tahun"] = filters.get("tahun")
-        open_proposals = list_proposals(_cid(), prop_filters, limit=2000, offset=0)
+        try:
+            open_proposals = list_proposals(_cid(), prop_filters, limit=2000, offset=0)
+        except Exception:
+            open_proposals = []
         open_proposals_total = sum(float(p.get("total_amount") or 0) for p in open_proposals)
         months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
         for p in open_proposals:

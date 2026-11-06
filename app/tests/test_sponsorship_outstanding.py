@@ -73,7 +73,7 @@ def test_export_outstanding_excel(app):
     assert ws.title == "Outstanding Sponsorship"
 
     headers = [cell.value for cell in ws[1]]
-    assert headers == ["NO", "Tanggal Approval", "Reff", "LEMBAGA/ PERORANGAN", "PERIHAL", "Amount in Rp", "Status Sponsor"]
+    assert headers == ["No", "Tanggal Approval", "Reff", "LEMBAGA/ PERORANGAN", "PERIHAL", "Amount in Rp", "Status Sponsor"]
     
     # Grand total row
     assert ws.cell(row=2, column=1).value == "Total Outstanding Sponsorship"
