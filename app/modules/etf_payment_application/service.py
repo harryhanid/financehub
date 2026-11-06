@@ -836,6 +836,53 @@ def approve_pa_fc(pa_id: int, company_id: int, tab: str = "agri") -> dict:
     return {"ok": True, "pesan": f"PA {row['pa_number']} disetujui dan berstatus Open."}
 
 
+def approve_pa_fc_bulk(pa_ids: list, company_id: int, tab: str = "agri") -> dict:
+    """Approve FC massal: semua PA terpilih yang masih On Review FC -> open dalam SATU UPDATE;
+    PA lain (sudah diproses / bukan milik company) dilewati dan dilaporkan."""
+    ids = sorted({int(i) for i in (pa_ids or []) if str(i).strip().lstrip("-").isdigit()})
+    if not ids:
+        return {"ok": False, "pesan": "Tidak ada PA yang dipilih."}
+    pa_tbl, *_ = _tbls(tab)
+    ph = ",".join("?" * len(ids))
+    conn = get_conn()
+    try:
+        cur = conn.batch([
+            (f"UPDATE {pa_tbl} SET status='open', checked_by_fincon=?, updated_at=? "
+             f"WHERE id IN ({ph}) AND company_id=? AND status=? RETURNING pa_number",
+             (_today_wib(), _ts(), *ids, company_id, STATUS_REVIEW_FC)),
+        ])[0]
+        done = [r["pa_number"] for r in cur.fetchall()]
+        conn.commit()
+    finally:
+        conn.close()
+    if not done:
+        return {"ok": False, "pesan": "Tidak ada PA terpilih yang berstatus On Review FC."}
+    skipped = len(ids) - len(done)
+    pesan = f"{len(done)} PA disetujui dan berstatus Open."
+    if skipped:
+        pesan += f" {skipped} PA dilewati karena tidak berstatus On Review FC."
+    return {"ok": True, "pesan": pesan, "approved": done}
+
+
+def reject_pa_fc_bulk(pa_ids: list, company_id: int, reason: str, tab: str = "agri") -> dict:
+    """Reject FC massal dengan satu alasan. Tiap PA tetap lewat reject_pa_fc (atomik per PA:
+    status, kunci budget dilepas, baris dilepas dari budget); PA yang tidak On Review FC dilewati."""
+    reason = (reason or "").strip()
+    if not reason:
+        return {"ok": False, "pesan": "Alasan reject wajib diisi."}
+    ids = sorted({int(i) for i in (pa_ids or []) if str(i).strip().lstrip("-").isdigit()})
+    if not ids:
+        return {"ok": False, "pesan": "Tidak ada PA yang dipilih."}
+    done = [i for i in ids if reject_pa_fc(i, company_id, reason, tab).get("ok")]
+    if not done:
+        return {"ok": False, "pesan": "Tidak ada PA terpilih yang berstatus On Review FC."}
+    skipped = len(ids) - len(done)
+    pesan = f"{len(done)} PA ditolak."
+    if skipped:
+        pesan += f" {skipped} PA dilewati karena tidak berstatus On Review FC."
+    return {"ok": True, "pesan": pesan, "rejected": done}
+
+
 def reject_pa_fc(pa_id: int, company_id: int, reason: str, tab: str = "agri") -> dict:
     """FC menolak PA On Review FC: status -> rejected + alasan; budget yang dikunci kembali open dan
     baris PA dilepas dari budget (budget_id NULL) supaya hapus PA nanti tidak membuka budget yang sudah dipakai PA lain."""

@@ -6,7 +6,7 @@ from modules.etf_payment_application.service import (
     get_pa_list, get_pa_flat, get_pa_header, bulk_update_pa, export_pa_excel,
     create_pa, update_pa, delete_pa, get_pa_lines, get_siswa_autocomplete,
     get_draft_siswa, get_draft_lines_for_siswa, get_pa_summary, VALID_TABS,
-    approve_pa_fc, reject_pa_fc, get_serah_log, valid_tabs, entity_tabs,
+    approve_pa_fc, approve_pa_fc_bulk, reject_pa_fc, reject_pa_fc_bulk, get_serah_log, valid_tabs, entity_tabs,
 )
 import config
 
@@ -367,6 +367,27 @@ def approve_fc(pa_id):
     if tab not in valid_tabs(session.get("company_id")):
         tab = "agri"
     return jsonify(approve_pa_fc(pa_id, session.get("company_id"), tab))
+
+
+@bp.route("/approve-fc-bulk", methods=["POST"])
+@role_required("FC", "Admin")
+def approve_fc_bulk():
+    tab = request.args.get("tab", "agri").lower()
+    if tab not in valid_tabs(session.get("company_id")):
+        tab = "agri"
+    pa_ids = (request.get_json(silent=True) or {}).get("pa_ids") or []
+    return jsonify(approve_pa_fc_bulk(pa_ids, session.get("company_id"), tab))
+
+
+@bp.route("/reject-fc-bulk", methods=["POST"])
+@role_required("FC", "Admin")
+def reject_fc_bulk():
+    tab = request.args.get("tab", "agri").lower()
+    if tab not in valid_tabs(session.get("company_id")):
+        tab = "agri"
+    body = request.get_json(silent=True) or {}
+    return jsonify(reject_pa_fc_bulk(body.get("pa_ids") or [], session.get("company_id"),
+                                     body.get("reason") or "", tab))
 
 
 @bp.route("/<int:pa_id>/reject-fc", methods=["POST"])

@@ -267,6 +267,10 @@
     <input type="date" id="bulk-date-inp" style="font-size:.78rem; padding:2px 5px; border:1px solid var(--accent-border); border-radius:4px">
     <button class="btn btn-primary btn-sm" onclick="bulkFillDate()">Isi Tanggal</button>
     <button class="btn btn-success btn-sm" onclick="bulkFillToday()">Hari Ini</button>
+    {% if current_role in ["FC", "Admin", "admin"] %}
+    <button class="btn btn-primary btn-sm" id="bulk-approve-fc" onclick="bulkApproveFc()" style="display:none">Approve Terpilih</button>
+    <button class="btn btn-secondary btn-sm" id="bulk-reject-fc" onclick="bulkRejectFc()" style="display:none;color:var(--danger,#c0392b)">Reject Terpilih</button>
+    {% endif %}
   </div>
   <button class="btn btn-secondary btn-sm" onclick="clearSelection()" style="margin-left:auto">✕ Batalkan Pilihan</button>
 </div>
@@ -1379,7 +1383,66 @@ function updateBulkBar() {
   const bar = document.getElementById("bulk-bar");
   bar.style.display = sel.length ? "flex" : "none";
   document.getElementById("bulk-count").textContent = `${sel.length} baris dipilih`;
+  const approveBtn = document.getElementById("bulk-approve-fc");
+  if (approveBtn) {
+    const n = _selectedReviewFcPaIds().length;
+    approveBtn.style.display = n ? "" : "none";
+    approveBtn.textContent = `Approve Terpilih (${n} PA)`;
+    const rejectBtn = document.getElementById("bulk-reject-fc");
+    if (rejectBtn) {
+      rejectBtn.style.display = n ? "" : "none";
+      rejectBtn.textContent = `Reject Terpilih (${n} PA)`;
+    }
+  }
   renderPaChips();
+}
+
+// PA unik dari baris terpilih yang masih On Review FC (satu PA bisa punya beberapa baris siswa).
+function _selectedReviewFcPaIds() {
+  const ids = new Set();
+  getSelectedPa(ACTIVE_TAB).forEach(e => {
+    const tr = document.querySelector(`#pa-table tbody tr[data-pa-id="${e.paId}"]`);
+    if (tr && tr.querySelector('button[onclick^="approvePaFc"]')) ids.add(e.paId);
+  });
+  return [...ids];
+}
+
+async function bulkApproveFc() {
+  const paIds = _selectedReviewFcPaIds();
+  if (!paIds.length) { showToast("Tidak ada PA On Review FC yang dipilih.", "error"); return; }
+  if (!await confirmModal(`Setujui ${paIds.length} PA terpilih? Status menjadi Open dan Checked Fincon diisi tanggal hari ini.`,
+    { confirmText: 'Approve' })) return;
+  showLoading("Menyetujui PA...");
+  try {
+    const res = await apiFetch(`/etf-payment-application/approve-fc-bulk?tab=${ACTIVE_TAB}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pa_ids: paIds })
+    });
+    if (!res) return;
+    const data = await res.json();
+    showToast(data.pesan, data.ok ? 'success' : 'error');
+    if (data.ok) { clearSelectedPa(ACTIVE_TAB); window.location.reload(); }
+  } finally {
+    hideLoading();
+  }
+}
+
+async function bulkRejectFc() {
+  const paIds = _selectedReviewFcPaIds();
+  if (!paIds.length) { showToast("Tidak ada PA On Review FC yang dipilih.", "error"); return; }
+  const reason = (window.prompt(`Alasan reject untuk ${paIds.length} PA terpilih (wajib, sama untuk semua):`) || '').trim();
+  if (!reason) { showToast('Alasan reject wajib diisi.', 'error'); return; }
+  showLoading("Menolak PA...");
+  try {
+    const res = await apiFetch(`/etf-payment-application/reject-fc-bulk?tab=${ACTIVE_TAB}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pa_ids: paIds, reason })
+    });
+    if (!res) return;
+    const data = await res.json();
+    showToast(data.pesan, data.ok ? 'success' : 'error');
+    if (data.ok) { clearSelectedPa(ACTIVE_TAB); window.location.reload(); }
+  } finally {
+    hideLoading();
+  }
 }
 
 function renderPaChips() {

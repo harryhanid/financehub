@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from database import get_conn
 from modules.etf_payment_application.service import (
-    approve_pa_fc, reject_pa_fc, update_pa, bulk_update_pa, delete_pa, get_pa_flat,
+    approve_pa_fc, approve_pa_fc_bulk, reject_pa_fc, reject_pa_fc_bulk, update_pa, bulk_update_pa, delete_pa, get_pa_flat,
 )
 from tests.test_prportal_fn import _siswa, _budget, _payload, _submit, _today
 
@@ -108,3 +108,40 @@ def test_flat_rows_carry_keperluan_and_edit_cannot_change_it():
     update_pa(pa_id, COMPANY_ID, {"keperluan": "diubah", "keterangan": "catatan FC"}, "agri")
     row = [r for r in get_pa_flat(COMPANY_ID, "agri", "active") if r["pa_id"] == pa_id][0]
     assert row["keperluan"] == "Pembayaran semester" and row["keterangan"] == "catatan FC"
+
+
+def test_bulk_approve_only_on_review_fc_and_reports_skipped():
+    a, _ = _make("FB1")
+    b, _ = _make("FB2")
+    c, _ = _make("FB3")
+    assert approve_pa_fc(c, COMPANY_ID, "agri")["ok"] is True            # sudah open -> dilewati
+    out = approve_pa_fc_bulk([a, b, b, c], COMPANY_ID, "agri")
+    assert out["ok"] is True, out
+    assert len(out["approved"]) == 2 and "1 PA dilewati" in out["pesan"]
+    for pid in (a, b):
+        pa = _pa(pid)
+        assert pa["status"] == "open" and pa["checked_by_fincon"] == _today()
+
+
+def test_bulk_approve_nothing_eligible_or_empty():
+    a, _ = _make("FB4")
+    assert approve_pa_fc(a, COMPANY_ID, "agri")["ok"] is True
+    assert approve_pa_fc_bulk([a], COMPANY_ID, "agri")["ok"] is False
+    assert approve_pa_fc_bulk([], COMPANY_ID, "agri")["ok"] is False
+    assert approve_pa_fc_bulk([a], COMPANY_ID + 999, "agri")["ok"] is False   # company lain tidak tersentuh
+
+
+def test_bulk_reject_one_reason_releases_budgets_and_skips_processed():
+    a, ba = _make("FR1")
+    b, bb = _make("FR2")
+    c, _ = _make("FR3")
+    assert approve_pa_fc(c, COMPANY_ID, "agri")["ok"] is True            # sudah open -> dilewati
+    assert reject_pa_fc_bulk([a, b], COMPANY_ID, "  ", "agri")["ok"] is False   # alasan wajib
+    out = reject_pa_fc_bulk([a, b, c], COMPANY_ID, "Dokumen kurang", "agri")
+    assert out["ok"] is True, out
+    assert sorted(out["rejected"]) == sorted([a, b]) and "1 PA dilewati" in out["pesan"]
+    for pid, bid in ((a, ba), (b, bb)):
+        pa = _pa(pid)
+        assert pa["status"] == "rejected" and pa["reject_reason"] == "Dokumen kurang"
+        assert _budget_status(bid) == "open"
+    assert _pa(c)["status"] == "open"
